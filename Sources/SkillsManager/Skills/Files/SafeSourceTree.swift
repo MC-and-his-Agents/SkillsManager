@@ -60,6 +60,25 @@ nonisolated final class SafeSourceTree: @unchecked Sendable {
         rootIdentity = Identity(openedMetadata)
     }
 
+    init(directoryDescriptor: Int32, displayPath: String) throws {
+        let descriptor = Darwin.fcntl(directoryDescriptor, F_DUPFD_CLOEXEC, 0)
+        guard descriptor >= 0 else {
+            throw SkillContentSnapshotError.fileSystemFailure(path: displayPath, code: errno)
+        }
+        var metadata = stat()
+        guard Darwin.fstat(descriptor, &metadata) == 0 else {
+            let code = errno
+            Darwin.close(descriptor)
+            throw SkillContentSnapshotError.fileSystemFailure(path: displayPath, code: code)
+        }
+        guard SkillContentFileEnumerator.kind(of: metadata) == .directory else {
+            Darwin.close(descriptor)
+            throw SkillContentSnapshotError.rootIsNotDirectory(path: displayPath)
+        }
+        rootDescriptor = descriptor
+        rootIdentity = Identity(metadata)
+    }
+
     deinit {
         Darwin.close(rootDescriptor)
     }
@@ -169,6 +188,7 @@ nonisolated final class SafeSourceTree: @unchecked Sendable {
         defer { Darwin.closedir(directory) }
 
         var names: [String] = []
+        Darwin.rewinddir(directory)
         errno = 0
         while let entry = Darwin.readdir(directory) {
             let name = Self.name(of: entry)
@@ -205,6 +225,24 @@ extension SkillContentSnapshot {
             throw SkillContentSnapshotError.fileSystemFailure(path: destinationRoot.path, code: errno)
         }
         defer { Darwin.close(rootDescriptor) }
+
+        try copyFiles(
+            toDirectoryDescriptor: rootDescriptor,
+            limits: limits,
+            checkpoint: checkpoint
+        )
+    }
+
+    nonisolated func copyFiles(
+        toDirectoryDescriptor rootDescriptor: Int32,
+        limits: SkillContentLimits = .default,
+        checkpoint: SkillCancellationCheckpoint = {}
+    ) throws {
+        var destinationMetadata = stat()
+        guard Darwin.fstat(rootDescriptor, &destinationMetadata) == 0,
+              SkillContentFileEnumerator.kind(of: destinationMetadata) == .directory else {
+            throw SkillContentSnapshotError.rootIsNotDirectory(path: "destination")
+        }
 
         var totalByteCount = UInt64.zero
         for file in discoveredFiles {

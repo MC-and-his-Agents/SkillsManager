@@ -21,48 +21,42 @@ nonisolated final class ZIPArchiveSnapshot {
         guard UInt64(status.st_size) <= maximumByteCount else {
             throw SafeSkillArchiveError.archiveTooLarge
         }
-        let snapshotFile = try Self.makeSnapshotFile(in: rootDescriptor)
-        var readDescriptor: Int32 = -1
+        let descriptor = try Self.makeAnonymousFile(in: rootDescriptor)
         do {
             try Self.copy(
                 source: source,
-                destination: snapshotFile.descriptor,
+                destination: descriptor,
                 maximumByteCount: maximumByteCount,
                 checkpoint: checkpoint
             )
-            readDescriptor = Darwin.openat(
-                rootDescriptor,
-                snapshotFile.name,
-                O_RDONLY | O_NOFOLLOW | O_CLOEXEC
-            )
-            guard readDescriptor >= 0 else { throw zipSnapshotPOSIXError() }
-            guard Darwin.unlinkat(rootDescriptor, snapshotFile.name, 0) == 0 else {
+            guard Darwin.lseek(descriptor, 0, SEEK_SET) == 0 else {
                 throw zipSnapshotPOSIXError()
             }
         } catch {
-            if readDescriptor >= 0 { Darwin.close(readDescriptor) }
-            Darwin.close(snapshotFile.descriptor)
-            _ = Darwin.unlinkat(rootDescriptor, snapshotFile.name, 0)
+            Darwin.close(descriptor)
             throw error
         }
-        Darwin.close(snapshotFile.descriptor)
-        handle = FileHandle(fileDescriptor: readDescriptor, closeOnDealloc: true)
-        descriptorURL = URL(fileURLWithPath: "/dev/fd/\(readDescriptor)")
+        handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        descriptorURL = URL(fileURLWithPath: "/dev/fd/\(descriptor)")
     }
 
-    private static func makeSnapshotFile(
-        in rootDescriptor: Int32
-    ) throws -> (descriptor: Int32, name: String) {
+    private static func makeAnonymousFile(in rootDescriptor: Int32) throws -> Int32 {
         while true {
             let name = ".skillsmanager-tmp-archive-snapshot-\(UUID().uuidString.lowercased())"
             let descriptor = Darwin.openat(
                 rootDescriptor, name,
                 O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
-                S_IRUSR
+                S_IRUSR | S_IWUSR
             )
             if descriptor < 0, errno == EEXIST { continue }
             guard descriptor >= 0 else { throw zipSnapshotPOSIXError() }
-            return (descriptor, name)
+            guard Darwin.unlinkat(rootDescriptor, name, 0) == 0 else {
+                let code = errno
+                Darwin.close(descriptor)
+                _ = Darwin.unlinkat(rootDescriptor, name, 0)
+                throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
+            }
+            return descriptor
         }
     }
 

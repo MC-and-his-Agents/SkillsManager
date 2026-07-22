@@ -1,61 +1,9 @@
 import Darwin
 import Foundation
 
-nonisolated enum SkillInstallConflictPolicy: Sendable {
-    case chooseUniqueName
-    case replaceExisting
-}
-
-nonisolated enum SafeSkillStagingError: LocalizedError, Equatable {
-    case invalidDestinationName(String)
-    case destinationRootMismatch
-    case destinationPathCollision(String, String)
-    case sourceChanged(expected: String, actual: String)
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidDestinationName(let name):
-            return "The Skill destination name is unsafe: \(name)"
-        case .destinationRootMismatch:
-            return "The Skill destination does not match its registered managed root."
-        case .destinationPathCollision(let first, let second):
-            return "The destination contains conflicting Skill names: \(first) and \(second)"
-        case .sourceChanged:
-            return "The Skill contents changed while they were being imported. Try again."
-        }
-    }
-}
-
-nonisolated struct SafeSkillCleanupDebt: Equatable, Sendable {
-    let url: URL
-    let reason: String
-}
-
-nonisolated struct SafeSkillStagingFailure: LocalizedError, Equatable, Sendable {
-    let originalReason: String
-    let cleanupDebts: [SafeSkillCleanupDebt]
-
-    var errorDescription: String? {
-        let cleanup = cleanupDebts.map {
-            "Cleanup is still needed at \($0.url.path): \($0.reason)"
-        }.joined(separator: " ")
-        return "\(originalReason) \(cleanup)"
-    }
-}
-
-nonisolated struct SafeSkillInstallResult: Equatable, Sendable {
-    let installedURL: URL
-    let cleanupDebts: [SafeSkillCleanupDebt]
-
-    init(installedURL: URL, cleanupDebts: [SafeSkillCleanupDebt] = []) {
-        self.installedURL = installedURL
-        self.cleanupDebts = cleanupDebts
-    }
-}
-
 /// Copies one validated Skill into a same-filesystem staging directory before promotion.
 nonisolated struct SafeSkillStager {
-    typealias MetadataWriter = (URL) throws -> Void
+    typealias MetadataWriter = (Int32) throws -> Void
     typealias GuardFactory = (URL) throws -> ManagedPathGuard
 
     private let fileManager: FileManager
@@ -87,6 +35,28 @@ nonisolated struct SafeSkillStager {
             limits: limits,
             checkpoint: checkpoint
         )
+        return try install(
+            sourceSnapshot: sourceSnapshot,
+            expectedFingerprint: expectedFingerprint,
+            destinationRoot: destinationRoot,
+            preferredName: preferredName,
+            conflictPolicy: conflictPolicy,
+            managedRoot: managedRoot,
+            checkpoint: checkpoint,
+            metadataWriter: metadataWriter
+        )
+    }
+
+    private func install(
+        sourceSnapshot: SkillContentSnapshot,
+        expectedFingerprint: String,
+        destinationRoot: URL,
+        preferredName: String,
+        conflictPolicy: SkillInstallConflictPolicy,
+        managedRoot: ManagedRootReference?,
+        checkpoint: SkillCancellationCheckpoint,
+        metadataWriter: MetadataWriter
+    ) throws -> SafeSkillInstallResult {
         guard sourceSnapshot.fingerprint == expectedFingerprint else {
             throw SafeSkillStagingError.sourceChanged(
                 expected: expectedFingerprint,
@@ -96,45 +66,58 @@ nonisolated struct SafeSkillStager {
         try checkpoint()
         let destination = try verifiedManagedRoot(destinationRoot, reference: managedRoot)
         let guardrail = try guardFactory(destination.url)
+        try guardrail.verifyRootIdentity(expected: destination.identity)
         let normalizedName = try validatedName(preferredName)
         let stagedURL = destination.url.appendingPathComponent(
             ".skillsmanager-tmp-\(UUID().uuidString.lowercased())",
             isDirectory: true
         )
-        var stagedIdentity: ManagedItemIdentity?
+        var stagedHandle: ManagedDirectoryHandle?
 
         do {
-            try fileManager.createDirectory(at: stagedURL, withIntermediateDirectories: false)
-            stagedIdentity = try guardrail.itemIdentity(at: stagedURL)
+            let handle = try guardrail.createDirectory(at: stagedURL)
+            stagedHandle = handle
             try sourceSnapshot.copyFiles(
-                to: stagedURL,
+                toDirectoryDescriptor: handle.descriptor,
                 limits: limits,
                 checkpoint: checkpoint
             )
-            try metadataWriter(stagedURL)
+            try metadataWriter(handle.descriptor)
             try checkpoint()
-            guard let expectedStaged = stagedIdentity else {
-                throw ManagedPathError.itemChanged
+            return try withPromotionLock(for: destination.identity) {
+                try promote(
+                    stagedURL: stagedURL,
+                    expectedStaged: handle.identity,
+                    in: destination.url,
+                    preferredName: normalizedName,
+                    conflictPolicy: conflictPolicy,
+                    guardrail: guardrail,
+                    checkpoint: checkpoint,
+                    validateBeforeCommit: { descriptor in
+                        try validateStaged(
+                            descriptor: descriptor,
+                            displayPath: stagedURL.path,
+                            expectedFingerprint: expectedFingerprint,
+                            checkpoint: checkpoint
+                        )
+                    },
+                    validateCommitted: { descriptor in
+                        try validateStaged(
+                            descriptor: descriptor,
+                            displayPath: stagedURL.path,
+                            expectedFingerprint: expectedFingerprint,
+                            checkpoint: {}
+                        )
+                    }
+                )
             }
-            return try promote(
-                stagedURL: stagedURL,
-                expectedStaged: expectedStaged,
-                in: destination.url,
-                preferredName: normalizedName,
-                conflictPolicy: conflictPolicy,
-                guardrail: guardrail,
-                checkpoint: checkpoint,
-                validateStaged: { url in
-                    try validateStaged(at: url, expectedFingerprint: expectedFingerprint)
-                }
-            )
         } catch let indeterminate as ManagedPromotionIndeterminate {
             throw indeterminate
         } catch let operationError {
             try throwAfterCleanup(
                 operationError,
                 itemURL: stagedURL,
-                expectedIdentity: stagedIdentity,
+                expectedIdentity: stagedHandle?.identity,
                 guardrail: guardrail
             )
         }
@@ -155,15 +138,16 @@ nonisolated struct SafeSkillStager {
         try checkpoint()
         let destination = try verifiedManagedRoot(destinationRoot, reference: managedRoot)
         let guardrail = try guardFactory(destination.url)
+        try guardrail.verifyRootIdentity(expected: destination.identity)
         let extractionURL = destination.url.appendingPathComponent(
             ".skillsmanager-tmp-archive-\(UUID().uuidString.lowercased())",
             isDirectory: true
         )
-        var extractionIdentity: ManagedItemIdentity?
+        var extractionHandle: ManagedDirectoryHandle?
 
         do {
-            try fileManager.createDirectory(at: extractionURL, withIntermediateDirectories: false)
-            extractionIdentity = try guardrail.itemIdentity(at: extractionURL)
+            let handle = try guardrail.createDirectory(at: extractionURL)
+            extractionHandle = handle
             try checkpoint()
             let archiveLimits = SafeSkillArchive.Limits(
                 maximumFileCount: limits.maximumFileCount,
@@ -172,25 +156,29 @@ nonisolated struct SafeSkillStager {
             )
             try SafeSkillArchive(limits: archiveLimits).extract(
                 archiveAt: archiveURL,
-                to: extractionURL,
+                toDirectoryDescriptor: handle.descriptor,
                 checkpoint: checkpoint
             )
             try checkpoint()
-            let sourceRoot = try SkillPackageLocator().locateSkillRoot(in: extractionURL)
-            let extractedFingerprint = try SkillContentSnapshot.capture(
-                at: sourceRoot,
+            let package = try AnchoredSkillPackageLocator.locate(
+                in: handle.descriptor,
+                displayPath: extractionURL.path
+            )
+            let sourceSnapshot = try SkillContentSnapshot.capture(
+                directoryDescriptor: package.descriptor,
+                displayPath: package.displayPath,
                 limits: limits,
                 checkpoint: checkpoint
-            ).fingerprint
-            guard extractedFingerprint == expectedFingerprint else {
+            )
+            guard sourceSnapshot.fingerprint == expectedFingerprint else {
                 throw SafeSkillStagingError.sourceChanged(
                     expected: expectedFingerprint,
-                    actual: extractedFingerprint
+                    actual: sourceSnapshot.fingerprint
                 )
             }
 
             let result = try install(
-                sourceRoot: sourceRoot,
+                sourceSnapshot: sourceSnapshot,
                 expectedFingerprint: expectedFingerprint,
                 destinationRoot: destination.url,
                 preferredName: preferredName,
@@ -202,14 +190,14 @@ nonisolated struct SafeSkillStager {
             return finishArchiveInstall(
                 result,
                 extractionURL: extractionURL,
-                extractionIdentity: extractionIdentity,
+                extractionIdentity: handle.identity,
                 guardrail: guardrail
             )
         } catch let operationError {
             try throwAfterCleanup(
                 operationError,
                 itemURL: extractionURL,
-                expectedIdentity: extractionIdentity,
+                expectedIdentity: extractionHandle?.identity,
                 guardrail: guardrail
             )
         }
@@ -218,17 +206,19 @@ nonisolated struct SafeSkillStager {
     private func verifiedManagedRoot(
         _ requestedURL: URL,
         reference: ManagedRootReference?
-    ) throws -> (url: URL, reference: ManagedRootReference) {
+    ) throws -> (url: URL, reference: ManagedRootReference, identity: ManagedItemIdentity) {
         let requested = requestedURL.standardizedFileURL
         if let reference {
             guard requested == reference.registeredURL || requested == reference.canonicalURL else {
                 throw SafeSkillStagingError.destinationRootMismatch
             }
-            return (try reference.verifiedRootURL(), reference)
+            let verified = try reference.verifiedRoot()
+            return (verified.url, reference, verified.identity)
         }
         try fileManager.createDirectory(at: requested, withIntermediateDirectories: true)
         let captured = try ManagedRootReference.capture(at: requested)
-        return (try captured.verifiedRootURL(), captured)
+        let verified = try captured.verifiedRoot()
+        return (verified.url, captured, verified.identity)
     }
 
     private func promote(
@@ -239,7 +229,8 @@ nonisolated struct SafeSkillStager {
         conflictPolicy: SkillInstallConflictPolicy,
         guardrail: ManagedPathGuard,
         checkpoint: SkillCancellationCheckpoint,
-        validateStaged: (URL) throws -> Void
+        validateBeforeCommit: (Int32) throws -> Void,
+        validateCommitted: (Int32) throws -> Void
     ) throws -> SafeSkillInstallResult {
         switch conflictPolicy {
         case .replaceExisting:
@@ -250,7 +241,8 @@ nonisolated struct SafeSkillStager {
                 preferredName: preferredName,
                 guardrail: guardrail,
                 checkpoint: checkpoint,
-                validateStaged: validateStaged
+                validateBeforeCommit: validateBeforeCommit,
+                validateCommitted: validateCommitted
             )
         case .chooseUniqueName:
             while true {
@@ -258,14 +250,17 @@ nonisolated struct SafeSkillStager {
                 let finalURL = try destinationURL(
                     in: root,
                     preferredName: preferredName,
-                    conflictPolicy: .chooseUniqueName
+                    conflictPolicy: .chooseUniqueName,
+                    guardrail: guardrail
                 )
                 do {
                     try guardrail.promoteStagedItemIfAbsent(
                         at: stagedURL,
                         to: finalURL,
                         expectedStaged: expectedStaged,
-                        validateStaged: validateStaged
+                        commitCheckpoint: checkpoint,
+                        validateStaged: validateBeforeCommit,
+                        validateCommitted: validateCommitted
                     )
                     return SafeSkillInstallResult(installedURL: finalURL)
                 } catch ManagedPathError.destinationAlreadyExists {
@@ -282,14 +277,16 @@ nonisolated struct SafeSkillStager {
         preferredName: String,
         guardrail: ManagedPathGuard,
         checkpoint: SkillCancellationCheckpoint,
-        validateStaged: (URL) throws -> Void
+        validateBeforeCommit: (Int32) throws -> Void,
+        validateCommitted: (Int32) throws -> Void
     ) throws -> SafeSkillInstallResult {
         while true {
             try checkpoint()
             let finalURL = try destinationURL(
                 in: root,
                 preferredName: preferredName,
-                conflictPolicy: .replaceExisting
+                conflictPolicy: .replaceExisting,
+                guardrail: guardrail
             )
             guard let expectedTarget = try guardrail.itemIdentity(at: finalURL) else {
                 do {
@@ -297,7 +294,9 @@ nonisolated struct SafeSkillStager {
                         at: stagedURL,
                         to: finalURL,
                         expectedStaged: expectedStaged,
-                        validateStaged: validateStaged
+                        commitCheckpoint: checkpoint,
+                        validateStaged: validateBeforeCommit,
+                        validateCommitted: validateCommitted
                     )
                     return SafeSkillInstallResult(installedURL: finalURL)
                 } catch ManagedPathError.destinationAlreadyExists {
@@ -310,7 +309,9 @@ nonisolated struct SafeSkillStager {
                     to: finalURL,
                     expectedStaged: expectedStaged,
                     expectedTarget: expectedTarget,
-                    validateStaged: validateStaged
+                    commitCheckpoint: checkpoint,
+                    validateStaged: validateBeforeCommit,
+                    validateCommitted: validateCommitted
                 )
                 let cleanupDebts = try consume(
                     result,
@@ -318,7 +319,7 @@ nonisolated struct SafeSkillStager {
                     expectedStaged: expectedStaged,
                     expectedCleanupIdentity: expectedTarget,
                     guardrail: guardrail,
-                    validateStaged: validateStaged
+                    validateCommitted: validateCommitted
                 )
                 return SafeSkillInstallResult(
                     installedURL: finalURL,
@@ -339,7 +340,7 @@ nonisolated struct SafeSkillStager {
         expectedStaged: ManagedItemIdentity,
         expectedCleanupIdentity: ManagedItemIdentity,
         guardrail: ManagedPathGuard,
-        validateStaged: (URL) throws -> Void
+        validateCommitted: (Int32) throws -> Void
     ) throws -> [SafeSkillCleanupDebt] {
         guard case .committedWithCleanupDebt(let cleanupURL, let originalError) = result else {
             return []
@@ -359,7 +360,7 @@ nonisolated struct SafeSkillStager {
             expectedTarget: expectedStaged,
             recoveryURL: cleanupURL,
             expectedRecovery: expectedCleanupIdentity,
-            validateTarget: validateStaged
+            validateTarget: validateCommitted
         )
         guard let retryError else { return [] }
         NSLog(
@@ -430,69 +431,24 @@ nonisolated struct SafeSkillStager {
         }
     }
 
-    private func validateStaged(at url: URL, expectedFingerprint: String) throws {
-        let actual = try SkillContentSnapshot.capture(at: url, limits: limits).fingerprint
+    private func validateStaged(
+        descriptor: Int32,
+        displayPath: String,
+        expectedFingerprint: String,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws {
+        let actual = try SkillContentSnapshot.capture(
+            directoryDescriptor: descriptor,
+            displayPath: displayPath,
+            limits: limits,
+            checkpoint: checkpoint
+        ).fingerprint
         guard actual == expectedFingerprint else {
             throw SafeSkillStagingError.sourceChanged(
                 expected: expectedFingerprint,
                 actual: actual
             )
         }
-    }
-
-    private func destinationURL(
-        in root: URL,
-        preferredName: String,
-        conflictPolicy: SkillInstallConflictPolicy
-    ) throws -> URL {
-        let children = try fileManager.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: nil,
-            options: []
-        ).filter { !$0.lastPathComponent.hasPrefix(".skillsmanager-tmp-") }
-
-        let matches = children.filter {
-            SkillContentPath.collisionKey(for: $0.lastPathComponent)
-                == SkillContentPath.collisionKey(for: preferredName)
-        }
-        guard matches.count <= 1 else {
-            throw SafeSkillStagingError.destinationPathCollision(
-                matches[0].lastPathComponent,
-                matches[1].lastPathComponent
-            )
-        }
-
-        switch (conflictPolicy, matches.first) {
-        case (.replaceExisting, let existing?):
-            return existing
-        case (.replaceExisting, nil), (.chooseUniqueName, nil):
-            return root.appendingPathComponent(preferredName, isDirectory: true)
-        case (.chooseUniqueName, .some):
-            var suffix = 1
-            while true {
-                let candidateName = "\(preferredName)-\(suffix)"
-                let candidateKey = SkillContentPath.collisionKey(for: candidateName)
-                if children.contains(where: {
-                    SkillContentPath.collisionKey(for: $0.lastPathComponent) == candidateKey
-                }) == false {
-                    return root.appendingPathComponent(candidateName, isDirectory: true)
-                }
-                suffix += 1
-            }
-        }
-    }
-
-    private func validatedName(_ name: String) throws -> String {
-        let normalized = name.precomposedStringWithCanonicalMapping
-        guard !normalized.isEmpty,
-              normalized != ".",
-              normalized != "..",
-              !normalized.hasPrefix("."),
-              !normalized.contains("/"),
-              !normalized.contains("\\"),
-              !normalized.contains("\0") else {
-            throw SafeSkillStagingError.invalidDestinationName(name)
-        }
-        return normalized
+        try checkpoint()
     }
 }

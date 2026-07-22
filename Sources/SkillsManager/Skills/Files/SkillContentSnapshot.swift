@@ -46,8 +46,31 @@ nonisolated struct SkillContentSnapshot: Equatable, Sendable {
         checkpoint: SkillCancellationCheckpoint = {}
     ) throws -> SkillContentSnapshot {
         try checkpoint()
+        let sourceTree = try SafeSourceTree(rootURL: rootURL)
+        return try capture(sourceTree: sourceTree, limits: limits, checkpoint: checkpoint)
+    }
+
+    nonisolated static func capture(
+        directoryDescriptor: Int32,
+        displayPath: String,
+        limits: SkillContentLimits = .default,
+        checkpoint: SkillCancellationCheckpoint = {}
+    ) throws -> SkillContentSnapshot {
+        try checkpoint()
+        let sourceTree = try SafeSourceTree(
+            directoryDescriptor: directoryDescriptor,
+            displayPath: displayPath
+        )
+        return try capture(sourceTree: sourceTree, limits: limits, checkpoint: checkpoint)
+    }
+
+    private nonisolated static func capture(
+        sourceTree: SafeSourceTree,
+        limits: SkillContentLimits,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws -> SkillContentSnapshot {
         let discovery = try SkillContentFileEnumerator(limits: limits).files(
-            at: rootURL,
+            in: sourceTree,
             checkpoint: checkpoint
         )
         let discoveredFiles = discovery.files
@@ -286,11 +309,10 @@ nonisolated struct SkillContentFileEnumerator {
     let limits: SkillContentLimits
 
     nonisolated func files(
-        at rootURL: URL,
+        in sourceTree: SafeSourceTree,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> Discovery {
         try checkpoint()
-        let sourceTree = try SafeSourceTree(rootURL: rootURL)
         let rootDescriptor = try sourceTree.duplicateRoot()
         defer { Darwin.close(rootDescriptor) }
         var files: [DiscoveredFile] = []
@@ -341,11 +363,11 @@ nonisolated struct SkillContentFileEnumerator {
             )
             let kind = Self.kind(of: childMetadata)
 
-            if SkillContentExclusions.contains(normalizedName, isDirectory: kind == .directory) {
-                continue
-            }
             guard kind != .unsupported else {
                 throw SkillContentSnapshotError.unsupportedEntry(path: relativePath)
+            }
+            if SkillContentExclusions.contains(normalizedName, isDirectory: kind == .directory) {
+                continue
             }
 
             if kind == .directory {

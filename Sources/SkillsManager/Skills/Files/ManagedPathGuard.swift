@@ -61,7 +61,7 @@ nonisolated enum ManagedPathError: LocalizedError, Equatable {
         return "\(state) \(recovery) Cause: \(cause)"
     }
 }
-nonisolated struct ManagedItemIdentity: Equatable, Sendable {
+nonisolated struct ManagedItemIdentity: Hashable, Sendable {
     fileprivate let device: UInt64
     fileprivate let inode: UInt64
     fileprivate let fileType: UInt32
@@ -73,39 +73,13 @@ nonisolated struct ManagedItemIdentity: Equatable, Sendable {
         generation = UInt64(value.st_gen)
     }
 }
-nonisolated enum ManagedPromotionResult: Equatable {
-    case committed
-    case committedWithCleanupDebt(URL, ManagedPathError)
-}
-nonisolated struct ManagedPromotionIndeterminate: LocalizedError, Equatable, Sendable {
-    let targetURL: URL
-    let recoveryURL: URL?
-
-    var errorDescription: String? {
-        let recovery = recoveryURL.map {
-            " Existing contents were preserved for recovery at \($0.path)."
-        } ?? ""
-        return "The Skill promotion completed, but its final state changed concurrently. "
-            + "Inspect \(targetURL.path) before retrying.\(recovery)"
-    }
-}
-nonisolated struct ManagedPathGuardTestHooks {
-    var beforeNoReplaceCommit: () throws -> Void = {}
-    var afterNoReplaceCommit: () throws -> Void = {}
-    var beforeReplaceCommit: () throws -> Void = {}
-    var afterReplaceCommit: () throws -> Void = {}
-    var beforeCleanup: () throws -> Void = {}
-    var afterCleanup: () throws -> Void = {}
-    var beforeQuarantineMove: (String) throws -> Void = { _ in }
-    var afterQuarantineMove: (String, String) throws -> Void = { _, _ in }
-}
 nonisolated final class ManagedPathGuard {
     typealias FileIdentity = ManagedItemIdentity
     struct ManagedName {
         let value: String
     }
 
-    private struct PromotionNames {
+    struct PromotionNames {
         let staged: String
         let target: String
     }
@@ -178,7 +152,9 @@ nonisolated final class ManagedPathGuard {
         at stagedURL: URL,
         to targetURL: URL,
         expectedStaged: ManagedItemIdentity,
-        validateStaged: (URL) throws -> Void
+        commitCheckpoint: SkillCancellationCheckpoint = {},
+        validateStaged: (Int32) throws -> Void,
+        validateCommitted: (Int32) throws -> Void
     ) throws {
         let names = try promotionNames(stagedURL: stagedURL, targetURL: targetURL)
         guard try identity(of: names.staged, in: rootDescriptor) == expectedStaged else {
@@ -186,10 +162,12 @@ nonisolated final class ManagedPathGuard {
         }
         try hooks.beforeNoReplaceCommit()
         try verifyRootIdentity()
-        try validateStaged(stagedURL)
+        try withItemDescriptor(at: stagedURL, expectedIdentity: expectedStaged, validateStaged)
         guard try identity(of: names.staged, in: rootDescriptor) == expectedStaged else {
             throw ManagedPathError.itemChanged
         }
+        try verifyRootIdentity()
+        try commitCheckpoint()
         guard Darwin.renameatx_np(
             rootDescriptor,
             names.staged,
@@ -207,10 +185,18 @@ nonisolated final class ManagedPathGuard {
             try verifyCommittedTarget(
                 names: names,
                 expectedStaged: expectedStaged,
-                validateStaged: validateStaged
+                validateStaged: validateCommitted
             )
         } catch {
             throw promotionIndeterminate(names: names, recoveryIdentity: expectedStaged)
+        }
+        do {
+            try verifyUniqueEquivalentSibling(named: names.target)
+        } catch {
+            guard rollbackNoReplace(names: names, expectedStaged: expectedStaged) else {
+                throw promotionIndeterminate(names: names, recoveryIdentity: expectedStaged)
+            }
+            throw error
         }
     }
     func replaceStagedItem(
@@ -218,19 +204,22 @@ nonisolated final class ManagedPathGuard {
         to targetURL: URL,
         expectedStaged: ManagedItemIdentity,
         expectedTarget: ManagedItemIdentity,
-        validateStaged: (URL) throws -> Void
+        commitCheckpoint: SkillCancellationCheckpoint = {},
+        validateStaged: (Int32) throws -> Void,
+        validateCommitted: (Int32) throws -> Void
     ) throws -> ManagedPromotionResult {
         let names = try promotionNames(stagedURL: stagedURL, targetURL: targetURL)
         guard try identity(of: names.staged, in: rootDescriptor) == expectedStaged else {
             throw ManagedPathError.itemChanged
         }
         try hooks.beforeReplaceCommit()
-        try validateStaged(stagedURL)
+        try withItemDescriptor(at: stagedURL, expectedIdentity: expectedStaged, validateStaged)
         guard try identity(of: names.staged, in: rootDescriptor) == expectedStaged,
               try identityIfPresent(of: names.target, in: rootDescriptor) == expectedTarget else {
             throw ManagedPathError.itemChanged
         }
         try verifyRootIdentity()
+        try commitCheckpoint()
         guard swap(names) == 0 else {
             throw ManagedPathError.posix(operation: "swap staged and existing items", code: errno)
         }
@@ -239,7 +228,7 @@ nonisolated final class ManagedPathGuard {
             try verifyCommittedTarget(
                 names: names,
                 expectedStaged: expectedStaged,
-                validateStaged: validateStaged
+                validateStaged: validateCommitted
             )
             guard try identityIfPresent(of: names.staged, in: rootDescriptor) == expectedTarget else {
                 throw ManagedPathError.itemChanged
@@ -247,11 +236,23 @@ nonisolated final class ManagedPathGuard {
         } catch {
             throw promotionIndeterminate(names: names, recoveryIdentity: expectedTarget)
         }
+        do {
+            try verifyUniqueEquivalentSibling(named: names.target)
+        } catch {
+            guard rollbackReplace(
+                names: names,
+                expectedStaged: expectedStaged,
+                expectedTarget: expectedTarget
+            ) else {
+                throw promotionIndeterminate(names: names, recoveryIdentity: expectedTarget)
+            }
+            throw error
+        }
         return try cleanReplacedItem(
             names: names,
             expectedStaged: expectedStaged,
             expectedTarget: expectedTarget,
-            validateStaged: validateStaged
+            validateStaged: validateCommitted
         )
     }
     func verifyCommittedPromotion(
@@ -259,7 +260,7 @@ nonisolated final class ManagedPathGuard {
         expectedTarget: ManagedItemIdentity,
         recoveryURL: URL,
         expectedRecovery: ManagedItemIdentity,
-        validateTarget: (URL) throws -> Void
+        validateTarget: (Int32) throws -> Void
     ) throws {
         let names: PromotionNames
         do {
@@ -273,6 +274,7 @@ nonisolated final class ManagedPathGuard {
                 expectedStaged: expectedTarget,
                 validateStaged: validateTarget
             )
+            try verifyUniqueEquivalentSibling(named: names.target)
         } catch {
             throw promotionIndeterminate(names: names, recoveryIdentity: expectedRecovery)
         }
@@ -320,6 +322,10 @@ nonisolated final class ManagedPathGuard {
             throw ManagedPathError.rootReplaced
         }
     }
+    func verifyRootIdentity(expected: ManagedItemIdentity) throws {
+        try verifyRootIdentity()
+        guard rootIdentity == expected else { throw ManagedPathError.rootReplaced }
+    }
     private func promotionNames(stagedURL: URL, targetURL: URL) throws -> PromotionNames {
         try verifyRootIdentity()
         let staged = try managedName(for: stagedURL).value
@@ -330,7 +336,7 @@ nonisolated final class ManagedPathGuard {
         try verifyRootIdentity()
         return PromotionNames(staged: staged, target: target)
     }
-    private func swap(_ names: PromotionNames) -> Int32 {
+    func swap(_ names: PromotionNames) -> Int32 {
         Darwin.renameatx_np(
             rootDescriptor,
             names.staged,
@@ -343,7 +349,7 @@ nonisolated final class ManagedPathGuard {
         names: PromotionNames,
         expectedStaged: ManagedItemIdentity,
         expectedTarget: ManagedItemIdentity,
-        validateStaged: (URL) throws -> Void
+        validateStaged: (Int32) throws -> Void
     ) throws -> ManagedPromotionResult {
         let cleanupResult: ManagedPromotionResult
         do {
@@ -383,7 +389,7 @@ nonisolated final class ManagedPathGuard {
         names: PromotionNames,
         expectedStaged: ManagedItemIdentity,
         expectedTarget: ManagedItemIdentity,
-        validateStaged: (URL) throws -> Void
+        validateStaged: (Int32) throws -> Void
     ) throws -> ManagedPromotionResult {
         try verifyCommittedPromotion(
             targetURL: URL(fileURLWithPath: rootPath).appendingPathComponent(names.target),
@@ -398,13 +404,14 @@ nonisolated final class ManagedPathGuard {
     private func verifyCommittedTarget(
         names: PromotionNames,
         expectedStaged: ManagedItemIdentity,
-        validateStaged: (URL) throws -> Void
+        validateStaged: (Int32) throws -> Void
     ) throws {
         try verifyRootIdentity()
         guard try identityIfPresent(of: names.target, in: rootDescriptor) == expectedStaged else {
             throw ManagedPathError.itemChanged
         }
-        try validateStaged(URL(fileURLWithPath: rootPath).appendingPathComponent(names.target))
+        let targetURL = URL(fileURLWithPath: rootPath).appendingPathComponent(names.target)
+        try withItemDescriptor(at: targetURL, expectedIdentity: expectedStaged, validateStaged)
         guard try identityIfPresent(of: names.target, in: rootDescriptor) == expectedStaged else {
             throw ManagedPathError.itemChanged
         }
@@ -441,7 +448,7 @@ nonisolated final class ManagedPathGuard {
         return FileIdentity(itemStatus)
     }
 
-    private func identityIfPresent(
+    func identityIfPresent(
         of name: String,
         in parentDescriptor: Int32
     ) throws -> FileIdentity? {

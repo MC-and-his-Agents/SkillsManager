@@ -43,6 +43,41 @@ nonisolated struct SafeSkillArchive {
     ) throws -> [String] {
         let rootDescriptor = try openEmptyDestination(emptyDestinationURL)
         defer { Darwin.close(rootDescriptor) }
+        return try extract(
+            archiveAt: archiveURL,
+            toRootDescriptor: rootDescriptor,
+            checkpoint: checkpoint,
+            afterPreflight: afterPreflight,
+            beforeEntry: beforeEntry
+        )
+    }
+
+    @discardableResult
+    func extract(
+        archiveAt archiveURL: URL,
+        toDirectoryDescriptor destinationDescriptor: Int32,
+        checkpoint: SkillCancellationCheckpoint = {},
+        afterPreflight: () throws -> Void = {},
+        beforeEntry: ([String]) throws -> Void = { _ in }
+    ) throws -> [String] {
+        let rootDescriptor = try duplicateEmptyDestination(destinationDescriptor)
+        defer { Darwin.close(rootDescriptor) }
+        return try extract(
+            archiveAt: archiveURL,
+            toRootDescriptor: rootDescriptor,
+            checkpoint: checkpoint,
+            afterPreflight: afterPreflight,
+            beforeEntry: beforeEntry
+        )
+    }
+
+    private func extract(
+        archiveAt archiveURL: URL,
+        toRootDescriptor rootDescriptor: Int32,
+        checkpoint: SkillCancellationCheckpoint,
+        afterPreflight: () throws -> Void,
+        beforeEntry: ([String]) throws -> Void
+    ) throws -> [String] {
         do {
             let snapshot = try ZIPArchiveSnapshot(
                 copying: archiveURL,
@@ -76,6 +111,26 @@ nonisolated struct SafeSkillArchive {
             throw error
         }
     }
+
+    private func duplicateEmptyDestination(_ descriptor: Int32) throws -> Int32 {
+        var status = stat()
+        guard Darwin.fstat(descriptor, &status) == 0,
+              status.st_mode & S_IFMT == S_IFDIR else {
+            throw SafeSkillArchiveError.invalidDestination
+        }
+        let duplicate = Darwin.dup(descriptor)
+        guard duplicate >= 0 else { throw SafeSkillArchiveError.invalidDestination }
+        do {
+            guard try directoryNames(in: duplicate).isEmpty else {
+                throw SafeSkillArchiveError.destinationNotEmpty
+            }
+            return duplicate
+        } catch {
+            Darwin.close(duplicate)
+            throw error
+        }
+    }
+
     private func openEmptyDestination(_ url: URL) throws -> Int32 {
         var pathStatus = stat()
         guard Darwin.lstat(url.path, &pathStatus) == 0, pathStatus.st_mode & S_IFMT == S_IFDIR else {

@@ -1,4 +1,5 @@
 import CryptoKit
+import Darwin
 import Foundation
 
 actor SkillFileWorker {
@@ -123,8 +124,12 @@ actor SkillFileWorker {
                     conflictPolicy: .replaceExisting,
                     managedRoot: destination.managedRoot,
                     checkpoint: { try Task.checkCancellation() }
-                ) { stagedURL in
-                    try Self.writeClawdhubOrigin(at: stagedURL, slug: slug, version: version)
+                ) { stagedDescriptor in
+                    try Self.writeClawdhubOrigin(
+                        in: stagedDescriptor,
+                        slug: slug,
+                        version: version
+                    )
                 }
                 installedStorageKeys.append(destination.storageKey)
                 cleanupDebts.append(contentsOf: result.cleanupDebts)
@@ -264,16 +269,24 @@ actor SkillFileWorker {
         return ClawdhubOrigin(slug: slug, version: version)
     }
 
-    nonisolated private static func writeClawdhubOrigin(
-        at skillRoot: URL,
+    nonisolated static func writeClawdhubOrigin(
+        in skillRootDescriptor: Int32,
         slug: String,
         version: String?
     ) throws {
-        let originDir = skillRoot
-            .appendingPathComponent(".clawdhub", isDirectory: true)
-        try FileManager.default.createDirectory(at: originDir, withIntermediateDirectories: true)
-
-        let originURL = originDir.appendingPathComponent("origin.json")
+        if Darwin.mkdirat(skillRootDescriptor, ".clawdhub", S_IRWXU) != 0, errno != EEXIST {
+            throw workerPOSIXError()
+        }
+        let originDirectory = Darwin.openat(
+            skillRootDescriptor,
+            ".clawdhub",
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
+        guard originDirectory >= 0 else { throw workerPOSIXError() }
+        defer { Darwin.close(originDirectory) }
+        var originStatus = stat()
+        guard Darwin.fstat(originDirectory, &originStatus) == 0 else { throw workerPOSIXError() }
+        let originIdentity = ManagedItemIdentity(originStatus)
         let payload: [String: Any] = [
             "slug": slug,
             "version": version ?? "latest",
@@ -281,7 +294,52 @@ actor SkillFileWorker {
             "installedAt": Int(Date().timeIntervalSince1970)
         ]
         let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted])
-        try data.write(to: originURL, options: [.atomic])
+        let temporaryName = ".skillsmanager-tmp-origin-\(UUID().uuidString.lowercased())"
+        let descriptor = Darwin.openat(
+            originDirectory,
+            temporaryName,
+            O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
+            S_IRUSR | S_IWUSR
+        )
+        guard descriptor >= 0 else { throw workerPOSIXError() }
+        defer {
+            Darwin.close(descriptor)
+            _ = Darwin.unlinkat(originDirectory, temporaryName, 0)
+        }
+        try writeAll(data, to: descriptor)
+        guard Darwin.renameatx_np(
+            originDirectory,
+            temporaryName,
+            originDirectory,
+            "origin.json",
+            UInt32(RENAME_EXCL)
+        ) == 0 else { throw workerPOSIXError() }
+        var finalOriginStatus = stat()
+        guard Darwin.fstatat(
+            skillRootDescriptor,
+            ".clawdhub",
+            &finalOriginStatus,
+            AT_SYMLINK_NOFOLLOW
+        ) == 0,
+            ManagedItemIdentity(finalOriginStatus) == originIdentity else {
+            throw ManagedPathError.itemChanged
+        }
+    }
+
+    nonisolated private static func writeAll(_ data: Data, to descriptor: Int32) throws {
+        try data.withUnsafeBytes { bytes in
+            var offset = 0
+            while offset < bytes.count {
+                let count = Darwin.write(
+                    descriptor,
+                    bytes.baseAddress!.advanced(by: offset),
+                    bytes.count - offset
+                )
+                if count < 0, errno == EINTR { continue }
+                guard count > 0 else { throw workerPOSIXError() }
+                offset += count
+            }
+        }
     }
 
     private func parseMetadata(from markdown: String) -> SkillMetadata {
@@ -391,4 +449,8 @@ actor SkillFileWorker {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
     }
+}
+
+private nonisolated func workerPOSIXError() -> POSIXError {
+    POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
 }

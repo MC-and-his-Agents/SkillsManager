@@ -63,6 +63,67 @@ struct SafeSkillArchiveSnapshotTests {
         }
         #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
     }
+
+    @Test("Unlinks the private snapshot before streaming archive bytes")
+    func snapshotIsInvisibleDuringCopy() throws {
+        let fixture = try SnapshotFixture()
+        defer { fixture.remove() }
+        try fixture.writeArchive(
+            [("safe.txt", Data(repeating: 0x41, count: 128 * 1_024))],
+            to: fixture.archiveURL
+        )
+        var observedFirstCheckpoint = false
+
+        _ = try SafeSkillArchive().extract(
+            archiveAt: fixture.archiveURL,
+            to: fixture.destinationURL,
+            checkpoint: {
+                guard !observedFirstCheckpoint else { return }
+                observedFirstCheckpoint = true
+                let names = try FileManager.default.contentsOfDirectory(
+                    atPath: fixture.destinationURL.path
+                )
+                if !names.isEmpty { throw SnapshotVisibilityError.snapshotWasVisible }
+            }
+        )
+
+        #expect(observedFirstCheckpoint)
+    }
+
+    @Test("Extracts only through the opened destination directory")
+    func descriptorDestinationIgnoresPathReplacement() throws {
+        let fixture = try SnapshotFixture()
+        defer { fixture.remove() }
+        try fixture.writeArchive([("safe.txt", Data("safe".utf8))], to: fixture.archiveURL)
+        let retainedURL = fixture.rootURL.appendingPathComponent("retained", isDirectory: true)
+        let outsideURL = fixture.rootURL.appendingPathComponent("outside", isDirectory: true)
+        let descriptor = Darwin.open(
+            fixture.destinationURL.path,
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
+        guard descriptor >= 0 else { throw POSIXError(.EIO) }
+        defer { Darwin.close(descriptor) }
+        try FileManager.default.moveItem(at: fixture.destinationURL, to: retainedURL)
+        try FileManager.default.createDirectory(at: outsideURL, withIntermediateDirectories: false)
+        try FileManager.default.createSymbolicLink(
+            at: fixture.destinationURL,
+            withDestinationURL: outsideURL
+        )
+
+        _ = try SafeSkillArchive().extract(
+            archiveAt: fixture.archiveURL,
+            toDirectoryDescriptor: descriptor
+        )
+
+        #expect(FileManager.default.fileExists(
+            atPath: retainedURL.appendingPathComponent("safe.txt").path
+        ))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: outsideURL.path).isEmpty)
+    }
+}
+
+private enum SnapshotVisibilityError: Error {
+    case snapshotWasVisible
 }
 
 private struct SnapshotFixture {

@@ -91,6 +91,23 @@ struct SkillContentSnapshotTests {
         }
     }
 
+    @Test("excluded metadata names still reject symbolic links")
+    func rejectsExcludedMetadataLink() throws {
+        try withTemporaryDirectory { root in
+            let outside = root.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: outside) }
+            try write(Data("outside".utf8), to: outside.appendingPathComponent("state"))
+            try FileManager.default.createSymbolicLink(
+                at: root.appendingPathComponent(".skillsmanager.json"),
+                withDestinationURL: outside
+            )
+
+            #expect(throws: SkillContentSnapshotError.unsupportedEntry(path: ".skillsmanager.json")) {
+                try SkillContentSnapshot.capture(at: root)
+            }
+        }
+    }
+
     @Test("resource limits return typed errors")
     func enforcesLimits() throws {
         try withTemporaryDirectory { root in

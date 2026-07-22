@@ -94,6 +94,33 @@ struct ManagedSkillRemovalTests {
         }
     }
 
+    @Test("a root replaced after verification cannot redirect deletion")
+    func rejectsRootReplacedAfterVerification() throws {
+        try withFixture { temporary, root in
+            let scannedSkill = try makeSkill(named: "skill", in: root)
+            let managedRoot = try ManagedRootReference.capture(at: root)
+            let movedRoot = temporary.appendingPathComponent("moved-root")
+            let replacementRoot = temporary.appendingPathComponent("replacement-root")
+            try fileManager.createDirectory(at: replacementRoot, withIntermediateDirectories: false)
+            _ = try makeSkill(named: "skill", in: replacementRoot)
+
+            #expect(throws: ManagedPathError.rootReplaced) {
+                try ManagedSkillRemoval.remove(
+                    targetURL: scannedSkill,
+                    managedRoot: managedRoot,
+                    beforeGuard: {
+                        try fileManager.moveItem(at: root, to: movedRoot)
+                        try fileManager.moveItem(at: replacementRoot, to: root)
+                    }
+                )
+            }
+            #expect(fileManager.fileExists(
+                atPath: root.appendingPathComponent("skill/SKILL.md").path
+            ))
+            #expect(fileManager.fileExists(atPath: movedRoot.appendingPathComponent("skill/SKILL.md").path))
+        }
+    }
+
     private func withFixture(_ body: (URL, URL) throws -> Void) throws {
         let temporary = fileManager.temporaryDirectory
             .appendingPathComponent("ManagedSkillRemovalTests-\(UUID().uuidString)")

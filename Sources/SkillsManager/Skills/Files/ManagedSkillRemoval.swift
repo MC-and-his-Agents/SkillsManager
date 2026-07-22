@@ -13,7 +13,14 @@ nonisolated enum ManagedSkillRemovalError: LocalizedError, Equatable {
 
 /// Removes one skill only when its parent resolves to an explicitly registered skills root.
 nonisolated enum ManagedSkillRemoval {
-    static func remove(targetURL: URL, managedRoot: ManagedRootReference) throws {
+    typealias GuardFactory = (URL) throws -> ManagedPathGuard
+
+    static func remove(
+        targetURL: URL,
+        managedRoot: ManagedRootReference,
+        beforeGuard: () throws -> Void = {},
+        guardFactory: @escaping GuardFactory = { try ManagedPathGuard(rootURL: $0) }
+    ) throws {
         guard targetURL.isFileURL else {
             throw ManagedSkillRemovalError.targetOutsideManagedRoots
         }
@@ -24,11 +31,15 @@ nonisolated enum ManagedSkillRemoval {
         }
 
         let target = targetURL.standardizedFileURL
-        let root = try managedRoot.verifiedRootURL()
+        let verifiedRoot = try managedRoot.verifiedRoot()
+        let root = verifiedRoot.url
         guard target.deletingLastPathComponent().path == root.path else {
             throw ManagedSkillRemovalError.targetOutsideManagedRoots
         }
 
-        try ManagedPathGuard(rootURL: root).removeItem(at: target)
+        try beforeGuard()
+        let guardrail = try guardFactory(root)
+        try guardrail.verifyRootIdentity(expected: verifiedRoot.identity)
+        try guardrail.removeItem(at: target)
     }
 }

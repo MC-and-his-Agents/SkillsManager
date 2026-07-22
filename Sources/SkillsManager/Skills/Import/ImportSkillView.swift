@@ -23,6 +23,7 @@ struct ImportSkillView: View {
     @State private var importWarningMessage: String?
     @State private var installTargets: Set<SkillPlatform> = [.codex]
     @State private var activeTask: Task<Void, Never>?
+    @State private var operationToken = UUID()
     private let importWorker = SkillImportWorker()
 
     private enum Status {
@@ -52,6 +53,7 @@ struct ImportSkillView: View {
         }
         .onDisappear {
             activeTask?.cancel()
+            operationToken = UUID()
             cleanupCandidate()
         }
     }
@@ -150,6 +152,7 @@ struct ImportSkillView: View {
         HStack {
             Button("Cancel") {
                 activeTask?.cancel()
+                operationToken = UUID()
                 dismiss()
             }
             .keyboardShortcut(.cancelAction)
@@ -161,8 +164,10 @@ struct ImportSkillView: View {
             }
 
             Button("Import") {
+                let token = UUID()
                 activeTask?.cancel()
-                activeTask = Task { await importCandidate() }
+                operationToken = token
+                activeTask = Task { await importCandidate(token: token) }
             }
             .buttonStyle(.borderedProminent)
             .disabled(status != .valid || installTargets.isEmpty)
@@ -173,6 +178,8 @@ struct ImportSkillView: View {
     private func handlePick(_ result: Result<[URL], Error>) {
         switch result {
         case .failure(let error):
+            activeTask?.cancel()
+            operationToken = UUID()
             status = .invalid
             errorMessage = error.localizedDescription
         case .success(let urls):
@@ -180,33 +187,38 @@ struct ImportSkillView: View {
                 status = .idle
                 return
             }
+            let token = UUID()
             activeTask?.cancel()
-            activeTask = Task { await validate(url: url) }
+            operationToken = token
+            activeTask = Task { await validate(url: url, token: token) }
         }
     }
 
-    private func validate(url: URL) async {
+    private func validate(url: URL, token: UUID) async {
+        guard operationToken == token else { return }
         status = .validating
         errorMessage = ""
         cleanupCandidate()
 
         let resolved = url.standardizedFileURL
         let fileValues = try? resolved.resourceValues(forKeys: [.isDirectoryKey])
+        guard operationToken == token, !Task.isCancelled else { return }
 
         if fileValues?.isDirectory == true {
-            await validateFolder(resolved)
+            await validateFolder(resolved, token: token)
         } else if resolved.pathExtension.lowercased() == "zip" {
-            await validateZip(resolved)
+            await validateZip(resolved, token: token)
         } else {
+            guard operationToken == token else { return }
             status = .invalid
             errorMessage = "Select a folder or .zip file."
         }
     }
 
-    private func validateFolder(_ folderURL: URL) async {
+    private func validateFolder(_ folderURL: URL, token: UUID) async {
         do {
             let payload = try await importWorker.validateFolder(folderURL)
-            guard !Task.isCancelled else { return }
+            guard operationToken == token, !Task.isCancelled else { return }
             let candidate = ImportCandidate(
                 rootURL: payload.rootURL,
                 skillFileURL: payload.skillFileURL,
@@ -219,16 +231,19 @@ struct ImportSkillView: View {
             )
             self.candidate = candidate
             status = .valid
+        } catch is CancellationError {
+            return
         } catch {
+            guard operationToken == token else { return }
             status = .invalid
             errorMessage = error.localizedDescription
         }
     }
 
-    private func validateZip(_ zipURL: URL) async {
+    private func validateZip(_ zipURL: URL, token: UUID) async {
         do {
             let payload = try await importWorker.validateZip(zipURL)
-            guard !Task.isCancelled else {
+            guard operationToken == token, !Task.isCancelled else {
                 if let temporaryRoot = payload.temporaryRoot {
                     await importWorker.cleanupTemporaryRoot(temporaryRoot)
                 }
@@ -246,15 +261,19 @@ struct ImportSkillView: View {
             )
             self.candidate = candidate
             status = .valid
+        } catch is CancellationError {
+            return
         } catch {
+            guard operationToken == token else { return }
             status = .invalid
             errorMessage = error.localizedDescription
         }
     }
 
-    private func importCandidate() async {
+    private func importCandidate(token: UUID) async {
         guard let candidate else { return }
         guard !installTargets.isEmpty else { return }
+        guard operationToken == token else { return }
         status = .importing
 
         do {
@@ -272,11 +291,16 @@ struct ImportSkillView: View {
             )
             let report = try await importWorker.importCandidate(payload, destinations: destinations)
             await store.loadSkills()
-            guard !Task.isCancelled else { return }
+            guard operationToken == token else { return }
             importWarningMessage = report.warningMessage
             status = .imported
+        } catch is CancellationError {
+            guard operationToken == token else { return }
+            status = .idle
+            errorMessage = ""
         } catch {
             await store.loadSkills()
+            guard operationToken == token else { return }
             status = .invalid
             errorMessage = "Import failed: \(error.localizedDescription)"
         }

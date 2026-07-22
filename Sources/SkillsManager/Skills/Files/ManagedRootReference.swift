@@ -61,12 +61,17 @@ nonisolated struct ManagedRootReference: Hashable, Sendable {
     }
 
     func verifiedRootURL() throws -> URL {
+        try verifiedRoot().url
+    }
+
+    func verifiedRoot() throws -> (url: URL, identity: ManagedItemIdentity) {
+        let canonicalMetadata = try Self.metadata(at: canonicalURL)
         guard Identity(try Self.metadata(at: registeredURL)) == registeredIdentity,
               try Self.canonicalURL(for: registeredURL) == canonicalURL,
-              Identity(try Self.metadata(at: canonicalURL)) == canonicalIdentity else {
+              Identity(canonicalMetadata) == canonicalIdentity else {
             throw ManagedRootReferenceError.rootChanged
         }
-        return canonicalURL
+        return (canonicalURL, ManagedItemIdentity(canonicalMetadata))
     }
 
     private static func metadata(at url: URL) throws -> stat {

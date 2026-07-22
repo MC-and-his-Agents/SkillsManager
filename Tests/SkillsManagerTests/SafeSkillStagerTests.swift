@@ -102,10 +102,7 @@ struct SafeSkillStagerTests {
                 at: metadata.appendingPathComponent("outside"),
                 withDestinationURL: root
             )
-            try FileManager.default.createSymbolicLink(
-                at: source.appendingPathComponent(".skillsmanager.json"),
-                withDestinationURL: root
-            )
+            try Data("state".utf8).write(to: source.appendingPathComponent(".skillsmanager.json"))
 
             let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
             let result = try SafeSkillStager().install(
@@ -328,6 +325,66 @@ struct SafeSkillStagerTests {
         }
     }
 
+    @Test("serializes normalization-equivalent promotions within one managed root")
+    func serializesEquivalentPromotions() async throws {
+        try await withTemporaryDirectory { root in
+            let firstSource = root.appendingPathComponent("first-source", isDirectory: true)
+            let secondSource = root.appendingPathComponent("second-source", isDirectory: true)
+            let destination = root.appendingPathComponent("destination", isDirectory: true)
+            let destinationAlias = root.appendingPathComponent("destination-alias", isDirectory: true)
+            try makeSkill(at: firstSource, markdown: "# First")
+            try makeSkill(at: secondSource, markdown: "# Second")
+            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: false)
+            try FileManager.default.createSymbolicLink(
+                at: destinationAlias,
+                withDestinationURL: destination
+            )
+            let directRoot = try ManagedRootReference.capture(at: destination)
+            let aliasRoot = try ManagedRootReference.capture(at: destinationAlias)
+            let firstFingerprint = try SkillContentSnapshot.capture(at: firstSource).fingerprint
+            let secondFingerprint = try SkillContentSnapshot.capture(at: secondSource).fingerprint
+            let arrivals = DispatchSemaphore(value: 0)
+            let release = DispatchSemaphore(value: 0)
+            let commitEntries = DispatchSemaphore(value: 0)
+            let commitRelease = DispatchSemaphore(value: 0)
+            let first = Self.promotionTask(
+                source: firstSource,
+                fingerprint: firstFingerprint,
+                destination: destination,
+                name: "Foo",
+                managedRoot: directRoot,
+                arrivals: arrivals,
+                release: release,
+                commitEntries: commitEntries,
+                commitRelease: commitRelease
+            )
+            let second = Self.promotionTask(
+                source: secondSource,
+                fingerprint: secondFingerprint,
+                destination: destinationAlias,
+                name: "foo",
+                managedRoot: aliasRoot,
+                arrivals: arrivals,
+                release: release,
+                commitEntries: commitEntries,
+                commitRelease: commitRelease
+            )
+
+            #expect(await wait(arrivals, timeout: .now() + 5) == .success)
+            #expect(await wait(arrivals, timeout: .now() + 5) == .success)
+            release.signal()
+            release.signal()
+            #expect(await wait(commitEntries, timeout: .now() + 5) == .success)
+            #expect(await wait(commitEntries, timeout: .now() + 0.1) == .timedOut)
+            commitRelease.signal()
+            #expect(await wait(commitEntries, timeout: .now() + 5) == .success)
+            commitRelease.signal()
+            let results = try await [first.value, second.value]
+            let names = Set(results.map { $0.installedURL.lastPathComponent })
+            #expect(names == ["Foo", "foo-1"] || names == ["foo", "Foo-1"])
+        }
+    }
+
     private func makeSkill(at root: URL, markdown: String) throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try markdown.write(
@@ -335,6 +392,45 @@ struct SafeSkillStagerTests {
             atomically: true,
             encoding: .utf8
         )
+    }
+
+    private static func promotionTask(
+        source: URL,
+        fingerprint: String,
+        destination: URL,
+        name: String,
+        managedRoot: ManagedRootReference,
+        arrivals: DispatchSemaphore,
+        release: DispatchSemaphore,
+        commitEntries: DispatchSemaphore,
+        commitRelease: DispatchSemaphore
+    ) -> Task<SafeSkillInstallResult, Error> {
+        Task.detached {
+            var hooks = ManagedPathGuardTestHooks()
+            hooks.beforeNoReplaceCommit = {
+                commitEntries.signal()
+                guard commitRelease.wait(timeout: .now() + 5) == .success else {
+                    throw PromotionBarrierError.timedOut
+                }
+            }
+            let stager = SafeSkillStager(
+                guardFactory: { try ManagedPathGuard(rootURL: $0, hooks: hooks) }
+            )
+            return try stager.install(
+                sourceRoot: source,
+                expectedFingerprint: fingerprint,
+                destinationRoot: destination,
+                preferredName: name,
+                conflictPolicy: .chooseUniqueName,
+                managedRoot: managedRoot,
+                metadataWriter: { _ in
+                    arrivals.signal()
+                    guard release.wait(timeout: .now() + 5) == .success else {
+                        throw PromotionBarrierError.timedOut
+                    }
+                }
+            )
+        }
     }
 
     private func hasPartiallyCopiedFile(in destination: URL) throws -> Bool {
@@ -356,4 +452,27 @@ struct SafeSkillStagerTests {
         defer { try? FileManager.default.removeItem(at: root) }
         try body(root)
     }
+
+    private func withTemporaryDirectory(_ body: (URL) async throws -> Void) async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try await body(root)
+    }
+
+    private func wait(
+        _ semaphore: DispatchSemaphore,
+        timeout: DispatchTime
+    ) async -> DispatchTimeoutResult {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                continuation.resume(returning: semaphore.wait(timeout: timeout))
+            }
+        }
+    }
+}
+
+private enum PromotionBarrierError: Error {
+    case timedOut
 }

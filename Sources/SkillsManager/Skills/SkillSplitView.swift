@@ -339,10 +339,12 @@ private struct RemoteInstallSheet: View {
             didInstall = true
             dismiss()
             try? await Task.sleep(for: .seconds(1.2))
+        } catch is CancellationError {
+            // Cancellation before any commit is intentionally silent.
         } catch {
-            if !Task.isCancelled {
-                errorMessage = error.localizedDescription
-            }
+            // PartialSkillInstallError remains visible even when cancellation
+            // arrived while a later destination was being processed.
+            errorMessage = error.localizedDescription
         }
         isInstalling = false
         if didInstall {
