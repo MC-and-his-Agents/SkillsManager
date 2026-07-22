@@ -1,5 +1,30 @@
 import Foundation
 
+nonisolated enum SkillImportValidationError: LocalizedError {
+    case archiveRejected(String)
+    case contentRejected(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .archiveRejected(let reason):
+            return "The zip archive is unsafe or invalid: \(reason)"
+        case .contentRejected(let reason):
+            return "The Skill contents are unsafe or invalid: \(reason)"
+        }
+    }
+}
+
+nonisolated struct PartialSkillInstallError: LocalizedError, Sendable {
+    let installedStorageKeys: [String]
+    let failedStorageKey: String
+    let reason: String
+
+    var errorDescription: String? {
+        let completed = installedStorageKeys.joined(separator: ", ")
+        return "Installed in \(completed), but failed in \(failedStorageKey): \(reason)"
+    }
+}
+
 actor SkillImportWorker {
     struct ImportCandidatePayload: Sendable {
         let rootURL: URL
@@ -7,74 +32,85 @@ actor SkillImportWorker {
         let skillName: String
         let markdown: String
         let temporaryRoot: URL?
+        let archiveURL: URL?
+        let fingerprint: String
     }
 
-    func validateFolder(_ folderURL: URL) -> ImportCandidatePayload? {
-        guard let skillRoot = findSkillRoot(in: folderURL) else { return nil }
-        let skillFileURL = skillRoot.appendingPathComponent("SKILL.md")
-        guard let markdown = try? String(contentsOf: skillFileURL, encoding: .utf8) else { return nil }
-        return ImportCandidatePayload(
+    func validateFolder(_ folderURL: URL) throws -> ImportCandidatePayload {
+        try Task.checkCancellation()
+        let skillRoot = try SkillPackageLocator().locateSkillRoot(in: folderURL)
+        return try makePayload(
             rootURL: skillRoot,
-            skillFileURL: skillFileURL,
-            skillName: skillRoot.lastPathComponent,
-            markdown: markdown,
-            temporaryRoot: nil
+            temporaryRoot: nil,
+            archiveURL: nil,
+            checkpoint: { try Task.checkCancellation() }
         )
     }
 
-    func validateZip(_ zipURL: URL) throws -> ImportCandidatePayload? {
-        let fileManager = FileManager.default
-        let tempRoot = fileManager.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
+    func validateZip(_ zipURL: URL) throws -> ImportCandidatePayload {
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("skillsmanager-import-\(UUID().uuidString)", isDirectory: true)
         do {
-            try fileManager.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-            try unzip(zipURL, to: tempRoot)
-
-            guard let skillRoot = findSkillRoot(in: tempRoot) else {
-                try? fileManager.removeItem(at: tempRoot)
-                return nil
+            try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
+            do {
+                try SafeSkillArchive().extract(
+                    archiveAt: zipURL,
+                    to: temporaryRoot,
+                    checkpoint: { try Task.checkCancellation() }
+                )
+            } catch let error as SafeSkillArchiveError {
+                throw SkillImportValidationError.archiveRejected(error.localizedDescription)
             }
-
-            let skillFileURL = skillRoot.appendingPathComponent("SKILL.md")
-            guard let markdown = try? String(contentsOf: skillFileURL, encoding: .utf8) else {
-                try? fileManager.removeItem(at: tempRoot)
-                return nil
-            }
-
-            return ImportCandidatePayload(
+            let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporaryRoot)
+            return try makePayload(
                 rootURL: skillRoot,
-                skillFileURL: skillFileURL,
-                skillName: skillRoot.lastPathComponent,
-                markdown: markdown,
-                temporaryRoot: tempRoot
+                temporaryRoot: temporaryRoot,
+                archiveURL: zipURL,
+                checkpoint: { try Task.checkCancellation() }
             )
         } catch {
-            try? fileManager.removeItem(at: tempRoot)
+            try? FileManager.default.removeItem(at: temporaryRoot)
             throw error
         }
     }
 
     func importCandidate(
         _ candidate: ImportCandidatePayload,
-        destinations: [SkillFileWorker.InstallDestination],
-        shouldMove: Bool
+        destinations: [SkillFileWorker.InstallDestination]
     ) throws {
-        let fileManager = FileManager.default
-
+        let stager = SafeSkillStager()
+        var installedStorageKeys: [String] = []
         for destination in destinations {
-            let destinationRoot = destination.rootURL
-            try fileManager.createDirectory(at: destinationRoot, withIntermediateDirectories: true)
-            let finalURL = uniqueDestinationURL(
-                base: destinationRoot.appendingPathComponent(candidate.rootURL.lastPathComponent)
-            )
-            if fileManager.fileExists(atPath: finalURL.path) {
-                try fileManager.removeItem(at: finalURL)
-            }
-
-            if shouldMove {
-                try fileManager.moveItem(at: candidate.rootURL, to: finalURL)
-            } else {
-                try fileManager.copyItem(at: candidate.rootURL, to: finalURL)
+            do {
+                if let archiveURL = candidate.archiveURL {
+                    _ = try stager.installArchive(
+                        archiveAt: archiveURL,
+                        expectedFingerprint: candidate.fingerprint,
+                        destinationRoot: destination.rootURL,
+                        preferredName: candidate.skillName,
+                        conflictPolicy: .chooseUniqueName,
+                        managedRoot: destination.managedRoot,
+                        checkpoint: { try Task.checkCancellation() }
+                    )
+                } else {
+                    _ = try stager.install(
+                        sourceRoot: candidate.rootURL,
+                        expectedFingerprint: candidate.fingerprint,
+                        destinationRoot: destination.rootURL,
+                        preferredName: candidate.skillName,
+                        conflictPolicy: .chooseUniqueName,
+                        managedRoot: destination.managedRoot,
+                        checkpoint: { try Task.checkCancellation() }
+                    )
+                }
+                installedStorageKeys.append(destination.storageKey)
+            } catch {
+                guard !installedStorageKeys.isEmpty else { throw error }
+                throw PartialSkillInstallError(
+                    installedStorageKeys: installedStorageKeys,
+                    failedStorageKey: destination.storageKey,
+                    reason: error.localizedDescription
+                )
             }
         }
     }
@@ -83,61 +119,28 @@ actor SkillImportWorker {
         try? FileManager.default.removeItem(at: url)
     }
 
-    private func unzip(_ url: URL, to destination: URL) throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-        process.arguments = ["-x", "-k", url.path, destination.path]
-        try process.run()
-        process.waitUntilExit()
-        if process.terminationStatus != 0 {
-            throw NSError(domain: "ImportSkill", code: 1)
-        }
-    }
-
-    private func findSkillRoot(in rootURL: URL) -> URL? {
-        let fileManager = FileManager.default
-        let directSkill = rootURL.appendingPathComponent("SKILL.md")
-        if fileManager.fileExists(atPath: directSkill.path) {
-            return rootURL
+    private func makePayload(
+        rootURL: URL,
+        temporaryRoot: URL?,
+        archiveURL: URL?,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws -> ImportCandidatePayload {
+        let snapshot: SkillContentSnapshot
+        do {
+            snapshot = try SkillContentSnapshot.capture(at: rootURL, checkpoint: checkpoint)
+        } catch let error as SkillContentSnapshotError {
+            throw SkillImportValidationError.contentRejected(error.localizedDescription)
         }
 
-        guard let children = try? fileManager.contentsOfDirectory(
-            at: rootURL,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return nil
-        }
-
-        let candidateDirs = children.compactMap { url -> URL? in
-            let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
-            guard values?.isDirectory == true else { return nil }
-            let skillFile = url.appendingPathComponent("SKILL.md")
-            return fileManager.fileExists(atPath: skillFile.path) ? url : nil
-        }
-
-        if candidateDirs.count == 1 {
-            return candidateDirs[0]
-        }
-
-        return nil
-    }
-
-    private func uniqueDestinationURL(base: URL) -> URL {
-        let fileManager = FileManager.default
-        if !fileManager.fileExists(atPath: base.path) {
-            return base
-        }
-
-        let baseName = base.lastPathComponent
-        let parent = base.deletingLastPathComponent()
-        var index = 1
-        while true {
-            let candidate = parent.appendingPathComponent("\(baseName)-\(index)")
-            if !fileManager.fileExists(atPath: candidate.path) {
-                return candidate
-            }
-            index += 1
-        }
+        let skillFileURL = rootURL.appendingPathComponent("SKILL.md", isDirectory: false)
+        return ImportCandidatePayload(
+            rootURL: rootURL,
+            skillFileURL: skillFileURL,
+            skillName: rootURL.lastPathComponent,
+            markdown: try String(contentsOf: skillFileURL, encoding: .utf8),
+            temporaryRoot: temporaryRoot,
+            archiveURL: archiveURL,
+            fingerprint: snapshot.fingerprint
+        )
     }
 }

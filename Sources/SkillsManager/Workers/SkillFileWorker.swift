@@ -1,10 +1,20 @@
-import CryptoKit
 import Foundation
 
 actor SkillFileWorker {
     struct InstallDestination: Sendable {
         let rootURL: URL
         let storageKey: String
+        let managedRoot: ManagedRootReference?
+
+        init(
+            rootURL: URL,
+            storageKey: String,
+            managedRoot: ManagedRootReference? = nil
+        ) {
+            self.rootURL = rootURL
+            self.storageKey = storageKey
+            self.managedRoot = managedRoot
+        }
     }
 
     struct ScannedSkillData: Sendable {
@@ -12,6 +22,7 @@ actor SkillFileWorker {
         let name: String
         let displayName: String
         let description: String
+        let managedRoot: ManagedRootReference
         let folderURL: URL
         let skillMarkdownURL: URL
         let references: [SkillReference]
@@ -24,21 +35,32 @@ actor SkillFileWorker {
     }
 
     func loadRawMarkdown(from zipURL: URL) throws -> String {
-        let fileManager = FileManager.default
-        let tempRoot = fileManager.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("skillsmanager-preview-\(UUID().uuidString)", isDirectory: true)
         defer {
-            try? fileManager.removeItem(at: tempRoot)
-            try? fileManager.removeItem(at: zipURL)
+            try? FileManager.default.removeItem(at: temporaryRoot)
+            try? FileManager.default.removeItem(at: zipURL)
         }
 
-        try fileManager.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-        try unzip(zipURL, to: tempRoot)
-
-        guard let skillRoot = findSkillRoot(in: tempRoot) else {
-            throw NSError(domain: "RemoteSkill", code: 3)
+        try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
+        do {
+            try SafeSkillArchive().extract(
+                archiveAt: zipURL,
+                to: temporaryRoot,
+                checkpoint: { try Task.checkCancellation() }
+            )
+        } catch let error as SafeSkillArchiveError {
+            throw SkillImportValidationError.archiveRejected(error.localizedDescription)
         }
-
+        let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporaryRoot)
+        do {
+            _ = try SkillContentSnapshot.capture(
+                at: skillRoot,
+                checkpoint: { try Task.checkCancellation() }
+            )
+        } catch let error as SkillContentSnapshotError {
+            throw SkillImportValidationError.contentRejected(error.localizedDescription)
+        }
         let skillFileURL = skillRoot.appendingPathComponent("SKILL.md")
         return try String(contentsOf: skillFileURL, encoding: .utf8)
     }
@@ -53,31 +75,58 @@ actor SkillFileWorker {
         version: String?,
         destinations: [InstallDestination]
     ) throws -> String? {
-        let fileManager = FileManager.default
-        let tempRoot = fileManager.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("skillsmanager-remote-\(UUID().uuidString)", isDirectory: true)
         defer {
-            try? fileManager.removeItem(at: tempRoot)
-            try? fileManager.removeItem(at: zipURL)
+            try? FileManager.default.removeItem(at: temporaryRoot)
+            try? FileManager.default.removeItem(at: zipURL)
         }
 
-        try fileManager.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-        try unzip(zipURL, to: tempRoot)
-
-        guard let skillRoot = findSkillRoot(in: tempRoot) else {
-            throw NSError(domain: "RemoteSkill", code: 1)
+        try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
+        do {
+            try SafeSkillArchive().extract(
+                archiveAt: zipURL,
+                to: temporaryRoot,
+                checkpoint: { try Task.checkCancellation() }
+            )
+        } catch let error as SafeSkillArchiveError {
+            throw SkillImportValidationError.archiveRejected(error.localizedDescription)
+        }
+        let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporaryRoot)
+        let snapshot: SkillContentSnapshot
+        do {
+            snapshot = try SkillContentSnapshot.capture(
+                at: skillRoot,
+                checkpoint: { try Task.checkCancellation() }
+            )
+        } catch let error as SkillContentSnapshotError {
+            throw SkillImportValidationError.contentRejected(error.localizedDescription)
         }
 
+        let stager = SafeSkillStager()
+        var installedStorageKeys: [String] = []
         for destination in destinations {
-            let destinationRoot = destination.rootURL
-            try fileManager.createDirectory(at: destinationRoot, withIntermediateDirectories: true)
-
-            let finalURL = destinationRoot.appendingPathComponent(slug)
-            if fileManager.fileExists(atPath: finalURL.path) {
-                try fileManager.removeItem(at: finalURL)
+            do {
+                _ = try stager.installArchive(
+                    archiveAt: zipURL,
+                    expectedFingerprint: snapshot.fingerprint,
+                    destinationRoot: destination.rootURL,
+                    preferredName: slug,
+                    conflictPolicy: .replaceExisting,
+                    managedRoot: destination.managedRoot,
+                    checkpoint: { try Task.checkCancellation() }
+                ) { stagedURL in
+                    try Self.writeClawdhubOrigin(at: stagedURL, slug: slug, version: version)
+                }
+                installedStorageKeys.append(destination.storageKey)
+            } catch {
+                guard !installedStorageKeys.isEmpty else { throw error }
+                throw PartialSkillInstallError(
+                    installedStorageKeys: installedStorageKeys,
+                    failedStorageKey: destination.storageKey,
+                    reason: error.localizedDescription
+                )
             }
-            try fileManager.copyItem(at: skillRoot, to: finalURL)
-            try writeClawdhubOrigin(at: finalURL, slug: slug, version: version)
         }
 
         guard let preferred = destinations.first else { return nil }
@@ -87,12 +136,11 @@ actor SkillFileWorker {
     func scanSkills(at baseURL: URL, storageKey: String) throws -> [ScannedSkillData] {
         let fileManager = FileManager.default
 
-        // Directory symlinks can fail URL-based enumeration on macOS.
-        let directoryURL = baseURL.resolvingSymlinksInPath()
-
-        guard fileManager.fileExists(atPath: directoryURL.path) else {
+        guard fileManager.fileExists(atPath: baseURL.path) else {
             return []
         }
+        let managedRoot = try ManagedRootReference.capture(at: baseURL)
+        let directoryURL = try managedRoot.verifiedRootURL()
 
         let items = try fileManager.contentsOfDirectory(
             at: directoryURL,
@@ -124,6 +172,7 @@ actor SkillFileWorker {
                 name: name,
                 displayName: formatTitle(metadata.name ?? name),
                 description: metadata.description ?? "No description available.",
+                managedRoot: managedRoot,
                 folderURL: url,
                 skillMarkdownURL: skillFileURL,
                 references: references,
@@ -133,47 +182,10 @@ actor SkillFileWorker {
     }
 
     func computeSkillHash(for rootURL: URL) throws -> String {
-        let fileManager = FileManager.default
-
-        guard let enumerator = fileManager.enumerator(
+        try SkillContentSnapshot.capture(
             at: rootURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return ""
-        }
-
-        var files: [URL] = []
-        for case let fileURL as URL in enumerator {
-            let path = fileURL.path
-            if path.contains("/.git/") || path.contains("/.clawdhub/") {
-                continue
-            }
-            if fileURL.lastPathComponent == ".DS_Store" {
-                continue
-            }
-            let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey])
-            guard values?.isRegularFile == true else { continue }
-            files.append(fileURL)
-        }
-
-        files.sort { $0.path < $1.path }
-
-        var hasher = SHA256()
-        for fileURL in files {
-            guard let data = try? Data(contentsOf: fileURL),
-                  String(data: data, encoding: .utf8) != nil else {
-                continue
-            }
-            let relative = fileURL.path.replacingOccurrences(of: rootURL.path, with: "")
-            hasher.update(data: Data(relative.utf8))
-            hasher.update(data: Data([0]))
-            hasher.update(data: data)
-            hasher.update(data: Data([0]))
-        }
-
-        let digest = hasher.finalize()
-        return digest.map { String(format: "%02x", $0) }.joined()
+            checkpoint: { try Task.checkCancellation() }
+        ).fingerprint
     }
 
     func readClawdhubOrigin(from skillRoot: URL) -> ClawdhubOrigin? {
@@ -190,47 +202,11 @@ actor SkillFileWorker {
         return ClawdhubOrigin(slug: slug, version: version)
     }
 
-    private func unzip(_ url: URL, to destination: URL) throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-        process.arguments = ["-x", "-k", url.path, destination.path]
-        try process.run()
-        process.waitUntilExit()
-        if process.terminationStatus != 0 {
-            throw NSError(domain: "RemoteSkill", code: 2)
-        }
-    }
-
-    private func findSkillRoot(in rootURL: URL) -> URL? {
-        let fileManager = FileManager.default
-        let directSkill = rootURL.appendingPathComponent("SKILL.md")
-        if fileManager.fileExists(atPath: directSkill.path) {
-            return rootURL
-        }
-
-        guard let children = try? fileManager.contentsOfDirectory(
-            at: rootURL,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return nil
-        }
-
-        let candidateDirs = children.compactMap { url -> URL? in
-            let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
-            guard values?.isDirectory == true else { return nil }
-            let skillFile = url.appendingPathComponent("SKILL.md")
-            return fileManager.fileExists(atPath: skillFile.path) ? url : nil
-        }
-
-        if candidateDirs.count == 1 {
-            return candidateDirs[0]
-        }
-
-        return nil
-    }
-
-    private func writeClawdhubOrigin(at skillRoot: URL, slug: String, version: String?) throws {
+    nonisolated private static func writeClawdhubOrigin(
+        at skillRoot: URL,
+        slug: String,
+        version: String?
+    ) throws {
         let originDir = skillRoot
             .appendingPathComponent(".clawdhub", isDirectory: true)
         try FileManager.default.createDirectory(at: originDir, withIntermediateDirectories: true)

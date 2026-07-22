@@ -54,6 +54,17 @@ struct SkillListView: View {
             }
         }
         .listStyle(.sidebar)
+        .alert(
+            "Unable to Delete Skill",
+            isPresented: Binding(
+                get: { store.deleteErrorMessage != nil },
+                set: { if !$0 { store.deleteErrorMessage = nil } }
+            )
+        ) {
+            Button("OK") { store.deleteErrorMessage = nil }
+        } message: {
+            Text(store.deleteErrorMessage ?? "The Skill could not be deleted safely.")
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

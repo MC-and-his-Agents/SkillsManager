@@ -20,6 +20,7 @@ struct Skill: Identifiable, Hashable, Sendable {
     let description: String
     let platform: SkillPlatform?
     let customPath: CustomSkillPath?
+    let managedRoot: ManagedRootReference
     let folderURL: URL
     let skillMarkdownURL: URL
     let references: [SkillReference]
