@@ -26,11 +26,6 @@ import Observation
         let deleteIDs: [Skill.ID]
     }
 
-    struct PublishState: Codable {
-        let lastPublishedHash: String
-        let lastPublishedAt: Date
-    }
-
     struct CliStatus {
         let isInstalled: Bool
         let isLoggedIn: Bool
@@ -300,8 +295,21 @@ import Observation
     func skillNeedsPublish(_ skill: Skill) async -> Bool {
         do {
             let hash = try await fileWorker.computeSkillHash(for: skill.folderURL)
-            let state = loadPublishState(for: skill.name)
-            return state?.lastPublishedHash != hash
+            guard let state = loadPublishState(for: skill.name) else { return true }
+            let legacyHash: String? = if state.hashAlgorithmVersion == nil {
+                try await fileWorker.computeLegacyPublishHash(for: skill.folderURL)
+            } else {
+                nil
+            }
+            switch state.resolve(currentHash: hash, legacyHash: legacyHash) {
+            case .unchanged:
+                return false
+            case .changed:
+                return true
+            case .migrate(let migratedState):
+                savePublishState(migratedState, for: skill.name)
+                return false
+            }
         } catch {
             return true
         }
@@ -360,7 +368,7 @@ import Observation
         _ skill: RemoteSkill,
         client: RemoteSkillClient,
         destinations: Set<SkillPlatform>
-    ) async throws {
+    ) async throws -> String? {
         guard !destinations.isEmpty else {
             throw NSError(domain: "RemoteSkill", code: 3)
         }
@@ -381,9 +389,9 @@ import Observation
                 storageKey: platform.storageKey
             )
         }
-        let selectedID: String?
+        let result: SkillFileWorker.RemoteInstallResult
         do {
-            selectedID = try await fileWorker.installRemoteSkill(
+            result = try await fileWorker.installRemoteSkill(
                 zipURL: zipURL,
                 slug: skill.slug,
                 version: skill.latestVersion,
@@ -395,20 +403,21 @@ import Observation
         }
 
         await loadSkills()
-        if let selectedID {
+        if let selectedID = result.selectedID {
             self.selectedSkillID = selectedID
         }
+        return result.report.warningMessage
     }
 
     func updateInstalledSkill(
         slug: String,
         version: String?,
         client: RemoteSkillClient
-    ) async throws {
+    ) async throws -> String? {
         let installedSkills = skills.filter {
             $0.name == slug && $0.platform != nil && $0.customPath == nil
         }
-        guard !installedSkills.isEmpty else { return }
+        guard !installedSkills.isEmpty else { return nil }
 
         let zipURL = try await client.download(slug, version)
         var seenRoots: Set<ManagedRootReference> = []
@@ -420,9 +429,9 @@ import Observation
                 managedRoot: installed.managedRoot
             )
         }
-        let selectedID: String?
+        let result: SkillFileWorker.RemoteInstallResult
         do {
-            selectedID = try await fileWorker.installRemoteSkill(
+            result = try await fileWorker.installRemoteSkill(
                 zipURL: zipURL,
                 slug: slug,
                 version: version,
@@ -434,9 +443,10 @@ import Observation
         }
 
         await loadSkills()
-        if let selectedID {
+        if let selectedID = result.selectedID {
             self.selectedSkillID = selectedID
         }
+        return result.report.warningMessage
     }
 
     private func storageKey(for skill: Skill) -> String {
@@ -460,33 +470,5 @@ import Observation
         }
         return false
     }
-
-    private func publishStateDirectory() -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first ?? FileManager.default.homeDirectoryForCurrentUser
-        return base
-            .appendingPathComponent("SkillsManager")
-            .appendingPathComponent("skill-state")
-    }
-
-    private func publishStateURL(for slug: String) -> URL {
-        publishStateDirectory().appendingPathComponent("\(slug).json")
-    }
-
-    private func loadPublishState(for slug: String) -> PublishState? {
-        let url = publishStateURL(for: slug)
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(PublishState.self, from: data)
-    }
-
-    private func savePublishState(for slug: String, hash: String) {
-        let dir = publishStateDirectory()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let state = PublishState(lastPublishedHash: hash, lastPublishedAt: Date())
-        if let data = try? JSONEncoder().encode(state) {
-            try? data.write(to: publishStateURL(for: slug), options: [.atomic])
-        }
-    }
-
 
 }

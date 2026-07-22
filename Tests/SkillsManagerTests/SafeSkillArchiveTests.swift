@@ -196,6 +196,54 @@ struct SafeSkillArchiveTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
     }
 
+    @Test("Keeps owner access for archive directories with no permissions")
+    func preservesOwnerAccessForLockedDirectory() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.writeArchive([
+            .directory("locked/", permissions: 0o1000),
+            .file("locked/SKILL.md", Data("# Locked".utf8)),
+        ])
+
+        try SafeSkillArchive().extract(archiveAt: fixture.archiveURL, to: fixture.destinationURL)
+
+        let locked = fixture.destinationURL.appendingPathComponent("locked", isDirectory: true)
+        let attributes = try FileManager.default.attributesOfItem(atPath: locked.path)
+        let permissions = (attributes[.posixPermissions] as? NSNumber)?.uint16Value
+        #expect(permissions == 0o700)
+        #expect(try SkillPackageLocator().locateSkillRoot(in: fixture.destinationURL) == locked.standardizedFileURL)
+        try FileManager.default.removeItem(at: locked)
+        #expect(!FileManager.default.fileExists(atPath: locked.path))
+    }
+
+    @Test("Cancellation cleans archive directories that request no permissions")
+    func cancellationCleansLockedDirectories() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.writeArchive([
+            .directory("first/", permissions: 0o1000),
+            .directory("second/", permissions: 0o1000),
+        ])
+        var applyingAttributes = false
+        var attributeCheckpoints = 0
+
+        #expect(throws: CancellationError.self) {
+            try SafeSkillArchive().extract(
+                archiveAt: fixture.archiveURL,
+                to: fixture.destinationURL,
+                checkpoint: {
+                    guard applyingAttributes else { return }
+                    attributeCheckpoints += 1
+                    if attributeCheckpoints == 2 { throw CancellationError() }
+                },
+                beforeEntry: { components in
+                    if components == ["second"] { applyingAttributes = true }
+                }
+            )
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
+    }
+
     private func expectError(
         _ expected: SafeSkillArchiveError,
         sourceLocation: SourceLocation = #_sourceLocation,
@@ -215,7 +263,7 @@ struct SafeSkillArchiveTests {
 private struct Fixture {
     enum Item {
         case file(String, Data)
-        case directory(String)
+        case directory(String, permissions: UInt16? = nil)
         case symbolicLink(String, String)
     }
 
@@ -237,8 +285,8 @@ private struct Fixture {
             switch item {
             case let .file(path, contents):
                 try add(path: path, type: .file, contents: contents, to: archive)
-            case let .directory(path):
-                try add(path: path, type: .directory, contents: Data(), to: archive)
+            case let .directory(path, permissions):
+                try add(path: path, type: .directory, contents: Data(), permissions: permissions, to: archive)
             case let .symbolicLink(path, destination):
                 try add(path: path, type: .symlink, contents: Data(destination.utf8), to: archive)
             }
@@ -249,8 +297,19 @@ private struct Fixture {
         try? FileManager.default.removeItem(at: rootURL)
     }
 
-    private func add(path: String, type: Entry.EntryType, contents: Data, to archive: Archive) throws {
-        try archive.addEntry(with: path, type: type, uncompressedSize: Int64(contents.count)) { position, size in
+    private func add(
+        path: String,
+        type: Entry.EntryType,
+        contents: Data,
+        permissions: UInt16? = nil,
+        to archive: Archive
+    ) throws {
+        try archive.addEntry(
+            with: path,
+            type: type,
+            uncompressedSize: Int64(contents.count),
+            permissions: permissions
+        ) { position, size in
             let start = Int(position)
             return contents.subdata(in: start..<min(start + size, contents.count))
         }

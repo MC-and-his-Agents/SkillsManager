@@ -15,7 +15,7 @@ struct SafeSkillStagerTests {
             try makeSkill(at: source, markdown: "# Example")
             let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
 
-            let installed = try SafeSkillStager().install(
+            let result = try SafeSkillStager().install(
                 sourceRoot: source,
                 expectedFingerprint: fingerprint,
                 destinationRoot: destination,
@@ -23,6 +23,7 @@ struct SafeSkillStagerTests {
                 conflictPolicy: .replaceExisting
             )
 
+            let installed = result.installedURL
             #expect(installed.lastPathComponent == "example")
             #expect(FileManager.default.fileExists(atPath: installed.appendingPathComponent("SKILL.md").path))
             #expect(try FileManager.default.contentsOfDirectory(atPath: destination.path).allSatisfy {
@@ -71,7 +72,7 @@ struct SafeSkillStagerTests {
             try makeSkill(at: destination.appendingPathComponent("Example", isDirectory: true), markdown: "# Old")
             let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
 
-            let installed = try SafeSkillStager().install(
+            let result = try SafeSkillStager().install(
                 sourceRoot: source,
                 expectedFingerprint: fingerprint,
                 destinationRoot: destination,
@@ -79,7 +80,7 @@ struct SafeSkillStagerTests {
                 conflictPolicy: .chooseUniqueName
             )
 
-            #expect(installed.lastPathComponent == "example-1")
+            #expect(result.installedURL.lastPathComponent == "example-1")
         }
     }
 
@@ -107,7 +108,7 @@ struct SafeSkillStagerTests {
             )
 
             let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
-            let installed = try SafeSkillStager().install(
+            let result = try SafeSkillStager().install(
                 sourceRoot: source,
                 expectedFingerprint: fingerprint,
                 destinationRoot: destination,
@@ -115,6 +116,7 @@ struct SafeSkillStagerTests {
                 conflictPolicy: .replaceExisting
             )
 
+            let installed = result.installedURL
             #expect(!FileManager.default.fileExists(atPath: installed.appendingPathComponent(".git").path))
             #expect(!FileManager.default.fileExists(
                 atPath: installed.appendingPathComponent(".skillsmanager.json").path
@@ -202,7 +204,7 @@ struct SafeSkillStagerTests {
                 return contents.subdata(in: start..<min(start + size, contents.count))
             }
 
-            let installed = try SafeSkillStager().installArchive(
+            let result = try SafeSkillStager().installArchive(
                 archiveAt: archiveURL,
                 expectedFingerprint: fingerprint,
                 destinationRoot: destination,
@@ -211,12 +213,121 @@ struct SafeSkillStagerTests {
             )
 
             #expect(try String(
-                contentsOf: installed.appendingPathComponent("SKILL.md"),
+                contentsOf: result.installedURL.appendingPathComponent("SKILL.md"),
                 encoding: .utf8
             ) == "# Archived")
             #expect(try FileManager.default.contentsOfDirectory(atPath: destination.path).allSatisfy {
                 !$0.hasPrefix(".skillsmanager-tmp-")
             })
+        }
+    }
+
+    @Test("rejects hidden and internal destination names")
+    func rejectsHiddenDestinationNames() throws {
+        try withTemporaryDirectory { root in
+            let source = root.appendingPathComponent("source", isDirectory: true)
+            let destination = root.appendingPathComponent("destination", isDirectory: true)
+            try makeSkill(at: source, markdown: "# Hidden")
+            let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
+
+            for name in [".example", ".skillsmanager-tmp-example", ".skillsmanager-delete-example"] {
+                #expect(throws: SafeSkillStagingError.invalidDestinationName(name)) {
+                    try SafeSkillStager().install(
+                        sourceRoot: source,
+                        expectedFingerprint: fingerprint,
+                        destinationRoot: destination,
+                        preferredName: name,
+                        conflictPolicy: .chooseUniqueName
+                    )
+                }
+            }
+            #expect(try FileManager.default.contentsOfDirectory(atPath: destination.path).isEmpty)
+        }
+    }
+
+    @Test("reports a committed replacement whose old contents still need cleanup")
+    func reportsReplacementCleanupDebt() throws {
+        try withTemporaryDirectory { root in
+            let source = root.appendingPathComponent("source", isDirectory: true)
+            let destination = root.appendingPathComponent("destination", isDirectory: true)
+            let existing = destination.appendingPathComponent("example", isDirectory: true)
+            try makeSkill(at: source, markdown: "# New")
+            try makeSkill(at: existing, markdown: "# Old")
+            let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
+
+            var hooks = ManagedPathGuardTestHooks()
+            hooks.beforeCleanup = {
+                throw ManagedPathError.posix(operation: "injected cleanup", code: EIO)
+            }
+            hooks.beforeRollback = {
+                throw ManagedPathError.posix(operation: "injected rollback", code: EIO)
+            }
+            hooks.beforeQuarantineMove = { name in
+                if name.hasPrefix(".skillsmanager-tmp-") {
+                    throw ManagedPathError.posix(operation: "injected retry", code: EIO)
+                }
+            }
+            let stager = SafeSkillStager(
+                guardFactory: { try ManagedPathGuard(rootURL: $0, hooks: hooks) }
+            )
+
+            let result = try stager.install(
+                sourceRoot: source,
+                expectedFingerprint: fingerprint,
+                destinationRoot: destination,
+                preferredName: "example",
+                conflictPolicy: .replaceExisting
+            )
+
+            #expect(result.cleanupDebts.count == 1)
+            #expect(FileManager.default.fileExists(atPath: result.cleanupDebts[0].url.path))
+            #expect(try String(
+                contentsOf: result.installedURL.appendingPathComponent("SKILL.md"),
+                encoding: .utf8
+            ) == "# New")
+        }
+    }
+
+    @Test("reports archive cleanup failure after a successful commit")
+    func reportsArchiveCleanupDebtAfterCommit() throws {
+        try withTemporaryDirectory { root in
+            let source = root.appendingPathComponent("source", isDirectory: true)
+            let destination = root.appendingPathComponent("destination", isDirectory: true)
+            let archiveURL = root.appendingPathComponent("example.zip")
+            try makeSkill(at: source, markdown: "# Archived")
+            let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
+            let contents = try Data(contentsOf: source.appendingPathComponent("SKILL.md"))
+            let archive = try Archive(url: archiveURL, accessMode: .create)
+            try archive.addEntry(
+                with: "SKILL.md",
+                type: .file,
+                uncompressedSize: Int64(contents.count)
+            ) { position, size in
+                let start = Int(position)
+                return contents.subdata(in: start..<min(start + size, contents.count))
+            }
+
+            var hooks = ManagedPathGuardTestHooks()
+            hooks.beforeQuarantineMove = { name in
+                if name.hasPrefix(".skillsmanager-tmp-archive-") {
+                    throw ManagedPathError.posix(operation: "injected archive cleanup", code: EIO)
+                }
+            }
+            let stager = SafeSkillStager(
+                guardFactory: { try ManagedPathGuard(rootURL: $0, hooks: hooks) }
+            )
+
+            let result = try stager.installArchive(
+                archiveAt: archiveURL,
+                expectedFingerprint: fingerprint,
+                destinationRoot: destination,
+                preferredName: "example",
+                conflictPolicy: .chooseUniqueName
+            )
+
+            #expect(result.cleanupDebts.count == 1)
+            #expect(FileManager.default.fileExists(atPath: result.installedURL.path))
+            #expect(FileManager.default.fileExists(atPath: result.cleanupDebts[0].url.path))
         }
     }
 

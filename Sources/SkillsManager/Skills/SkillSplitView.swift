@@ -56,7 +56,7 @@ struct SkillSplitView: View {
                 .environment(store)
                 .environment(remoteStore)
             }
-            .alert("Download failed", isPresented: downloadErrorBinding) {
+            .alert("Install result", isPresented: downloadErrorBinding) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(downloadErrorMessage ?? "Unable to download this skill.")
@@ -327,11 +327,12 @@ private struct RemoteInstallSheet: View {
         isInstalling = true
         didInstall = false
         do {
-            try await store.installRemoteSkill(
+            let warning = try await store.installRemoteSkill(
                 skill,
                 client: remoteStore.client,
                 destinations: selection
             )
+            errorMessage = warning
             didInstall = true
             dismiss()
             try? await Task.sleep(for: .seconds(1.2))

@@ -18,10 +18,25 @@ nonisolated struct PartialSkillInstallError: LocalizedError, Sendable {
     let installedStorageKeys: [String]
     let failedStorageKey: String
     let reason: String
+    let cleanupDebts: [SafeSkillCleanupDebt]
 
     var errorDescription: String? {
         let completed = installedStorageKeys.joined(separator: ", ")
-        return "Installed in \(completed), but failed in \(failedStorageKey): \(reason)"
+        let cleanup = cleanupDebts.isEmpty
+            ? ""
+            : " Cleanup is still needed at \(cleanupDebts.map(\.url.path).joined(separator: ", "))."
+        return "Installed in \(completed), but failed in \(failedStorageKey): \(reason).\(cleanup)"
+    }
+}
+
+nonisolated struct SkillInstallReport: Sendable {
+    let installedStorageKeys: [String]
+    let cleanupDebts: [SafeSkillCleanupDebt]
+
+    var warningMessage: String? {
+        guard !cleanupDebts.isEmpty else { return nil }
+        let paths = cleanupDebts.map(\.url.path).joined(separator: ", ")
+        return "The Skill was installed, but old temporary content still needs cleanup: \(paths)"
     }
 }
 
@@ -77,13 +92,15 @@ actor SkillImportWorker {
     func importCandidate(
         _ candidate: ImportCandidatePayload,
         destinations: [SkillFileWorker.InstallDestination]
-    ) throws {
+    ) throws -> SkillInstallReport {
         let stager = SafeSkillStager()
         var installedStorageKeys: [String] = []
+        var cleanupDebts: [SafeSkillCleanupDebt] = []
         for destination in destinations {
             do {
+                let result: SafeSkillInstallResult
                 if let archiveURL = candidate.archiveURL {
-                    _ = try stager.installArchive(
+                    result = try stager.installArchive(
                         archiveAt: archiveURL,
                         expectedFingerprint: candidate.fingerprint,
                         destinationRoot: destination.rootURL,
@@ -93,7 +110,7 @@ actor SkillImportWorker {
                         checkpoint: { try Task.checkCancellation() }
                     )
                 } else {
-                    _ = try stager.install(
+                    result = try stager.install(
                         sourceRoot: candidate.rootURL,
                         expectedFingerprint: candidate.fingerprint,
                         destinationRoot: destination.rootURL,
@@ -104,15 +121,21 @@ actor SkillImportWorker {
                     )
                 }
                 installedStorageKeys.append(destination.storageKey)
+                cleanupDebts.append(contentsOf: result.cleanupDebts)
             } catch {
                 guard !installedStorageKeys.isEmpty else { throw error }
                 throw PartialSkillInstallError(
                     installedStorageKeys: installedStorageKeys,
                     failedStorageKey: destination.storageKey,
-                    reason: error.localizedDescription
+                    reason: error.localizedDescription,
+                    cleanupDebts: cleanupDebts
                 )
             }
         }
+        return SkillInstallReport(
+            installedStorageKeys: installedStorageKeys,
+            cleanupDebts: cleanupDebts
+        )
     }
 
     func cleanupTemporaryRoot(_ url: URL) {

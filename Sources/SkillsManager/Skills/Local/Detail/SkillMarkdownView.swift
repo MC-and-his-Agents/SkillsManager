@@ -83,7 +83,7 @@ struct SkillMarkdownView: View {
             )
             .environment(store)
         }
-        .alert("Update failed", isPresented: publishErrorBinding) {
+        .alert("Update result", isPresented: publishErrorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(publishErrorMessage ?? "Unable to update this skill.")
@@ -296,11 +296,12 @@ struct SkillMarkdownView: View {
         guard let origin = clawdhubOrigin else { return }
         isUpdating = true
         do {
-            try await store.updateInstalledSkill(
+            let warning = try await store.updateInstalledSkill(
                 slug: origin.slug,
                 version: latestVersion,
                 client: remoteStore.client
             )
+            publishErrorMessage = warning
             await refreshInstalledState()
         } catch {
             publishErrorMessage = error.localizedDescription

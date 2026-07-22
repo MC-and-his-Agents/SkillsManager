@@ -9,6 +9,12 @@ nonisolated enum ManagedPathError: LocalizedError, Equatable {
     case itemChanged
     case destinationAlreadyExists
     case unsupportedItemType
+    case removalFailed(
+        partiallyDeleted: Bool,
+        recoveryPath: String?,
+        restored: Bool,
+        cause: String
+    )
     case posix(operation: String, code: Int32)
 
     var errorDescription: String? {
@@ -21,8 +27,36 @@ nonisolated enum ManagedPathError: LocalizedError, Equatable {
         case .itemChanged: "The managed item changed during the operation."
         case .destinationAlreadyExists: "The destination already exists."
         case .unsupportedItemType: "The managed item has an unsupported file type."
+        case .removalFailed(let partiallyDeleted, let recoveryPath, let restored, let cause):
+            Self.removalFailureDescription(
+                partiallyDeleted: partiallyDeleted,
+                recoveryPath: recoveryPath,
+                restored: restored,
+                cause: cause
+            )
         case .posix(let operation, let code): "\(operation) failed: \(String(cString: strerror(code)))"
         }
+    }
+
+    private static func removalFailureDescription(
+        partiallyDeleted: Bool,
+        recoveryPath: String?,
+        restored: Bool,
+        cause: String
+    ) -> String {
+        let state = partiallyDeleted
+            ? "Deletion stopped after some contents were removed."
+            : "Deletion stopped before any contents were removed."
+        let recovery: String
+        if restored {
+            recovery = recoveryPath.map { "The remaining item was restored at \($0)." }
+                ?? "The remaining item was restored to its original name."
+        } else if let recoveryPath {
+            recovery = "The remaining item could not be restored; recover it from \(recoveryPath)."
+        } else {
+            recovery = "No remaining item could be located for automatic recovery."
+        }
+        return "\(state) \(recovery) Cause: \(cause)"
     }
 }
 nonisolated struct ManagedItemIdentity: Equatable, Sendable {
@@ -30,7 +64,7 @@ nonisolated struct ManagedItemIdentity: Equatable, Sendable {
     fileprivate let inode: UInt64
     fileprivate let fileType: UInt32
     fileprivate let generation: UInt64
-    fileprivate init(_ value: stat) {
+    init(_ value: stat) {
         device = UInt64(value.st_dev)
         inode = UInt64(value.st_ino)
         fileType = UInt32(value.st_mode & mode_t(S_IFMT))
@@ -47,10 +81,11 @@ nonisolated struct ManagedPathGuardTestHooks {
     var beforeRollback: () throws -> Void = {}
     var beforeCleanup: () throws -> Void = {}
     var beforeQuarantineMove: (String) throws -> Void = { _ in }
+    var afterQuarantineMove: (String, String) throws -> Void = { _, _ in }
 }
 nonisolated final class ManagedPathGuard {
-    private typealias FileIdentity = ManagedItemIdentity
-    private struct ManagedName {
+    typealias FileIdentity = ManagedItemIdentity
+    struct ManagedName {
         let value: String
     }
 
@@ -61,8 +96,8 @@ nonisolated final class ManagedPathGuard {
     private let rootPath: String
     private let canonicalRootPath: String
     private let rootIdentity: FileIdentity
-    private let rootDescriptor: Int32
-    private let hooks: ManagedPathGuardTestHooks
+    let rootDescriptor: Int32
+    let hooks: ManagedPathGuardTestHooks
     init(rootURL: URL, hooks: ManagedPathGuardTestHooks = .init()) throws {
         guard rootURL.isFileURL else {
             throw ManagedPathError.invalidRoot("not a file URL")
@@ -117,19 +152,6 @@ nonisolated final class ManagedPathGuard {
         }
         throw ManagedPathError.posix(operation: "lstat managed item", code: errno)
     }
-    func removeItem(at targetURL: URL) throws {
-        guard let expected = try itemIdentity(at: targetURL) else {
-            throw ManagedPathError.itemNotFound
-        }
-        try removeItem(at: targetURL, expectedIdentity: expected)
-    }
-    func removeItem(at targetURL: URL, expectedIdentity: ManagedItemIdentity) throws {
-        try verifyRootIdentity()
-        let name = try managedName(for: targetURL)
-        try verifyRootIdentity()
-        try removeNamedItem(name.value, from: rootDescriptor, expectedIdentity: expectedIdentity)
-        try verifyRootIdentity()
-    }
     func itemIdentity(at targetURL: URL) throws -> ManagedItemIdentity? {
         try verifyRootIdentity()
         let name = try managedName(for: targetURL)
@@ -183,7 +205,7 @@ nonisolated final class ManagedPathGuard {
             expectedTarget: expectedTarget
         )
     }
-    private func managedName(for targetURL: URL) throws -> ManagedName {
+    func managedName(for targetURL: URL) throws -> ManagedName {
         guard targetURL.isFileURL else {
             throw ManagedPathError.targetIsNotDirectChild
         }
@@ -209,7 +231,7 @@ nonisolated final class ManagedPathGuard {
         }
         return ManagedName(value: name)
     }
-    private func verifyRootIdentity() throws {
+    func verifyRootIdentity() throws {
         var pathStatus = stat()
         guard Darwin.lstat(rootPath, &pathStatus) == 0,
               Self.fileType(of: pathStatus) == S_IFDIR,
@@ -314,7 +336,7 @@ nonisolated final class ManagedPathGuard {
         URL(fileURLWithPath: rootPath).appendingPathComponent(names.staged)
     }
 
-    private func identity(of name: String, in parentDescriptor: Int32) throws -> FileIdentity {
+    func identity(of name: String, in parentDescriptor: Int32) throws -> FileIdentity {
         var itemStatus = stat()
         guard Darwin.fstatat(parentDescriptor, name, &itemStatus, AT_SYMLINK_NOFOLLOW) == 0 else {
             if errno == ENOENT {
@@ -336,149 +358,6 @@ nonisolated final class ManagedPathGuard {
         }
     }
 
-    private func removeNamedItem(
-        _ name: String, from parentDescriptor: Int32, expectedIdentity: FileIdentity? = nil
-    ) throws {
-        try verifyRootIdentity()
-        let initialStatus = try status(of: name, in: parentDescriptor)
-        let initialIdentity = FileIdentity(initialStatus)
-        guard expectedIdentity == nil || expectedIdentity == initialIdentity else { throw ManagedPathError.itemChanged }
-        try hooks.beforeQuarantineMove(name)
-        try verifyRootIdentity()
-        let quarantine = try moveToQuarantine(name, in: parentDescriptor)
-        let movedStatus = try status(of: quarantine, in: parentDescriptor)
-        guard FileIdentity(movedStatus) == initialIdentity else {
-            restoreQuarantined(quarantine, to: name, in: parentDescriptor)
-            throw ManagedPathError.itemChanged
-        }
-        try removeQuarantinedItem(
-            quarantine,
-            status: movedStatus,
-            in: parentDescriptor
-        )
-    }
-
-    private func removeQuarantinedItem(
-        _ name: String,
-        status: stat,
-        in parentDescriptor: Int32
-    ) throws {
-        let expectedIdentity = FileIdentity(status)
-        if Self.fileType(of: status) == S_IFDIR {
-            let childDescriptor = Darwin.openat(
-                parentDescriptor,
-                name,
-                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
-            )
-            guard childDescriptor >= 0 else {
-                throw ManagedPathError.posix(operation: "open directory for removal", code: errno)
-            }
-            defer { Darwin.close(childDescriptor) }
-
-            var openedStatus = stat()
-            guard Darwin.fstat(childDescriptor, &openedStatus) == 0,
-                  FileIdentity(openedStatus) == expectedIdentity else {
-                throw ManagedPathError.itemChanged
-            }
-            try removeDirectoryContents(descriptor: childDescriptor)
-            guard try identity(of: name, in: parentDescriptor) == expectedIdentity else {
-                throw ManagedPathError.itemChanged
-            }
-            guard Darwin.unlinkat(parentDescriptor, name, AT_REMOVEDIR) == 0 else {
-                throw ManagedPathError.posix(operation: "remove managed directory", code: errno)
-            }
-        } else {
-            guard try identity(of: name, in: parentDescriptor) == expectedIdentity else {
-                throw ManagedPathError.itemChanged
-            }
-            guard Darwin.unlinkat(parentDescriptor, name, 0) == 0 else {
-                throw ManagedPathError.posix(operation: "remove managed item", code: errno)
-            }
-        }
-        try verifyRootIdentity()
-    }
-
-    private func moveToQuarantine(_ name: String, in parentDescriptor: Int32) throws -> String {
-        while true {
-            let quarantine = ".skillsmanager-delete-\(UUID().uuidString.lowercased())"
-            if Darwin.renameatx_np(
-                parentDescriptor,
-                name,
-                parentDescriptor,
-                quarantine,
-                UInt32(RENAME_EXCL)
-            ) == 0 {
-                return quarantine
-            }
-            if errno == EEXIST {
-                continue
-            }
-            if errno == ENOENT {
-                throw ManagedPathError.itemChanged
-            }
-            throw ManagedPathError.posix(operation: "quarantine managed item", code: errno)
-        }
-    }
-
-    private func restoreQuarantined(
-        _ quarantine: String,
-        to original: String,
-        in parentDescriptor: Int32
-    ) {
-        _ = Darwin.renameatx_np(
-            parentDescriptor,
-            quarantine,
-            parentDescriptor,
-            original,
-            UInt32(RENAME_EXCL)
-        )
-    }
-
-    private func status(of name: String, in parentDescriptor: Int32) throws -> stat {
-        var itemStatus = stat()
-        guard Darwin.fstatat(parentDescriptor, name, &itemStatus, AT_SYMLINK_NOFOLLOW) == 0 else {
-            if errno == ENOENT {
-                throw ManagedPathError.itemNotFound
-            }
-            throw ManagedPathError.posix(operation: "lstat managed item", code: errno)
-        }
-        return itemStatus
-    }
-
-    private func removeDirectoryContents(descriptor: Int32) throws {
-        let streamDescriptor = Darwin.dup(descriptor)
-        guard streamDescriptor >= 0 else {
-            throw ManagedPathError.posix(operation: "duplicate directory descriptor", code: errno)
-        }
-        guard let directory = Darwin.fdopendir(streamDescriptor) else {
-            let code = errno
-            Darwin.close(streamDescriptor)
-            throw ManagedPathError.posix(operation: "enumerate directory", code: code)
-        }
-        defer { Darwin.closedir(directory) }
-
-        errno = 0
-        while let entry = Darwin.readdir(directory) {
-            let name = Self.name(of: entry)
-            if name == "." || name == ".." {
-                continue
-            }
-            try removeNamedItem(name, from: descriptor)
-            errno = 0
-        }
-        if errno != 0 {
-            throw ManagedPathError.posix(operation: "enumerate directory", code: errno)
-        }
-    }
-
-    private static func name(of entry: UnsafeMutablePointer<dirent>) -> String {
-        withUnsafePointer(to: &entry.pointee.d_name) { pointer in
-            pointer.withMemoryRebound(to: CChar.self, capacity: Int(MAXNAMLEN) + 1) {
-                String(cString: $0)
-            }
-        }
-    }
-
     private static func canonicalPath(for path: String) throws -> String {
         var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
         guard Darwin.realpath(path, &buffer) != nil else {
@@ -488,7 +367,7 @@ nonisolated final class ManagedPathGuard {
         return String(decoding: buffer[..<end].map { UInt8(bitPattern: $0) }, as: UTF8.self)
     }
 
-    private static func fileType(of value: stat) -> mode_t {
+    static func fileType(of value: stat) -> mode_t {
         value.st_mode & mode_t(S_IFMT)
     }
 

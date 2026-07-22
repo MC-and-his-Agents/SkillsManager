@@ -26,19 +26,38 @@ nonisolated enum SafeSkillStagingError: LocalizedError, Equatable {
     }
 }
 
+nonisolated struct SafeSkillCleanupDebt: Equatable, Sendable {
+    let url: URL
+    let reason: String
+}
+
+nonisolated struct SafeSkillInstallResult: Equatable, Sendable {
+    let installedURL: URL
+    let cleanupDebts: [SafeSkillCleanupDebt]
+
+    init(installedURL: URL, cleanupDebts: [SafeSkillCleanupDebt] = []) {
+        self.installedURL = installedURL
+        self.cleanupDebts = cleanupDebts
+    }
+}
+
 /// Copies one validated Skill into a same-filesystem staging directory before promotion.
 nonisolated struct SafeSkillStager {
     typealias MetadataWriter = (URL) throws -> Void
+    typealias GuardFactory = (URL) throws -> ManagedPathGuard
 
     private let fileManager: FileManager
     private let limits: SkillContentLimits
+    private let guardFactory: GuardFactory
 
     init(
         fileManager: FileManager = .default,
-        limits: SkillContentLimits = .default
+        limits: SkillContentLimits = .default,
+        guardFactory: @escaping GuardFactory = { try ManagedPathGuard(rootURL: $0) }
     ) {
         self.fileManager = fileManager
         self.limits = limits
+        self.guardFactory = guardFactory
     }
 
     func install(
@@ -50,7 +69,7 @@ nonisolated struct SafeSkillStager {
         managedRoot: ManagedRootReference? = nil,
         checkpoint: SkillCancellationCheckpoint = {},
         metadataWriter: MetadataWriter = { _ in }
-    ) throws -> URL {
+    ) throws -> SafeSkillInstallResult {
         let sourceSnapshot = try SkillContentSnapshot.capture(
             at: sourceRoot,
             limits: limits,
@@ -64,7 +83,7 @@ nonisolated struct SafeSkillStager {
         }
         try checkpoint()
         let destination = try verifiedManagedRoot(destinationRoot, reference: managedRoot)
-        let guardrail = try ManagedPathGuard(rootURL: destination.url)
+        let guardrail = try guardFactory(destination.url)
         let normalizedName = try validatedName(preferredName)
         let stagedURL = destination.url.appendingPathComponent(
             ".skillsmanager-tmp-\(UUID().uuidString.lowercased())",
@@ -120,10 +139,10 @@ nonisolated struct SafeSkillStager {
         managedRoot: ManagedRootReference? = nil,
         checkpoint: SkillCancellationCheckpoint = {},
         metadataWriter: MetadataWriter = { _ in }
-    ) throws -> URL {
+    ) throws -> SafeSkillInstallResult {
         try checkpoint()
         let destination = try verifiedManagedRoot(destinationRoot, reference: managedRoot)
-        let guardrail = try ManagedPathGuard(rootURL: destination.url)
+        let guardrail = try guardFactory(destination.url)
         let extractionURL = destination.url.appendingPathComponent(
             ".skillsmanager-tmp-archive-\(UUID().uuidString.lowercased())",
             isDirectory: true
@@ -158,7 +177,7 @@ nonisolated struct SafeSkillStager {
                 )
             }
 
-            let installedURL = try install(
+            var result = try install(
                 sourceRoot: sourceRoot,
                 expectedFingerprint: expectedFingerprint,
                 destinationRoot: destination.url,
@@ -169,9 +188,21 @@ nonisolated struct SafeSkillStager {
                 metadataWriter: metadataWriter
             )
             if let extractionIdentity {
-                try guardrail.removeItem(at: extractionURL, expectedIdentity: extractionIdentity)
+                do {
+                    try guardrail.removeItem(at: extractionURL, expectedIdentity: extractionIdentity)
+                } catch {
+                    result = SafeSkillInstallResult(
+                        installedURL: result.installedURL,
+                        cleanupDebts: result.cleanupDebts + [
+                            SafeSkillCleanupDebt(
+                                url: extractionURL,
+                                reason: error.localizedDescription
+                            )
+                        ]
+                    )
+                }
             }
-            return installedURL
+            return result
         } catch {
             if let extractionIdentity {
                 try? guardrail.removeItem(at: extractionURL, expectedIdentity: extractionIdentity)
@@ -203,7 +234,7 @@ nonisolated struct SafeSkillStager {
         conflictPolicy: SkillInstallConflictPolicy,
         guardrail: ManagedPathGuard,
         checkpoint: SkillCancellationCheckpoint
-    ) throws -> URL {
+    ) throws -> SafeSkillInstallResult {
         switch conflictPolicy {
         case .replaceExisting:
             return try replace(
@@ -223,7 +254,7 @@ nonisolated struct SafeSkillStager {
                 )
                 do {
                     try guardrail.promoteStagedItemIfAbsent(at: stagedURL, to: finalURL)
-                    return finalURL
+                    return SafeSkillInstallResult(installedURL: finalURL)
                 } catch ManagedPathError.destinationAlreadyExists {
                     continue
                 }
@@ -237,7 +268,7 @@ nonisolated struct SafeSkillStager {
         preferredName: String,
         guardrail: ManagedPathGuard,
         checkpoint: SkillCancellationCheckpoint
-    ) throws -> URL {
+    ) throws -> SafeSkillInstallResult {
         while true {
             try checkpoint()
             let finalURL = try destinationURL(
@@ -248,7 +279,7 @@ nonisolated struct SafeSkillStager {
             guard let expectedTarget = try guardrail.itemIdentity(at: finalURL) else {
                 do {
                     try guardrail.promoteStagedItemIfAbsent(at: stagedURL, to: finalURL)
-                    return finalURL
+                    return SafeSkillInstallResult(installedURL: finalURL)
                 } catch ManagedPathError.destinationAlreadyExists {
                     continue
                 }
@@ -259,12 +290,15 @@ nonisolated struct SafeSkillStager {
                     to: finalURL,
                     expectedTarget: expectedTarget
                 )
-                consume(
+                let cleanupDebts = consume(
                     result,
                     expectedCleanupIdentity: expectedTarget,
                     guardrail: guardrail
                 )
-                return finalURL
+                return SafeSkillInstallResult(
+                    installedURL: finalURL,
+                    cleanupDebts: cleanupDebts
+                )
             } catch ManagedPathError.itemChanged {
                 continue
             }
@@ -275,15 +309,16 @@ nonisolated struct SafeSkillStager {
         _ result: ManagedPromotionResult,
         expectedCleanupIdentity: ManagedItemIdentity,
         guardrail: ManagedPathGuard
-    ) {
+    ) -> [SafeSkillCleanupDebt] {
         guard case .committedWithCleanupDebt(let cleanupURL, let originalError) = result else {
-            return
+            return []
         }
         do {
             try guardrail.removeItem(
                 at: cleanupURL,
                 expectedIdentity: expectedCleanupIdentity
             )
+            return []
         } catch {
             NSLog(
                 "Skills Manager installed the Skill but could not remove %@: %@; retry failed: %@",
@@ -291,6 +326,12 @@ nonisolated struct SafeSkillStager {
                 originalError.localizedDescription,
                 error.localizedDescription
             )
+            return [
+                SafeSkillCleanupDebt(
+                    url: cleanupURL,
+                    reason: "\(originalError.localizedDescription); retry failed: \(error.localizedDescription)"
+                )
+            ]
         }
     }
 
@@ -341,6 +382,7 @@ nonisolated struct SafeSkillStager {
         guard !normalized.isEmpty,
               normalized != ".",
               normalized != "..",
+              !normalized.hasPrefix("."),
               !normalized.contains("/"),
               !normalized.contains("\\"),
               !normalized.contains("\0") else {

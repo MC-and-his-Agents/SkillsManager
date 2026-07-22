@@ -15,7 +15,7 @@ struct SafeImportWorkerIntegrationTests {
 
             let worker = SkillImportWorker()
             let candidate = try await worker.validateFolder(source)
-            try await worker.importCandidate(candidate, destinations: [
+            _ = try await worker.importCandidate(candidate, destinations: [
                 .init(rootURL: destination, storageKey: "destination"),
             ])
 
@@ -36,7 +36,7 @@ struct SafeImportWorkerIntegrationTests {
 
             let worker = SkillImportWorker()
             let candidate = try await worker.validateFolder(source)
-            try await worker.importCandidate(candidate, destinations: [
+            _ = try await worker.importCandidate(candidate, destinations: [
                 .init(rootURL: firstTarget, storageKey: "first"),
                 .init(rootURL: secondTarget, storageKey: "second"),
             ])
@@ -61,7 +61,7 @@ struct SafeImportWorkerIntegrationTests {
             let candidate = try await worker.validateFolder(source)
 
             do {
-                try await worker.importCandidate(candidate, destinations: [
+                _ = try await worker.importCandidate(candidate, destinations: [
                     .init(rootURL: firstTarget, storageKey: "first"),
                     .init(rootURL: invalidTarget, storageKey: "second"),
                 ])
@@ -107,7 +107,7 @@ struct SafeImportWorkerIntegrationTests {
 
             let worker = SkillImportWorker()
             let candidate = try await worker.validateZip(archiveURL)
-            try await worker.importCandidate(candidate, destinations: [
+            _ = try await worker.importCandidate(candidate, destinations: [
                 .init(rootURL: destination, storageKey: "destination"),
             ])
             if let temporaryRoot = candidate.temporaryRoot {
@@ -181,7 +181,7 @@ struct SafeImportWorkerIntegrationTests {
             ])
 
             let worker = SkillFileWorker()
-            let selectedID = try await worker.installRemoteSkill(
+            let result = try await worker.installRemoteSkill(
                 zipURL: archiveURL,
                 slug: "remote-slug",
                 version: "1.2.3",
@@ -191,7 +191,7 @@ struct SafeImportWorkerIntegrationTests {
             let installed = destination.appendingPathComponent("remote-slug", isDirectory: true)
             let metadataURL = installed.appendingPathComponent(".clawdhub/origin.json")
             let metadata = try JSONSerialization.jsonObject(with: Data(contentsOf: metadataURL)) as? [String: Any]
-            #expect(selectedID == "target-remote-slug")
+            #expect(result.selectedID == "target-remote-slug")
             #expect(metadata?["slug"] as? String == "remote-slug")
             #expect(metadata?["version"] as? String == "1.2.3")
             #expect(metadata?["source"] as? String == "clawdhub")

@@ -20,6 +20,7 @@ struct ImportSkillView: View {
     @State private var candidate: ImportCandidate?
     @State private var status: Status = .idle
     @State private var errorMessage: String = ""
+    @State private var importWarningMessage: String?
     @State private var installTargets: Set<SkillPlatform> = [.codex]
     @State private var activeTask: Task<Void, Never>?
     private let importWorker = SkillImportWorker()
@@ -106,7 +107,10 @@ struct ImportSkillView: View {
         ContentUnavailableView(
             "Imported",
             systemImage: "checkmark.seal",
-            description: Text("The skill was added to your selected skills folders.")
+            description: Text(
+                importWarningMessage
+                    ?? "The skill was added to your selected skills folders."
+            )
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -266,10 +270,11 @@ struct ImportSkillView: View {
                 archiveURL: candidate.archiveURL,
                 fingerprint: candidate.fingerprint
             )
-            try await importWorker.importCandidate(payload, destinations: destinations)
+            let report = try await importWorker.importCandidate(payload, destinations: destinations)
             guard !Task.isCancelled else { return }
 
             await store.loadSkills()
+            importWarningMessage = report.warningMessage
             status = .imported
         } catch {
             await store.loadSkills()

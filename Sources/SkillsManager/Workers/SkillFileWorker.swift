@@ -1,6 +1,12 @@
+import CryptoKit
 import Foundation
 
 actor SkillFileWorker {
+    struct RemoteInstallResult: Sendable {
+        let selectedID: String?
+        let report: SkillInstallReport
+    }
+
     struct InstallDestination: Sendable {
         let rootURL: URL
         let storageKey: String
@@ -74,7 +80,7 @@ actor SkillFileWorker {
         slug: String,
         version: String?,
         destinations: [InstallDestination]
-    ) throws -> String? {
+    ) throws -> RemoteInstallResult {
         let temporaryRoot = FileManager.default.temporaryDirectory
             .appendingPathComponent("skillsmanager-remote-\(UUID().uuidString)", isDirectory: true)
         defer {
@@ -105,9 +111,10 @@ actor SkillFileWorker {
 
         let stager = SafeSkillStager()
         var installedStorageKeys: [String] = []
+        var cleanupDebts: [SafeSkillCleanupDebt] = []
         for destination in destinations {
             do {
-                _ = try stager.installArchive(
+                let result = try stager.installArchive(
                     archiveAt: zipURL,
                     expectedFingerprint: snapshot.fingerprint,
                     destinationRoot: destination.rootURL,
@@ -119,18 +126,26 @@ actor SkillFileWorker {
                     try Self.writeClawdhubOrigin(at: stagedURL, slug: slug, version: version)
                 }
                 installedStorageKeys.append(destination.storageKey)
+                cleanupDebts.append(contentsOf: result.cleanupDebts)
             } catch {
                 guard !installedStorageKeys.isEmpty else { throw error }
                 throw PartialSkillInstallError(
                     installedStorageKeys: installedStorageKeys,
                     failedStorageKey: destination.storageKey,
-                    reason: error.localizedDescription
+                    reason: error.localizedDescription,
+                    cleanupDebts: cleanupDebts
                 )
             }
         }
 
-        guard let preferred = destinations.first else { return nil }
-        return "\(preferred.storageKey)-\(slug)"
+        let selectedID = destinations.first.map { "\($0.storageKey)-\(slug)" }
+        return RemoteInstallResult(
+            selectedID: selectedID,
+            report: SkillInstallReport(
+                installedStorageKeys: installedStorageKeys,
+                cleanupDebts: cleanupDebts
+            )
+        )
     }
 
     func scanSkills(at baseURL: URL, storageKey: String) throws -> [ScannedSkillData] {
@@ -186,6 +201,50 @@ actor SkillFileWorker {
             at: rootURL,
             checkpoint: { try Task.checkCancellation() }
         ).fingerprint
+    }
+
+    func computeLegacyPublishHash(for rootURL: URL) throws -> String {
+        let fileManager = FileManager.default
+        guard let enumerator = fileManager.enumerator(
+            at: rootURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return ""
+        }
+
+        var files: [URL] = []
+        for case let fileURL as URL in enumerator {
+            try Task.checkCancellation()
+            let path = fileURL.path
+            if path.contains("/.git/") || path.contains("/.clawdhub/") {
+                continue
+            }
+            if fileURL.lastPathComponent == ".DS_Store" {
+                continue
+            }
+            let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey])
+            guard values?.isRegularFile == true else { continue }
+            files.append(fileURL)
+        }
+
+        files.sort { $0.path < $1.path }
+
+        var hasher = SHA256()
+        for fileURL in files {
+            try Task.checkCancellation()
+            guard let data = try? Data(contentsOf: fileURL),
+                  String(data: data, encoding: .utf8) != nil else {
+                continue
+            }
+            let relative = fileURL.path.replacingOccurrences(of: rootURL.path, with: "")
+            hasher.update(data: Data(relative.utf8))
+            hasher.update(data: Data([0]))
+            hasher.update(data: data)
+            hasher.update(data: Data([0]))
+        }
+
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     func readClawdhubOrigin(from skillRoot: URL) -> ClawdhubOrigin? {

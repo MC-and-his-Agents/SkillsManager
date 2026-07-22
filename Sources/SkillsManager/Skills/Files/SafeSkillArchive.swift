@@ -211,13 +211,8 @@ nonisolated struct SafeSkillArchive {
         for item in directories.reversed() {
             try checkpoint()
             let descriptor = try openDirectory(item.components, from: rootDescriptor, create: false)
-            do {
-                try applySafeAttributes(of: item.entry, to: descriptor)
-                Darwin.close(descriptor)
-            } catch {
-                Darwin.close(descriptor)
-                throw error
-            }
+            defer { Darwin.close(descriptor) }
+            try applySafeAttributes(of: item.entry, to: descriptor, minimumPermissions: S_IRWXU)
         }
     }
     private func extractFile(
@@ -315,9 +310,14 @@ nonisolated struct SafeSkillArchive {
             throw error
         }
     }
-    private func applySafeAttributes(of entry: Entry, to descriptor: Int32) throws {
+    private func applySafeAttributes(
+        of entry: Entry,
+        to descriptor: Int32,
+        minimumPermissions: mode_t = 0
+    ) throws {
         if let rawMode = entry.fileAttributes[.posixPermissions] as? NSNumber {
-            guard Darwin.fchmod(descriptor, mode_t(rawMode.uint16Value) & 0o777) == 0 else {
+            let permissions = (mode_t(rawMode.uint16Value) & 0o777) | minimumPermissions
+            guard Darwin.fchmod(descriptor, permissions) == 0 else {
                 throw archivePOSIXError()
             }
         }

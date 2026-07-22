@@ -119,6 +119,152 @@ struct ManagedPathGuardTests {
         }
     }
 
+    @Test("recursive removal failure restores the remaining skill at its original name")
+    func recursiveRemovalFailureRestoresRemainingSkill() throws {
+        try withTemporaryDirectory { temporary in
+            let root = temporary.appendingPathComponent("managed")
+            let skill = root.appendingPathComponent("skill")
+            try fileManager.createDirectory(at: skill, withIntermediateDirectories: true)
+            try "first".write(
+                to: skill.appendingPathComponent("first.txt"),
+                atomically: true,
+                encoding: .utf8
+            )
+            try "second".write(
+                to: skill.appendingPathComponent("second.txt"),
+                atomically: true,
+                encoding: .utf8
+            )
+            var moves = 0
+            let hooks = ManagedPathGuardTestHooks(beforeQuarantineMove: { _ in
+                moves += 1
+                if moves == 3 {
+                    throw ManagedPathError.posix(operation: "injected removal", code: EIO)
+                }
+            })
+
+            do {
+                try ManagedPathGuard(rootURL: root, hooks: hooks).removeItem(at: skill)
+                Issue.record("Expected the injected removal failure")
+            } catch let error as ManagedPathError {
+                guard case let .removalFailed(partiallyDeleted, recoveryPath, restored, cause) = error else {
+                    Issue.record("Unexpected error: \(error)")
+                    return
+                }
+                #expect(partiallyDeleted)
+                #expect(restored)
+                let restoredPath = try #require(recoveryPath)
+                #expect(
+                    URL(fileURLWithPath: restoredPath).resolvingSymlinksInPath().path
+                        == skill.resolvingSymlinksInPath().path
+                )
+                #expect(cause.contains("injected removal"))
+            }
+
+            #expect(fileManager.fileExists(atPath: skill.path))
+            let remaining = try fileManager.contentsOfDirectory(atPath: skill.path)
+            #expect(remaining.count == 1)
+            let rootContents = try fileManager.contentsOfDirectory(atPath: root.path)
+            #expect(rootContents == ["skill"])
+        }
+    }
+
+    @Test("recursive removal reports the quarantine path when the original name is occupied")
+    func recursiveRemovalFailureReportsQuarantinePath() throws {
+        try withTemporaryDirectory { temporary in
+            let root = temporary.appendingPathComponent("managed")
+            let skill = root.appendingPathComponent("skill")
+            try fileManager.createDirectory(at: skill, withIntermediateDirectories: true)
+            try "first".write(
+                to: skill.appendingPathComponent("first.txt"),
+                atomically: true,
+                encoding: .utf8
+            )
+            try "second".write(
+                to: skill.appendingPathComponent("second.txt"),
+                atomically: true,
+                encoding: .utf8
+            )
+            var moves = 0
+            let hooks = ManagedPathGuardTestHooks(beforeQuarantineMove: { _ in
+                moves += 1
+                if moves == 3 {
+                    try fileManager.createDirectory(at: skill, withIntermediateDirectories: false)
+                    throw ManagedPathError.posix(operation: "injected removal", code: EIO)
+                }
+            })
+
+            var recoveryPath: String?
+            do {
+                try ManagedPathGuard(rootURL: root, hooks: hooks).removeItem(at: skill)
+                Issue.record("Expected the injected removal failure")
+            } catch let error as ManagedPathError {
+                guard case let .removalFailed(partiallyDeleted, path, restored, _) = error else {
+                    Issue.record("Unexpected error: \(error)")
+                    return
+                }
+                #expect(partiallyDeleted)
+                #expect(!restored)
+                #expect(path?.contains(".skillsmanager-delete-") == true)
+                recoveryPath = path
+            }
+
+            let resolvedRecoveryPath = try #require(recoveryPath)
+            #expect(fileManager.fileExists(atPath: skill.path))
+            #expect(fileManager.fileExists(atPath: resolvedRecoveryPath))
+            let remaining = try fileManager.contentsOfDirectory(atPath: resolvedRecoveryPath)
+            #expect(remaining.count == 1)
+        }
+    }
+
+    @Test("removal never restores an item that replaced the quarantined identity")
+    func removalDoesNotRestoreReplacedQuarantine() throws {
+        try withTemporaryDirectory { temporary in
+            let root = temporary.appendingPathComponent("managed")
+            let skill = root.appendingPathComponent("skill")
+            let displaced = root.appendingPathComponent("displaced")
+            try fileManager.createDirectory(at: skill, withIntermediateDirectories: true)
+            try "original".write(
+                to: skill.appendingPathComponent("SKILL.md"),
+                atomically: true,
+                encoding: .utf8
+            )
+            var hooks = ManagedPathGuardTestHooks()
+            hooks.afterQuarantineMove = { _, quarantine in
+                let quarantineURL = root.appendingPathComponent(quarantine)
+                try fileManager.moveItem(at: quarantineURL, to: displaced)
+                try fileManager.createDirectory(at: quarantineURL, withIntermediateDirectories: false)
+                try "replacement".write(
+                    to: quarantineURL.appendingPathComponent("SKILL.md"),
+                    atomically: true,
+                    encoding: .utf8
+                )
+            }
+
+            do {
+                try ManagedPathGuard(rootURL: root, hooks: hooks).removeItem(at: skill)
+                Issue.record("Expected the quarantine identity change to fail closed")
+            } catch let error as ManagedPathError {
+                guard case let .removalFailed(partiallyDeleted, recoveryPath, restored, cause) = error else {
+                    Issue.record("Unexpected error: \(error)")
+                    return
+                }
+                #expect(!partiallyDeleted)
+                #expect(recoveryPath == nil)
+                #expect(!restored)
+                #expect(cause.contains("changed"))
+            }
+
+            #expect(!fileManager.fileExists(atPath: skill.path))
+            #expect(try String(
+                contentsOf: displaced.appendingPathComponent("SKILL.md"),
+                encoding: .utf8
+            ) == "original")
+            let rootItems = try fileManager.contentsOfDirectory(atPath: root.path)
+            #expect(rootItems.contains("skill") == false)
+        }
+    }
+
     @Test("a replaced root is rejected before lookup or mutation")
     func rejectsReplacedRoot() throws {
         try withFixture { temporary, root, guardValue in
