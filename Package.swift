@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "CodexSkillManager",
+    name: "SkillsManager",
     platforms: [
         .macOS(.v15),
     ],
@@ -12,12 +12,12 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "CodexSkillManager",
+            name: "SkillsManager",
             dependencies: [
                 .product(name: "MarkdownUI", package: "swift-markdown-ui"),
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
-            path: "Sources/CodexSkillManager",
+            path: "Sources/SkillsManager",
             swiftSettings: [
                 .define("ENABLE_SPARKLE"),
                 .unsafeFlags(["-default-isolation", "MainActor"]),
@@ -25,9 +25,9 @@ let package = Package(
                 .unsafeFlags(["-warn-concurrency"]),
             ]),
         .testTarget(
-            name: "CodexSkillManagerTests",
-            dependencies: ["CodexSkillManager"],
-            path: "Tests/CodexSkillManagerTests",
+            name: "SkillsManagerTests",
+            dependencies: ["SkillsManager"],
+            path: "Tests/SkillsManagerTests",
             swiftSettings: [
                 .unsafeFlags(["-strict-concurrency=complete"]),
             ])

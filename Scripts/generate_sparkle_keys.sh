@@ -2,7 +2,7 @@
 set -euo pipefail
 
 OUT_FILE=${1:-}
-ACCOUNT=${SPARKLE_KEY_ACCOUNT:-codexskillmanager}
+ACCOUNT=${SPARKLE_KEY_ACCOUNT:-skillsmanager}
 if [[ -z "$OUT_FILE" ]]; then
   echo "Usage: $0 /path/to/sparkle-private-key.txt" >&2
   exit 1

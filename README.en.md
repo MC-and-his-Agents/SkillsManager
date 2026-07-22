@@ -28,7 +28,7 @@ This project started independent secondary development from commit [`3f2d809c`](
 
 ```bash
 swift build
-swift run CodexSkillManager
+swift run SkillsManager
 ```
 
 ## Package a local app

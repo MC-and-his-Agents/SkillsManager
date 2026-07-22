@@ -6,7 +6,7 @@ import Sparkle
 #endif
 
 @main
-struct CodexSkillManagerApp: App {
+struct SkillsManagerApp: App {
     @Environment(\.openWindow) private var openWindow
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var customPathStore: CustomPathStore
