@@ -1,0 +1,89 @@
+name: Loom Delivery Gate
+
+on:
+  pull_request_target:
+  merge_group:
+
+permissions:
+  contents: none
+
+jobs:
+  host-facts:
+    name: Read GitHub host facts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      host_facts: ${{ steps.read.outputs.host_facts }}
+    steps:
+      - name: Read candidate change set
+        id: read
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          result-encoding: string
+          script: |
+            const facts = {
+              schema_version: "loom-delivery-gate-host-facts/v1",
+              event: context.eventName,
+              repository: {
+                owner: context.repo.owner,
+                name: context.repo.repo,
+              },
+              changed_paths: [],
+            };
+
+            try {
+              if (context.eventName === "pull_request_target") {
+                const pull = context.payload.pull_request;
+                const files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pull.number,
+                  per_page: 100,
+                });
+                facts.change = {
+                  base_sha: pull.base.sha,
+                  head_sha: pull.head.sha,
+                  number: pull.number,
+                };
+                facts.changed_paths = files.map((file) => file.filename);
+              } else if (context.eventName === "merge_group") {
+                const group = context.payload.merge_group;
+                const comparison = await github.rest.repos.compareCommits({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  base: group.base_sha,
+                  head: group.head_sha,
+                  per_page: 100,
+                });
+                facts.change = {
+                  base_sha: group.base_sha,
+                  head_sha: group.head_sha,
+                  head_ref: group.head_ref,
+                };
+                facts.changed_paths = (comparison.data.files || []).map((file) => file.filename);
+              }
+            } catch (error) {
+              facts.host_read_error = String(error.message || error);
+              core.warning(facts.host_read_error);
+            }
+
+            facts.changed_paths = [...new Set(facts.changed_paths)].sort();
+            core.setOutput("host_facts", JSON.stringify(facts));
+
+  gate:
+    name: loom-delivery-gate
+    needs: host-facts
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    uses: MC-and-his-Agents/Loom/.github/workflows/loom-delivery-gate.yml@122ac2e1ae9787bda92e9ac42132e8742c386622
+    with:
+      host_facts: ${{ needs.host-facts.outputs.host_facts }}
+      loom_ref: 122ac2e1ae9787bda92e9ac42132e8742c386622
+      validation_command: lint
+      enforcement: enforce
+      profile: light
