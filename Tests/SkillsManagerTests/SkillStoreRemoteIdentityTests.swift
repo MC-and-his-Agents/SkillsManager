@@ -100,17 +100,126 @@ struct SkillStoreRemoteIdentityTests {
     }
 
     @MainActor
+    @Test("remote update touches a physical root only once through path aliases")
+    func updateDeduplicatesRootAliases() async throws {
+        try await withTemporaryDirectory { root in
+            let slug = "shared-skill"
+            let aliases = try makeAliasedSkills(named: slug, in: root)
+            let archiveURL = root.appendingPathComponent("remote.zip")
+            try writeArchive(at: archiveURL, markdown: "# Updated")
+            let store = SkillStore()
+            store.skills = [aliases.realSkill, aliases.aliasSkill]
+            let client = RemoteSkillClient(
+                fetchLatest: { _ in [] },
+                search: { _, _ in [] },
+                download: { _, _ in
+                    try FileManager.default.removeItem(at: aliases.aliasRoot)
+                    return archiveURL
+                },
+                fetchDetail: { _ in nil },
+                fetchLatestVersion: { _ in nil }
+            )
+
+            _ = try await store.updateInstalledSkill(
+                slug: slug,
+                version: "2.0.0",
+                client: client
+            )
+
+            #expect(try String(
+                contentsOf: aliases.realSkill.skillMarkdownURL,
+                encoding: .utf8
+            ) == "# Updated")
+        }
+    }
+
+    @MainActor
+    @Test("cancellation across root aliases is not reported as a partial duplicate")
+    func cancellationDoesNotCountRootAliasesTwice() async throws {
+        try await withTemporaryDirectory { root in
+            let slug = "shared-skill"
+            let aliases = try makeAliasedSkills(named: slug, in: root)
+            let archiveURL = root.appendingPathComponent("remote.zip")
+            try writeArchive(at: archiveURL, markdown: "# Updated")
+            let store = SkillStore()
+            store.skills = [aliases.realSkill, aliases.aliasSkill]
+            let client = RemoteSkillClient(
+                fetchLatest: { _ in [] },
+                search: { _, _ in [] },
+                download: { _, _ in
+                    withUnsafeCurrentTask { $0?.cancel() }
+                    return archiveURL
+                },
+                fetchDetail: { _ in nil },
+                fetchLatestVersion: { _ in nil }
+            )
+            let update = Task {
+                try await store.updateInstalledSkill(
+                    slug: slug,
+                    version: "2.0.0",
+                    client: client
+                )
+            }
+
+            do {
+                _ = try await update.value
+                Issue.record("Expected cancellation")
+            } catch is CancellationError {
+                // Expected: no logical alias was counted as a completed physical destination.
+            } catch let error as PartialSkillInstallError {
+                Issue.record("Unexpected duplicate destination report: \(error)")
+            }
+        }
+    }
+
+    @MainActor
+    private func makeAliasedSkills(
+        named name: String,
+        in root: URL
+    ) throws -> (aliasRoot: URL, realSkill: Skill, aliasSkill: Skill) {
+        let realRoot = root.appendingPathComponent("real", isDirectory: true)
+        let aliasRoot = root.appendingPathComponent("alias", isDirectory: true)
+        try FileManager.default.createDirectory(at: realRoot, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: aliasRoot, withDestinationURL: realRoot)
+        return (
+            aliasRoot,
+            try makeSkill(
+                named: name,
+                platform: .codex,
+                managedRoot: try ManagedRootReference.capture(at: realRoot)
+            ),
+            try makeSkill(
+                named: name,
+                platform: .claude,
+                managedRoot: try ManagedRootReference.capture(at: aliasRoot)
+            )
+        )
+    }
+
+    @MainActor
     private func makeSkill(
         named name: String,
         platform: SkillPlatform,
         in temporaryRoot: URL
     ) throws -> Skill {
         let platformRoot = temporaryRoot.appendingPathComponent(platform.storageKey, isDirectory: true)
-        let skillRoot = platformRoot.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.createDirectory(at: platformRoot, withIntermediateDirectories: true)
+        let managedRoot = try ManagedRootReference.capture(at: platformRoot)
+        return try makeSkill(named: name, platform: platform, managedRoot: managedRoot)
+    }
+
+    @MainActor
+    private func makeSkill(
+        named name: String,
+        platform: SkillPlatform,
+        managedRoot: ManagedRootReference
+    ) throws -> Skill {
+        let skillRoot = managedRoot.registeredURL.appendingPathComponent(name, isDirectory: true)
         try FileManager.default.createDirectory(at: skillRoot, withIntermediateDirectories: true)
         let skillFile = skillRoot.appendingPathComponent("SKILL.md")
-        try "# Existing".write(to: skillFile, atomically: true, encoding: .utf8)
-        let managedRoot = try ManagedRootReference.capture(at: platformRoot)
+        if !FileManager.default.fileExists(atPath: skillFile.path) {
+            try "# Existing".write(to: skillFile, atomically: true, encoding: .utf8)
+        }
         return Skill(
             id: "\(platform.storageKey)-\(name)",
             name: name,

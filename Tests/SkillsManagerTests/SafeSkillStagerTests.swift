@@ -13,6 +13,10 @@ struct SafeSkillStagerTests {
             let source = root.appendingPathComponent("source", isDirectory: true)
             let destination = root.appendingPathComponent("destination", isDirectory: true)
             try makeSkill(at: source, markdown: "# Example")
+            try FileManager.default.createDirectory(
+                at: source.appendingPathComponent("assets/empty", isDirectory: true),
+                withIntermediateDirectories: true
+            )
             let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
 
             let result = try SafeSkillStager().install(
@@ -26,6 +30,9 @@ struct SafeSkillStagerTests {
             let installed = result.installedURL
             #expect(installed.lastPathComponent == "example")
             #expect(FileManager.default.fileExists(atPath: installed.appendingPathComponent("SKILL.md").path))
+            #expect(try installed.appendingPathComponent("assets/empty").resourceValues(
+                forKeys: [.isDirectoryKey]
+            ).isDirectory == true)
             #expect(try FileManager.default.contentsOfDirectory(atPath: destination.path).allSatisfy {
                 !$0.hasPrefix(".skillsmanager-tmp-")
             })
@@ -189,6 +196,10 @@ struct SafeSkillStagerTests {
             let destination = root.appendingPathComponent("destination", isDirectory: true)
             let archiveURL = root.appendingPathComponent("example.zip")
             try makeSkill(at: source, markdown: "# Archived")
+            try FileManager.default.createDirectory(
+                at: source.appendingPathComponent("empty", isDirectory: true),
+                withIntermediateDirectories: true
+            )
             let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
             let contents = try Data(contentsOf: source.appendingPathComponent("SKILL.md"))
             let archive = try Archive(url: archiveURL, accessMode: .create)
@@ -200,6 +211,11 @@ struct SafeSkillStagerTests {
                 let start = Int(position)
                 return contents.subdata(in: start..<min(start + size, contents.count))
             }
+            try archive.addEntry(
+                with: "wrapper/empty/",
+                type: .directory,
+                uncompressedSize: Int64(0)
+            ) { _, _ in Data() }
 
             let result = try SafeSkillStager().installArchive(
                 archiveAt: archiveURL,
@@ -213,6 +229,9 @@ struct SafeSkillStagerTests {
                 contentsOf: result.installedURL.appendingPathComponent("SKILL.md"),
                 encoding: .utf8
             ) == "# Archived")
+            #expect(try result.installedURL.appendingPathComponent("empty").resourceValues(
+                forKeys: [.isDirectoryKey]
+            ).isDirectory == true)
             #expect(try FileManager.default.contentsOfDirectory(atPath: destination.path).allSatisfy {
                 !$0.hasPrefix(".skillsmanager-tmp-")
             })

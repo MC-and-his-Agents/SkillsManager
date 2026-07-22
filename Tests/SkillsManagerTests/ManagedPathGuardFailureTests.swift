@@ -61,6 +61,65 @@ struct ManagedPathGuardFailureTests {
         }
     }
 
+    @Test("staging open failure never deletes an unverified concurrent replacement")
+    func stagingOpenFailureReportsDebt() throws {
+        try withFixture { _, root, guardValue in
+            let target = root.appendingPathComponent(".skillsmanager-tmp-open-failure")
+
+            do {
+                _ = try guardValue.createDirectory(at: target, afterCreate: {
+                    try self.fileManager.removeItem(at: target)
+                    try Data("concurrent".utf8).write(to: target)
+                })
+                Issue.record("Expected opening the replaced staging directory to fail")
+            } catch let error as SafeSkillStagingFailure {
+                #expect(error.cleanupDebts.map(\.url) == [target])
+            }
+
+            #expect(try String(contentsOf: target, encoding: .utf8) == "concurrent")
+        }
+    }
+
+    @Test("verified staging creation failures clean only the observed identity")
+    func verifiedStagingFailureCleansObservedDirectory() throws {
+        try withFixture { _, root, guardValue in
+            let target = root.appendingPathComponent(".skillsmanager-tmp-verified-failure")
+            let injected = ManagedPathError.posix(operation: "injected post-open failure", code: EIO)
+
+            #expect(throws: injected) {
+                _ = try guardValue.createDirectory(
+                    at: target,
+                    afterOpen: { throw injected }
+                )
+            }
+
+            #expect(!self.fileManager.fileExists(atPath: target.path))
+        }
+    }
+
+    @Test("staging verification preserves a concurrently replaced directory")
+    func stagingVerificationReportsConcurrentReplacement() throws {
+        try withFixture { _, root, guardValue in
+            let target = root.appendingPathComponent(".skillsmanager-tmp-replaced")
+            let displaced = root.appendingPathComponent("displaced")
+            let marker = target.appendingPathComponent("marker")
+
+            do {
+                _ = try guardValue.createDirectory(at: target, afterOpen: {
+                    try self.fileManager.moveItem(at: target, to: displaced)
+                    try self.fileManager.createDirectory(at: target, withIntermediateDirectories: false)
+                    try Data("concurrent".utf8).write(to: marker)
+                })
+                Issue.record("Expected staging identity verification to fail")
+            } catch let error as SafeSkillStagingFailure {
+                #expect(error.cleanupDebts.map(\.url) == [target])
+            }
+
+            #expect(try String(contentsOf: marker, encoding: .utf8) == "concurrent")
+            #expect(self.fileManager.fileExists(atPath: displaced.path))
+        }
+    }
+
     @Test("no-replace promotion never moves a concurrent target during post-check")
     func noReplacePreservesConcurrentTarget() throws {
         try withTemporaryDirectory { temporary in

@@ -244,6 +244,13 @@ extension SkillContentSnapshot {
             throw SkillContentSnapshotError.rootIsNotDirectory(path: "destination")
         }
 
+        try sourceTree.verifyDirectories(sourceDirectories, checkpoint: checkpoint)
+        try Self.createDestinationDirectories(
+            sourceDirectories,
+            rootDescriptor: rootDescriptor,
+            checkpoint: checkpoint
+        )
+
         var totalByteCount = UInt64.zero
         for file in discoveredFiles {
             try checkpoint()
@@ -257,6 +264,28 @@ extension SkillContentSnapshot {
             )
         }
         try sourceTree.verifyDirectories(sourceDirectories, checkpoint: checkpoint)
+    }
+
+    private nonisolated static func createDestinationDirectories(
+        _ directories: [SafeSourceTree.DirectoryRecord],
+        rootDescriptor: Int32,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws {
+        for directory in directories {
+            try checkpoint()
+            let components = directory.relativePath
+                .split(separator: "/", omittingEmptySubsequences: false)
+                .map(String.init)
+            guard !components.isEmpty, components.allSatisfy({ !$0.isEmpty }) else {
+                throw SkillContentSnapshotError.fileChanged(path: directory.relativePath)
+            }
+            let descriptor = try openDestinationDirectory(
+                components,
+                rootDescriptor: rootDescriptor,
+                displayPath: directory.relativePath
+            )
+            Darwin.close(descriptor)
+        }
     }
 
     private nonisolated static func copyFile(
@@ -400,15 +429,29 @@ extension SkillContentSnapshot {
         guard let fileName = components.popLast(), !fileName.isEmpty else {
             throw SkillContentSnapshotError.fileChanged(path: relativePath)
         }
-        var parentDescriptor = Darwin.dup(rootDescriptor)
-        guard parentDescriptor >= 0 else {
-            throw SkillContentSnapshotError.fileSystemFailure(path: relativePath, code: errno)
-        }
+        let parentDescriptor = try openDestinationDirectory(
+            components,
+            rootDescriptor: rootDescriptor,
+            displayPath: relativePath
+        )
         defer { Darwin.close(parentDescriptor) }
 
+        return try body(parentDescriptor, fileName)
+    }
+
+    private nonisolated static func openDestinationDirectory(
+        _ components: [String],
+        rootDescriptor: Int32,
+        displayPath: String
+    ) throws -> Int32 {
+        var parentDescriptor = Darwin.dup(rootDescriptor)
+        guard parentDescriptor >= 0 else {
+            throw SkillContentSnapshotError.fileSystemFailure(path: displayPath, code: errno)
+        }
         for component in components {
             if Darwin.mkdirat(parentDescriptor, component, S_IRWXU) != 0, errno != EEXIST {
-                throw SkillContentSnapshotError.fileSystemFailure(path: relativePath, code: errno)
+                Darwin.close(parentDescriptor)
+                throw SkillContentSnapshotError.fileSystemFailure(path: displayPath, code: errno)
             }
             let next = Darwin.openat(
                 parentDescriptor,
@@ -416,11 +459,13 @@ extension SkillContentSnapshot {
                 O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
             )
             guard next >= 0 else {
-                throw SkillContentSnapshotError.fileSystemFailure(path: relativePath, code: errno)
+                let code = errno
+                Darwin.close(parentDescriptor)
+                throw SkillContentSnapshotError.fileSystemFailure(path: displayPath, code: code)
             }
             Darwin.close(parentDescriptor)
             parentDescriptor = next
         }
-        return try body(parentDescriptor, fileName)
+        return parentDescriptor
     }
 }

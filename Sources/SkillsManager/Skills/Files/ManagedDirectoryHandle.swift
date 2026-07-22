@@ -64,11 +64,20 @@ nonisolated extension ManagedPathGuard {
         )
     }
 
-    func createDirectory(at url: URL) throws -> ManagedDirectoryHandle {
+    func createDirectory(
+        at url: URL,
+        afterCreate: () throws -> Void = {},
+        afterOpen: () throws -> Void = {}
+    ) throws -> ManagedDirectoryHandle {
         try verifyRootIdentity()
         let name = try managedName(for: url).value
         guard Darwin.mkdirat(rootDescriptor, name, S_IRWXU) == 0 else {
             throw ManagedPathError.posix(operation: "create managed directory", code: errno)
+        }
+        do {
+            try afterCreate()
+        } catch {
+            throw creationFailureWithoutIdentity(error, at: url)
         }
         let descriptor = Darwin.openat(
             rootDescriptor,
@@ -76,26 +85,69 @@ nonisolated extension ManagedPathGuard {
             O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
         )
         guard descriptor >= 0 else {
-            let code = errno
-            _ = Darwin.unlinkat(rootDescriptor, name, AT_REMOVEDIR)
-            throw ManagedPathError.posix(operation: "open managed directory", code: code)
+            throw creationFailureWithoutIdentity(
+                ManagedPathError.posix(operation: "open managed directory", code: errno),
+                at: url
+            )
         }
+        var identity: ManagedItemIdentity?
         do {
             var metadata = stat()
             guard Darwin.fstat(descriptor, &metadata) == 0 else {
                 throw ManagedPathError.posix(operation: "inspect managed directory", code: errno)
             }
-            let identity = ManagedItemIdentity(metadata)
+            let openedIdentity = ManagedItemIdentity(metadata)
+            identity = openedIdentity
+            try afterOpen()
             guard ManagedPathGuard.fileType(of: metadata) == S_IFDIR,
-                  try itemIdentity(at: url) == identity else {
+                  try itemIdentity(at: url) == openedIdentity else {
                 throw ManagedPathError.itemChanged
             }
             try verifyRootIdentity()
-            return ManagedDirectoryHandle(url: url, identity: identity, descriptor: descriptor)
-        } catch {
+            return ManagedDirectoryHandle(url: url, identity: openedIdentity, descriptor: descriptor)
+        } catch let operationError {
             Darwin.close(descriptor)
-            throw error
+            try throwCreationFailure(
+                operationError,
+                at: url,
+                expectedIdentity: identity
+            )
         }
+    }
+
+    private func creationFailureWithoutIdentity(
+        _ error: Error,
+        at url: URL
+    ) -> SafeSkillStagingFailure {
+        SafeSkillStagingFailure(
+            originalReason: error.localizedDescription,
+            cleanupDebts: [SafeSkillCleanupDebt(
+                url: url,
+                reason: "The staging directory identity could not be established; inspect it before cleanup."
+            )]
+        )
+    }
+
+    private func throwCreationFailure(
+        _ operationError: Error,
+        at url: URL,
+        expectedIdentity: ManagedItemIdentity?
+    ) throws -> Never {
+        guard let expectedIdentity else {
+            throw creationFailureWithoutIdentity(operationError, at: url)
+        }
+        do {
+            try removeItem(at: url, expectedIdentity: expectedIdentity)
+        } catch let cleanupError {
+            throw SafeSkillStagingFailure(
+                originalReason: operationError.localizedDescription,
+                cleanupDebts: [SafeSkillCleanupDebt(
+                    url: url,
+                    reason: cleanupError.localizedDescription
+                )]
+            )
+        }
+        throw operationError
     }
 
     func withItemDescriptor<T>(

@@ -6,12 +6,30 @@ nonisolated struct SkillContentLimits: Equatable, Sendable {
     static let `default` = SkillContentLimits(
         maximumFileCount: 10_000,
         maximumTotalByteCount: 512 * 1_024 * 1_024,
-        maximumFileByteCount: 128 * 1_024 * 1_024
+        maximumFileByteCount: 128 * 1_024 * 1_024,
+        maximumDirectoryCount: 10_000,
+        maximumPathDepth: 64
     )
 
     let maximumFileCount: Int
     let maximumTotalByteCount: UInt64
     let maximumFileByteCount: UInt64
+    let maximumDirectoryCount: Int
+    let maximumPathDepth: Int
+
+    init(
+        maximumFileCount: Int,
+        maximumTotalByteCount: UInt64,
+        maximumFileByteCount: UInt64,
+        maximumDirectoryCount: Int = SkillContentLimits.default.maximumDirectoryCount,
+        maximumPathDepth: Int = SkillContentLimits.default.maximumPathDepth
+    ) {
+        self.maximumFileCount = maximumFileCount
+        self.maximumTotalByteCount = maximumTotalByteCount
+        self.maximumFileByteCount = maximumFileByteCount
+        self.maximumDirectoryCount = maximumDirectoryCount
+        self.maximumPathDepth = maximumPathDepth
+    }
 }
 
 typealias SkillCancellationCheckpoint = () throws -> Void
@@ -204,6 +222,8 @@ nonisolated enum SkillContentSnapshotError: LocalizedError, Equatable, Sendable 
     case unsupportedEntry(path: String)
     case pathCollision(first: String, second: String)
     case fileCountLimitExceeded(limit: Int)
+    case directoryCountLimitExceeded(limit: Int)
+    case pathDepthLimitExceeded(path: String, limit: Int)
     case fileByteLimitExceeded(path: String, limit: UInt64, actual: UInt64)
     case totalByteLimitExceeded(limit: UInt64, actual: UInt64)
     case fileChanged(path: String)
@@ -219,6 +239,10 @@ nonisolated enum SkillContentSnapshotError: LocalizedError, Equatable, Sendable 
             "The Skill contains conflicting paths: \(first) and \(second)"
         case .fileCountLimitExceeded(let limit):
             "The Skill contains more than \(limit) files."
+        case .directoryCountLimitExceeded(let limit):
+            "The Skill contains more than \(limit) directories."
+        case .pathDepthLimitExceeded(let path, let limit):
+            "The path \(path) exceeds the \(limit)-component depth limit."
         case .fileByteLimitExceeded(let path, let limit, _):
             "The file \(path) exceeds the \(limit)-byte limit."
         case .totalByteLimitExceeded(let limit, _):
@@ -369,8 +393,19 @@ nonisolated struct SkillContentFileEnumerator {
             if SkillContentExclusions.contains(normalizedName, isDirectory: kind == .directory) {
                 continue
             }
+            guard components.count <= limits.maximumPathDepth else {
+                throw SkillContentSnapshotError.pathDepthLimitExceeded(
+                    path: relativePath,
+                    limit: limits.maximumPathDepth
+                )
+            }
 
             if kind == .directory {
+                guard directories.count < limits.maximumDirectoryCount else {
+                    throw SkillContentSnapshotError.directoryCountLimitExceeded(
+                        limit: limits.maximumDirectoryCount
+                    )
+                }
                 let identity = SafeSourceTree.Identity(childMetadata)
                 let childSteps = directorySteps + [.init(name: rawName, identity: identity)]
                 directories.append(.init(steps: childSteps, relativePath: relativePath))

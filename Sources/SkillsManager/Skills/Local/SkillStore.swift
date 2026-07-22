@@ -435,16 +435,18 @@ import Observation
         }
         guard !installedSkills.isEmpty else { return nil }
 
-        let zipURL = try await client.download(slug, version)
-        var seenRoots: Set<ManagedRootReference> = []
-        let destinationList = installedSkills.compactMap { installed -> SkillFileWorker.InstallDestination? in
-            guard seenRoots.insert(installed.managedRoot).inserted else { return nil }
-            return SkillFileWorker.InstallDestination(
+        var seenRootIdentities: Set<ManagedItemIdentity> = []
+        var destinationList: [SkillFileWorker.InstallDestination] = []
+        for installed in installedSkills {
+            let rootIdentity = try installed.managedRoot.verifiedRoot().identity
+            guard seenRootIdentities.insert(rootIdentity).inserted else { continue }
+            destinationList.append(SkillFileWorker.InstallDestination(
                 rootURL: installed.managedRoot.registeredURL,
                 storageKey: storageKey(for: installed),
                 managedRoot: installed.managedRoot
-            )
+            ))
         }
+        let zipURL = try await client.download(slug, version)
         let result: SkillFileWorker.RemoteInstallResult
         do {
             result = try await fileWorker.installRemoteSkill(

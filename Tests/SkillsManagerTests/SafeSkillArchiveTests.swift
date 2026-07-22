@@ -110,6 +110,45 @@ struct SafeSkillArchiveTests {
         }
     }
 
+    @Test("Counts explicit and implicit directories once during preflight")
+    func enforcesDirectoryCountLimit() throws {
+        let accepted = try Fixture()
+        defer { accepted.remove() }
+        try accepted.writeArchive([
+            .directory("one/"),
+            .file("one/two/SKILL.md", Data()),
+        ])
+        _ = try SafeSkillArchive(limits: .init(maximumDirectoryCount: 2))
+            .extract(archiveAt: accepted.archiveURL, to: accepted.destinationURL)
+
+        let rejected = try Fixture()
+        defer { rejected.remove() }
+        try rejected.writeArchive([
+            .directory("one/"),
+            .directory("two/"),
+            .directory("three/"),
+        ])
+        expectError(.tooManyDirectories) {
+            try SafeSkillArchive(limits: .init(maximumDirectoryCount: 2))
+                .extract(archiveAt: rejected.archiveURL, to: rejected.destinationURL)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: rejected.destinationURL.path).isEmpty)
+    }
+
+    @Test("Rejects deep archive paths before staging content")
+    func enforcesPathDepthLimit() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let path = "one/two/SKILL.md"
+        try fixture.writeArchive([.file(path, Data())])
+
+        expectError(.pathTooDeep(path)) {
+            try SafeSkillArchive(limits: .init(maximumPathDepth: 2))
+                .extract(archiveAt: fixture.archiveURL, to: fixture.destinationURL)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
+    }
+
     @Test("Rejects an oversized ZIP64 declaration before enumerating entries")
     func rejectsOversizedZIP64DeclarationBeforeEnumeration() throws {
         let fixture = try Fixture()

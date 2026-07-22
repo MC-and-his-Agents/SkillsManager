@@ -11,6 +11,8 @@ nonisolated struct SafeSkillArchive {
             maximumFileCount: Int = SkillContentLimits.default.maximumFileCount,
             maximumTotalSize: UInt64 = SkillContentLimits.default.maximumTotalByteCount,
             maximumFileSize: UInt64 = SkillContentLimits.default.maximumFileByteCount,
+            maximumDirectoryCount: Int = SkillContentLimits.default.maximumDirectoryCount,
+            maximumPathDepth: Int = SkillContentLimits.default.maximumPathDepth,
             maximumArchiveSize: UInt64? = nil
         ) {
             self.maximumEntryCount = maximumEntryCount
@@ -19,7 +21,9 @@ nonisolated struct SafeSkillArchive {
             content = SkillContentLimits(
                 maximumFileCount: maximumFileCount,
                 maximumTotalByteCount: maximumTotalSize,
-                maximumFileByteCount: maximumFileSize
+                maximumFileByteCount: maximumFileSize,
+                maximumDirectoryCount: maximumDirectoryCount,
+                maximumPathDepth: maximumPathDepth
             )
         }
     }
@@ -160,6 +164,7 @@ nonisolated struct SafeSkillArchive {
         guard entries.count == rawKinds.count else { throw SafeSkillArchiveError.invalidArchive }
         guard entries.count <= limits.maximumEntryCount else { throw SafeSkillArchiveError.tooManyEntries }
         var fileCount = 0, totalSize: UInt64 = 0
+        var directoryKeys: Set<String> = []
         var paths: [String: (path: String, kind: EntryKind)] = [:]
         var prefixSpellings: [String: (spelling: String, path: String)] = [:]
         var result: [ValidatedEntry] = []
@@ -170,6 +175,9 @@ nonisolated struct SafeSkillArchive {
             let normalized = components.map(SkillContentPath.normalizedComponent)
             let keys = normalized.map(SkillContentPath.collisionKey(for:))
             let key = keys.joined(separator: "/")
+            guard components.count <= limits.content.maximumPathDepth else {
+                throw SafeSkillArchiveError.pathTooDeep(entry.path)
+            }
             if let existing = paths[key] {
                 throw SafeSkillArchiveError.pathCollision(existing.path, entry.path)
             }
@@ -182,6 +190,15 @@ nonisolated struct SafeSkillArchive {
                 prefixSpellings[prefixKey] = (spelling, entry.path)
             }
             paths[key] = (entry.path, kind)
+            let directoryDepth = kind == .directory ? keys.count : keys.count - 1
+            if directoryDepth > 0 {
+                for end in 1...directoryDepth {
+                    directoryKeys.insert(keys[..<end].joined(separator: "/"))
+                }
+            }
+            guard directoryKeys.count <= limits.content.maximumDirectoryCount else {
+                throw SafeSkillArchiveError.tooManyDirectories
+            }
             try addSize(of: entry, kind: kind, fileCount: &fileCount, total: &totalSize)
             result.append(ValidatedEntry(entry: entry, components: components, kind: kind))
         }
@@ -451,7 +468,8 @@ private nonisolated func archivePOSIXError() -> POSIXError {
 nonisolated enum SafeSkillArchiveError: LocalizedError, Equatable {
     case invalidArchive, invalidDestination, destinationNotEmpty
     case unsafePath(String), pathCollision(String, String), unsupportedEntryType(String)
-    case tooManyEntries, tooManyFiles, fileTooLarge(String), archiveTooLarge
+    case tooManyEntries, tooManyFiles, tooManyDirectories, pathTooDeep(String)
+    case fileTooLarge(String), archiveTooLarge
     case invalidChecksum(String), invalidSize(String)
     var errorDescription: String? {
         switch self {
@@ -462,6 +480,8 @@ nonisolated enum SafeSkillArchiveError: LocalizedError, Equatable {
         case .unsupportedEntryType(let path): "The archive contains a link or unsupported entry: \(path)"
         case .tooManyEntries: "The archive contains too many entries."
         case .tooManyFiles: "The archive contains too many files."
+        case .tooManyDirectories: "The archive contains too many directories."
+        case .pathTooDeep(let path): "The archive contains a path that is too deep: \(path)"
         case .fileTooLarge(let path): "The archive contains a file that is too large: \(path)"
         case .archiveTooLarge: "The archive exceeds the allowed size."
         case .invalidChecksum(let path), .invalidSize(let path):

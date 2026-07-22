@@ -154,6 +154,50 @@ struct SkillContentSnapshotTests {
         }
     }
 
+    @Test("directory count and path depth share content limits")
+    func enforcesDirectoryLimits() throws {
+        try withTemporaryDirectory { root in
+            for name in ["one", "two", "three"] {
+                try FileManager.default.createDirectory(
+                    at: root.appendingPathComponent(name),
+                    withIntermediateDirectories: false
+                )
+            }
+
+            #expect(throws: SkillContentSnapshotError.directoryCountLimitExceeded(limit: 2)) {
+                try SkillContentSnapshot.capture(
+                    at: root,
+                    limits: .init(
+                        maximumFileCount: 10,
+                        maximumTotalByteCount: 10,
+                        maximumFileByteCount: 10,
+                        maximumDirectoryCount: 2
+                    )
+                )
+            }
+        }
+
+        try withTemporaryDirectory { root in
+            let deepPath = root.appendingPathComponent("one/two/three")
+            try FileManager.default.createDirectory(at: deepPath, withIntermediateDirectories: true)
+
+            #expect(throws: SkillContentSnapshotError.pathDepthLimitExceeded(
+                path: "one/two/three",
+                limit: 2
+            )) {
+                try SkillContentSnapshot.capture(
+                    at: root,
+                    limits: .init(
+                        maximumFileCount: 10,
+                        maximumTotalByteCount: 10,
+                        maximumFileByteCount: 10,
+                        maximumPathDepth: 2
+                    )
+                )
+            }
+        }
+    }
+
     @Test("symbolic links are rejected without traversal")
     func rejectsSymbolicLinks() throws {
         try withTemporaryDirectory { root in
