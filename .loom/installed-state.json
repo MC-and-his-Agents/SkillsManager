@@ -1,0 +1,135 @@
+{
+  "schema_version": "loom-installed-state/v2",
+  "installation_id": "loom-issue-31-loom-adoption",
+  "installing_command": "loom install",
+  "upgrade_eligibility": "current",
+  "runtime_provider": "global-cli",
+  "contract": {
+    "minimum_loom_version": "v0.32.1",
+    "installed_state_schema": "loom-installed-state/v2"
+  },
+  "provider_requirements": {
+    "global_cli": {
+      "required": true,
+      "provider": "loom-cli",
+      "authority": "workstation",
+      "package": "@mc-and-his-agents/loom",
+      "executable": "loom",
+      "version_requirement": "v0.32.1",
+      "required_commands": [
+        "installed-state validate",
+        "detect",
+        "doctor",
+        "verify",
+        "status",
+        "story"
+      ],
+      "compatibility_mode_allowed": false
+    }
+  },
+  "repo_payload": {
+    "mode": "metadata-only",
+    "adoption_mode": "light-governance",
+    "intentional_absent_paths": [
+      ".loom/bin",
+      ".loom/runtime",
+      ".loom/tmp",
+      ".loom/shadow",
+      ".loom/status/current.md",
+      ".loom/work-items",
+      ".loom/progress",
+      ".loom/specs",
+      ".loom/reviews",
+      "plugins/loom/.codex-plugin/plugin.json",
+      "plugins/loom/skills",
+      ".agents/skills",
+      "skills"
+    ]
+  },
+  "skills_provider": {
+    "provider": "codex-loom-plugin",
+    "scope": "user",
+    "required": true,
+    "registration_authority": "workstation"
+  },
+  "layers": [
+    {
+      "id": "adoption-metadata",
+      "layer_type": "repository-adoption-metadata",
+      "installed_path": ".loom/installed-state.json",
+      "version_context": {
+        "minimum_loom_contract": "v0.32.1",
+        "installed_state_schema": "loom-installed-state/v2"
+      },
+      "runtime_state": "ready",
+      "upgrade_eligibility": "current",
+      "provides": [
+        "repository adoption truth"
+      ],
+      "consumes": [
+        "user-skills-provider",
+        "global-cli-provider"
+      ]
+    },
+    {
+      "id": "user-skills-provider",
+      "layer_type": "user-level-skills-provider",
+      "installed_path": "workstation:codex-loom-plugin",
+      "version_context": {
+        "minimum_plugin_contract": "0.4.0",
+        "minimum_host_adapter_contract": "1.0.0"
+      },
+      "runtime_state": "ready",
+      "upgrade_eligibility": "current",
+      "provides": [
+        "Loom scenario skills from user-level Codex plugin"
+      ],
+      "consumes": []
+    },
+    {
+      "id": "global-cli-provider",
+      "layer_type": "global-cli-runtime-provider",
+      "installed_path": "workstation:loom-cli",
+      "version_context": {
+        "package": "@mc-and-his-agents/loom",
+        "minimum_version": "v0.32.1"
+      },
+      "runtime_state": "unknown",
+      "upgrade_eligibility": "unknown",
+      "provides": [
+        "loom command semantics",
+        "runtime provider"
+      ],
+      "declared_support": {
+        "commands": [
+          "installed-state validate",
+          "detect",
+          "doctor",
+          "verify",
+          "status",
+          "story"
+        ]
+      },
+      "consumes": []
+    }
+  ],
+  "installation_graph": {
+    "layers": [
+      "adoption-metadata",
+      "user-skills-provider",
+      "global-cli-provider"
+    ],
+    "edges": [
+      {
+        "from": "adoption-metadata",
+        "to": "user-skills-provider",
+        "relationship": "requires-external-provider"
+      },
+      {
+        "from": "adoption-metadata",
+        "to": "global-cli-provider",
+        "relationship": "requires-runtime-provider"
+      }
+    ]
+  }
+}
