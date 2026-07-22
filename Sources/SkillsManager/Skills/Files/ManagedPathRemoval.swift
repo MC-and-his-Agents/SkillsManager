@@ -131,11 +131,11 @@ nonisolated extension ManagedPathGuard {
             guard childDescriptor >= 0 else {
                 throw ManagedPathError.posix(operation: "open directory for removal", code: errno)
             }
+            defer { Darwin.close(childDescriptor) }
 
             var openedStatus = stat()
             guard Darwin.fstat(childDescriptor, &openedStatus) == 0,
                   FileIdentity(openedStatus) == expectedIdentity else {
-                Darwin.close(childDescriptor)
                 throw ManagedPathError.itemChanged
             }
             let removedContents = try removeDirectoryTree(descriptor: childDescriptor)
