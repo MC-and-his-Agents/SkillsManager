@@ -100,9 +100,12 @@ jobs:
       - name: Require reusable gate success
         env:
           CALL_RESULT: ${{ needs.gate.result }}
-          GATE_RESULT: ${{ needs.gate.outputs.result }}
         run: |
-          if [[ "$CALL_RESULT" != "success" || "$GATE_RESULT" != "passed" ]]; then
-            echo "Reusable delivery gate did not pass (call=$CALL_RESULT, result=$GATE_RESULT)." >&2
+          # The reusable workflow runs in enforce mode, so its terminal job fails
+          # whenever the semantic result is not passing. GitHub does not reliably
+          # propagate workflow-call outputs from its hyphenated terminal job ID;
+          # consume the authenticated call conclusion instead.
+          if [[ "$CALL_RESULT" != "success" ]]; then
+            echo "Reusable delivery gate did not pass (call=$CALL_RESULT)." >&2
             exit 1
           fi
