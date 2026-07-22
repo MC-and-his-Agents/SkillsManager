@@ -140,6 +140,57 @@ struct SafeImportWorkerIntegrationTests {
         }
     }
 
+    @Test("zip candidate cleanup preserves a replacement at the leased name")
+    func zipCandidateCleanupPreservesReplacement() async throws {
+        try await withTemporaryDirectory { root in
+            let archiveURL = root.appendingPathComponent("candidate.zip")
+            try writeArchive(at: archiveURL, entries: [
+                ("candidate/SKILL.md", Data("# Candidate".utf8)),
+            ])
+
+            let worker = SkillImportWorker()
+            let candidate = try await worker.validateZip(archiveURL)
+            let lease = try #require(candidate.temporaryRoot)
+            let displaced = lease.url.deletingLastPathComponent().appendingPathComponent(
+                "displaced-\(UUID().uuidString.lowercased())",
+                isDirectory: true
+            )
+            let sentinel = lease.url.appendingPathComponent("replacement.txt")
+            defer {
+                try? FileManager.default.removeItem(at: lease.url)
+                try? FileManager.default.removeItem(at: displaced)
+            }
+
+            try FileManager.default.moveItem(at: lease.url, to: displaced)
+            try FileManager.default.createDirectory(
+                at: lease.url,
+                withIntermediateDirectories: false
+            )
+            try Data("replacement".utf8).write(to: sentinel)
+
+            await worker.cleanupTemporaryRoot(lease)
+            await worker.cleanupTemporaryRoot(lease)
+
+            #expect(try String(contentsOf: sentinel, encoding: .utf8) == "replacement")
+            #expect(FileManager.default.fileExists(atPath: displaced.path))
+        }
+    }
+
+    @Test("preview worker does not delete an archive it does not own")
+    func previewWorkerPreservesArchive() async throws {
+        try await withTemporaryDirectory { root in
+            let archiveURL = root.appendingPathComponent("preview.zip")
+            try writeArchive(at: archiveURL, entries: [
+                ("preview/SKILL.md", Data("# Preview".utf8)),
+            ])
+
+            let markdown = try await SkillFileWorker().loadRawMarkdown(from: archiveURL)
+
+            #expect(markdown == "# Preview")
+            #expect(FileManager.default.fileExists(atPath: archiveURL.path))
+        }
+    }
+
     @Test("remote worker rejects a link archive without replacing the installed Skill")
     func remoteWorkerRejectsLinkWithoutReplacement() async throws {
         try await withTemporaryDirectory { root in
@@ -195,6 +246,7 @@ struct SafeImportWorkerIntegrationTests {
             #expect(metadata?["slug"] as? String == "remote-slug")
             #expect(metadata?["version"] as? String == "1.2.3")
             #expect(metadata?["source"] as? String == "clawdhub")
+            #expect(FileManager.default.fileExists(atPath: archiveURL.path))
         }
     }
 

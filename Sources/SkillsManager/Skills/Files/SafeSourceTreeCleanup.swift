@@ -7,9 +7,42 @@ nonisolated func unlinkCreatedFileIfUnchanged(
     in parentDescriptor: Int32,
     expectedIdentity: ManagedItemIdentity,
     beforeUnlink: () -> Void = {},
-    beforeRestore: (String) -> Void = { _ in }
+    beforeRestore: (String) -> Void = { _ in },
+    beforeQuarantineUnlink: (String) -> Void = { _ in }
 ) -> Bool {
-    let quarantine: String
+    guard let quarantine = quarantineItem(named: name, in: parentDescriptor) else { return false }
+
+    guard let movedIdentity = cleanupIdentity(of: quarantine, in: parentDescriptor) else { return false }
+    guard movedIdentity == expectedIdentity else {
+        beforeRestore(quarantine)
+        restoreCleanupItem(
+            quarantine,
+            to: name,
+            expectedIdentity: movedIdentity,
+            in: parentDescriptor
+        )
+        return false
+    }
+
+    beforeUnlink()
+    beforeQuarantineUnlink(quarantine)
+    guard cleanupIdentity(of: quarantine, in: parentDescriptor) == expectedIdentity else {
+        return false
+    }
+    guard Darwin.unlinkat(parentDescriptor, quarantine, 0) == 0 else {
+        beforeRestore(quarantine)
+        restoreCleanupItem(
+            quarantine,
+            to: name,
+            expectedIdentity: expectedIdentity,
+            in: parentDescriptor
+        )
+        return false
+    }
+    return true
+}
+
+private nonisolated func quarantineItem(named name: String, in parentDescriptor: Int32) -> String? {
     while true {
         let candidate = ".skillsmanager-cleanup-\(UUID().uuidString.lowercased())"
         if Darwin.renameatx_np(
@@ -19,44 +52,35 @@ nonisolated func unlinkCreatedFileIfUnchanged(
             candidate,
             UInt32(RENAME_EXCL)
         ) == 0 {
-            quarantine = candidate
-            break
+            return candidate
         }
-        if errno != EEXIST { return false }
+        if errno != EEXIST { return nil }
     }
+}
 
-    var movedMetadata = stat()
-    guard Darwin.fstatat(
+private nonisolated func cleanupIdentity(
+    of name: String,
+    in parentDescriptor: Int32
+) -> ManagedItemIdentity? {
+    var metadata = stat()
+    guard Darwin.fstatat(parentDescriptor, name, &metadata, AT_SYMLINK_NOFOLLOW) == 0 else {
+        return nil
+    }
+    return ManagedItemIdentity(metadata)
+}
+
+private nonisolated func restoreCleanupItem(
+    _ quarantine: String,
+    to name: String,
+    expectedIdentity: ManagedItemIdentity,
+    in parentDescriptor: Int32
+) {
+    guard cleanupIdentity(of: quarantine, in: parentDescriptor) == expectedIdentity else { return }
+    _ = Darwin.renameatx_np(
         parentDescriptor,
         quarantine,
-        &movedMetadata,
-        AT_SYMLINK_NOFOLLOW
-    ) == 0 else {
-        return false
-    }
-    let movedIdentity = ManagedItemIdentity(movedMetadata)
-    guard movedIdentity == expectedIdentity else {
-        beforeRestore(quarantine)
-        var recoveryMetadata = stat()
-        guard Darwin.fstatat(
-            parentDescriptor,
-            quarantine,
-            &recoveryMetadata,
-            AT_SYMLINK_NOFOLLOW
-        ) == 0,
-            ManagedItemIdentity(recoveryMetadata) == movedIdentity else {
-            return false
-        }
-        _ = Darwin.renameatx_np(
-            parentDescriptor,
-            quarantine,
-            parentDescriptor,
-            name,
-            UInt32(RENAME_EXCL)
-        )
-        return false
-    }
-
-    beforeUnlink()
-    return Darwin.unlinkat(parentDescriptor, quarantine, 0) == 0
+        parentDescriptor,
+        name,
+        UInt32(RENAME_EXCL)
+    )
 }

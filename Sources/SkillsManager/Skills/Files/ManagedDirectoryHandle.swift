@@ -66,52 +66,114 @@ nonisolated extension ManagedPathGuard {
 
     func createDirectory(
         at url: URL,
+        afterTemporaryCreate: (URL) throws -> Void = { _ in },
         afterCreate: () throws -> Void = {},
         afterOpen: () throws -> Void = {}
     ) throws -> ManagedDirectoryHandle {
         try verifyRootIdentity()
-        let name = try managedName(for: url).value
-        guard Darwin.mkdirat(rootDescriptor, name, S_IRWXU) == 0 else {
-            throw ManagedPathError.posix(operation: "create managed directory", code: errno)
-        }
+        let targetName = try managedName(for: url).value
+        let unpublished = try createUnpublishedDirectory(for: url)
+        var cleanupURL = unpublished.url
+        var descriptor: Int32?
+
         do {
+            try afterTemporaryCreate(unpublished.url)
+            let openedDescriptor = try openVerifiedDirectory(
+                named: unpublished.name,
+                expectedIdentity: unpublished.identity
+            )
+            descriptor = openedDescriptor
+            try verifyRootIdentity()
+            guard Darwin.renameatx_np(
+                rootDescriptor,
+                unpublished.name,
+                rootDescriptor,
+                targetName,
+                UInt32(RENAME_EXCL)
+            ) == 0 else {
+                throw ManagedPathError.posix(operation: "publish managed directory", code: errno)
+            }
+            cleanupURL = url
             try afterCreate()
-        } catch {
-            throw creationFailureWithoutIdentity(error, at: url)
+            try afterOpen()
+            guard try itemIdentity(at: url) == unpublished.identity else {
+                throw ManagedPathError.itemChanged
+            }
+            try verifyRootIdentity()
+            descriptor = nil
+            return ManagedDirectoryHandle(
+                url: url,
+                identity: unpublished.identity,
+                descriptor: openedDescriptor
+            )
+        } catch let operationError {
+            if let descriptor { Darwin.close(descriptor) }
+            try throwCreationFailure(
+                operationError,
+                at: cleanupURL,
+                expectedIdentity: unpublished.identity
+            )
         }
+    }
+
+    private func createUnpublishedDirectory(
+        for targetURL: URL
+    ) throws -> (name: String, url: URL, identity: ManagedItemIdentity) {
+        while true {
+            let name = ".skillsmanager-tmp-create-\(UUID().uuidString.lowercased())"
+            let temporaryURL = targetURL.deletingLastPathComponent()
+                .appendingPathComponent(name, isDirectory: true)
+            guard Darwin.mkdirat(rootDescriptor, name, S_IRWXU) == 0 else {
+                if errno == EEXIST { continue }
+                throw ManagedPathError.posix(operation: "create managed directory", code: errno)
+            }
+
+            var metadata = stat()
+            guard Darwin.fstatat(
+                rootDescriptor,
+                name,
+                &metadata,
+                AT_SYMLINK_NOFOLLOW
+            ) == 0 else {
+                throw creationFailureWithoutIdentity(
+                    ManagedPathError.posix(operation: "inspect managed directory", code: errno),
+                    at: temporaryURL
+                )
+            }
+            guard ManagedPathGuard.fileType(of: metadata) == S_IFDIR else {
+                throw creationFailureWithoutIdentity(
+                    ManagedPathError.itemChanged,
+                    at: temporaryURL
+                )
+            }
+            return (name, temporaryURL, ManagedItemIdentity(metadata))
+        }
+    }
+
+    private func openVerifiedDirectory(
+        named name: String,
+        expectedIdentity: ManagedItemIdentity
+    ) throws -> Int32 {
         let descriptor = Darwin.openat(
             rootDescriptor,
             name,
             O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
         )
         guard descriptor >= 0 else {
-            throw creationFailureWithoutIdentity(
-                ManagedPathError.posix(operation: "open managed directory", code: errno),
-                at: url
-            )
+            throw ManagedPathError.posix(operation: "open managed directory", code: errno)
         }
-        var identity: ManagedItemIdentity?
         do {
             var metadata = stat()
-            guard Darwin.fstat(descriptor, &metadata) == 0 else {
-                throw ManagedPathError.posix(operation: "inspect managed directory", code: errno)
-            }
-            let openedIdentity = ManagedItemIdentity(metadata)
-            identity = openedIdentity
-            try afterOpen()
-            guard ManagedPathGuard.fileType(of: metadata) == S_IFDIR,
-                  try itemIdentity(at: url) == openedIdentity else {
+            guard Darwin.fstat(descriptor, &metadata) == 0,
+                  ManagedPathGuard.fileType(of: metadata) == S_IFDIR,
+                  ManagedItemIdentity(metadata) == expectedIdentity,
+                  try identity(of: name, in: rootDescriptor) == expectedIdentity else {
                 throw ManagedPathError.itemChanged
             }
-            try verifyRootIdentity()
-            return ManagedDirectoryHandle(url: url, identity: openedIdentity, descriptor: descriptor)
-        } catch let operationError {
+            return descriptor
+        } catch {
             Darwin.close(descriptor)
-            try throwCreationFailure(
-                operationError,
-                at: url,
-                expectedIdentity: identity
-            )
+            throw error
         }
     }
 

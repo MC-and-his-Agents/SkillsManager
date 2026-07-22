@@ -42,24 +42,24 @@ actor SkillFileWorker {
     }
 
     func loadRawMarkdown(from zipURL: URL) throws -> String {
-        let temporaryRoot = FileManager.default.temporaryDirectory
-            .appendingPathComponent("skillsmanager-preview-\(UUID().uuidString)", isDirectory: true)
+        let temporary = try TemporaryItemLease.createDirectory(
+            in: FileManager.default.temporaryDirectory,
+            prefix: "skillsmanager-preview-"
+        )
         defer {
-            try? FileManager.default.removeItem(at: temporaryRoot)
-            try? FileManager.default.removeItem(at: zipURL)
+            Self.removeTemporaryItem(temporary.lease)
         }
 
-        try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
         do {
             try SafeSkillArchive().extract(
                 archiveAt: zipURL,
-                to: temporaryRoot,
+                toDirectoryDescriptor: temporary.handle.descriptor,
                 checkpoint: { try Task.checkCancellation() }
             )
         } catch let error as SafeSkillArchiveError {
             throw SkillImportValidationError.archiveRejected(error.localizedDescription)
         }
-        let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporaryRoot)
+        let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporary.lease.url)
         do {
             _ = try SkillContentSnapshot.capture(
                 at: skillRoot,
@@ -82,24 +82,24 @@ actor SkillFileWorker {
         version: String?,
         destinations: [InstallDestination]
     ) throws -> RemoteInstallResult {
-        let temporaryRoot = FileManager.default.temporaryDirectory
-            .appendingPathComponent("skillsmanager-remote-\(UUID().uuidString)", isDirectory: true)
+        let temporary = try TemporaryItemLease.createDirectory(
+            in: FileManager.default.temporaryDirectory,
+            prefix: "skillsmanager-remote-"
+        )
         defer {
-            try? FileManager.default.removeItem(at: temporaryRoot)
-            try? FileManager.default.removeItem(at: zipURL)
+            Self.removeTemporaryItem(temporary.lease)
         }
 
-        try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
         do {
             try SafeSkillArchive().extract(
                 archiveAt: zipURL,
-                to: temporaryRoot,
+                toDirectoryDescriptor: temporary.handle.descriptor,
                 checkpoint: { try Task.checkCancellation() }
             )
         } catch let error as SafeSkillArchiveError {
             throw SkillImportValidationError.archiveRejected(error.localizedDescription)
         }
-        let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporaryRoot)
+        let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporary.lease.url)
         let snapshot: SkillContentSnapshot
         do {
             snapshot = try SkillContentSnapshot.capture(
@@ -302,9 +302,22 @@ actor SkillFileWorker {
             S_IRUSR | S_IWUSR
         )
         guard descriptor >= 0 else { throw workerPOSIXError() }
+        var temporaryStatus = stat()
+        guard Darwin.fstat(descriptor, &temporaryStatus) == 0 else {
+            Darwin.close(descriptor)
+            throw workerPOSIXError()
+        }
+        let temporaryIdentity = ManagedItemIdentity(temporaryStatus)
+        var published = false
         defer {
             Darwin.close(descriptor)
-            _ = Darwin.unlinkat(originDirectory, temporaryName, 0)
+            if !published {
+                unlinkCreatedFileIfUnchanged(
+                    named: temporaryName,
+                    in: originDirectory,
+                    expectedIdentity: temporaryIdentity
+                )
+            }
         }
         try writeAll(data, to: descriptor)
         guard Darwin.renameatx_np(
@@ -314,6 +327,7 @@ actor SkillFileWorker {
             "origin.json",
             UInt32(RENAME_EXCL)
         ) == 0 else { throw workerPOSIXError() }
+        published = true
         var finalOriginStatus = stat()
         guard Darwin.fstatat(
             skillRootDescriptor,
@@ -323,6 +337,14 @@ actor SkillFileWorker {
         ) == 0,
             ManagedItemIdentity(finalOriginStatus) == originIdentity else {
             throw ManagedPathError.itemChanged
+        }
+    }
+
+    private nonisolated static func removeTemporaryItem(_ lease: TemporaryItemLease) {
+        do {
+            try lease.removeIfCurrent()
+        } catch {
+            NSLog("Skills Manager preserved an unverified temporary item at %@: %@", lease.url.path, error.localizedDescription)
         }
     }
 

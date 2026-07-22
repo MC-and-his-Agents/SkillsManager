@@ -80,6 +80,74 @@ struct ManagedPathGuardFailureTests {
         }
     }
 
+    @Test("staging creation never adopts a replacement directory before open")
+    func stagingCreationRejectsReplacementBeforeOpen() throws {
+        try withFixture { _, root, guardValue in
+            let target = root.appendingPathComponent(".skillsmanager-tmp-target")
+            let displaced = root.appendingPathComponent("displaced")
+            var temporaryURL: URL?
+
+            do {
+                _ = try guardValue.createDirectory(
+                    at: target,
+                    afterTemporaryCreate: { temporary in
+                        temporaryURL = temporary
+                        try self.fileManager.moveItem(at: temporary, to: displaced)
+                        try self.fileManager.createDirectory(
+                            at: temporary,
+                            withIntermediateDirectories: false
+                        )
+                        try Data("concurrent".utf8).write(
+                            to: temporary.appendingPathComponent("marker")
+                        )
+                    }
+                )
+                Issue.record("Expected the replaced unpublished directory to be rejected")
+            } catch let error as SafeSkillStagingFailure {
+                let cleanupURL = try #require(temporaryURL)
+                #expect(error.cleanupDebts.map(\.url) == [cleanupURL])
+            }
+
+            let retainedReplacement = try #require(temporaryURL)
+            #expect(!self.fileManager.fileExists(atPath: target.path))
+            #expect(self.fileManager.fileExists(atPath: displaced.path))
+            #expect(try String(
+                contentsOf: retainedReplacement.appendingPathComponent("marker"),
+                encoding: .utf8
+            ) == "concurrent")
+        }
+    }
+
+    @Test("staging publication preserves a concurrently occupied target")
+    func stagingPublicationRejectsConcurrentTarget() throws {
+        try withFixture { _, root, guardValue in
+            let target = root.appendingPathComponent(".skillsmanager-tmp-target")
+            let marker = target.appendingPathComponent("marker")
+            var temporaryURL: URL?
+
+            #expect(throws: ManagedPathError.self) {
+                _ = try guardValue.createDirectory(
+                    at: target,
+                    afterTemporaryCreate: { temporary in
+                        temporaryURL = temporary
+                        try self.fileManager.createDirectory(
+                            at: target,
+                            withIntermediateDirectories: false
+                        )
+                        try Data("concurrent".utf8).write(to: marker)
+                    }
+                )
+            }
+
+            let unpublished = try #require(temporaryURL)
+            #expect(!self.fileManager.fileExists(atPath: unpublished.path))
+            #expect(try String(contentsOf: marker, encoding: .utf8) == "concurrent")
+            #expect(try self.fileManager.contentsOfDirectory(atPath: root.path) == [
+                target.lastPathComponent,
+            ])
+        }
+    }
+
     @Test("verified staging creation failures clean only the observed identity")
     func verifiedStagingFailureCleansObservedDirectory() throws {
         try withFixture { _, root, guardValue in

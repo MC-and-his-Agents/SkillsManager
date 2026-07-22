@@ -8,7 +8,7 @@ private struct ImportCandidate {
     let installName: String
     let displayName: String
     let markdown: String
-    let temporaryRoot: URL?
+    let temporaryRoot: TemporaryItemLease?
     let archiveURL: URL?
     let fingerprint: String
 }

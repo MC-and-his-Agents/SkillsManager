@@ -46,7 +46,7 @@ actor SkillImportWorker {
         let skillFileURL: URL
         let skillName: String
         let markdown: String
-        let temporaryRoot: URL?
+        let temporaryRoot: TemporaryItemLease?
         let archiveURL: URL?
         let fingerprint: String
     }
@@ -63,28 +63,29 @@ actor SkillImportWorker {
     }
 
     func validateZip(_ zipURL: URL) throws -> ImportCandidatePayload {
-        let temporaryRoot = FileManager.default.temporaryDirectory
-            .appendingPathComponent("skillsmanager-import-\(UUID().uuidString)", isDirectory: true)
+        let temporary = try TemporaryItemLease.createDirectory(
+            in: FileManager.default.temporaryDirectory,
+            prefix: "skillsmanager-import-"
+        )
         do {
-            try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
             do {
                 try SafeSkillArchive().extract(
                     archiveAt: zipURL,
-                    to: temporaryRoot,
+                    toDirectoryDescriptor: temporary.handle.descriptor,
                     checkpoint: { try Task.checkCancellation() }
                 )
             } catch let error as SafeSkillArchiveError {
                 throw SkillImportValidationError.archiveRejected(error.localizedDescription)
             }
-            let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporaryRoot)
+            let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporary.lease.url)
             return try makePayload(
                 rootURL: skillRoot,
-                temporaryRoot: temporaryRoot,
+                temporaryRoot: temporary.lease,
                 archiveURL: zipURL,
                 checkpoint: { try Task.checkCancellation() }
             )
         } catch {
-            try? FileManager.default.removeItem(at: temporaryRoot)
+            removeTemporaryRoot(temporary.lease)
             throw error
         }
     }
@@ -138,13 +139,13 @@ actor SkillImportWorker {
         )
     }
 
-    func cleanupTemporaryRoot(_ url: URL) {
-        try? FileManager.default.removeItem(at: url)
+    func cleanupTemporaryRoot(_ lease: TemporaryItemLease) {
+        removeTemporaryRoot(lease)
     }
 
     private func makePayload(
         rootURL: URL,
-        temporaryRoot: URL?,
+        temporaryRoot: TemporaryItemLease?,
         archiveURL: URL?,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> ImportCandidatePayload {
@@ -165,5 +166,13 @@ actor SkillImportWorker {
             archiveURL: archiveURL,
             fingerprint: snapshot.fingerprint
         )
+    }
+
+    private nonisolated func removeTemporaryRoot(_ lease: TemporaryItemLease) {
+        do {
+            try lease.removeIfCurrent()
+        } catch {
+            NSLog("Skills Manager preserved an unverified import directory at %@: %@", lease.url.path, error.localizedDescription)
+        }
     }
 }

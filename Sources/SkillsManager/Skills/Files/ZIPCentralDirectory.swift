@@ -9,7 +9,8 @@ nonisolated final class ZIPArchiveSnapshot {
         copying archiveURL: URL,
         into rootDescriptor: Int32,
         maximumByteCount: UInt64,
-        checkpoint: SkillCancellationCheckpoint
+        checkpoint: SkillCancellationCheckpoint,
+        beforeSnapshotUnlink: (String) -> Void = { _ in }
     ) throws {
         let source = Darwin.open(archiveURL.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
         guard source >= 0 else { throw SafeSkillArchiveError.invalidArchive }
@@ -21,7 +22,10 @@ nonisolated final class ZIPArchiveSnapshot {
         guard UInt64(status.st_size) <= maximumByteCount else {
             throw SafeSkillArchiveError.archiveTooLarge
         }
-        let descriptor = try Self.makeAnonymousFile(in: rootDescriptor)
+        let descriptor = try Self.makeAnonymousFile(
+            in: rootDescriptor,
+            beforeUnlink: beforeSnapshotUnlink
+        )
         do {
             try Self.copy(
                 source: source,
@@ -40,7 +44,10 @@ nonisolated final class ZIPArchiveSnapshot {
         descriptorURL = URL(fileURLWithPath: "/dev/fd/\(descriptor)")
     }
 
-    private static func makeAnonymousFile(in rootDescriptor: Int32) throws -> Int32 {
+    private static func makeAnonymousFile(
+        in rootDescriptor: Int32,
+        beforeUnlink: (String) -> Void
+    ) throws -> Int32 {
         while true {
             let name = ".skillsmanager-tmp-archive-snapshot-\(UUID().uuidString.lowercased())"
             let descriptor = Darwin.openat(
@@ -50,11 +57,21 @@ nonisolated final class ZIPArchiveSnapshot {
             )
             if descriptor < 0, errno == EEXIST { continue }
             guard descriptor >= 0 else { throw zipSnapshotPOSIXError() }
-            guard Darwin.unlinkat(rootDescriptor, name, 0) == 0 else {
+            var metadata = stat()
+            guard Darwin.fstat(descriptor, &metadata) == 0 else {
                 let code = errno
                 Darwin.close(descriptor)
-                _ = Darwin.unlinkat(rootDescriptor, name, 0)
                 throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
+            }
+            let identity = ManagedItemIdentity(metadata)
+            guard unlinkCreatedFileIfUnchanged(
+                named: name,
+                in: rootDescriptor,
+                expectedIdentity: identity,
+                beforeQuarantineUnlink: beforeUnlink
+            ) else {
+                Darwin.close(descriptor)
+                throw POSIXError(.EIO)
             }
             return descriptor
         }
