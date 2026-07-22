@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      swift: ${{ steps.filter.outputs.swift }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect Swift changes
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          swift=false
+          while IFS= read -r file; do
+            case "$file" in
+              Package.swift|Package.resolved|version.env|Sources/*|Tests/*|Scripts/*|Icon.icns|Icon.iconset/*|.github/workflows/*)
+                swift=true
+                break
+                ;;
+            esac
+          done < <(git diff --name-only "$BASE_SHA" "$GITHUB_SHA")
+          echo "swift=$swift" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    runs-on: ${{ needs.changes.outputs.swift == 'true' && 'macos-26' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+        if: needs.changes.outputs.swift == 'true'
+      - name: Set up Swift 6.2
+        if: needs.changes.outputs.swift == 'true'
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.2"
+      - name: Build
+        if: needs.changes.outputs.swift == 'true'
+        run: swift build
+      - name: Skip Swift build
+        if: needs.changes.outputs.swift != 'true'
+        run: echo "No Swift changes; build is not required."
+
+  test:
+    needs: changes
+    runs-on: ${{ needs.changes.outputs.swift == 'true' && 'macos-26' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+        if: needs.changes.outputs.swift == 'true'
+      - name: Set up Swift 6.2
+        if: needs.changes.outputs.swift == 'true'
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.2"
+      - name: Test
+        if: needs.changes.outputs.swift == 'true'
+        run: swift test
+      - name: Skip Swift tests
+        if: needs.changes.outputs.swift != 'true'
+        run: echo "No Swift changes; tests are not required."
