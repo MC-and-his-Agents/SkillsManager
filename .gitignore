@@ -2,3 +2,4 @@
 /.swiftpm
 /SkillsManager.app
 *.zip
+release.env
