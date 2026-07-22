@@ -4,21 +4,21 @@
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:CodexSkillManager}",
-            "name": "Debug CodexSkillManager",
-            "target": "CodexSkillManager",
+            "cwd": "${workspaceFolder:SkillsManager}",
+            "name": "Debug SkillsManager",
+            "target": "SkillsManager",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug CodexSkillManager"
+            "preLaunchTask": "swift: Build Debug SkillsManager"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:CodexSkillManager}",
-            "name": "Release CodexSkillManager",
-            "target": "CodexSkillManager",
+            "cwd": "${workspaceFolder:SkillsManager}",
+            "name": "Release SkillsManager",
+            "target": "SkillsManager",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release CodexSkillManager"
+            "preLaunchTask": "swift: Build Release SkillsManager"
         }
     ]
 }

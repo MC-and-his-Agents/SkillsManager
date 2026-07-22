@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import CodexSkillManager
+@testable import SkillsManager
 
 @Suite("Symlink Scan")
 struct SymlinkScanTests {

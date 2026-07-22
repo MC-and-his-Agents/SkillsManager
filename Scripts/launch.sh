@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_NAME=${APP_NAME:-SkillsManager}
-EXECUTABLE_NAME=${EXECUTABLE_NAME:-CodexSkillManager}
+EXECUTABLE_NAME=${EXECUTABLE_NAME:-SkillsManager}
 APP_PATH="$PROJECT_ROOT/${APP_NAME}.app"
 
 echo "==> Killing existing ${APP_NAME} instances"
