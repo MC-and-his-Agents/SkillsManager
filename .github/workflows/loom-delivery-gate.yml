@@ -87,3 +87,22 @@ jobs:
       validation_command: lint
       enforcement: enforce
       profile: light
+
+  terminal:
+    name: loom-delivery-gate
+    needs: gate
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: none
+    steps:
+      - name: Require reusable gate success
+        env:
+          CALL_RESULT: ${{ needs.gate.result }}
+          GATE_RESULT: ${{ needs.gate.outputs.result }}
+        run: |
+          if [[ "$CALL_RESULT" != "success" || "$GATE_RESULT" != "passed" ]]; then
+            echo "Reusable delivery gate did not pass (call=$CALL_RESULT, result=$GATE_RESULT)." >&2
+            exit 1
+          fi
