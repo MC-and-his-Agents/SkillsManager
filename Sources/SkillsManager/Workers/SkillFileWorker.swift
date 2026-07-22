@@ -112,6 +112,7 @@ actor SkillFileWorker {
         let stager = SafeSkillStager()
         var installedStorageKeys: [String] = []
         var cleanupDebts: [SafeSkillCleanupDebt] = []
+        var selectedID: String?
         for destination in destinations {
             do {
                 let result = try stager.installArchive(
@@ -127,6 +128,9 @@ actor SkillFileWorker {
                 }
                 installedStorageKeys.append(destination.storageKey)
                 cleanupDebts.append(contentsOf: result.cleanupDebts)
+                if selectedID == nil {
+                    selectedID = "\(destination.storageKey)-\(result.installedURL.lastPathComponent)"
+                }
             } catch {
                 guard !installedStorageKeys.isEmpty else { throw error }
                 throw PartialSkillInstallError(
@@ -138,7 +142,6 @@ actor SkillFileWorker {
             }
         }
 
-        let selectedID = destinations.first.map { "\($0.storageKey)-\(slug)" }
         return RemoteInstallResult(
             selectedID: selectedID,
             report: SkillInstallReport(

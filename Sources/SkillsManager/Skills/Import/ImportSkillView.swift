@@ -271,9 +271,8 @@ struct ImportSkillView: View {
                 fingerprint: candidate.fingerprint
             )
             let report = try await importWorker.importCandidate(payload, destinations: destinations)
-            guard !Task.isCancelled else { return }
-
             await store.loadSkills()
+            guard !Task.isCancelled else { return }
             importWarningMessage = report.warningMessage
             status = .imported
         } catch {

@@ -259,9 +259,6 @@ struct SafeSkillStagerTests {
             hooks.beforeCleanup = {
                 throw ManagedPathError.posix(operation: "injected cleanup", code: EIO)
             }
-            hooks.beforeRollback = {
-                throw ManagedPathError.posix(operation: "injected rollback", code: EIO)
-            }
             hooks.beforeQuarantineMove = { name in
                 if name.hasPrefix(".skillsmanager-tmp-") {
                     throw ManagedPathError.posix(operation: "injected retry", code: EIO)

@@ -110,6 +110,57 @@ struct SafeSkillArchiveTests {
         }
     }
 
+    @Test("Rejects an oversized ZIP64 declaration before enumerating entries")
+    func rejectsOversizedZIP64DeclarationBeforeEnumeration() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.writeZIP64Declaration(entryCount: 50_001)
+        var checkpoints = 0
+
+        expectError(.tooManyEntries) {
+            try SafeSkillArchive().extract(
+                archiveAt: fixture.archiveURL,
+                to: fixture.destinationURL,
+                checkpoint: { checkpoints += 1 }
+            )
+        }
+
+        #expect(checkpoints == 0)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
+    }
+
+    @Test("Rejects a shadow end record that the ZIP consumer would select")
+    func rejectsShadowEndRecordInComment() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.writeShadowEndRecordInComment()
+
+        expectError(.invalidArchive) {
+            try SafeSkillArchive().extract(
+                archiveAt: fixture.archiveURL,
+                to: fixture.destinationURL
+            )
+        }
+
+        #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
+    }
+
+    @Test("Rejects ZIP64 extensible records unsupported by the ZIP consumer")
+    func rejectsExtensibleZIP64Record() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.writeZIP64Declaration(entryCount: 0, recordSize: 45)
+
+        expectError(.invalidArchive) {
+            try SafeSkillArchive().extract(
+                archiveAt: fixture.archiveURL,
+                to: fixture.destinationURL
+            )
+        }
+
+        #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
+    }
+
     @Test("Rejects NFC and case-insensitive path collisions")
     func rejectsNormalizedCollision() throws {
         let fixture = try Fixture()
@@ -293,6 +344,46 @@ private struct Fixture {
         }
     }
 
+    func writeZIP64Declaration(entryCount: UInt64, recordSize: UInt64 = 44) throws {
+        var data = Data()
+        data.appendLittleEndian(UInt32(0x0606_4b50))
+        data.appendLittleEndian(recordSize)
+        data.appendLittleEndian(UInt16(45))
+        data.appendLittleEndian(UInt16(45))
+        data.appendLittleEndian(UInt32(0))
+        data.appendLittleEndian(UInt32(0))
+        data.appendLittleEndian(entryCount)
+        data.appendLittleEndian(entryCount)
+        data.appendLittleEndian(UInt64(0))
+        data.appendLittleEndian(UInt64(0))
+        if recordSize > 44 {
+            data.append(Data(repeating: 0, count: Int(recordSize - 44)))
+        }
+
+        data.appendLittleEndian(UInt32(0x0706_4b50))
+        data.appendLittleEndian(UInt32(0))
+        data.appendLittleEndian(UInt64(0))
+        data.appendLittleEndian(UInt32(1))
+
+        data.appendLittleEndian(UInt32(0x0605_4b50))
+        data.appendLittleEndian(UInt16(0))
+        data.appendLittleEndian(UInt16(0))
+        data.appendLittleEndian(UInt16.max)
+        data.appendLittleEndian(UInt16.max)
+        data.appendLittleEndian(UInt32.max)
+        data.appendLittleEndian(UInt32.max)
+        data.appendLittleEndian(UInt16(0))
+        try data.write(to: archiveURL)
+    }
+
+    func writeShadowEndRecordInComment() throws {
+        var data = Data()
+        data.appendClassicEndRecord(entryCount: 0, commentLength: 23)
+        data.appendClassicEndRecord(entryCount: UInt16.max, commentLength: 0)
+        data.append(0)
+        try data.write(to: archiveURL)
+    }
+
     func remove() {
         try? FileManager.default.removeItem(at: rootURL)
     }
@@ -313,5 +404,23 @@ private struct Fixture {
             let start = Int(position)
             return contents.subdata(in: start..<min(start + size, contents.count))
         }
+    }
+}
+
+private extension Data {
+    mutating func appendClassicEndRecord(entryCount: UInt16, commentLength: UInt16) {
+        appendLittleEndian(UInt32(0x0605_4b50))
+        appendLittleEndian(UInt16(0))
+        appendLittleEndian(UInt16(0))
+        appendLittleEndian(entryCount)
+        appendLittleEndian(entryCount)
+        appendLittleEndian(UInt32(0))
+        appendLittleEndian(UInt32(0))
+        appendLittleEndian(commentLength)
+    }
+
+    mutating func appendLittleEndian<T: FixedWidthInteger>(_ value: T) {
+        var encoded = value.littleEndian
+        Swift.withUnsafeBytes(of: &encoded) { append(contentsOf: $0) }
     }
 }

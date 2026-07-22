@@ -9,6 +9,7 @@ nonisolated enum ManagedPathError: LocalizedError, Equatable {
     case itemChanged
     case destinationAlreadyExists
     case unsupportedItemType
+    case cleanupFailed(String)
     case removalFailed(
         partiallyDeleted: Bool,
         recoveryPath: String?,
@@ -27,6 +28,7 @@ nonisolated enum ManagedPathError: LocalizedError, Equatable {
         case .itemChanged: "The managed item changed during the operation."
         case .destinationAlreadyExists: "The destination already exists."
         case .unsupportedItemType: "The managed item has an unsupported file type."
+        case .cleanupFailed(let reason): "Cleanup failed: \(reason)"
         case .removalFailed(let partiallyDeleted, let recoveryPath, let restored, let cause):
             Self.removalFailureDescription(
                 partiallyDeleted: partiallyDeleted,
@@ -75,11 +77,25 @@ nonisolated enum ManagedPromotionResult: Equatable {
     case committed
     case committedWithCleanupDebt(URL, ManagedPathError)
 }
+nonisolated struct ManagedPromotionIndeterminate: LocalizedError, Equatable, Sendable {
+    let targetURL: URL
+    let recoveryURL: URL?
+
+    var errorDescription: String? {
+        let recovery = recoveryURL.map {
+            " Existing contents were preserved for recovery at \($0.path)."
+        } ?? ""
+        return "The Skill promotion completed, but its final state changed concurrently. "
+            + "Inspect \(targetURL.path) before retrying.\(recovery)"
+    }
+}
 nonisolated struct ManagedPathGuardTestHooks {
     var beforeNoReplaceCommit: () throws -> Void = {}
+    var afterNoReplaceCommit: () throws -> Void = {}
     var beforeReplaceCommit: () throws -> Void = {}
-    var beforeRollback: () throws -> Void = {}
+    var afterReplaceCommit: () throws -> Void = {}
     var beforeCleanup: () throws -> Void = {}
+    var afterCleanup: () throws -> Void = {}
     var beforeQuarantineMove: (String) throws -> Void = { _ in }
     var afterQuarantineMove: (String, String) throws -> Void = { _, _ in }
 }
@@ -158,11 +174,22 @@ nonisolated final class ManagedPathGuard {
         try verifyRootIdentity()
         return try identityIfPresent(of: name.value, in: rootDescriptor)
     }
-    func promoteStagedItemIfAbsent(at stagedURL: URL, to targetURL: URL) throws {
+    func promoteStagedItemIfAbsent(
+        at stagedURL: URL,
+        to targetURL: URL,
+        expectedStaged: ManagedItemIdentity,
+        validateStaged: (URL) throws -> Void
+    ) throws {
         let names = try promotionNames(stagedURL: stagedURL, targetURL: targetURL)
-        let stagedIdentity = try identity(of: names.staged, in: rootDescriptor)
+        guard try identity(of: names.staged, in: rootDescriptor) == expectedStaged else {
+            throw ManagedPathError.itemChanged
+        }
         try hooks.beforeNoReplaceCommit()
         try verifyRootIdentity()
+        try validateStaged(stagedURL)
+        guard try identity(of: names.staged, in: rootDescriptor) == expectedStaged else {
+            throw ManagedPathError.itemChanged
+        }
         guard Darwin.renameatx_np(
             rootDescriptor,
             names.staged,
@@ -175,34 +202,56 @@ nonisolated final class ManagedPathGuard {
             }
             throw ManagedPathError.posix(operation: "promote staged item", code: errno)
         }
-        guard try identity(of: names.target, in: rootDescriptor) == stagedIdentity else {
-            throw ManagedPathError.itemChanged
+        do {
+            try hooks.afterNoReplaceCommit()
+            try verifyCommittedTarget(
+                names: names,
+                expectedStaged: expectedStaged,
+                validateStaged: validateStaged
+            )
+        } catch {
+            throw promotionIndeterminate(names: names, recoveryIdentity: expectedStaged)
         }
-        try verifyRootIdentity()
     }
     func replaceStagedItem(
         at stagedURL: URL,
         to targetURL: URL,
-        expectedTarget: ManagedItemIdentity
+        expectedStaged: ManagedItemIdentity,
+        expectedTarget: ManagedItemIdentity,
+        validateStaged: (URL) throws -> Void
     ) throws -> ManagedPromotionResult {
         let names = try promotionNames(stagedURL: stagedURL, targetURL: targetURL)
-        let stagedIdentity = try identity(of: names.staged, in: rootDescriptor)
+        guard try identity(of: names.staged, in: rootDescriptor) == expectedStaged else {
+            throw ManagedPathError.itemChanged
+        }
         try hooks.beforeReplaceCommit()
-        guard try identityIfPresent(of: names.target, in: rootDescriptor) == expectedTarget else {
+        try validateStaged(stagedURL)
+        guard try identity(of: names.staged, in: rootDescriptor) == expectedStaged,
+              try identityIfPresent(of: names.target, in: rootDescriptor) == expectedTarget else {
             throw ManagedPathError.itemChanged
         }
         try verifyRootIdentity()
         guard swap(names) == 0 else {
             throw ManagedPathError.posix(operation: "swap staged and existing items", code: errno)
         }
-        guard try identityIfPresent(of: names.target, in: rootDescriptor) == stagedIdentity,
-              try identityIfPresent(of: names.staged, in: rootDescriptor) == expectedTarget else {
-            return try rollbackUnexpectedCommit(names: names, stagedIdentity: stagedIdentity)
+        do {
+            try hooks.afterReplaceCommit()
+            try verifyCommittedTarget(
+                names: names,
+                expectedStaged: expectedStaged,
+                validateStaged: validateStaged
+            )
+            guard try identityIfPresent(of: names.staged, in: rootDescriptor) == expectedTarget else {
+                throw ManagedPathError.itemChanged
+            }
+        } catch {
+            throw promotionIndeterminate(names: names, recoveryIdentity: expectedTarget)
         }
         return try cleanReplacedItem(
             names: names,
-            stagedIdentity: stagedIdentity,
-            expectedTarget: expectedTarget
+            expectedStaged: expectedStaged,
+            expectedTarget: expectedTarget,
+            validateStaged: validateStaged
         )
     }
     func managedName(for targetURL: URL) throws -> ManagedName {
@@ -269,67 +318,89 @@ nonisolated final class ManagedPathGuard {
     }
     private func cleanReplacedItem(
         names: PromotionNames,
-        stagedIdentity: ManagedItemIdentity,
-        expectedTarget: ManagedItemIdentity
+        expectedStaged: ManagedItemIdentity,
+        expectedTarget: ManagedItemIdentity,
+        validateStaged: (URL) throws -> Void
     ) throws -> ManagedPromotionResult {
-        do { try hooks.beforeCleanup() } catch let cleanupError as ManagedPathError {
-            return try rollbackAfterCleanupFailure(
-                names: names,
-                stagedIdentity: stagedIdentity,
-                expectedTarget: expectedTarget,
-                cleanupError: cleanupError
+        let cleanupResult: ManagedPromotionResult
+        do {
+            try hooks.beforeCleanup()
+            let oldStatus = try status(of: names.staged, in: rootDescriptor)
+            guard FileIdentity(oldStatus) == expectedTarget else {
+                return try verifiedCommittedResult(
+                    .committedWithCleanupDebt(cleanupURL(for: names), .itemChanged),
+                    names: names,
+                    expectedStaged: expectedStaged,
+                    expectedTarget: expectedTarget,
+                    validateStaged: validateStaged
+                )
+            }
+            try removeQuarantinedItem(names.staged, status: oldStatus, in: rootDescriptor)
+            try hooks.afterCleanup()
+            cleanupResult = .committed
+        } catch let cleanupError as ManagedPathError {
+            cleanupResult = .committedWithCleanupDebt(cleanupURL(for: names), cleanupError)
+        } catch {
+            cleanupResult = .committedWithCleanupDebt(
+                cleanupURL(for: names),
+                .cleanupFailed(error.localizedDescription)
             )
         }
-        let oldStatus = try status(of: names.staged, in: rootDescriptor)
-        guard FileIdentity(oldStatus) == expectedTarget else {
-            return .committedWithCleanupDebt(cleanupURL(for: names), .itemChanged)
-        }
-        do {
-            try removeQuarantinedItem(names.staged, status: oldStatus, in: rootDescriptor)
-            try verifyRootIdentity()
-            return .committed
-        } catch let cleanupError as ManagedPathError {
-            return .committedWithCleanupDebt(cleanupURL(for: names), cleanupError)
-        }
+        return try verifiedCommittedResult(
+            cleanupResult,
+            names: names,
+            expectedStaged: expectedStaged,
+            expectedTarget: expectedTarget,
+            validateStaged: validateStaged
+        )
     }
 
-    private func rollbackAfterCleanupFailure(
+    private func verifiedCommittedResult(
+        _ result: ManagedPromotionResult,
         names: PromotionNames,
-        stagedIdentity: ManagedItemIdentity,
+        expectedStaged: ManagedItemIdentity,
         expectedTarget: ManagedItemIdentity,
-        cleanupError: ManagedPathError
+        validateStaged: (URL) throws -> Void
     ) throws -> ManagedPromotionResult {
-        let targetIsCommitted = try identityIfPresent(of: names.target, in: rootDescriptor) == stagedIdentity
-        guard targetIsCommitted,
-              try identityIfPresent(of: names.staged, in: rootDescriptor) == expectedTarget else {
-            return .committedWithCleanupDebt(cleanupURL(for: names), cleanupError)
+        do {
+            try verifyCommittedTarget(
+                names: names,
+                expectedStaged: expectedStaged,
+                validateStaged: validateStaged
+            )
+            return result
+        } catch {
+            throw promotionIndeterminate(names: names, recoveryIdentity: expectedTarget)
         }
-        do { try hooks.beforeRollback() } catch {
-            return .committedWithCleanupDebt(cleanupURL(for: names), cleanupError)
-        }
-        guard swap(names) == 0 else {
-            return .committedWithCleanupDebt(cleanupURL(for: names), cleanupError)
-        }
-        throw cleanupError
     }
 
-    private func rollbackUnexpectedCommit(
+    private func verifyCommittedTarget(
         names: PromotionNames,
-        stagedIdentity: ManagedItemIdentity
-    ) throws -> ManagedPromotionResult {
-        guard try identityIfPresent(of: names.target, in: rootDescriptor) == stagedIdentity,
-              try identityIfPresent(of: names.staged, in: rootDescriptor) != nil else {
-            return .committedWithCleanupDebt(cleanupURL(for: names), .itemChanged)
+        expectedStaged: ManagedItemIdentity,
+        validateStaged: (URL) throws -> Void
+    ) throws {
+        try verifyRootIdentity()
+        guard try identityIfPresent(of: names.target, in: rootDescriptor) == expectedStaged else {
+            throw ManagedPathError.itemChanged
         }
-        do {
-            try hooks.beforeRollback()
-            guard swap(names) == 0 else {
-                return .committedWithCleanupDebt(cleanupURL(for: names), .itemChanged)
-            }
-        } catch {
-            return .committedWithCleanupDebt(cleanupURL(for: names), .itemChanged)
+        try validateStaged(URL(fileURLWithPath: rootPath).appendingPathComponent(names.target))
+        guard try identityIfPresent(of: names.target, in: rootDescriptor) == expectedStaged else {
+            throw ManagedPathError.itemChanged
         }
-        throw ManagedPathError.itemChanged
+        try verifyRootIdentity()
+    }
+
+    private func promotionIndeterminate(
+        names: PromotionNames,
+        recoveryIdentity: ManagedItemIdentity
+    ) -> ManagedPromotionIndeterminate {
+        let recoveryURL = (try? identity(of: names.staged, in: rootDescriptor)) == recoveryIdentity
+            ? cleanupURL(for: names)
+            : nil
+        return ManagedPromotionIndeterminate(
+            targetURL: URL(fileURLWithPath: rootPath).appendingPathComponent(names.target),
+            recoveryURL: recoveryURL
+        )
     }
 
     private func cleanupURL(for names: PromotionNames) -> URL {

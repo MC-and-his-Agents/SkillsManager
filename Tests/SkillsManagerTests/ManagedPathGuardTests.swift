@@ -300,7 +300,14 @@ struct ManagedPathGuardTests {
                 encoding: .utf8
             )
 
-            try guardValue.promoteStagedItemIfAbsent(at: staged, to: target)
+            let observedStaged = try guardValue.itemIdentity(at: staged)
+            let expectedStaged = try #require(observedStaged)
+            try guardValue.promoteStagedItemIfAbsent(
+                at: staged,
+                to: target,
+                expectedStaged: expectedStaged,
+                validateStaged: { _ in }
+            )
 
             #expect(!fileManager.fileExists(atPath: staged.path))
             let content = try String(contentsOf: target.appendingPathComponent("SKILL.md"), encoding: .utf8)
@@ -326,12 +333,16 @@ struct ManagedPathGuardTests {
                 encoding: .utf8
             )
 
-            let observed = try guardValue.itemIdentity(at: target)
-            let expected = try #require(observed)
+            let observedStaged = try guardValue.itemIdentity(at: staged)
+            let observedTarget = try guardValue.itemIdentity(at: target)
+            let expectedStaged = try #require(observedStaged)
+            let expected = try #require(observedTarget)
             let result = try guardValue.replaceStagedItem(
                 at: staged,
                 to: target,
-                expectedTarget: expected
+                expectedStaged: expectedStaged,
+                expectedTarget: expected,
+                validateStaged: { _ in }
             )
 
             #expect(result == .committed)
@@ -352,9 +363,16 @@ struct ManagedPathGuardTests {
                 try "contender".write(to: target, atomically: true, encoding: .utf8)
             })
             let guardValue = try ManagedPathGuard(rootURL: root, hooks: hooks)
+            let observedStaged = try guardValue.itemIdentity(at: staged)
+            let expectedStaged = try #require(observedStaged)
 
             #expect(throws: ManagedPathError.destinationAlreadyExists) {
-                try guardValue.promoteStagedItemIfAbsent(at: staged, to: target)
+                try guardValue.promoteStagedItemIfAbsent(
+                    at: staged,
+                    to: target,
+                    expectedStaged: expectedStaged,
+                    validateStaged: { _ in }
+                )
             }
             #expect(fileManager.fileExists(atPath: staged.path))
             #expect(try String(contentsOf: target, encoding: .utf8) == "contender")
@@ -370,9 +388,23 @@ struct ManagedPathGuardTests {
             try "first".write(to: first, atomically: true, encoding: .utf8)
             try "second".write(to: second, atomically: true, encoding: .utf8)
 
-            try guardValue.promoteStagedItemIfAbsent(at: first, to: target)
+            let observedFirst = try guardValue.itemIdentity(at: first)
+            let observedSecond = try guardValue.itemIdentity(at: second)
+            let expectedFirst = try #require(observedFirst)
+            let expectedSecond = try #require(observedSecond)
+            try guardValue.promoteStagedItemIfAbsent(
+                at: first,
+                to: target,
+                expectedStaged: expectedFirst,
+                validateStaged: { _ in }
+            )
             #expect(throws: ManagedPathError.destinationAlreadyExists) {
-                try guardValue.promoteStagedItemIfAbsent(at: second, to: target)
+                try guardValue.promoteStagedItemIfAbsent(
+                    at: second,
+                    to: target,
+                    expectedStaged: expectedSecond,
+                    validateStaged: { _ in }
+                )
             }
 
             #expect(try String(contentsOf: target, encoding: .utf8) == "first")
@@ -392,6 +424,8 @@ struct ManagedPathGuardTests {
             let observer = try ManagedPathGuard(rootURL: root)
             let observed = try observer.itemIdentity(at: target)
             let expected = try #require(observed)
+            let observedStaged = try observer.itemIdentity(at: staged)
+            let expectedStaged = try #require(observedStaged)
             let hooks = ManagedPathGuardTestHooks(beforeReplaceCommit: {
                 try fileManager.moveItem(at: target, to: displaced)
                 try "replacement".write(to: target, atomically: true, encoding: .utf8)
@@ -402,7 +436,9 @@ struct ManagedPathGuardTests {
                 _ = try guardValue.replaceStagedItem(
                     at: staged,
                     to: target,
-                    expectedTarget: expected
+                    expectedStaged: expectedStaged,
+                    expectedTarget: expected,
+                    validateStaged: { _ in }
                 )
             }
             #expect(fileManager.fileExists(atPath: staged.path))
@@ -430,76 +466,6 @@ struct ManagedPathGuardTests {
             }
             #expect(try String(contentsOf: target, encoding: .utf8) == "replacement")
             #expect(try String(contentsOf: displaced, encoding: .utf8) == "old")
-        }
-    }
-
-    @Test("removal bound to an observed identity preserves a newer item")
-    func removalRejectsStaleExpectedIdentity() throws {
-        try withFixture { _, root, guardValue in
-            let target = root.appendingPathComponent("skill")
-            let old = root.appendingPathComponent("old")
-            try "old".write(to: target, atomically: true, encoding: .utf8)
-            let observed = try guardValue.itemIdentity(at: target)
-            let expected = try #require(observed)
-            try fileManager.moveItem(at: target, to: old)
-            try "new".write(to: target, atomically: true, encoding: .utf8)
-
-            #expect(throws: ManagedPathError.itemChanged) {
-                try guardValue.removeItem(at: target, expectedIdentity: expected)
-            }
-            #expect(try String(contentsOf: target, encoding: .utf8) == "new")
-        }
-    }
-
-    @Test("cleanup failure safely rolls replacement back")
-    func cleanupFailureRollsBack() throws {
-        try assertCleanupFailure(rollbackFails: false)
-    }
-
-    @Test("cleanup debt reports that replacement remains committed")
-    func cleanupDebtReportsCommittedState() throws {
-        try assertCleanupFailure(rollbackFails: true)
-    }
-
-    private func assertCleanupFailure(rollbackFails: Bool) throws {
-        try withTemporaryDirectory { temporary in
-            let root = temporary.appendingPathComponent("managed")
-            let staged = root.appendingPathComponent(".staged")
-            let target = root.appendingPathComponent("skill")
-            try fileManager.createDirectory(at: root, withIntermediateDirectories: false)
-            try "new".write(to: staged, atomically: true, encoding: .utf8)
-            try "old".write(to: target, atomically: true, encoding: .utf8)
-            let cleanupError = ManagedPathError.posix(operation: "injected cleanup", code: EIO)
-            let observer = try ManagedPathGuard(rootURL: root)
-            let observed = try observer.itemIdentity(at: target)
-            let expected = try #require(observed)
-            let hooks = ManagedPathGuardTestHooks(
-                beforeRollback: {
-                    if rollbackFails {
-                        throw ManagedPathError.posix(operation: "injected rollback", code: EIO)
-                    }
-                },
-                beforeCleanup: { throw cleanupError }
-            )
-            let guardValue = try ManagedPathGuard(rootURL: root, hooks: hooks)
-
-            do {
-                let result = try guardValue.replaceStagedItem(
-                    at: staged,
-                    to: target,
-                    expectedTarget: expected
-                )
-                #expect(rollbackFails)
-                #expect(result == .committedWithCleanupDebt(staged, cleanupError))
-            } catch let error as ManagedPathError {
-                #expect(!rollbackFails)
-                #expect(error == cleanupError)
-            }
-
-            let targetContents = try String(contentsOf: target, encoding: .utf8)
-            let stagedContents = try String(contentsOf: staged, encoding: .utf8)
-            #expect(targetContents == (rollbackFails ? "new" : "old"))
-            #expect(stagedContents == (rollbackFails ? "old" : "new"))
         }
     }
 

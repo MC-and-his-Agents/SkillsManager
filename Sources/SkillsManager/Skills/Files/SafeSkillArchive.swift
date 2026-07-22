@@ -39,13 +39,13 @@ nonisolated struct SafeSkillArchive {
         let rootDescriptor = try openEmptyDestination(emptyDestinationURL)
         defer { Darwin.close(rootDescriptor) }
         do {
-            let archive = try Archive(url: archiveURL, accessMode: .read)
-            let entries = Array(archive)
             let rawKinds = try ZIPCentralDirectory.entryKinds(
                 at: archiveURL,
                 maximumEntryCount: limits.maximumEntryCount,
                 checkpoint: checkpoint
             )
+            let archive = try Archive(url: archiveURL, accessMode: .read)
+            let entries = Array(archive)
             let validatedEntries = try validate(
                 entries: entries,
                 rawKinds: rawKinds,
@@ -400,100 +400,5 @@ nonisolated enum SafeSkillArchiveError: LocalizedError, Equatable {
         case .invalidChecksum(let path), .invalidSize(let path):
             "The archive entry failed integrity validation: \(path)"
         }
-    }
-}
-private nonisolated enum ZIPCentralDirectory {
-    enum Kind { case file, directory, dosFileOrDirectory, symbolicLink }
-    static func entryKinds(
-        at archiveURL: URL,
-        maximumEntryCount: Int,
-        checkpoint: SkillCancellationCheckpoint
-    ) throws -> [Kind] {
-        let handle = try FileHandle(forReadingFrom: archiveURL)
-        defer { try? handle.close() }
-        let fileSize = try handle.seekToEnd()
-        let record = try endRecord(in: handle, fileSize: fileSize)
-        guard record.entryCount <= maximumEntryCount else { throw SafeSkillArchiveError.tooManyEntries }
-        guard record.centralDirectoryOffset + record.centralDirectorySize <= fileSize else {
-            throw SafeSkillArchiveError.invalidArchive
-        }
-        try handle.seek(toOffset: record.centralDirectoryOffset)
-        var result: [Kind] = []
-        var consumed: UInt64 = 0
-        for _ in 0..<record.entryCount {
-            try checkpoint()
-            let header = try readExactly(46, from: handle)
-            guard header.uint32(at: 0) == 0x0201_4b50 else { throw SafeSkillArchiveError.invalidArchive }
-            let variableSize = UInt64(header.uint16(at: 28))
-                + UInt64(header.uint16(at: 30))
-                + UInt64(header.uint16(at: 32))
-            let entrySize = UInt64(header.count) + variableSize
-            guard consumed + entrySize <= record.centralDirectorySize else {
-                throw SafeSkillArchiveError.invalidArchive
-            }
-            result.append(try kind(versionMadeBy: header.uint16(at: 4), attributes: header.uint32(at: 38)))
-            try handle.seek(toOffset: record.centralDirectoryOffset + consumed + entrySize)
-            consumed += entrySize
-        }
-        guard consumed == record.centralDirectorySize else { throw SafeSkillArchiveError.invalidArchive }
-        return result
-    }
-    private struct EndRecord {
-        let entryCount: Int
-        let centralDirectorySize: UInt64
-        let centralDirectoryOffset: UInt64
-    }
-    private static func endRecord(in handle: FileHandle, fileSize: UInt64) throws -> EndRecord {
-        let tailSize = min(fileSize, 65_557)
-        try handle.seek(toOffset: fileSize - tailSize)
-        let tail = try readExactly(Int(tailSize), from: handle)
-        guard tail.count >= 22 else { throw SafeSkillArchiveError.invalidArchive }
-        for offset in stride(from: tail.count - 22, through: 0, by: -1) {
-            guard tail.uint32(at: offset) == 0x0605_4b50,
-                  offset + 22 + Int(tail.uint16(at: offset + 20)) == tail.count else { continue }
-            let entryCount = tail.uint16(at: offset + 10)
-            let size = tail.uint32(at: offset + 12)
-            let directoryOffset = tail.uint32(at: offset + 16)
-            guard tail.uint16(at: offset + 4) == 0, tail.uint16(at: offset + 6) == 0,
-                  tail.uint16(at: offset + 8) == entryCount,
-                  entryCount != .max, size != .max, directoryOffset != .max else {
-                throw SafeSkillArchiveError.invalidArchive
-            }
-            return EndRecord(
-                entryCount: Int(entryCount),
-                centralDirectorySize: UInt64(size),
-                centralDirectoryOffset: UInt64(directoryOffset)
-            )
-        }
-        throw SafeSkillArchiveError.invalidArchive
-    }
-    private static func kind(versionMadeBy: UInt16, attributes: UInt32) throws -> Kind {
-        switch versionMadeBy >> 8 {
-        case 0:
-            guard attributes & 0x08 == 0 else { throw SafeSkillArchiveError.invalidArchive }
-            return .dosFileOrDirectory
-        case 3, 19:
-            switch mode_t(attributes >> 16) & mode_t(S_IFMT) {
-            case mode_t(S_IFREG): return .file
-            case mode_t(S_IFDIR): return .directory
-            case mode_t(S_IFLNK): return .symbolicLink
-            default: throw SafeSkillArchiveError.invalidArchive
-            }
-        default: throw SafeSkillArchiveError.invalidArchive
-        }
-    }
-    private static func readExactly(_ count: Int, from handle: FileHandle) throws -> Data {
-        guard let data = try handle.read(upToCount: count), data.count == count else {
-            throw SafeSkillArchiveError.invalidArchive
-        }
-        return data
-    }
-}
-private extension Data {
-    nonisolated func uint16(at offset: Int) -> UInt16 {
-        withUnsafeBytes { UInt16(littleEndian: $0.loadUnaligned(fromByteOffset: offset, as: UInt16.self)) }
-    }
-    nonisolated func uint32(at offset: Int) -> UInt32 {
-        withUnsafeBytes { UInt32(littleEndian: $0.loadUnaligned(fromByteOffset: offset, as: UInt32.self)) }
     }
 }

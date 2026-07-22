@@ -31,6 +31,18 @@ nonisolated struct SafeSkillCleanupDebt: Equatable, Sendable {
     let reason: String
 }
 
+nonisolated struct SafeSkillStagingFailure: LocalizedError, Equatable, Sendable {
+    let originalReason: String
+    let cleanupDebts: [SafeSkillCleanupDebt]
+
+    var errorDescription: String? {
+        let cleanup = cleanupDebts.map {
+            "Cleanup is still needed at \($0.url.path): \($0.reason)"
+        }.joined(separator: " ")
+        return "\(originalReason) \(cleanup)"
+    }
+}
+
 nonisolated struct SafeSkillInstallResult: Equatable, Sendable {
     let installedURL: URL
     let cleanupDebts: [SafeSkillCleanupDebt]
@@ -100,31 +112,31 @@ nonisolated struct SafeSkillStager {
                 checkpoint: checkpoint
             )
             try metadataWriter(stagedURL)
-            let stagedSnapshot = try SkillContentSnapshot.capture(
-                at: stagedURL,
-                limits: limits,
-                checkpoint: checkpoint
-            )
-            guard stagedSnapshot.fingerprint == expectedFingerprint else {
-                throw SafeSkillStagingError.sourceChanged(
-                    expected: expectedFingerprint,
-                    actual: stagedSnapshot.fingerprint
-                )
-            }
             try checkpoint()
+            guard let expectedStaged = stagedIdentity else {
+                throw ManagedPathError.itemChanged
+            }
             return try promote(
                 stagedURL: stagedURL,
+                expectedStaged: expectedStaged,
                 in: destination.url,
                 preferredName: normalizedName,
                 conflictPolicy: conflictPolicy,
                 guardrail: guardrail,
-                checkpoint: checkpoint
+                checkpoint: checkpoint,
+                validateStaged: { url in
+                    try validateStaged(at: url, expectedFingerprint: expectedFingerprint)
+                }
             )
-        } catch {
-            if let stagedIdentity {
-                try? guardrail.removeItem(at: stagedURL, expectedIdentity: stagedIdentity)
-            }
-            throw error
+        } catch let indeterminate as ManagedPromotionIndeterminate {
+            throw indeterminate
+        } catch let operationError {
+            try throwAfterCleanup(
+                operationError,
+                itemURL: stagedURL,
+                expectedIdentity: stagedIdentity,
+                guardrail: guardrail
+            )
         }
     }
 
@@ -177,7 +189,7 @@ nonisolated struct SafeSkillStager {
                 )
             }
 
-            var result = try install(
+            let result = try install(
                 sourceRoot: sourceRoot,
                 expectedFingerprint: expectedFingerprint,
                 destinationRoot: destination.url,
@@ -187,27 +199,19 @@ nonisolated struct SafeSkillStager {
                 checkpoint: checkpoint,
                 metadataWriter: metadataWriter
             )
-            if let extractionIdentity {
-                do {
-                    try guardrail.removeItem(at: extractionURL, expectedIdentity: extractionIdentity)
-                } catch {
-                    result = SafeSkillInstallResult(
-                        installedURL: result.installedURL,
-                        cleanupDebts: result.cleanupDebts + [
-                            SafeSkillCleanupDebt(
-                                url: extractionURL,
-                                reason: error.localizedDescription
-                            )
-                        ]
-                    )
-                }
-            }
-            return result
-        } catch {
-            if let extractionIdentity {
-                try? guardrail.removeItem(at: extractionURL, expectedIdentity: extractionIdentity)
-            }
-            throw error
+            return finishArchiveInstall(
+                result,
+                extractionURL: extractionURL,
+                extractionIdentity: extractionIdentity,
+                guardrail: guardrail
+            )
+        } catch let operationError {
+            try throwAfterCleanup(
+                operationError,
+                itemURL: extractionURL,
+                expectedIdentity: extractionIdentity,
+                guardrail: guardrail
+            )
         }
     }
 
@@ -229,20 +233,24 @@ nonisolated struct SafeSkillStager {
 
     private func promote(
         stagedURL: URL,
+        expectedStaged: ManagedItemIdentity,
         in root: URL,
         preferredName: String,
         conflictPolicy: SkillInstallConflictPolicy,
         guardrail: ManagedPathGuard,
-        checkpoint: SkillCancellationCheckpoint
+        checkpoint: SkillCancellationCheckpoint,
+        validateStaged: (URL) throws -> Void
     ) throws -> SafeSkillInstallResult {
         switch conflictPolicy {
         case .replaceExisting:
             return try replace(
                 stagedURL: stagedURL,
+                expectedStaged: expectedStaged,
                 in: root,
                 preferredName: preferredName,
                 guardrail: guardrail,
-                checkpoint: checkpoint
+                checkpoint: checkpoint,
+                validateStaged: validateStaged
             )
         case .chooseUniqueName:
             while true {
@@ -253,7 +261,12 @@ nonisolated struct SafeSkillStager {
                     conflictPolicy: .chooseUniqueName
                 )
                 do {
-                    try guardrail.promoteStagedItemIfAbsent(at: stagedURL, to: finalURL)
+                    try guardrail.promoteStagedItemIfAbsent(
+                        at: stagedURL,
+                        to: finalURL,
+                        expectedStaged: expectedStaged,
+                        validateStaged: validateStaged
+                    )
                     return SafeSkillInstallResult(installedURL: finalURL)
                 } catch ManagedPathError.destinationAlreadyExists {
                     continue
@@ -264,10 +277,12 @@ nonisolated struct SafeSkillStager {
 
     private func replace(
         stagedURL: URL,
+        expectedStaged: ManagedItemIdentity,
         in root: URL,
         preferredName: String,
         guardrail: ManagedPathGuard,
-        checkpoint: SkillCancellationCheckpoint
+        checkpoint: SkillCancellationCheckpoint,
+        validateStaged: (URL) throws -> Void
     ) throws -> SafeSkillInstallResult {
         while true {
             try checkpoint()
@@ -278,7 +293,12 @@ nonisolated struct SafeSkillStager {
             )
             guard let expectedTarget = try guardrail.itemIdentity(at: finalURL) else {
                 do {
-                    try guardrail.promoteStagedItemIfAbsent(at: stagedURL, to: finalURL)
+                    try guardrail.promoteStagedItemIfAbsent(
+                        at: stagedURL,
+                        to: finalURL,
+                        expectedStaged: expectedStaged,
+                        validateStaged: validateStaged
+                    )
                     return SafeSkillInstallResult(installedURL: finalURL)
                 } catch ManagedPathError.destinationAlreadyExists {
                     continue
@@ -288,7 +308,9 @@ nonisolated struct SafeSkillStager {
                 let result = try guardrail.replaceStagedItem(
                     at: stagedURL,
                     to: finalURL,
-                    expectedTarget: expectedTarget
+                    expectedStaged: expectedStaged,
+                    expectedTarget: expectedTarget,
+                    validateStaged: validateStaged
                 )
                 let cleanupDebts = consume(
                     result,
@@ -300,6 +322,9 @@ nonisolated struct SafeSkillStager {
                     cleanupDebts: cleanupDebts
                 )
             } catch ManagedPathError.itemChanged {
+                guard try guardrail.itemIdentity(at: stagedURL) == expectedStaged else {
+                    throw ManagedPathError.itemChanged
+                }
                 continue
             }
         }
@@ -332,6 +357,74 @@ nonisolated struct SafeSkillStager {
                     reason: "\(originalError.localizedDescription); retry failed: \(error.localizedDescription)"
                 )
             ]
+        }
+    }
+
+    private static func failure(
+        _ operationError: Error,
+        appending cleanupDebt: SafeSkillCleanupDebt
+    ) -> SafeSkillStagingFailure {
+        if let existing = operationError as? SafeSkillStagingFailure {
+            return SafeSkillStagingFailure(
+                originalReason: existing.originalReason,
+                cleanupDebts: existing.cleanupDebts + [cleanupDebt]
+            )
+        }
+        return SafeSkillStagingFailure(
+            originalReason: operationError.localizedDescription,
+            cleanupDebts: [cleanupDebt]
+        )
+    }
+
+    private func throwAfterCleanup(
+        _ operationError: Error,
+        itemURL: URL,
+        expectedIdentity: ManagedItemIdentity?,
+        guardrail: ManagedPathGuard
+    ) throws -> Never {
+        if let expectedIdentity {
+            do {
+                try guardrail.removeItem(at: itemURL, expectedIdentity: expectedIdentity)
+            } catch let cleanupError {
+                throw Self.failure(
+                    operationError,
+                    appending: SafeSkillCleanupDebt(
+                        url: itemURL,
+                        reason: cleanupError.localizedDescription
+                    )
+                )
+            }
+        }
+        throw operationError
+    }
+
+    private func finishArchiveInstall(
+        _ result: SafeSkillInstallResult,
+        extractionURL: URL,
+        extractionIdentity: ManagedItemIdentity?,
+        guardrail: ManagedPathGuard
+    ) -> SafeSkillInstallResult {
+        guard let extractionIdentity else { return result }
+        do {
+            try guardrail.removeItem(at: extractionURL, expectedIdentity: extractionIdentity)
+            return result
+        } catch {
+            return SafeSkillInstallResult(
+                installedURL: result.installedURL,
+                cleanupDebts: result.cleanupDebts + [
+                    SafeSkillCleanupDebt(url: extractionURL, reason: error.localizedDescription)
+                ]
+            )
+        }
+    }
+
+    private func validateStaged(at url: URL, expectedFingerprint: String) throws {
+        let actual = try SkillContentSnapshot.capture(at: url, limits: limits).fingerprint
+        guard actual == expectedFingerprint else {
+            throw SafeSkillStagingError.sourceChanged(
+                expected: expectedFingerprint,
+                actual: actual
+            )
         }
     }
 

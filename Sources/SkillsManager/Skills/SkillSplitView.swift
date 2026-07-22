@@ -285,6 +285,7 @@ private struct RemoteInstallSheet: View {
     @Binding var isInstalling: Bool
     @Binding var didInstall: Bool
     @Binding var errorMessage: String?
+    @State private var installTask: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -304,6 +305,7 @@ private struct RemoteInstallSheet: View {
 
             HStack {
                 Button("Cancel") {
+                    installTask?.cancel()
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
@@ -311,7 +313,8 @@ private struct RemoteInstallSheet: View {
                 Spacer()
 
                 Button("Install") {
-                    Task { await installSkill() }
+                    installTask?.cancel()
+                    installTask = Task { await installSkill() }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(selection.isEmpty || isInstalling)
@@ -320,6 +323,9 @@ private struct RemoteInstallSheet: View {
         }
         .padding(20)
         .frame(minWidth: 520, minHeight: 340)
+        .onDisappear {
+            installTask?.cancel()
+        }
     }
 
     private func installSkill() async {
@@ -337,7 +343,9 @@ private struct RemoteInstallSheet: View {
             dismiss()
             try? await Task.sleep(for: .seconds(1.2))
         } catch {
-            errorMessage = error.localizedDescription
+            if !Task.isCancelled {
+                errorMessage = error.localizedDescription
+            }
         }
         isInstalling = false
         if didInstall {

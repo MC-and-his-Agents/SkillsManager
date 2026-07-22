@@ -239,15 +239,17 @@ import Observation
     }
 
     func isInstalled(slug: String) -> Bool {
-        skills.contains { $0.name == slug }
+        skills.contains { skillName($0.name, matchesRemoteSlug: slug) }
     }
 
     func isInstalled(slug: String, in platform: SkillPlatform) -> Bool {
-        skills.contains { $0.name == slug && $0.platform == platform }
+        skills.contains {
+            skillName($0.name, matchesRemoteSlug: slug) && $0.platform == platform
+        }
     }
 
     func installedPlatforms(for slug: String) -> Set<SkillPlatform> {
-        Set(skills.filter { $0.name == slug }.compactMap(\.platform))
+        Set(skills.filter { skillName($0.name, matchesRemoteSlug: slug) }.compactMap(\.platform))
     }
 
     func groupedLocalSkills(from filteredSkills: [Skill]) -> [LocalSkillGroup] {
@@ -376,7 +378,9 @@ import Observation
         let zipURL = try await client.download(skill.slug, skill.latestVersion)
         let destinationList = destinations.map { platform in
             if let existing = skills.first(where: {
-                $0.name == skill.slug && $0.platform == platform && $0.customPath == nil
+                skillName($0.name, matchesRemoteSlug: skill.slug)
+                    && $0.platform == platform
+                    && $0.customPath == nil
             }) {
                 return SkillFileWorker.InstallDestination(
                     rootURL: existing.managedRoot.registeredURL,
@@ -415,7 +419,9 @@ import Observation
         client: RemoteSkillClient
     ) async throws -> String? {
         let installedSkills = skills.filter {
-            $0.name == slug && $0.platform != nil && $0.customPath == nil
+            skillName($0.name, matchesRemoteSlug: slug)
+                && $0.platform != nil
+                && $0.customPath == nil
         }
         guard !installedSkills.isEmpty else { return nil }
 
@@ -447,6 +453,10 @@ import Observation
             self.selectedSkillID = selectedID
         }
         return result.report.warningMessage
+    }
+
+    private func skillName(_ name: String, matchesRemoteSlug slug: String) -> Bool {
+        SkillContentPath.collisionKey(for: name) == SkillContentPath.collisionKey(for: slug)
     }
 
     private func storageKey(for skill: Skill) -> String {

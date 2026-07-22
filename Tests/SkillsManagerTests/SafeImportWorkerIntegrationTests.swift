@@ -198,6 +198,49 @@ struct SafeImportWorkerIntegrationTests {
         }
     }
 
+    @Test("remote replacement selects the actual normalization-equivalent destination")
+    func remoteReplacementSelectsActualDestination() async throws {
+        let cases = [
+            (slug: "remote-slug", existingName: "Remote-Slug"),
+            (slug: "caf\u{00e9}-skill", existingName: "cafe\u{0301}-skill"),
+        ]
+
+        for testCase in cases {
+            try await withTemporaryDirectory { root in
+                let archiveURL = root.appendingPathComponent("remote.zip")
+                let destination = root.appendingPathComponent("destination", isDirectory: true)
+                let existing = destination.appendingPathComponent(testCase.existingName, isDirectory: true)
+                try makeSkill(at: existing, markdown: "# Existing")
+                try writeArchive(at: archiveURL, entries: [
+                    ("package/SKILL.md", Data("# Updated".utf8)),
+                ])
+
+                let result = try await SkillFileWorker().installRemoteSkill(
+                    zipURL: archiveURL,
+                    slug: testCase.slug,
+                    version: "2.0.0",
+                    destinations: [.init(rootURL: destination, storageKey: "target")]
+                )
+
+                let installedName = try #require(FileManager.default.contentsOfDirectory(
+                    at: destination,
+                    includingPropertiesForKeys: nil
+                ).first?.lastPathComponent)
+                #expect(result.selectedID == "target-\(installedName)")
+                #expect(
+                    SkillContentPath.collisionKey(for: installedName)
+                        == SkillContentPath.collisionKey(for: testCase.slug)
+                )
+                #expect(try String(
+                    contentsOf: destination
+                        .appendingPathComponent(installedName, isDirectory: true)
+                        .appendingPathComponent("SKILL.md"),
+                    encoding: .utf8
+                ) == "# Updated")
+            }
+        }
+    }
+
     private func makeSkill(at root: URL, markdown: String) throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try markdown.write(
