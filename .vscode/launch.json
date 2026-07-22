@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:CodexSkillManager}",
+            "name": "Debug CodexSkillManager",
+            "target": "CodexSkillManager",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug CodexSkillManager"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:CodexSkillManager}",
+            "name": "Release CodexSkillManager",
+            "target": "CodexSkillManager",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release CodexSkillManager"
+        }
+    ]
+}

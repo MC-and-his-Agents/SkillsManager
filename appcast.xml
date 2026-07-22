@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Skills Manager</title>
+        <link>https://raw.githubusercontent.com/MC-and-his-Agents/SkillsManager/main/appcast.xml</link>
+        <description>Skills Manager updates</description>
+    </channel>
+</rss>

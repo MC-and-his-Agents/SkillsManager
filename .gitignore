@@ -1,0 +1,4 @@
+/.build
+/.swiftpm
+/SkillsManager.app
+*.zip
