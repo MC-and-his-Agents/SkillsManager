@@ -68,7 +68,8 @@ nonisolated extension ManagedPathGuard {
         at url: URL,
         afterTemporaryCreate: (URL) throws -> Void = { _ in },
         afterCreate: () throws -> Void = {},
-        afterOpen: () throws -> Void = {}
+        afterOpen: () throws -> Void = {},
+        admitFailureCleanup: () throws -> Void = {}
     ) throws -> ManagedDirectoryHandle {
         try verifyRootIdentity()
         let targetName = try managedName(for: url).value
@@ -111,7 +112,8 @@ nonisolated extension ManagedPathGuard {
             try throwCreationFailure(
                 operationError,
                 at: cleanupURL,
-                expectedIdentity: unpublished.identity
+                expectedIdentity: unpublished.identity,
+                admitFailureCleanup: admitFailureCleanup
             )
         }
     }
@@ -193,11 +195,13 @@ nonisolated extension ManagedPathGuard {
     private func throwCreationFailure(
         _ operationError: Error,
         at url: URL,
-        expectedIdentity: ManagedItemIdentity?
+        expectedIdentity: ManagedItemIdentity?,
+        admitFailureCleanup: () throws -> Void
     ) throws -> Never {
         guard let expectedIdentity else {
             throw creationFailureWithoutIdentity(operationError, at: url)
         }
+        try admitFailureCleanup()
         do {
             try removeItem(at: url, expectedIdentity: expectedIdentity)
         } catch let cleanupError {
