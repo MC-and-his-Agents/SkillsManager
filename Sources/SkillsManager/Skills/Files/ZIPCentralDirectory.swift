@@ -12,12 +12,10 @@ nonisolated enum ZIPCentralDirectory {
     }
 
     static func entryKinds(
-        at archiveURL: URL,
+        in handle: FileHandle,
         maximumEntryCount: Int,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> [Kind] {
-        let handle = try FileHandle(forReadingFrom: archiveURL)
-        defer { try? handle.close() }
         let fileSize = try handle.seekToEnd()
         let record = try endRecord(in: handle, fileSize: fileSize)
         guard record.entryCount <= UInt64(max(0, maximumEntryCount)) else {

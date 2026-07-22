@@ -237,6 +237,10 @@ nonisolated enum SkillContentPath {
         )
     }
 
+    nonisolated static func namesAreEquivalent(_ lhs: String, _ rhs: String) -> Bool {
+        collisionKey(for: lhs) == collisionKey(for: rhs)
+    }
+
     nonisolated static func uniqueNormalizedComponents(_ components: [String]) throws -> [String] {
         var firstNameByKey: [String: String] = [:]
         return try components.map { component in

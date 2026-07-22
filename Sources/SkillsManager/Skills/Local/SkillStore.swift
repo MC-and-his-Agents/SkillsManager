@@ -239,21 +239,29 @@ import Observation
     }
 
     func isInstalled(slug: String) -> Bool {
-        skills.contains { skillName($0.name, matchesRemoteSlug: slug) }
+        skills.contains { SkillContentPath.namesAreEquivalent($0.name, slug) }
     }
 
     func isInstalled(slug: String, in platform: SkillPlatform) -> Bool {
         skills.contains {
-            skillName($0.name, matchesRemoteSlug: slug) && $0.platform == platform
+            SkillContentPath.namesAreEquivalent($0.name, slug) && $0.platform == platform
         }
     }
 
+    var installedPlatformsByIdentityKey: [String: Set<SkillPlatform>] {
+        Dictionary(grouping: skills) {
+            SkillContentPath.collisionKey(for: $0.name)
+        }.mapValues { Set($0.compactMap(\.platform)) }
+    }
+
     func installedPlatforms(for slug: String) -> Set<SkillPlatform> {
-        Set(skills.filter { skillName($0.name, matchesRemoteSlug: slug) }.compactMap(\.platform))
+        installedPlatformsByIdentityKey[SkillContentPath.collisionKey(for: slug), default: []]
     }
 
     func groupedLocalSkills(from filteredSkills: [Skill]) -> [LocalSkillGroup] {
-        let grouped = Dictionary(grouping: filteredSkills, by: { $0.name })
+        let grouped = Dictionary(grouping: filteredSkills) {
+            SkillContentPath.collisionKey(for: $0.name)
+        }
         let preferredPlatformOrder: [SkillPlatform] = [.codex, .claude, .opencode, .copilot]
 
         return grouped.compactMap { _, filteredSkills in
@@ -347,14 +355,16 @@ import Observation
     }
 
 
-    private func normalizeSelectionToPreferredPlatform() {
+    func normalizeSelectionToPreferredPlatform() {
         guard let selectedSkillID,
               let selected = skills.first(where: { $0.id == selectedSkillID }) else {
             return
         }
 
         let slug = selected.name
-        let candidates = skills.filter { $0.name == slug }
+        let candidates = skills.filter {
+            SkillContentPath.namesAreEquivalent($0.name, slug)
+        }
         guard candidates.count > 1 else { return }
 
         let preferredOrder: [SkillPlatform] = [.codex, .claude, .opencode, .copilot]
@@ -378,7 +388,7 @@ import Observation
         let zipURL = try await client.download(skill.slug, skill.latestVersion)
         let destinationList = destinations.map { platform in
             if let existing = skills.first(where: {
-                skillName($0.name, matchesRemoteSlug: skill.slug)
+                SkillContentPath.namesAreEquivalent($0.name, skill.slug)
                     && $0.platform == platform
                     && $0.customPath == nil
             }) {
@@ -419,7 +429,7 @@ import Observation
         client: RemoteSkillClient
     ) async throws -> String? {
         let installedSkills = skills.filter {
-            skillName($0.name, matchesRemoteSlug: slug)
+            SkillContentPath.namesAreEquivalent($0.name, slug)
                 && $0.platform != nil
                 && $0.customPath == nil
         }
@@ -453,10 +463,6 @@ import Observation
             self.selectedSkillID = selectedID
         }
         return result.report.warningMessage
-    }
-
-    private func skillName(_ name: String, matchesRemoteSlug slug: String) -> Bool {
-        SkillContentPath.collisionKey(for: name) == SkillContentPath.collisionKey(for: slug)
     }
 
     private func storageKey(for skill: Skill) -> String {

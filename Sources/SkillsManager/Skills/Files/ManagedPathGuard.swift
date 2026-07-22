@@ -254,6 +254,29 @@ nonisolated final class ManagedPathGuard {
             validateStaged: validateStaged
         )
     }
+    func verifyCommittedPromotion(
+        targetURL: URL,
+        expectedTarget: ManagedItemIdentity,
+        recoveryURL: URL,
+        expectedRecovery: ManagedItemIdentity,
+        validateTarget: (URL) throws -> Void
+    ) throws {
+        let names: PromotionNames
+        do {
+            names = try promotionNames(stagedURL: recoveryURL, targetURL: targetURL)
+        } catch {
+            throw ManagedPromotionIndeterminate(targetURL: targetURL, recoveryURL: nil)
+        }
+        do {
+            try verifyCommittedTarget(
+                names: names,
+                expectedStaged: expectedTarget,
+                validateStaged: validateTarget
+            )
+        } catch {
+            throw promotionIndeterminate(names: names, recoveryIdentity: expectedRecovery)
+        }
+    }
     func managedName(for targetURL: URL) throws -> ManagedName {
         guard targetURL.isFileURL else {
             throw ManagedPathError.targetIsNotDirectChild
@@ -362,16 +385,14 @@ nonisolated final class ManagedPathGuard {
         expectedTarget: ManagedItemIdentity,
         validateStaged: (URL) throws -> Void
     ) throws -> ManagedPromotionResult {
-        do {
-            try verifyCommittedTarget(
-                names: names,
-                expectedStaged: expectedStaged,
-                validateStaged: validateStaged
-            )
-            return result
-        } catch {
-            throw promotionIndeterminate(names: names, recoveryIdentity: expectedTarget)
-        }
+        try verifyCommittedPromotion(
+            targetURL: URL(fileURLWithPath: rootPath).appendingPathComponent(names.target),
+            expectedTarget: expectedStaged,
+            recoveryURL: cleanupURL(for: names),
+            expectedRecovery: expectedTarget,
+            validateTarget: validateStaged
+        )
+        return result
     }
 
     private func verifyCommittedTarget(
@@ -394,7 +415,9 @@ nonisolated final class ManagedPathGuard {
         names: PromotionNames,
         recoveryIdentity: ManagedItemIdentity
     ) -> ManagedPromotionIndeterminate {
-        let recoveryURL = (try? identity(of: names.staged, in: rootDescriptor)) == recoveryIdentity
+        let rootIsCurrent = (try? verifyRootIdentity()) != nil
+        let recoveryURL = rootIsCurrent
+            && (try? identity(of: names.staged, in: rootDescriptor)) == recoveryIdentity
             ? cleanupURL(for: names)
             : nil
         return ManagedPromotionIndeterminate(

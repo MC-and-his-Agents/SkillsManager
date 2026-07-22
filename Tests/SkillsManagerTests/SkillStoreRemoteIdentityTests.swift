@@ -7,7 +7,7 @@ import ZIPFoundation
 @Suite("Skill store remote identity")
 struct SkillStoreRemoteIdentityTests {
     @MainActor
-    @Test("installed platforms match case and NFC equivalent remote slugs")
+    @Test("remote row platform lookup matches case and NFC equivalent slugs")
     func installedPlatformsUseNormalizedIdentity() async throws {
         try await withTemporaryDirectory { root in
             let store = SkillStore()
@@ -20,6 +20,44 @@ struct SkillStoreRemoteIdentityTests {
             #expect(store.isInstalled(slug: "CAFÉ-SKILL", in: .claude))
             #expect(store.installedPlatforms(for: "remote-slug") == [.codex])
             #expect(store.installedPlatforms(for: "caf\u{e9}-skill") == [.claude])
+            #expect(store.installedPlatformsByIdentityKey[
+                SkillContentPath.collisionKey(for: "REMOTE-SLUG")
+            ] == [.codex])
+        }
+    }
+
+    @MainActor
+    @Test("local groups combine case and NFC equivalent names across platforms")
+    func localGroupsUseNormalizedIdentity() async throws {
+        try await withTemporaryDirectory { root in
+            let store = SkillStore()
+            store.skills = [
+                try makeSkill(named: "Remote-Slug", platform: .codex, in: root),
+                try makeSkill(named: "remote-slug", platform: .claude, in: root),
+                try makeSkill(named: "cafe\u{301}-skill", platform: .opencode, in: root),
+                try makeSkill(named: "CAF\u{c9}-SKILL", platform: .copilot, in: root),
+            ]
+
+            let groups = store.groupedPlatformSkills(from: store.skills)
+            #expect(groups.count == 2)
+            #expect(groups.contains { $0.installedPlatforms == [.codex, .claude] })
+            #expect(groups.contains { $0.installedPlatforms == [.opencode, .copilot] })
+        }
+    }
+
+    @MainActor
+    @Test("selection prefers the highest-priority platform for an equivalent name")
+    func selectionUsesNormalizedIdentity() async throws {
+        try await withTemporaryDirectory { root in
+            let store = SkillStore()
+            let codex = try makeSkill(named: "CAF\u{c9}-SKILL", platform: .codex, in: root)
+            let claude = try makeSkill(named: "cafe\u{301}-skill", platform: .claude, in: root)
+            store.skills = [claude, codex]
+            store.selectedSkillID = claude.id
+
+            store.normalizeSelectionToPreferredPlatform()
+
+            #expect(store.selectedSkillID == codex.id)
         }
     }
 

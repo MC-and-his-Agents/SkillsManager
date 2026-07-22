@@ -312,10 +312,13 @@ nonisolated struct SafeSkillStager {
                     expectedTarget: expectedTarget,
                     validateStaged: validateStaged
                 )
-                let cleanupDebts = consume(
+                let cleanupDebts = try consume(
                     result,
+                    finalURL: finalURL,
+                    expectedStaged: expectedStaged,
                     expectedCleanupIdentity: expectedTarget,
-                    guardrail: guardrail
+                    guardrail: guardrail,
+                    validateStaged: validateStaged
                 )
                 return SafeSkillInstallResult(
                     installedURL: finalURL,
@@ -332,32 +335,41 @@ nonisolated struct SafeSkillStager {
 
     private func consume(
         _ result: ManagedPromotionResult,
+        finalURL: URL,
+        expectedStaged: ManagedItemIdentity,
         expectedCleanupIdentity: ManagedItemIdentity,
-        guardrail: ManagedPathGuard
-    ) -> [SafeSkillCleanupDebt] {
+        guardrail: ManagedPathGuard,
+        validateStaged: (URL) throws -> Void
+    ) throws -> [SafeSkillCleanupDebt] {
         guard case .committedWithCleanupDebt(let cleanupURL, let originalError) = result else {
             return []
         }
+        let retryError: Error?
         do {
             try guardrail.removeItem(
                 at: cleanupURL,
                 expectedIdentity: expectedCleanupIdentity
             )
-            return []
+            retryError = nil
         } catch {
-            NSLog(
-                "Skills Manager installed the Skill but could not remove %@: %@; retry failed: %@",
-                cleanupURL.path,
-                originalError.localizedDescription,
-                error.localizedDescription
-            )
-            return [
-                SafeSkillCleanupDebt(
-                    url: cleanupURL,
-                    reason: "\(originalError.localizedDescription); retry failed: \(error.localizedDescription)"
-                )
-            ]
+            retryError = error
         }
+        try guardrail.verifyCommittedPromotion(
+            targetURL: finalURL,
+            expectedTarget: expectedStaged,
+            recoveryURL: cleanupURL,
+            expectedRecovery: expectedCleanupIdentity,
+            validateTarget: validateStaged
+        )
+        guard let retryError else { return [] }
+        NSLog(
+            "Skills Manager installed the Skill but could not remove %@: %@; retry failed: %@",
+            cleanupURL.path, originalError.localizedDescription, retryError.localizedDescription
+        )
+        return [SafeSkillCleanupDebt(
+            url: cleanupURL,
+            reason: "\(originalError.localizedDescription); retry failed: \(retryError.localizedDescription)"
+        )]
     }
 
     private static func failure(

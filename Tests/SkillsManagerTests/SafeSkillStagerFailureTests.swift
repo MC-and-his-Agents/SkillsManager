@@ -199,6 +199,101 @@ struct SafeSkillStagerFailureTests {
         }
     }
 
+    @Test("failed cleanup retry rechecks target content and preserves exact recovery")
+    func cleanupRetryFailureRechecksTarget() throws {
+        try withTemporaryDirectory { root in
+            let source = root.appendingPathComponent("source", isDirectory: true)
+            let destination = root.appendingPathComponent("destination", isDirectory: true)
+            let target = destination.appendingPathComponent("example", isDirectory: true)
+            try makeSkill(at: source, markdown: "# Validated")
+            try makeSkill(at: target, markdown: "# Existing")
+            let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
+            var hooks = ManagedPathGuardTestHooks()
+            hooks.beforeCleanup = {
+                throw ManagedPathError.posix(operation: "injected initial cleanup", code: EIO)
+            }
+            hooks.beforeQuarantineMove = { name in
+                guard name.hasPrefix(".skillsmanager-tmp-") else { return }
+                try "# Changed".write(
+                    to: target.appendingPathComponent("SKILL.md"),
+                    atomically: true,
+                    encoding: .utf8
+                )
+                throw ManagedPathError.posix(operation: "injected retry cleanup", code: EBUSY)
+            }
+            let stager = SafeSkillStager(
+                guardFactory: { try ManagedPathGuard(rootURL: $0, hooks: hooks) }
+            )
+
+            do {
+                _ = try stager.install(
+                    sourceRoot: source,
+                    expectedFingerprint: fingerprint,
+                    destinationRoot: destination,
+                    preferredName: "example",
+                    conflictPolicy: .replaceExisting
+                )
+                Issue.record("Expected an indeterminate target after cleanup retry")
+            } catch let error as ManagedPromotionIndeterminate {
+                let recovery = try #require(error.recoveryURL)
+                #expect(try String(
+                    contentsOf: recovery.appendingPathComponent("SKILL.md"),
+                    encoding: .utf8
+                ) == "# Existing")
+            }
+            #expect(try String(
+                contentsOf: target.appendingPathComponent("SKILL.md"),
+                encoding: .utf8
+            ) == "# Changed")
+        }
+    }
+
+    @Test("successful cleanup retry never moves a concurrently replaced target")
+    func cleanupRetryRechecksReplacedTarget() throws {
+        try withTemporaryDirectory { root in
+            let source = root.appendingPathComponent("source", isDirectory: true)
+            let destination = root.appendingPathComponent("destination", isDirectory: true)
+            let target = destination.appendingPathComponent("example", isDirectory: true)
+            let committed = destination.appendingPathComponent("committed", isDirectory: true)
+            try makeSkill(at: source, markdown: "# Validated")
+            try makeSkill(at: target, markdown: "# Existing")
+            let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
+            var hooks = ManagedPathGuardTestHooks()
+            hooks.beforeCleanup = {
+                throw ManagedPathError.posix(operation: "injected initial cleanup", code: EIO)
+            }
+            hooks.beforeQuarantineMove = { name in
+                guard name.hasPrefix(".skillsmanager-tmp-") else { return }
+                try FileManager.default.moveItem(at: target, to: committed)
+                try makeSkill(at: target, markdown: "# Concurrent")
+            }
+            let stager = SafeSkillStager(
+                guardFactory: { try ManagedPathGuard(rootURL: $0, hooks: hooks) }
+            )
+
+            do {
+                _ = try stager.install(
+                    sourceRoot: source,
+                    expectedFingerprint: fingerprint,
+                    destinationRoot: destination,
+                    preferredName: "example",
+                    conflictPolicy: .replaceExisting
+                )
+                Issue.record("Expected an indeterminate concurrently replaced target")
+            } catch let error as ManagedPromotionIndeterminate {
+                #expect(error.recoveryURL == nil)
+            }
+            #expect(try String(
+                contentsOf: target.appendingPathComponent("SKILL.md"),
+                encoding: .utf8
+            ) == "# Concurrent")
+            #expect(try String(
+                contentsOf: committed.appendingPathComponent("SKILL.md"),
+                encoding: .utf8
+            ) == "# Validated")
+        }
+    }
+
     @Test("folder import reports cleanup debt together with its original failure")
     func reportsFolderPreCommitCleanupFailure() throws {
         try withTemporaryDirectory { root in

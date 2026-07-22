@@ -84,7 +84,7 @@ struct SkillSplitView: View {
             remoteSearchState: remoteStore.searchState,
             remoteLatestState: remoteStore.latestState,
             remoteQuery: searchText,
-            installedPlatforms: installedPlatforms,
+            installedPlatformsByIdentityKey: store.installedPlatformsByIdentityKey,
             onInstallRemoteSkill: { skill in
                 presentRemoteInstallSheet(for: skill)
             },
@@ -226,10 +226,14 @@ struct SkillSplitView: View {
             if let selected, selected.platform == platform {
                 url = selected.folderURL
             } else if let match = store.skills.first(where: {
-                $0.name == slug && $0.platform == platform && $0.customPath == selected?.customPath
+                SkillContentPath.namesAreEquivalent($0.name, slug)
+                    && $0.platform == platform
+                    && $0.customPath == selected?.customPath
             }) {
                 url = match.folderURL
-            } else if let match = store.skills.first(where: { $0.name == slug && $0.platform == platform }) {
+            } else if let match = store.skills.first(where: {
+                SkillContentPath.namesAreEquivalent($0.name, slug) && $0.platform == platform
+            }) {
                 url = match.folderURL
             } else {
                 url = platform.rootURL.appendingPathComponent(slug)
@@ -258,13 +262,6 @@ struct SkillSplitView: View {
                 }
             }
         )
-    }
-
-    private var installedPlatforms: [String: Set<SkillPlatform>] {
-        Dictionary(
-            grouping: store.skills,
-            by: { $0.name }
-        ).mapValues { Set($0.compactMap(\.platform)) }
     }
 
     private func defaultInstallTargets(for slug: String) -> Set<SkillPlatform> {

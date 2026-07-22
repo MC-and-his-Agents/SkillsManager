@@ -2,6 +2,24 @@ import Darwin
 import Foundation
 import ZIPFoundation
 nonisolated struct SafeSkillArchive {
+    private final class ArchiveSnapshot {
+        let handle: FileHandle
+        let descriptorURL: URL
+
+        init(opening archiveURL: URL) throws {
+            let descriptor = Darwin.open(archiveURL.path, O_RDONLY | O_CLOEXEC)
+            guard descriptor >= 0 else { throw SafeSkillArchiveError.invalidArchive }
+            var status = stat()
+            guard Darwin.fstat(descriptor, &status) == 0,
+                  status.st_mode & S_IFMT == S_IFREG else {
+                Darwin.close(descriptor)
+                throw SafeSkillArchiveError.invalidArchive
+            }
+            handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+            descriptorURL = URL(fileURLWithPath: "/dev/fd/\(descriptor)")
+        }
+    }
+
     struct Limits: Sendable {
         let maximumEntryCount: Int
         let content: SkillContentLimits
@@ -34,17 +52,20 @@ nonisolated struct SafeSkillArchive {
         archiveAt archiveURL: URL,
         to emptyDestinationURL: URL,
         checkpoint: SkillCancellationCheckpoint = {},
+        afterPreflight: () throws -> Void = {},
         beforeEntry: ([String]) throws -> Void = { _ in }
     ) throws -> [String] {
         let rootDescriptor = try openEmptyDestination(emptyDestinationURL)
         defer { Darwin.close(rootDescriptor) }
         do {
+            let snapshot = try ArchiveSnapshot(opening: archiveURL)
             let rawKinds = try ZIPCentralDirectory.entryKinds(
-                at: archiveURL,
+                in: snapshot.handle,
                 maximumEntryCount: limits.maximumEntryCount,
                 checkpoint: checkpoint
             )
-            let archive = try Archive(url: archiveURL, accessMode: .read)
+            try afterPreflight()
+            let archive = try Archive(url: snapshot.descriptorURL, accessMode: .read)
             let entries = Array(archive)
             let validatedEntries = try validate(
                 entries: entries,
