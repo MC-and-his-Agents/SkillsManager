@@ -27,7 +27,7 @@ nonisolated enum AnchoredSkillPackageLocator {
             )
         }
 
-        var candidates: [AnchoredSkillPackage] = []
+        var candidates: [(descriptor: Int32, displayPath: String)] = []
         for name in try directoryNames(in: rootDescriptor, displayPath: displayPath) where !name.hasPrefix(".") {
             let childPath = URL(fileURLWithPath: displayPath).appendingPathComponent(name).path
             guard let child = try openDirectory(named: name, in: rootDescriptor, displayPath: childPath) else {
@@ -35,7 +35,7 @@ nonisolated enum AnchoredSkillPackageLocator {
             }
             do {
                 if try manifestState(in: child, displayPath: childPath) == .valid {
-                    candidates.append(AnchoredSkillPackage(descriptor: child, displayPath: childPath))
+                    candidates.append((descriptor: child, displayPath: childPath))
                 } else {
                     Darwin.close(child)
                 }
@@ -45,9 +45,12 @@ nonisolated enum AnchoredSkillPackageLocator {
             }
         }
         guard candidates.count == 1 else {
-            throw candidates.isEmpty ? SkillPackageError.missingManifest : SkillPackageError.ambiguousRoots
+            let error = candidates.isEmpty ? SkillPackageError.missingManifest : SkillPackageError.ambiguousRoots
+            candidates.forEach { Darwin.close($0.descriptor) }
+            throw error
         }
-        return candidates[0]
+        let candidate = candidates[0]
+        return AnchoredSkillPackage(descriptor: candidate.descriptor, displayPath: candidate.displayPath)
     }
 
     private enum ManifestState { case missing, valid }
