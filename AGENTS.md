@@ -1,47 +1,47 @@
-# Skills Manager
+# Skills Manager 开发规范
 
-## Repository scope
+## 仓库范围
 
-Skills Manager is a macOS SwiftUI app built with SwiftPM. The repository does not use an Xcode project.
+Skills Manager 是一款基于 SwiftPM 构建的 macOS SwiftUI 应用，不使用 Xcode 工程。
 
-This file contains stable instructions for working in the repository. Do not duplicate product features, UI structure, supported skill platforms, source-file inventories, or release implementation details here; those facts change with the product.
+本文件只记录稳定的开发约束和事实来源入口。不要在此重复产品功能、界面结构、支持的平台、源码文件清单或发布实现细节；这些内容会随着产品变化，应维护在对应的事实来源中。
 
-## Sources of truth
+## 事实来源
 
-- Product description and user-facing requirements: `README.md`
-- Supported macOS version, Swift tools version, targets, and dependencies: `Package.swift`
-- Marketing version and build number: `version.env`
-- Application behavior and architecture: `Sources/` and `Tests/`
-- CI and automated release behavior: `.github/workflows/`
-- Local build, packaging, signing, and appcast implementation: `Scripts/`
+- 产品介绍和面向用户的要求：`README.md`
+- 支持的 macOS 版本、Swift 工具版本、target 和依赖：`Package.swift`
+- marketing version 和 build number：`version.env`
+- 应用行为和架构：`Sources/`、`Tests/`
+- CI 和自动发布行为：`.github/workflows/`
+- 本地构建、打包、签名和 appcast 实现：`Scripts/`
 
-Read the relevant source of truth before changing behavior. Update the owning file instead of copying its details into this file.
+修改行为前先阅读相关事实来源。不要把这些信息复制到本文件；事实发生变化时，应更新所属文件。
 
-## Build and validation
+## 构建与验证
 
-- Build: `swift build`
-- Test: `swift test`
-- Run the executable during development: `swift run CodexSkillManager`
-- Package and launch an ad-hoc signed app: `./Scripts/compile_and_run.sh`
+- 构建：`swift build`
+- 测试：`swift test`
+- 开发期间运行可执行文件：`swift run CodexSkillManager`
+- 打包并启动临时签名的本地应用：`./Scripts/compile_and_run.sh`
 
-After every code change, run `swift build` and fix compilation errors before continuing. Run `swift test` for behavior, model, parsing, filesystem, import, or platform-discovery changes. Documentation-only changes do not require a Swift build.
+每次修改代码后运行 `swift build`，发现编译错误时先修复再继续。涉及行为、模型、解析、文件系统、导入或平台发现的改动，还应运行 `swift test`。只修改文档时不要求运行 Swift 构建。
 
-When changing packaging or release automation, also run the applicable checks:
+修改打包或发布自动化时，还应运行适用的检查：
 
-- Shell syntax: `bash -n Scripts/*.sh`
-- GitHub Actions syntax: `actionlint .github/workflows/*.yml` when `actionlint` is available
-- Packaged app: verify its bundle metadata, code signature, and bundled resources affected by the change
+- Shell 语法：`bash -n Scripts/*.sh`
+- GitHub Actions 语法：工具可用时运行 `actionlint .github/workflows/*.yml`
+- 打包应用：检查本次改动涉及的 bundle 元数据、代码签名和内置资源
 
-## Packaging and release
+## 打包与发布
 
-Official GitHub releases are defined by `.github/workflows/release.yml`. A release tag must match `MARKETING_VERSION` in `version.env`; consult the workflow for the current trigger and exact steps.
+正式 GitHub 发布由 `.github/workflows/release.yml` 定义。发布 tag 必须与 `version.env` 中的 `MARKETING_VERSION` 一致；具体触发条件和步骤以 workflow 为准。
 
-Use the existing scripts instead of recreating packaging logic. Keep certificates, private keys, API credentials, and machine-specific release configuration outside the repository. Never commit `release.env`, `.p8`, `.p12`, Sparkle private keys, or temporary signing keychains.
+复用现有脚本，不要重新实现打包逻辑。证书、私钥、API 凭据和机器相关的发布配置必须放在仓库外。严禁提交 `release.env`、`.p8`、`.p12`、Sparkle 私钥或临时签名 keychain。
 
-## Change discipline
+## 变更纪律
 
-- Keep changes scoped to the current issue or task.
-- Preserve the SwiftPM-first structure unless a task explicitly requires an Xcode project.
-- Add or update tests when behavior changes.
-- Do not commit generated build products, packaged apps, archives, or temporary files.
-- Use a feature branch and pull request; do not implement changes directly on `main`.
+- 修改范围应与当前 issue 或任务一致。
+- 除非任务明确要求，否则保持 SwiftPM 优先的项目结构。
+- 行为发生变化时，新增或更新相应测试。
+- 不要提交构建产物、打包应用、归档文件或临时文件。
+- 使用功能分支和 pull request，不要直接在 `main` 上实施修改。
