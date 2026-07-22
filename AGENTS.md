@@ -1,58 +1,47 @@
 # Skills Manager
 
-## What this app is
-Skills Manager is a small macOS SwiftUI app built with SwiftPM (no Xcode project) that manages agent skills installed on the user's Mac.
+## Repository scope
 
-## How it works
-- The app scans `~/.codex/skills` and `~/.codex/skills/public` for subdirectories.
-- Each directory name becomes a skill entry.
-- The UI is a SwiftUI `NavigationSplitView` with a list on the left and a detail view on the right.
-- The detail view shows the skill name and its full path.
+Skills Manager is a macOS SwiftUI app built with SwiftPM. The repository does not use an Xcode project.
 
-## Build and run
+This file contains stable instructions for working in the repository. Do not duplicate product features, UI structure, supported skill platforms, source-file inventories, or release implementation details here; those facts change with the product.
+
+## Sources of truth
+
+- Product description and user-facing requirements: `README.md`
+- Supported macOS version, Swift tools version, targets, and dependencies: `Package.swift`
+- Marketing version and build number: `version.env`
+- Application behavior and architecture: `Sources/` and `Tests/`
+- CI and automated release behavior: `.github/workflows/`
+- Local build, packaging, signing, and appcast implementation: `Scripts/`
+
+Read the relevant source of truth before changing behavior. Update the owning file instead of copying its details into this file.
+
+## Build and validation
+
 - Build: `swift build`
-- Run: `swift run CodexSkillManager`
-When editing this app, build after each change and fix any compile errors before continuing.
+- Test: `swift test`
+- Run the executable during development: `swift run CodexSkillManager`
+- Package and launch an ad-hoc signed app: `./Scripts/compile_and_run.sh`
+
+After every code change, run `swift build` and fix compilation errors before continuing. Run `swift test` for behavior, model, parsing, filesystem, import, or platform-discovery changes. Documentation-only changes do not require a Swift build.
+
+When changing packaging or release automation, also run the applicable checks:
+
+- Shell syntax: `bash -n Scripts/*.sh`
+- GitHub Actions syntax: `actionlint .github/workflows/*.yml` when `actionlint` is available
+- Packaged app: verify its bundle metadata, code signature, and bundled resources affected by the change
 
 ## Packaging and release
-Use the `macos-spm-app-packaging` skill for packaging, notarization, appcast, and GitHub release steps.
-Local packaging helpers live in `Scripts/`:
-- `Scripts/compile_and_run.sh`: package (adhoc sign) + launch the `.app`.
-- `Scripts/package_app.sh`: build and create `SkillsManager.app`.
-- `Scripts/sign-and-notarize.sh`: sign + notarize for releases.
-- `Scripts/make_appcast.sh`: generate Sparkle appcast from a zip.
-- `Scripts/generate_sparkle_keys.sh`: generate Sparkle keypair and export private key.
 
-Sparkle env vars (set in `~/.zshrc`):
-- `SPARKLE_PUBLIC_KEY`
-- `SPARKLE_PRIVATE_KEY_FILE`
-- `SPARKLE_FEED_URL`
+Official GitHub releases are defined by `.github/workflows/release.yml`. A release tag must match `MARKETING_VERSION` in `version.env`; consult the workflow for the current trigger and exact steps.
 
-## Release flow (commit → changelog → notarize → appcast → GitHub release)
-1) Update version: bump `MARKETING_VERSION` and `BUILD_NUMBER` in `version.env`.
-2) Build: `swift build`.
-3) Commit + push:
-   - `git add -A`
-   - `git commit -m "feat: ..."` (or other Conventional Commit type)
-   - `git push`
-4) Write release notes (short, user-facing bullets) and save to a file, e.g. `/tmp/skillsmanager-release-notes-<version>.md`.
-5) Notarize and package:
-   - `APP_STORE_CONNECT_API_KEY_P8="/path/to/key.p8" APP_STORE_CONNECT_KEY_ID="..." APP_STORE_CONNECT_ISSUER_ID="..." APP_IDENTITY="Developer ID Application: ..."`
-   - `./Scripts/sign-and-notarize.sh`
-   - Note: `SPARKLE_PUBLIC_KEY` must be set (and `SPARKLE_FEED_URL` if non-default) or the build will be missing Sparkle keys and updates will not work.
-6) Generate Sparkle appcast entry:
-   - `SPARKLE_PRIVATE_KEY_FILE="..." ./Scripts/make_appcast.sh SkillsManager-<version>.zip https://raw.githubusercontent.com/MC-and-his-Agents/SkillsManager/main/appcast.xml`
-   - Note: Sparkle uses the build number (`BUILD_NUMBER`) for `sparkle:version`, so it must increase each release.
-   - `git add appcast.xml`
-   - `git commit -m "chore: update sparkle appcast"`
-   - `git push`
-7) Publish GitHub release (creates the tag):
-   - `gh release create v<version> SkillsManager-<version>.zip appcast.xml --title "Skills Manager <version>" --notes-file /tmp/skillsmanager-release-notes-<version>.md`
+Use the existing scripts instead of recreating packaging logic. Keep certificates, private keys, API credentials, and machine-specific release configuration outside the repository. Never commit `release.env`, `.p8`, `.p12`, Sparkle private keys, or temporary signing keychains.
 
-## Project layout
-- `Package.swift`: SwiftPM manifest for the executable target.
-- `Sources/CodexSkillManager/App/CodexSkillManagerApp.swift`: App entry point + dependency injection.
-- `Sources/CodexSkillManager/Skills/SkillStore.swift`: Loads skills + selected SKILL.md content.
-- `Sources/CodexSkillManager/Skills/SkillSplitView.swift`: Split view shell with list + detail.
-- `Sources/CodexSkillManager/Skills/SkillDetailView.swift`: Markdown rendering for SKILL.md content.
-- `version.env`: Template version file (used by the packaging scripts if added later).
+## Change discipline
+
+- Keep changes scoped to the current issue or task.
+- Preserve the SwiftPM-first structure unless a task explicitly requires an Xcode project.
+- Add or update tests when behavior changes.
+- Do not commit generated build products, packaged apps, archives, or temporary files.
+- Use a feature branch and pull request; do not implement changes directly on `main`.
