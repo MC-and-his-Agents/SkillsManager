@@ -166,6 +166,48 @@ nonisolated struct SkillContentSnapshot: Equatable, Sendable {
         try verifyFinalSource(descriptor, file: file)
     }
 
+    nonisolated func readUTF8File(
+        relativePath: String,
+        checkpoint: SkillCancellationCheckpoint = {}
+    ) throws -> String {
+        try checkpoint()
+        guard let file = discoveredFiles.first(where: { $0.relativePath == relativePath }) else {
+            throw SkillContentSnapshotError.fileNotFound(path: relativePath)
+        }
+        let descriptor = try Self.openValidatedSource(file, sourceTree: sourceTree)
+        defer { Darwin.close(descriptor) }
+
+        var data = Data()
+        var bytesRead = UInt64.zero
+        var buffer = [UInt8](repeating: 0, count: 64 * 1_024)
+        while true {
+            try checkpoint()
+            let count = buffer.withUnsafeMutableBytes { rawBuffer in
+                Darwin.read(descriptor, rawBuffer.baseAddress, rawBuffer.count)
+            }
+            if count < 0 {
+                if errno == EINTR { continue }
+                throw SkillContentSnapshotError.fileSystemFailure(path: relativePath, code: errno)
+            }
+            if count == 0 { break }
+
+            bytesRead += UInt64(count)
+            guard bytesRead <= file.byteCount else {
+                throw SkillContentSnapshotError.fileChanged(path: relativePath)
+            }
+            data.append(contentsOf: buffer.prefix(count))
+        }
+
+        guard bytesRead == file.byteCount else {
+            throw SkillContentSnapshotError.fileChanged(path: relativePath)
+        }
+        try Self.verifyFinalSource(descriptor, file: file)
+        guard let value = String(data: data, encoding: .utf8) else {
+            throw SkillContentSnapshotError.invalidUTF8(path: relativePath)
+        }
+        return value
+    }
+
     nonisolated static func openValidatedSource(
         _ file: SkillContentFileEnumerator.DiscoveredFile,
         sourceTree: SafeSourceTree
@@ -226,6 +268,8 @@ nonisolated enum SkillContentSnapshotError: LocalizedError, Equatable, Sendable 
     case pathDepthLimitExceeded(path: String, limit: Int)
     case fileByteLimitExceeded(path: String, limit: UInt64, actual: UInt64)
     case totalByteLimitExceeded(limit: UInt64, actual: UInt64)
+    case fileNotFound(path: String)
+    case invalidUTF8(path: String)
     case fileChanged(path: String)
     case fileSystemFailure(path: String, code: Int32)
 
@@ -247,6 +291,10 @@ nonisolated enum SkillContentSnapshotError: LocalizedError, Equatable, Sendable 
             "The file \(path) exceeds the \(limit)-byte limit."
         case .totalByteLimitExceeded(let limit, _):
             "The Skill exceeds the \(limit)-byte total size limit."
+        case .fileNotFound(let path):
+            "The Skill snapshot does not contain \(path)."
+        case .invalidUTF8(let path):
+            "The file \(path) is not valid UTF-8."
         case .fileChanged(let path):
             "The file changed while it was being read: \(path)"
         case .fileSystemFailure(let path, let code):

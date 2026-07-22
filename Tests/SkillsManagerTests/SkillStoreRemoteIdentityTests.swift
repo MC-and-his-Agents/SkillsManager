@@ -79,7 +79,7 @@ struct SkillStoreRemoteIdentityTests {
                 search: { _, _ in [] },
                 download: { _, _ in
                     downloadCount += 1
-                    return archiveURL
+                    return DownloadedSkillArchive(borrowedAt: archiveURL)
                 },
                 fetchDetail: { _ in nil },
                 fetchLatestVersion: { _ in nil }
@@ -114,7 +114,7 @@ struct SkillStoreRemoteIdentityTests {
                 search: { _, _ in [] },
                 download: { _, _ in
                     try FileManager.default.removeItem(at: aliases.aliasRoot)
-                    return archiveURL
+                    return DownloadedSkillArchive(borrowedAt: archiveURL)
                 },
                 fetchDetail: { _ in nil },
                 fetchLatestVersion: { _ in nil }
@@ -148,7 +148,7 @@ struct SkillStoreRemoteIdentityTests {
                 search: { _, _ in [] },
                 download: { _, _ in
                     withUnsafeCurrentTask { $0?.cancel() }
-                    return archiveURL
+                    return DownloadedSkillArchive(borrowedAt: archiveURL)
                 },
                 fetchDetail: { _ in nil },
                 fetchLatestVersion: { _ in nil }

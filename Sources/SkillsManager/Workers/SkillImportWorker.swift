@@ -48,6 +48,7 @@ actor SkillImportWorker {
         let markdown: String
         let temporaryRoot: TemporaryItemLease?
         let archiveURL: URL?
+        let archiveIdentity: ManagedItemIdentity?
         let fingerprint: String
     }
 
@@ -58,11 +59,16 @@ actor SkillImportWorker {
             rootURL: skillRoot,
             temporaryRoot: nil,
             archiveURL: nil,
+            archiveIdentity: nil,
             checkpoint: { try Task.checkCancellation() }
         )
     }
 
-    func validateZip(_ zipURL: URL) throws -> ImportCandidatePayload {
+    func validateZip(
+        _ zipURL: URL,
+        afterExtraction: @Sendable (TemporaryItemLease) throws -> Void = { _ in }
+    ) throws -> ImportCandidatePayload {
+        let archiveLease = try TemporaryItemLease.captureFile(at: zipURL)
         let temporary = try TemporaryItemLease.createDirectory(
             in: FileManager.default.temporaryDirectory,
             prefix: "skillsmanager-import-"
@@ -70,18 +76,24 @@ actor SkillImportWorker {
         do {
             do {
                 try SafeSkillArchive().extract(
-                    archiveAt: zipURL,
+                    archiveAt: archiveLease.url,
+                    expectedArchiveIdentity: archiveLease.identity,
                     toDirectoryDescriptor: temporary.handle.descriptor,
                     checkpoint: { try Task.checkCancellation() }
                 )
             } catch let error as SafeSkillArchiveError {
                 throw SkillImportValidationError.archiveRejected(error.localizedDescription)
             }
-            let skillRoot = try SkillPackageLocator().locateSkillRoot(in: temporary.lease.url)
+            try afterExtraction(temporary.lease)
+            let package = try AnchoredSkillPackageLocator.locate(
+                in: temporary.handle.descriptor,
+                displayPath: temporary.lease.url.path
+            )
             return try makePayload(
-                rootURL: skillRoot,
+                package: package,
                 temporaryRoot: temporary.lease,
-                archiveURL: zipURL,
+                archiveURL: archiveLease.url,
+                archiveIdentity: archiveLease.identity,
                 checkpoint: { try Task.checkCancellation() }
             )
         } catch {
@@ -101,8 +113,14 @@ actor SkillImportWorker {
             do {
                 let result: SafeSkillInstallResult
                 if let archiveURL = candidate.archiveURL {
+                    guard let archiveIdentity = candidate.archiveIdentity else {
+                        throw SkillImportValidationError.archiveRejected(
+                            "The validated archive identity is unavailable."
+                        )
+                    }
                     result = try stager.installArchive(
                         archiveAt: archiveURL,
+                        expectedArchiveIdentity: archiveIdentity,
                         expectedFingerprint: candidate.fingerprint,
                         destinationRoot: destination.rootURL,
                         preferredName: candidate.skillName,
@@ -147,23 +165,73 @@ actor SkillImportWorker {
         rootURL: URL,
         temporaryRoot: TemporaryItemLease?,
         archiveURL: URL?,
+        archiveIdentity: ManagedItemIdentity?,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> ImportCandidatePayload {
-        let snapshot: SkillContentSnapshot
         do {
-            snapshot = try SkillContentSnapshot.capture(at: rootURL, checkpoint: checkpoint)
+            let snapshot = try SkillContentSnapshot.capture(at: rootURL, checkpoint: checkpoint)
+            return try makePayload(
+                rootURL: rootURL,
+                skillName: rootURL.lastPathComponent,
+                snapshot: snapshot,
+                temporaryRoot: temporaryRoot,
+                archiveURL: archiveURL,
+                archiveIdentity: archiveIdentity,
+                checkpoint: checkpoint
+            )
         } catch let error as SkillContentSnapshotError {
             throw SkillImportValidationError.contentRejected(error.localizedDescription)
         }
+    }
 
+    private func makePayload(
+        package: AnchoredSkillPackage,
+        temporaryRoot: TemporaryItemLease,
+        archiveURL: URL,
+        archiveIdentity: ManagedItemIdentity,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws -> ImportCandidatePayload {
+        do {
+            let snapshot = try SkillContentSnapshot.capture(
+                directoryDescriptor: package.descriptor,
+                displayPath: package.displayPath,
+                checkpoint: checkpoint
+            )
+            return try makePayload(
+                rootURL: package.rootURL,
+                skillName: package.skillName,
+                snapshot: snapshot,
+                temporaryRoot: temporaryRoot,
+                archiveURL: archiveURL,
+                archiveIdentity: archiveIdentity,
+                checkpoint: checkpoint
+            )
+        } catch let error as SkillContentSnapshotError {
+            throw SkillImportValidationError.contentRejected(error.localizedDescription)
+        }
+    }
+
+    private func makePayload(
+        rootURL: URL,
+        skillName: String,
+        snapshot: SkillContentSnapshot,
+        temporaryRoot: TemporaryItemLease?,
+        archiveURL: URL?,
+        archiveIdentity: ManagedItemIdentity?,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws -> ImportCandidatePayload {
         let skillFileURL = rootURL.appendingPathComponent("SKILL.md", isDirectory: false)
         return ImportCandidatePayload(
             rootURL: rootURL,
             skillFileURL: skillFileURL,
-            skillName: rootURL.lastPathComponent,
-            markdown: try String(contentsOf: skillFileURL, encoding: .utf8),
+            skillName: skillName,
+            markdown: try snapshot.readUTF8File(
+                relativePath: "SKILL.md",
+                checkpoint: checkpoint
+            ),
             temporaryRoot: temporaryRoot,
             archiveURL: archiveURL,
+            archiveIdentity: archiveIdentity,
             fingerprint: snapshot.fingerprint
         )
     }

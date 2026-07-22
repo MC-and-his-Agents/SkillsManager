@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// Binds cleanup of a temporary item to the exact parent root and item identity
@@ -27,6 +28,33 @@ nonisolated struct TemporaryItemLease: Sendable {
                 identity: handle.identity
             ),
             handle
+        )
+    }
+
+    static func captureFile(at fileURL: URL) throws -> TemporaryItemLease {
+        let parentRoot = try ManagedRootReference.capture(
+            at: fileURL.standardizedFileURL.deletingLastPathComponent()
+        )
+        let verifiedParent = try parentRoot.verifiedRoot()
+        let guardrail = try ManagedPathGuard(rootURL: verifiedParent.url)
+        try guardrail.verifyRootIdentity(expected: verifiedParent.identity)
+        let verifiedURL = verifiedParent.url.appendingPathComponent(fileURL.lastPathComponent)
+        guard let identity = try guardrail.itemIdentity(at: verifiedURL) else {
+            throw ManagedPathError.itemNotFound
+        }
+        try guardrail.withItemDescriptor(at: verifiedURL, expectedIdentity: identity) { descriptor in
+            var metadata = stat()
+            guard Darwin.fstat(descriptor, &metadata) == 0 else {
+                throw ManagedPathError.posix(operation: "inspect temporary file", code: errno)
+            }
+            guard ManagedPathGuard.fileType(of: metadata) == S_IFREG else {
+                throw ManagedPathError.unsupportedItemType
+            }
+        }
+        return TemporaryItemLease(
+            url: verifiedURL,
+            parentRoot: parentRoot,
+            identity: identity
         )
     }
 

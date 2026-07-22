@@ -1,9 +1,36 @@
 import Foundation
 
+nonisolated struct DownloadedSkillArchive: Sendable {
+    let url: URL
+    let expectedIdentity: ManagedItemIdentity?
+    private let cleanupLease: TemporaryItemLease?
+
+    init(borrowedAt url: URL) {
+        self.url = url
+        expectedIdentity = nil
+        cleanupLease = nil
+    }
+
+    static func takeOwnership(of url: URL) throws -> DownloadedSkillArchive {
+        let lease = try TemporaryItemLease.captureFile(at: url)
+        return DownloadedSkillArchive(url: lease.url, cleanupLease: lease)
+    }
+
+    func removeIfOwned() throws {
+        try cleanupLease?.removeIfCurrent()
+    }
+
+    private init(url: URL, cleanupLease: TemporaryItemLease) {
+        self.url = url
+        expectedIdentity = cleanupLease.identity
+        self.cleanupLease = cleanupLease
+    }
+}
+
 struct RemoteSkillClient {
     var fetchLatest: (_ limit: Int) async throws -> [RemoteSkill]
     var search: (_ query: String, _ limit: Int) async throws -> [RemoteSkill]
-    var download: (_ slug: String, _ version: String?) async throws -> URL
+    var download: (_ slug: String, _ version: String?) async throws -> DownloadedSkillArchive
     var fetchDetail: (_ slug: String) async throws -> RemoteSkillOwner?
     var fetchLatestVersion: (_ slug: String) async throws -> String?
 }
@@ -100,8 +127,7 @@ extension RemoteSkillClient {
                 }
 
                 let (downloadURL, response) = try await session.download(from: url)
-                try validate(response: response)
-                return downloadURL
+                return try checkedDownloadedArchive(at: downloadURL, response: response)
             },
             fetchDetail: { slug in
                 var components = URLComponents(
@@ -138,7 +164,21 @@ extension RemoteSkillClient {
     }
 }
 
-private func validate(response: URLResponse) throws {
+nonisolated func checkedDownloadedArchive(
+    at downloadURL: URL,
+    response: URLResponse
+) throws -> DownloadedSkillArchive {
+    let archive = try DownloadedSkillArchive.takeOwnership(of: downloadURL)
+    do {
+        try validate(response: response)
+        return archive
+    } catch {
+        try? archive.removeIfOwned()
+        throw error
+    }
+}
+
+nonisolated private func validate(response: URLResponse) throws {
     guard let http = response as? HTTPURLResponse else {
         throw URLError(.badServerResponse)
     }

@@ -95,6 +95,39 @@ struct SafeImportWorkerIntegrationTests {
         }
     }
 
+    @Test("folder validation rejects a non-UTF-8 manifest through the captured snapshot")
+    func folderValidationRejectsInvalidUTF8Manifest() async throws {
+        try await withTemporaryDirectory { root in
+            let source = root.appendingPathComponent("invalid-utf8", isDirectory: true)
+            try FileManager.default.createDirectory(at: source, withIntermediateDirectories: false)
+            try Data([0xff, 0xfe]).write(to: source.appendingPathComponent("SKILL.md"))
+
+            await #expect(throws: SkillImportValidationError.self) {
+                _ = try await SkillImportWorker().validateFolder(source)
+            }
+        }
+    }
+
+    @Test("snapshot UTF-8 reads reject a manifest replaced after capture")
+    func snapshotReadRejectsManifestReplacement() async throws {
+        try await withTemporaryDirectory { root in
+            let source = root.appendingPathComponent("replace-manifest", isDirectory: true)
+            let manifest = source.appendingPathComponent("SKILL.md")
+            let displaced = source.appendingPathComponent("original.md")
+            try makeSkill(at: source, markdown: "# Original")
+            let snapshot = try SkillContentSnapshot.capture(at: source)
+
+            try FileManager.default.moveItem(at: manifest, to: displaced)
+            try Data("# Replacement".utf8).write(to: manifest)
+
+            #expect(throws: SkillContentSnapshotError.self) {
+                _ = try snapshot.readUTF8File(relativePath: "SKILL.md")
+            }
+            #expect(try String(contentsOf: manifest, encoding: .utf8) == "# Replacement")
+            #expect(try String(contentsOf: displaced, encoding: .utf8) == "# Original")
+        }
+    }
+
     @Test("zip validation and installation use the safe archive path")
     func zipImportUsesSafeArchive() async throws {
         try await withTemporaryDirectory { root in
@@ -117,6 +150,42 @@ struct SafeImportWorkerIntegrationTests {
             let installed = destination.appendingPathComponent("archive-slug", isDirectory: true)
             #expect(try SkillContentSnapshot.capture(at: installed).fingerprint == candidate.fingerprint)
             #expect(try Data(contentsOf: installed.appendingPathComponent("icon.bin")) == Data([0x00, 0xff, 0x42]))
+        }
+    }
+
+    @Test("zip import rejects an archive replaced after validation")
+    func zipImportRejectsLatePermissionReplacement() async throws {
+        try await withTemporaryDirectory { root in
+            let archiveURL = root.appendingPathComponent("original.zip")
+            let replacementURL = root.appendingPathComponent("replacement.zip")
+            let displacedURL = root.appendingPathComponent("displaced.zip")
+            let destination = root.appendingPathComponent("destination", isDirectory: true)
+            let entries = [
+                ("archive-slug/SKILL.md", Data("# Archived".utf8)),
+                ("archive-slug/scripts/run.sh", Data("#!/bin/sh\nexit 0\n".utf8)),
+            ]
+            try writeArchive(at: archiveURL, entries: entries, permissions: 0o644)
+            try writeArchive(at: replacementURL, entries: entries, permissions: 0o755)
+
+            let worker = SkillImportWorker()
+            let candidate = try await worker.validateZip(archiveURL)
+            try FileManager.default.moveItem(at: archiveURL, to: displacedURL)
+            try FileManager.default.moveItem(at: replacementURL, to: archiveURL)
+
+            await #expect(throws: SafeSkillArchiveError.self) {
+                _ = try await worker.importCandidate(candidate, destinations: [
+                    .init(rootURL: destination, storageKey: "destination"),
+                ])
+            }
+            if let temporaryRoot = candidate.temporaryRoot {
+                await worker.cleanupTemporaryRoot(temporaryRoot)
+            }
+
+            #expect(FileManager.default.fileExists(atPath: archiveURL.path))
+            #expect(FileManager.default.fileExists(atPath: displacedURL.path))
+            #expect(!FileManager.default.fileExists(
+                atPath: destination.appendingPathComponent("archive-slug").path
+            ))
         }
     }
 
@@ -173,6 +242,54 @@ struct SafeImportWorkerIntegrationTests {
 
             #expect(try String(contentsOf: sentinel, encoding: .utf8) == "replacement")
             #expect(FileManager.default.fileExists(atPath: displaced.path))
+        }
+    }
+
+    @Test("zip validation remains anchored when the temporary root name is replaced")
+    func zipValidationUsesAnchoredTemporaryRoot() async throws {
+        try await withTemporaryDirectory { root in
+            let archiveURL = root.appendingPathComponent("anchored.zip")
+            let displaced = FileManager.default.temporaryDirectory.appendingPathComponent(
+                "displaced-import-\(UUID().uuidString.lowercased())",
+                isDirectory: true
+            )
+            try writeArchive(at: archiveURL, entries: [
+                ("original-skill/SKILL.md", Data("# Original".utf8)),
+            ])
+
+            let worker = SkillImportWorker()
+            let candidate = try await worker.validateZip(
+                archiveURL,
+                afterExtraction: { lease in
+                    try FileManager.default.moveItem(at: lease.url, to: displaced)
+                    let replacement = lease.url.appendingPathComponent(
+                        "replacement-skill",
+                        isDirectory: true
+                    )
+                    try FileManager.default.createDirectory(
+                        at: replacement,
+                        withIntermediateDirectories: true
+                    )
+                    try Data("# Replacement".utf8).write(
+                        to: replacement.appendingPathComponent("SKILL.md")
+                    )
+                }
+            )
+            let lease = try #require(candidate.temporaryRoot)
+            defer {
+                try? FileManager.default.removeItem(at: lease.url)
+                try? FileManager.default.removeItem(at: displaced)
+            }
+
+            let original = displaced.appendingPathComponent("original-skill", isDirectory: true)
+            let originalFingerprint = try SkillContentSnapshot.capture(at: original).fingerprint
+            #expect(candidate.skillName == "original-skill")
+            #expect(candidate.markdown == "# Original")
+            #expect(candidate.fingerprint == originalFingerprint)
+            #expect(try String(
+                contentsOf: lease.url.appendingPathComponent("replacement-skill/SKILL.md"),
+                encoding: .utf8
+            ) == "# Replacement")
         }
     }
 
@@ -302,13 +419,18 @@ struct SafeImportWorkerIntegrationTests {
         )
     }
 
-    private func writeArchive(at url: URL, entries: [(String, Data)]) throws {
+    private func writeArchive(
+        at url: URL,
+        entries: [(String, Data)],
+        permissions: UInt16 = 0o644
+    ) throws {
         let archive = try Archive(url: url, accessMode: .create)
         for (path, contents) in entries {
             try archive.addEntry(
                 with: path,
                 type: .file,
-                uncompressedSize: Int64(contents.count)
+                uncompressedSize: Int64(contents.count),
+                permissions: permissions
             ) { position, size in
                 let start = Int(position)
                 return contents.subdata(in: start..<min(start + size, contents.count))

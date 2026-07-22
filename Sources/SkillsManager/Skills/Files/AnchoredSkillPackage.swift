@@ -5,6 +5,14 @@ nonisolated final class AnchoredSkillPackage {
     let descriptor: Int32
     let displayPath: String
 
+    var rootURL: URL {
+        URL(fileURLWithPath: displayPath, isDirectory: true)
+    }
+
+    var skillName: String {
+        rootURL.lastPathComponent
+    }
+
     init(descriptor: Int32, displayPath: String) {
         self.descriptor = descriptor
         self.displayPath = displayPath

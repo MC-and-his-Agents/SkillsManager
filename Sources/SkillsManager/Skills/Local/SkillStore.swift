@@ -385,7 +385,7 @@ import Observation
             throw NSError(domain: "RemoteSkill", code: 3)
         }
 
-        let zipURL = try await client.download(skill.slug, skill.latestVersion)
+        let archive = try await client.download(skill.slug, skill.latestVersion)
         let destinationList = destinations.map { platform in
             if let existing = skills.first(where: {
                 SkillContentPath.namesAreEquivalent($0.name, skill.slug)
@@ -406,7 +406,7 @@ import Observation
         let result: SkillFileWorker.RemoteInstallResult
         do {
             result = try await fileWorker.installRemoteSkill(
-                zipURL: zipURL,
+                archive: archive,
                 slug: skill.slug,
                 version: skill.latestVersion,
                 destinations: destinationList
@@ -446,11 +446,11 @@ import Observation
                 managedRoot: installed.managedRoot
             ))
         }
-        let zipURL = try await client.download(slug, version)
+        let archive = try await client.download(slug, version)
         let result: SkillFileWorker.RemoteInstallResult
         do {
             result = try await fileWorker.installRemoteSkill(
-                zipURL: zipURL,
+                archive: archive,
                 slug: slug,
                 version: version,
                 destinations: destinationList

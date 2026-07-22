@@ -7,6 +7,7 @@ nonisolated final class ZIPArchiveSnapshot {
 
     init(
         copying archiveURL: URL,
+        expectedSourceIdentity: ManagedItemIdentity? = nil,
         into rootDescriptor: Int32,
         maximumByteCount: UInt64,
         checkpoint: SkillCancellationCheckpoint,
@@ -19,6 +20,10 @@ nonisolated final class ZIPArchiveSnapshot {
         guard Darwin.fstat(source, &status) == 0,
               status.st_mode & S_IFMT == S_IFREG,
               status.st_size >= 0 else { throw SafeSkillArchiveError.invalidArchive }
+        guard expectedSourceIdentity == nil
+            || ManagedItemIdentity(status) == expectedSourceIdentity else {
+            throw SafeSkillArchiveError.invalidArchive
+        }
         guard UInt64(status.st_size) <= maximumByteCount else {
             throw SafeSkillArchiveError.archiveTooLarge
         }

@@ -40,6 +40,7 @@ nonisolated struct SafeSkillArchive {
     @discardableResult
     func extract(
         archiveAt archiveURL: URL,
+        expectedArchiveIdentity: ManagedItemIdentity? = nil,
         to emptyDestinationURL: URL,
         checkpoint: SkillCancellationCheckpoint = {},
         afterPreflight: () throws -> Void = {},
@@ -49,6 +50,7 @@ nonisolated struct SafeSkillArchive {
         defer { Darwin.close(rootDescriptor) }
         return try extract(
             archiveAt: archiveURL,
+            expectedArchiveIdentity: expectedArchiveIdentity,
             toRootDescriptor: rootDescriptor,
             checkpoint: checkpoint,
             afterPreflight: afterPreflight,
@@ -59,6 +61,7 @@ nonisolated struct SafeSkillArchive {
     @discardableResult
     func extract(
         archiveAt archiveURL: URL,
+        expectedArchiveIdentity: ManagedItemIdentity? = nil,
         toDirectoryDescriptor destinationDescriptor: Int32,
         checkpoint: SkillCancellationCheckpoint = {},
         afterPreflight: () throws -> Void = {},
@@ -68,6 +71,7 @@ nonisolated struct SafeSkillArchive {
         defer { Darwin.close(rootDescriptor) }
         return try extract(
             archiveAt: archiveURL,
+            expectedArchiveIdentity: expectedArchiveIdentity,
             toRootDescriptor: rootDescriptor,
             checkpoint: checkpoint,
             afterPreflight: afterPreflight,
@@ -77,6 +81,7 @@ nonisolated struct SafeSkillArchive {
 
     private func extract(
         archiveAt archiveURL: URL,
+        expectedArchiveIdentity: ManagedItemIdentity?,
         toRootDescriptor rootDescriptor: Int32,
         checkpoint: SkillCancellationCheckpoint,
         afterPreflight: () throws -> Void,
@@ -86,6 +91,7 @@ nonisolated struct SafeSkillArchive {
         do {
             let snapshot = try ZIPArchiveSnapshot(
                 copying: archiveURL,
+                expectedSourceIdentity: expectedArchiveIdentity,
                 into: rootDescriptor,
                 maximumByteCount: limits.maximumArchiveByteCount,
                 checkpoint: checkpoint

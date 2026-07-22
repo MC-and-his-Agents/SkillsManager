@@ -127,6 +127,7 @@ nonisolated struct SafeSkillStager {
     /// fingerprint verification and atomic promotion path as folder imports.
     func installArchive(
         archiveAt archiveURL: URL,
+        expectedArchiveIdentity: ManagedItemIdentity? = nil,
         expectedFingerprint: String,
         destinationRoot: URL,
         preferredName: String,
@@ -156,6 +157,7 @@ nonisolated struct SafeSkillStager {
             )
             try SafeSkillArchive(limits: archiveLimits).extract(
                 archiveAt: archiveURL,
+                expectedArchiveIdentity: expectedArchiveIdentity,
                 toDirectoryDescriptor: handle.descriptor,
                 checkpoint: checkpoint
             )
