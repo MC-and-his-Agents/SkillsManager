@@ -44,6 +44,11 @@ codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
   "$APP_BUNDLE"
 
 DITTO_BIN=${DITTO_BIN:-/usr/bin/ditto}
+STAPLER_BIN=${STAPLER_BIN:-"$(xcode-select -p)/usr/bin/stapler"}
+if [[ ! -x "$STAPLER_BIN" ]]; then
+  echo "Missing stapler at $STAPLER_BIN." >&2
+  exit 1
+fi
 "$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "/tmp/${APP_NAME}Notarize.zip"
 
 xcrun notarytool submit "/tmp/${APP_NAME}Notarize.zip" \
@@ -52,7 +57,7 @@ xcrun notarytool submit "/tmp/${APP_NAME}Notarize.zip" \
   --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
   --wait
 
-xcrun stapler staple "$APP_BUNDLE"
+"$STAPLER_BIN" staple "$APP_BUNDLE"
 
 xattr -cr "$APP_BUNDLE"
 find "$APP_BUNDLE" -name '._*' -delete
@@ -60,6 +65,6 @@ find "$APP_BUNDLE" -name '._*' -delete
 "$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "$ZIP_NAME"
 
 spctl -a -t exec -vv "$APP_BUNDLE"
-stapler validate "$APP_BUNDLE"
+"$STAPLER_BIN" validate "$APP_BUNDLE"
 
 echo "Done: $ZIP_NAME"
