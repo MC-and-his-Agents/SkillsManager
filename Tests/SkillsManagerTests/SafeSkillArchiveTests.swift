@@ -258,7 +258,9 @@ struct SafeSkillArchiveTests {
         }
         #expect(!FileManager.default.fileExists(atPath: outside.appendingPathComponent("escaped.txt").path))
         #expect(FileManager.default.fileExists(atPath: sentinel.path))
-        #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
+        let retained = fixture.destinationURL.appendingPathComponent("inside")
+        #expect(FileManager.default.fileExists(atPath: retained.path))
+        #expect(try FileManager.default.destinationOfSymbolicLink(atPath: retained.path) == outside.path)
     }
 
     @Test("Cancellation removes partially extracted content")

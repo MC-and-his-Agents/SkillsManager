@@ -82,6 +82,7 @@ nonisolated struct SafeSkillArchive {
         afterPreflight: () throws -> Void,
         beforeEntry: ([String]) throws -> Void
     ) throws -> [String] {
+        let rollbackJournal = try SafeSkillArchiveRollbackJournal(rootDescriptor: rootDescriptor)
         do {
             let snapshot = try ZIPArchiveSnapshot(
                 copying: archiveURL,
@@ -106,12 +107,13 @@ nonisolated struct SafeSkillArchive {
                 validatedEntries,
                 from: archive,
                 rootDescriptor: rootDescriptor,
+                rollbackJournal: rollbackJournal,
                 checkpoint: checkpoint,
                 beforeEntry: beforeEntry
             )
             return validatedEntries.map { $0.components.joined(separator: "/") }
         } catch {
-            try? removeContents(of: rootDescriptor)
+            rollbackJournal.rollback()
             throw error
         }
     }
@@ -265,6 +267,7 @@ nonisolated struct SafeSkillArchive {
         _ entries: [ValidatedEntry],
         from archive: Archive,
         rootDescriptor: Int32,
+        rollbackJournal: SafeSkillArchiveRollbackJournal,
         checkpoint: SkillCancellationCheckpoint,
         beforeEntry: ([String]) throws -> Void
     ) throws {
@@ -275,18 +278,14 @@ nonisolated struct SafeSkillArchive {
             try beforeEntry(item.components)
             switch item.kind {
             case .directory:
-                let descriptor = try openDirectory(
-                    item.components,
-                    from: rootDescriptor,
-                    create: true
-                )
+                let descriptor = try rollbackJournal.openDirectory(item.components, create: true)
                 Darwin.close(descriptor)
                 directories.append(item)
             case .file:
                 try extractFile(
                     item,
                     from: archive,
-                    rootDescriptor: rootDescriptor,
+                    rollbackJournal: rollbackJournal,
                     actualTotalSize: &actualTotalSize,
                     checkpoint: checkpoint
                 )
@@ -294,21 +293,26 @@ nonisolated struct SafeSkillArchive {
         }
         for item in directories.reversed() {
             try checkpoint()
-            let descriptor = try openDirectory(item.components, from: rootDescriptor, create: false)
-            defer { Darwin.close(descriptor) }
-            try applySafeAttributes(of: item.entry, to: descriptor, minimumPermissions: S_IRWXU)
+            let descriptor = try rollbackJournal.openDirectory(item.components, create: false)
+            do {
+                try applySafeAttributes(of: item.entry, to: descriptor, minimumPermissions: S_IRWXU)
+                Darwin.close(descriptor)
+            } catch {
+                Darwin.close(descriptor)
+                throw error
+            }
         }
     }
     private func extractFile(
         _ item: ValidatedEntry,
         from archive: Archive,
-        rootDescriptor: Int32,
+        rollbackJournal: SafeSkillArchiveRollbackJournal,
         actualTotalSize: inout UInt64,
         checkpoint: SkillCancellationCheckpoint
     ) throws {
         var parentComponents = item.components
         let name = parentComponents.removeLast()
-        let parent = try openDirectory(parentComponents, from: rootDescriptor, create: true)
+        let parent = try rollbackJournal.openDirectory(parentComponents, create: true)
         defer { Darwin.close(parent) }
         let descriptor = Darwin.openat(
             parent,
@@ -353,6 +357,11 @@ nonisolated struct SafeSkillArchive {
             throw SafeSkillArchiveError.invalidSize(item.entry.path)
         }
         try applySafeAttributes(of: item.entry, to: descriptor)
+        try rollbackJournal.recordCompletedFile(
+            components: item.components,
+            descriptor: descriptor,
+            parentDescriptor: parent
+        )
         completed = true
     }
     private func addExtractedBytes(
@@ -388,25 +397,6 @@ nonisolated struct SafeSkillArchive {
             }
         }
     }
-    private func openDirectory(_ components: [String], from root: Int32, create: Bool) throws -> Int32 {
-        var current = Darwin.dup(root)
-        guard current >= 0 else { throw archivePOSIXError() }
-        do {
-            for component in components {
-                if create, Darwin.mkdirat(current, component, S_IRWXU) != 0, errno != EEXIST {
-                    throw archivePOSIXError()
-                }
-                let next = Darwin.openat(current, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
-                guard next >= 0 else { throw archivePOSIXError() }
-                Darwin.close(current)
-                current = next
-            }
-            return current
-        } catch {
-            Darwin.close(current)
-            throw error
-        }
-    }
     private func applySafeAttributes(
         of entry: Entry,
         to descriptor: Int32,
@@ -430,29 +420,7 @@ nonisolated struct SafeSkillArchive {
             tv_nsec: Int((date.timeIntervalSince1970 - seconds) * 1_000_000_000)
         )
     }
-    private func removeContents(of descriptor: Int32) throws {
-        for name in try directoryNames(in: descriptor) {
-            var status = stat()
-            guard Darwin.fstatat(descriptor, name, &status, AT_SYMLINK_NOFOLLOW) == 0 else {
-                if errno == ENOENT { continue }
-                throw archivePOSIXError()
-            }
-            if status.st_mode & S_IFMT == S_IFDIR {
-                let child = Darwin.openat(descriptor, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
-                guard child >= 0 else { throw archivePOSIXError() }
-                do {
-                    try removeContents(of: child)
-                    Darwin.close(child)
-                } catch {
-                    Darwin.close(child)
-                    throw error
-                }
-                guard Darwin.unlinkat(descriptor, name, AT_REMOVEDIR) == 0 else { throw archivePOSIXError() }
-            } else if Darwin.unlinkat(descriptor, name, 0) != 0, errno != ENOENT {
-                throw archivePOSIXError()
-            }
-        }
-    }
+
     private func directoryNames(in descriptor: Int32) throws -> [String] {
         let duplicate = Darwin.dup(descriptor)
         guard duplicate >= 0 else { throw archivePOSIXError() }
@@ -466,7 +434,9 @@ nonisolated struct SafeSkillArchive {
         errno = 0
         while let item = Darwin.readdir(directory) {
             let name = withUnsafePointer(to: &item.pointee.d_name) {
-                $0.withMemoryRebound(to: CChar.self, capacity: Int(MAXNAMLEN) + 1) { String(cString: $0) }
+                $0.withMemoryRebound(to: CChar.self, capacity: Int(MAXNAMLEN) + 1) {
+                    String(cString: $0)
+                }
             }
             if name != "." && name != ".." { names.append(name) }
             errno = 0
