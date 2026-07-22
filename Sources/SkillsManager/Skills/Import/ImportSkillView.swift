@@ -5,9 +5,12 @@ import UniformTypeIdentifiers
 private struct ImportCandidate {
     let rootURL: URL
     let skillFileURL: URL
-    let skillName: String
+    let installName: String
+    let displayName: String
     let markdown: String
-    let temporaryRoot: URL?
+    let temporaryRoot: TemporaryItemLease?
+    let snapshot: SkillContentSnapshot
+    let fingerprint: String
 }
 
 struct ImportSkillView: View {
@@ -17,7 +20,10 @@ struct ImportSkillView: View {
     @State private var candidate: ImportCandidate?
     @State private var status: Status = .idle
     @State private var errorMessage: String = ""
+    @State private var importWarningMessage: String?
     @State private var installTargets: Set<SkillPlatform> = [.codex]
+    @State private var activeTask: Task<Void, Never>?
+    @State private var operationToken = UUID()
     private let importWorker = SkillImportWorker()
 
     private enum Status {
@@ -46,6 +52,8 @@ struct ImportSkillView: View {
             handlePick(result)
         }
         .onDisappear {
+            activeTask?.cancel()
+            operationToken = UUID()
             cleanupCandidate()
         }
     }
@@ -101,7 +109,10 @@ struct ImportSkillView: View {
         ContentUnavailableView(
             "Imported",
             systemImage: "checkmark.seal",
-            description: Text("The skill was added to your selected skills folders.")
+            description: Text(
+                importWarningMessage
+                    ?? "The skill was added to your selected skills folders."
+            )
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -115,7 +126,7 @@ struct ImportSkillView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(candidate.skillName)
+                        Text(candidate.displayName)
                             .font(.title2.bold())
                         Text(candidate.rootURL.path)
                             .font(.callout)
@@ -140,6 +151,8 @@ struct ImportSkillView: View {
     private var actions: some View {
         HStack {
             Button("Cancel") {
+                activeTask?.cancel()
+                operationToken = UUID()
                 dismiss()
             }
             .keyboardShortcut(.cancelAction)
@@ -151,7 +164,10 @@ struct ImportSkillView: View {
             }
 
             Button("Import") {
-                Task { await importCandidate() }
+                let token = UUID()
+                activeTask?.cancel()
+                operationToken = token
+                activeTask = Task { await importCandidate(token: token) }
             }
             .buttonStyle(.borderedProminent)
             .disabled(status != .valid || installTargets.isEmpty)
@@ -162,6 +178,8 @@ struct ImportSkillView: View {
     private func handlePick(_ result: Result<[URL], Error>) {
         switch result {
         case .failure(let error):
+            activeTask?.cancel()
+            operationToken = UUID()
             status = .invalid
             errorMessage = error.localizedDescription
         case .success(let urls):
@@ -169,109 +187,122 @@ struct ImportSkillView: View {
                 status = .idle
                 return
             }
-            Task { await validate(url: url) }
+            let token = UUID()
+            activeTask?.cancel()
+            operationToken = token
+            activeTask = Task { await validate(url: url, token: token) }
         }
     }
 
-    private func validate(url: URL) async {
+    private func validate(url: URL, token: UUID) async {
+        guard operationToken == token else { return }
         status = .validating
         errorMessage = ""
         cleanupCandidate()
 
         let resolved = url.standardizedFileURL
         let fileValues = try? resolved.resourceValues(forKeys: [.isDirectoryKey])
+        guard operationToken == token, !Task.isCancelled else { return }
 
         if fileValues?.isDirectory == true {
-            await validateFolder(resolved)
+            await validateFolder(resolved, token: token)
         } else if resolved.pathExtension.lowercased() == "zip" {
-            await validateZip(resolved)
+            await validateZip(resolved, token: token)
         } else {
+            guard operationToken == token else { return }
             status = .invalid
             errorMessage = "Select a folder or .zip file."
         }
     }
 
-    private func validateFolder(_ folderURL: URL) async {
-        if let payload = await importWorker.validateFolder(folderURL) {
+    private func validateFolder(_ folderURL: URL, token: UUID) async {
+        do {
+            let payload = try await importWorker.validateFolder(folderURL)
+            guard operationToken == token, !Task.isCancelled else { return }
             let candidate = ImportCandidate(
                 rootURL: payload.rootURL,
                 skillFileURL: payload.skillFileURL,
-                skillName: formatTitle(payload.skillName),
+                installName: payload.skillName,
+                displayName: formatTitle(payload.skillName),
                 markdown: payload.markdown,
-                temporaryRoot: payload.temporaryRoot
+                temporaryRoot: payload.temporaryRoot,
+                snapshot: payload.snapshot,
+                fingerprint: payload.fingerprint
             )
             self.candidate = candidate
             status = .valid
-        } else {
-            status = .invalid
-            errorMessage = "This folder doesn’t contain a SKILL.md file."
-        }
-    }
-
-    private func validateZip(_ zipURL: URL) async {
-        do {
-            if let payload = try await importWorker.validateZip(zipURL) {
-                let candidate = ImportCandidate(
-                    rootURL: payload.rootURL,
-                    skillFileURL: payload.skillFileURL,
-                    skillName: formatTitle(payload.skillName),
-                    markdown: payload.markdown,
-                    temporaryRoot: payload.temporaryRoot
-                )
-                self.candidate = candidate
-                status = .valid
-            } else {
-                status = .invalid
-                errorMessage = "This zip doesn’t contain a SKILL.md file."
-            }
+        } catch is CancellationError {
+            return
         } catch {
+            guard operationToken == token else { return }
             status = .invalid
-            errorMessage = "Unable to read the zip file."
+            errorMessage = error.localizedDescription
         }
     }
 
-    private func importCandidate() async {
+    private func validateZip(_ zipURL: URL, token: UUID) async {
+        do {
+            let payload = try await importWorker.validateZip(zipURL)
+            guard operationToken == token, !Task.isCancelled else {
+                if let temporaryRoot = payload.temporaryRoot {
+                    await importWorker.cleanupTemporaryRoot(temporaryRoot)
+                }
+                return
+            }
+            let candidate = ImportCandidate(
+                rootURL: payload.rootURL,
+                skillFileURL: payload.skillFileURL,
+                installName: payload.skillName,
+                displayName: formatTitle(payload.skillName),
+                markdown: payload.markdown,
+                temporaryRoot: payload.temporaryRoot,
+                snapshot: payload.snapshot,
+                fingerprint: payload.fingerprint
+            )
+            self.candidate = candidate
+            status = .valid
+        } catch is CancellationError {
+            return
+        } catch {
+            guard operationToken == token else { return }
+            status = .invalid
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func importCandidate(token: UUID) async {
         guard let candidate else { return }
         guard !installTargets.isEmpty else { return }
+        guard operationToken == token else { return }
         status = .importing
 
         do {
-            let shouldMove = candidate.temporaryRoot == nil && installTargets.count == 1
             let destinations = installTargets.map {
                 SkillFileWorker.InstallDestination(rootURL: $0.rootURL, storageKey: $0.storageKey)
             }
             let payload = SkillImportWorker.ImportCandidatePayload(
                 rootURL: candidate.rootURL,
                 skillFileURL: candidate.skillFileURL,
-                skillName: candidate.skillName,
+                skillName: candidate.installName,
                 markdown: candidate.markdown,
-                temporaryRoot: candidate.temporaryRoot
+                temporaryRoot: candidate.temporaryRoot,
+                snapshot: candidate.snapshot,
+                fingerprint: candidate.fingerprint
             )
-            try await importWorker.importCandidate(payload, destinations: destinations, shouldMove: shouldMove)
-
+            let report = try await importWorker.importCandidate(payload, destinations: destinations)
             await store.loadSkills()
+            guard operationToken == token else { return }
+            importWarningMessage = report.warningMessage
             status = .imported
+        } catch is CancellationError {
+            guard operationToken == token else { return }
+            status = .idle
+            errorMessage = ""
         } catch {
+            await store.loadSkills()
+            guard operationToken == token else { return }
             status = .invalid
             errorMessage = "Import failed: \(error.localizedDescription)"
-        }
-    }
-
-    private func uniqueDestinationURL(base: URL) -> URL {
-        let fileManager = FileManager.default
-        if !fileManager.fileExists(atPath: base.path) {
-            return base
-        }
-
-        let baseName = base.lastPathComponent
-        let parent = base.deletingLastPathComponent()
-        var index = 1
-        while true {
-            let candidate = parent.appendingPathComponent("\(baseName)-\(index)")
-            if !fileManager.fileExists(atPath: candidate.path) {
-                return candidate
-            }
-            index += 1
         }
     }
 

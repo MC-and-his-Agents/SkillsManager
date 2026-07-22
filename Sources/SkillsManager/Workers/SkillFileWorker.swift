@@ -1,10 +1,27 @@
 import CryptoKit
+import Darwin
 import Foundation
 
 actor SkillFileWorker {
+    struct RemoteInstallResult: Sendable {
+        let selectedID: String?
+        let report: SkillInstallReport
+    }
+
     struct InstallDestination: Sendable {
         let rootURL: URL
         let storageKey: String
+        let managedRoot: ManagedRootReference?
+
+        init(
+            rootURL: URL,
+            storageKey: String,
+            managedRoot: ManagedRootReference? = nil
+        ) {
+            self.rootURL = rootURL
+            self.storageKey = storageKey
+            self.managedRoot = managedRoot
+        }
     }
 
     struct ScannedSkillData: Sendable {
@@ -12,6 +29,7 @@ actor SkillFileWorker {
         let name: String
         let displayName: String
         let description: String
+        let managedRoot: ManagedRootReference
         let folderURL: URL
         let skillMarkdownURL: URL
         let references: [SkillReference]
@@ -23,76 +41,18 @@ actor SkillFileWorker {
         let version: String?
     }
 
-    func loadRawMarkdown(from zipURL: URL) throws -> String {
-        let fileManager = FileManager.default
-        let tempRoot = fileManager.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        defer {
-            try? fileManager.removeItem(at: tempRoot)
-            try? fileManager.removeItem(at: zipURL)
-        }
-
-        try fileManager.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-        try unzip(zipURL, to: tempRoot)
-
-        guard let skillRoot = findSkillRoot(in: tempRoot) else {
-            throw NSError(domain: "RemoteSkill", code: 3)
-        }
-
-        let skillFileURL = skillRoot.appendingPathComponent("SKILL.md")
-        return try String(contentsOf: skillFileURL, encoding: .utf8)
-    }
-
     func loadMarkdown(at url: URL) throws -> String {
         try String(contentsOf: url, encoding: .utf8)
-    }
-
-    func installRemoteSkill(
-        zipURL: URL,
-        slug: String,
-        version: String?,
-        destinations: [InstallDestination]
-    ) throws -> String? {
-        let fileManager = FileManager.default
-        let tempRoot = fileManager.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        defer {
-            try? fileManager.removeItem(at: tempRoot)
-            try? fileManager.removeItem(at: zipURL)
-        }
-
-        try fileManager.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-        try unzip(zipURL, to: tempRoot)
-
-        guard let skillRoot = findSkillRoot(in: tempRoot) else {
-            throw NSError(domain: "RemoteSkill", code: 1)
-        }
-
-        for destination in destinations {
-            let destinationRoot = destination.rootURL
-            try fileManager.createDirectory(at: destinationRoot, withIntermediateDirectories: true)
-
-            let finalURL = destinationRoot.appendingPathComponent(slug)
-            if fileManager.fileExists(atPath: finalURL.path) {
-                try fileManager.removeItem(at: finalURL)
-            }
-            try fileManager.copyItem(at: skillRoot, to: finalURL)
-            try writeClawdhubOrigin(at: finalURL, slug: slug, version: version)
-        }
-
-        guard let preferred = destinations.first else { return nil }
-        return "\(preferred.storageKey)-\(slug)"
     }
 
     func scanSkills(at baseURL: URL, storageKey: String) throws -> [ScannedSkillData] {
         let fileManager = FileManager.default
 
-        // Directory symlinks can fail URL-based enumeration on macOS.
-        let directoryURL = baseURL.resolvingSymlinksInPath()
-
-        guard fileManager.fileExists(atPath: directoryURL.path) else {
+        guard fileManager.fileExists(atPath: baseURL.path) else {
             return []
         }
+        let managedRoot = try ManagedRootReference.capture(at: baseURL)
+        let directoryURL = try managedRoot.verifiedRootURL()
 
         let items = try fileManager.contentsOfDirectory(
             at: directoryURL,
@@ -124,6 +84,7 @@ actor SkillFileWorker {
                 name: name,
                 displayName: formatTitle(metadata.name ?? name),
                 description: metadata.description ?? "No description available.",
+                managedRoot: managedRoot,
                 folderURL: url,
                 skillMarkdownURL: skillFileURL,
                 references: references,
@@ -133,8 +94,14 @@ actor SkillFileWorker {
     }
 
     func computeSkillHash(for rootURL: URL) throws -> String {
-        let fileManager = FileManager.default
+        try SkillContentSnapshot.capture(
+            at: rootURL,
+            checkpoint: { try Task.checkCancellation() }
+        ).fingerprint
+    }
 
+    func computeLegacyPublishHash(for rootURL: URL) throws -> String {
+        let fileManager = FileManager.default
         guard let enumerator = fileManager.enumerator(
             at: rootURL,
             includingPropertiesForKeys: [.isRegularFileKey],
@@ -145,6 +112,7 @@ actor SkillFileWorker {
 
         var files: [URL] = []
         for case let fileURL as URL in enumerator {
+            try Task.checkCancellation()
             let path = fileURL.path
             if path.contains("/.git/") || path.contains("/.clawdhub/") {
                 continue
@@ -161,6 +129,7 @@ actor SkillFileWorker {
 
         var hasher = SHA256()
         for fileURL in files {
+            try Task.checkCancellation()
             guard let data = try? Data(contentsOf: fileURL),
                   String(data: data, encoding: .utf8) != nil else {
                 continue
@@ -172,8 +141,7 @@ actor SkillFileWorker {
             hasher.update(data: Data([0]))
         }
 
-        let digest = hasher.finalize()
-        return digest.map { String(format: "%02x", $0) }.joined()
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     func readClawdhubOrigin(from skillRoot: URL) -> ClawdhubOrigin? {
@@ -188,62 +156,6 @@ actor SkillFileWorker {
 
         let version = json["version"] as? String
         return ClawdhubOrigin(slug: slug, version: version)
-    }
-
-    private func unzip(_ url: URL, to destination: URL) throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-        process.arguments = ["-x", "-k", url.path, destination.path]
-        try process.run()
-        process.waitUntilExit()
-        if process.terminationStatus != 0 {
-            throw NSError(domain: "RemoteSkill", code: 2)
-        }
-    }
-
-    private func findSkillRoot(in rootURL: URL) -> URL? {
-        let fileManager = FileManager.default
-        let directSkill = rootURL.appendingPathComponent("SKILL.md")
-        if fileManager.fileExists(atPath: directSkill.path) {
-            return rootURL
-        }
-
-        guard let children = try? fileManager.contentsOfDirectory(
-            at: rootURL,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return nil
-        }
-
-        let candidateDirs = children.compactMap { url -> URL? in
-            let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
-            guard values?.isDirectory == true else { return nil }
-            let skillFile = url.appendingPathComponent("SKILL.md")
-            return fileManager.fileExists(atPath: skillFile.path) ? url : nil
-        }
-
-        if candidateDirs.count == 1 {
-            return candidateDirs[0]
-        }
-
-        return nil
-    }
-
-    private func writeClawdhubOrigin(at skillRoot: URL, slug: String, version: String?) throws {
-        let originDir = skillRoot
-            .appendingPathComponent(".clawdhub", isDirectory: true)
-        try FileManager.default.createDirectory(at: originDir, withIntermediateDirectories: true)
-
-        let originURL = originDir.appendingPathComponent("origin.json")
-        let payload: [String: Any] = [
-            "slug": slug,
-            "version": version ?? "latest",
-            "source": "clawdhub",
-            "installedAt": Int(Date().timeIntervalSince1970)
-        ]
-        let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted])
-        try data.write(to: originURL, options: [.atomic])
     }
 
     private func parseMetadata(from markdown: String) -> SkillMetadata {
@@ -353,4 +265,8 @@ actor SkillFileWorker {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
     }
+}
+
+private nonisolated func workerPOSIXError() -> POSIXError {
+    POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
 }

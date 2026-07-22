@@ -56,7 +56,7 @@ struct SkillSplitView: View {
                 .environment(store)
                 .environment(remoteStore)
             }
-            .alert("Download failed", isPresented: downloadErrorBinding) {
+            .alert("Install result", isPresented: downloadErrorBinding) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(downloadErrorMessage ?? "Unable to download this skill.")
@@ -84,7 +84,7 @@ struct SkillSplitView: View {
             remoteSearchState: remoteStore.searchState,
             remoteLatestState: remoteStore.latestState,
             remoteQuery: searchText,
-            installedPlatforms: installedPlatforms,
+            installedSkillPlatforms: store.installedSkillPlatformIndex,
             onInstallRemoteSkill: { skill in
                 presentRemoteInstallSheet(for: skill)
             },
@@ -226,10 +226,14 @@ struct SkillSplitView: View {
             if let selected, selected.platform == platform {
                 url = selected.folderURL
             } else if let match = store.skills.first(where: {
-                $0.name == slug && $0.platform == platform && $0.customPath == selected?.customPath
+                SkillContentPath.namesAreEquivalent($0.name, slug)
+                    && $0.platform == platform
+                    && $0.customPath == selected?.customPath
             }) {
                 url = match.folderURL
-            } else if let match = store.skills.first(where: { $0.name == slug && $0.platform == platform }) {
+            } else if let match = store.skills.first(where: {
+                SkillContentPath.namesAreEquivalent($0.name, slug) && $0.platform == platform
+            }) {
                 url = match.folderURL
             } else {
                 url = platform.rootURL.appendingPathComponent(slug)
@@ -260,13 +264,6 @@ struct SkillSplitView: View {
         )
     }
 
-    private var installedPlatforms: [String: Set<SkillPlatform>] {
-        Dictionary(
-            grouping: store.skills,
-            by: { $0.name }
-        ).mapValues { Set($0.compactMap(\.platform)) }
-    }
-
     private func defaultInstallTargets(for slug: String) -> Set<SkillPlatform> {
         let installed = store.installedPlatforms(for: slug)
         let missing = Set(SkillPlatform.allCases).subtracting(installed)
@@ -285,6 +282,7 @@ private struct RemoteInstallSheet: View {
     @Binding var isInstalling: Bool
     @Binding var didInstall: Bool
     @Binding var errorMessage: String?
+    @State private var installTask: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -304,6 +302,7 @@ private struct RemoteInstallSheet: View {
 
             HStack {
                 Button("Cancel") {
+                    installTask?.cancel()
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
@@ -311,7 +310,8 @@ private struct RemoteInstallSheet: View {
                 Spacer()
 
                 Button("Install") {
-                    Task { await installSkill() }
+                    installTask?.cancel()
+                    installTask = Task { await installSkill() }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(selection.isEmpty || isInstalling)
@@ -320,6 +320,9 @@ private struct RemoteInstallSheet: View {
         }
         .padding(20)
         .frame(minWidth: 520, minHeight: 340)
+        .onDisappear {
+            installTask?.cancel()
+        }
     }
 
     private func installSkill() async {
@@ -327,15 +330,20 @@ private struct RemoteInstallSheet: View {
         isInstalling = true
         didInstall = false
         do {
-            try await store.installRemoteSkill(
+            let warning = try await store.installRemoteSkill(
                 skill,
                 client: remoteStore.client,
                 destinations: selection
             )
+            errorMessage = warning
             didInstall = true
             dismiss()
             try? await Task.sleep(for: .seconds(1.2))
+        } catch is CancellationError {
+            // Cancellation before any commit is intentionally silent.
         } catch {
+            // PartialSkillInstallError remains visible even when cancellation
+            // arrived while a later destination was being processed.
             errorMessage = error.localizedDescription
         }
         isInstalling = false

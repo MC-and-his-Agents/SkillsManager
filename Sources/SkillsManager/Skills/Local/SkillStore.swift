@@ -26,11 +26,6 @@ import Observation
         let deleteIDs: [Skill.ID]
     }
 
-    struct PublishState: Codable {
-        let lastPublishedHash: String
-        let lastPublishedAt: Date
-    }
-
     struct CliStatus {
         let isInstalled: Bool
         let isLoggedIn: Bool
@@ -46,6 +41,7 @@ import Observation
     var selectedMarkdown: String = ""
     var selectedReferenceID: SkillReference.ID?
     var selectedReferenceMarkdown: String = ""
+    var deleteErrorMessage: String?
 
     private let fileWorker = SkillFileWorker()
     private let importWorker = SkillImportWorker()
@@ -100,6 +96,7 @@ import Observation
                         description: scannedSkill.description,
                         platform: platform,
                         customPath: nil,
+                        managedRoot: scannedSkill.managedRoot,
                         folderURL: scannedSkill.folderURL,
                         skillMarkdownURL: scannedSkill.skillMarkdownURL,
                         references: scannedSkill.references,
@@ -125,6 +122,7 @@ import Observation
                                 description: scannedSkill.description,
                                 platform: platform,
                                 customPath: customPath,
+                                managedRoot: scannedSkill.managedRoot,
                                 folderURL: scannedSkill.folderURL,
                                 skillMarkdownURL: scannedSkill.skillMarkdownURL,
                                 references: scannedSkill.references,
@@ -206,12 +204,23 @@ import Observation
     }
 
     func deleteSkills(ids: [Skill.ID]) async {
-        let fileManager = FileManager.default
+        deleteErrorMessage = nil
+        var failures: [String] = []
         for id in ids {
             guard let skill = skills.first(where: { $0.id == id }) else { continue }
-            try? fileManager.removeItem(at: skill.folderURL)
+            do {
+                try ManagedSkillRemoval.remove(
+                    targetURL: skill.folderURL,
+                    managedRoot: skill.managedRoot
+                )
+            } catch {
+                failures.append("\(skill.displayName): \(error.localizedDescription)")
+            }
         }
         await loadSkills()
+        if !failures.isEmpty {
+            deleteErrorMessage = failures.joined(separator: "\n")
+        }
     }
 
     func isOwnedSkill(_ skill: Skill) -> Bool {
@@ -230,19 +239,29 @@ import Observation
     }
 
     func isInstalled(slug: String) -> Bool {
-        skills.contains { $0.name == slug }
+        skills.contains { SkillContentPath.namesAreEquivalent($0.name, slug) }
     }
 
     func isInstalled(slug: String, in platform: SkillPlatform) -> Bool {
-        skills.contains { $0.name == slug && $0.platform == platform }
+        skills.contains {
+            SkillContentPath.namesAreEquivalent($0.name, slug) && $0.platform == platform
+        }
+    }
+
+    var installedSkillPlatformIndex: InstalledSkillPlatformIndex {
+        InstalledSkillPlatformIndex(entries: skills.compactMap { skill in
+            skill.platform.map { (slug: skill.name, platform: $0) }
+        })
     }
 
     func installedPlatforms(for slug: String) -> Set<SkillPlatform> {
-        Set(skills.filter { $0.name == slug }.compactMap(\.platform))
+        installedSkillPlatformIndex.platforms(forSlug: slug)
     }
 
     func groupedLocalSkills(from filteredSkills: [Skill]) -> [LocalSkillGroup] {
-        let grouped = Dictionary(grouping: filteredSkills, by: { $0.name })
+        let grouped = Dictionary(grouping: filteredSkills) {
+            SkillContentPath.collisionKey(for: $0.name)
+        }
         let preferredPlatformOrder: [SkillPlatform] = [.codex, .claude, .opencode, .copilot]
 
         return grouped.compactMap { _, filteredSkills in
@@ -286,8 +305,21 @@ import Observation
     func skillNeedsPublish(_ skill: Skill) async -> Bool {
         do {
             let hash = try await fileWorker.computeSkillHash(for: skill.folderURL)
-            let state = loadPublishState(for: skill.name)
-            return state?.lastPublishedHash != hash
+            guard let state = loadPublishState(for: skill.name) else { return true }
+            let legacyHash: String? = if state.hashAlgorithmVersion == nil {
+                try await fileWorker.computeLegacyPublishHash(for: skill.folderURL)
+            } else {
+                nil
+            }
+            switch state.resolve(currentHash: hash, legacyHash: legacyHash) {
+            case .unchanged:
+                return false
+            case .changed:
+                return true
+            case .migrate(let migratedState):
+                savePublishState(migratedState, for: skill.name)
+                return false
+            }
         } catch {
             return true
         }
@@ -323,14 +355,16 @@ import Observation
     }
 
 
-    private func normalizeSelectionToPreferredPlatform() {
+    func normalizeSelectionToPreferredPlatform() {
         guard let selectedSkillID,
               let selected = skills.first(where: { $0.id == selectedSkillID }) else {
             return
         }
 
         let slug = selected.name
-        let candidates = skills.filter { $0.name == slug }
+        let candidates = skills.filter {
+            SkillContentPath.namesAreEquivalent($0.name, slug)
+        }
         guard candidates.count > 1 else { return }
 
         let preferredOrder: [SkillPlatform] = [.codex, .claude, .opencode, .copilot]
@@ -346,51 +380,97 @@ import Observation
         _ skill: RemoteSkill,
         client: RemoteSkillClient,
         destinations: Set<SkillPlatform>
-    ) async throws {
+    ) async throws -> String? {
         guard !destinations.isEmpty else {
             throw NSError(domain: "RemoteSkill", code: 3)
         }
 
-        let zipURL = try await client.download(skill.slug, skill.latestVersion)
-        let destinationList = destinations.map {
-            SkillFileWorker.InstallDestination(rootURL: $0.rootURL, storageKey: $0.storageKey)
+        let archive = try await client.download(skill.slug, skill.latestVersion)
+        let destinationList = destinations.map { platform in
+            if let existing = skills.first(where: {
+                SkillContentPath.namesAreEquivalent($0.name, skill.slug)
+                    && $0.platform == platform
+                    && $0.customPath == nil
+            }) {
+                return SkillFileWorker.InstallDestination(
+                    rootURL: existing.managedRoot.registeredURL,
+                    storageKey: storageKey(for: existing),
+                    managedRoot: existing.managedRoot
+                )
+            }
+            return SkillFileWorker.InstallDestination(
+                rootURL: platform.rootURL,
+                storageKey: platform.storageKey
+            )
         }
-        let selectedID = try await fileWorker.installRemoteSkill(
-            zipURL: zipURL,
-            slug: skill.slug,
-            version: skill.latestVersion,
-            destinations: destinationList
-        )
+        let result: SkillFileWorker.RemoteInstallResult
+        do {
+            result = try await fileWorker.installRemoteSkill(
+                archive: archive,
+                slug: skill.slug,
+                version: skill.latestVersion,
+                destinations: destinationList
+            )
+        } catch {
+            await loadSkills()
+            throw error
+        }
 
         await loadSkills()
-        if let selectedID {
+        if let selectedID = result.selectedID {
             self.selectedSkillID = selectedID
         }
+        return result.report.warningMessage
     }
 
     func updateInstalledSkill(
         slug: String,
         version: String?,
         client: RemoteSkillClient
-    ) async throws {
-        let destinations = installedPlatforms(for: slug)
-        guard !destinations.isEmpty else { return }
-
-        let zipURL = try await client.download(slug, version)
-        let destinationList = destinations.map {
-            SkillFileWorker.InstallDestination(rootURL: $0.rootURL, storageKey: $0.storageKey)
+    ) async throws -> String? {
+        let installedSkills = skills.filter {
+            SkillContentPath.namesAreEquivalent($0.name, slug)
+                && $0.platform != nil
+                && $0.customPath == nil
         }
-        let selectedID = try await fileWorker.installRemoteSkill(
-            zipURL: zipURL,
-            slug: slug,
-            version: version,
-            destinations: destinationList
-        )
+        guard !installedSkills.isEmpty else { return nil }
+
+        var seenRootIdentities: Set<ManagedItemIdentity> = []
+        var destinationList: [SkillFileWorker.InstallDestination] = []
+        for installed in installedSkills {
+            let rootIdentity = try installed.managedRoot.verifiedRoot().identity
+            guard seenRootIdentities.insert(rootIdentity).inserted else { continue }
+            destinationList.append(SkillFileWorker.InstallDestination(
+                rootURL: installed.managedRoot.registeredURL,
+                storageKey: storageKey(for: installed),
+                managedRoot: installed.managedRoot
+            ))
+        }
+        let archive = try await client.download(slug, version)
+        let result: SkillFileWorker.RemoteInstallResult
+        do {
+            result = try await fileWorker.installRemoteSkill(
+                archive: archive,
+                slug: slug,
+                version: version,
+                destinations: destinationList
+            )
+        } catch {
+            await loadSkills()
+            throw error
+        }
 
         await loadSkills()
-        if let selectedID {
+        if let selectedID = result.selectedID {
             self.selectedSkillID = selectedID
         }
+        return result.report.warningMessage
+    }
+
+    private func storageKey(for skill: Skill) -> String {
+        let suffix = "-\(skill.name)"
+        guard skill.id.hasSuffix(suffix) else { return skill.platform?.storageKey ?? skill.id }
+        return String(skill.id.dropLast(suffix.count))
     }
 
     func nextVersion(from current: String, bump: PublishBump) -> String? {
@@ -408,33 +488,5 @@ import Observation
         }
         return false
     }
-
-    private func publishStateDirectory() -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first ?? FileManager.default.homeDirectoryForCurrentUser
-        return base
-            .appendingPathComponent("SkillsManager")
-            .appendingPathComponent("skill-state")
-    }
-
-    private func publishStateURL(for slug: String) -> URL {
-        publishStateDirectory().appendingPathComponent("\(slug).json")
-    }
-
-    private func loadPublishState(for slug: String) -> PublishState? {
-        let url = publishStateURL(for: slug)
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(PublishState.self, from: data)
-    }
-
-    private func savePublishState(for slug: String, hash: String) {
-        let dir = publishStateDirectory()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let state = PublishState(lastPublishedHash: hash, lastPublishedAt: Date())
-        if let data = try? JSONEncoder().encode(state) {
-            try? data.write(to: publishStateURL(for: slug), options: [.atomic])
-        }
-    }
-
 
 }

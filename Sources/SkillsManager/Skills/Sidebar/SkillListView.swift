@@ -10,7 +10,7 @@ struct SkillListView: View {
     let remoteSearchState: RemoteSkillStore.LoadState
     let remoteLatestState: RemoteSkillStore.LoadState
     let remoteQuery: String
-    let installedPlatforms: [String: Set<SkillPlatform>]
+    let installedSkillPlatforms: InstalledSkillPlatformIndex
     let onInstallRemoteSkill: (RemoteSkill) -> Void
 
     @Binding var source: SkillSource
@@ -54,6 +54,17 @@ struct SkillListView: View {
             }
         }
         .listStyle(.sidebar)
+        .alert(
+            "Unable to Delete Skill",
+            isPresented: Binding(
+                get: { store.deleteErrorMessage != nil },
+                set: { if !$0 { store.deleteErrorMessage = nil } }
+            )
+        ) {
+            Button("OK") { store.deleteErrorMessage = nil }
+        } message: {
+            Text(store.deleteErrorMessage ?? "The Skill could not be deleted safely.")
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -98,7 +109,7 @@ struct SkillListView: View {
             ForEach(remoteSearchResults) { skill in
                 RemoteSkillRowView(
                     skill: skill,
-                    installedTargets: installedPlatforms[skill.slug, default: []],
+                    installedTargets: installedSkillPlatforms.platforms(forSlug: skill.slug),
                     onInstall: { onInstallRemoteSkill(skill) }
                 )
             }
@@ -126,7 +137,7 @@ struct SkillListView: View {
             ForEach(remoteLatestSkills) { skill in
                 RemoteSkillRowView(
                     skill: skill,
-                    installedTargets: installedPlatforms[skill.slug, default: []],
+                    installedTargets: installedSkillPlatforms.platforms(forSlug: skill.slug),
                     onInstall: { onInstallRemoteSkill(skill) }
                 )
             }

@@ -102,8 +102,8 @@ import Observation
         // Fetch from network (URLCache may provide HTTP-level caching)
         do {
             let owner = try await apiClient.fetchDetail(skill.slug)
-            let zipURL = try await apiClient.download(skill.slug, skill.latestVersion)
-            let markdown = stripFrontmatter(from: try await fileWorker.loadRawMarkdown(from: zipURL))
+            let archive = try await apiClient.download(skill.slug, skill.latestVersion)
+            let markdown = stripFrontmatter(from: try await fileWorker.loadRawMarkdown(from: archive))
 
             guard skill.id == selectedSkillID else { return }
 
