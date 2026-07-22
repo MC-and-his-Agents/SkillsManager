@@ -6,8 +6,8 @@ import ZIPFoundation
 
 @Suite("Safe skill archive snapshot binding")
 struct SafeSkillArchiveSnapshotTests {
-    @Test("Uses the preflighted archive when its path is replaced by an over-limit archive")
-    func ignoresOverLimitPathReplacement() throws {
+    @Test("Uses the immutable snapshot when its source inode is overwritten")
+    func ignoresOverLimitInPlaceReplacement() throws {
         let fixture = try SnapshotFixture()
         defer { fixture.remove() }
         try fixture.writeArchive([("safe.txt", Data("safe".utf8))], to: fixture.archiveURL)
@@ -19,7 +19,7 @@ struct SafeSkillArchiveSnapshotTests {
         let paths = try SafeSkillArchive(limits: .init(maximumEntryCount: 1)).extract(
             archiveAt: fixture.archiveURL,
             to: fixture.destinationURL,
-            afterPreflight: fixture.replaceArchivePath
+            afterPreflight: fixture.replaceArchiveContentsInPlace
         )
 
         #expect(paths == ["safe.txt"])
@@ -44,6 +44,24 @@ struct SafeSkillArchiveSnapshotTests {
         #expect(!FileManager.default.fileExists(
             atPath: fixture.destinationURL.appendingPathComponent("unsafe.txt").path
         ))
+    }
+
+    @Test("Rejects an oversized snapshot without leaving a managed entry")
+    func rejectsOversizedSnapshotWithoutVisibleTemporaryFile() throws {
+        let fixture = try SnapshotFixture()
+        defer { fixture.remove() }
+        try fixture.writeArchive([("safe.txt", Data("safe".utf8))], to: fixture.archiveURL)
+
+        do {
+            _ = try SafeSkillArchive(limits: .init(maximumArchiveSize: 1)).extract(
+                archiveAt: fixture.archiveURL,
+                to: fixture.destinationURL
+            )
+            Issue.record("Expected the archive snapshot byte limit")
+        } catch let error as SafeSkillArchiveError {
+            #expect(error == .archiveTooLarge)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
     }
 }
 
@@ -87,6 +105,14 @@ private struct SnapshotFixture {
     func replaceArchivePath() throws {
         try FileManager.default.removeItem(at: archiveURL)
         try FileManager.default.moveItem(at: replacementURL, to: archiveURL)
+    }
+
+    func replaceArchiveContentsInPlace() throws {
+        let replacement = try Data(contentsOf: replacementURL)
+        let handle = try FileHandle(forWritingTo: archiveURL)
+        try handle.truncate(atOffset: 0)
+        try handle.write(contentsOf: replacement)
+        try handle.close()
     }
 
     func remove() {

@@ -1,6 +1,120 @@
 import Darwin
 import Foundation
 
+nonisolated final class ZIPArchiveSnapshot {
+    let handle: FileHandle
+    let descriptorURL: URL
+
+    init(
+        copying archiveURL: URL,
+        into rootDescriptor: Int32,
+        maximumByteCount: UInt64,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws {
+        let source = Darwin.open(archiveURL.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        guard source >= 0 else { throw SafeSkillArchiveError.invalidArchive }
+        defer { Darwin.close(source) }
+        var status = stat()
+        guard Darwin.fstat(source, &status) == 0,
+              status.st_mode & S_IFMT == S_IFREG,
+              status.st_size >= 0 else { throw SafeSkillArchiveError.invalidArchive }
+        guard UInt64(status.st_size) <= maximumByteCount else {
+            throw SafeSkillArchiveError.archiveTooLarge
+        }
+        let snapshotFile = try Self.makeSnapshotFile(in: rootDescriptor)
+        var readDescriptor: Int32 = -1
+        do {
+            try Self.copy(
+                source: source,
+                destination: snapshotFile.descriptor,
+                maximumByteCount: maximumByteCount,
+                checkpoint: checkpoint
+            )
+            readDescriptor = Darwin.openat(
+                rootDescriptor,
+                snapshotFile.name,
+                O_RDONLY | O_NOFOLLOW | O_CLOEXEC
+            )
+            guard readDescriptor >= 0 else { throw zipSnapshotPOSIXError() }
+            guard Darwin.unlinkat(rootDescriptor, snapshotFile.name, 0) == 0 else {
+                throw zipSnapshotPOSIXError()
+            }
+        } catch {
+            if readDescriptor >= 0 { Darwin.close(readDescriptor) }
+            Darwin.close(snapshotFile.descriptor)
+            _ = Darwin.unlinkat(rootDescriptor, snapshotFile.name, 0)
+            throw error
+        }
+        Darwin.close(snapshotFile.descriptor)
+        handle = FileHandle(fileDescriptor: readDescriptor, closeOnDealloc: true)
+        descriptorURL = URL(fileURLWithPath: "/dev/fd/\(readDescriptor)")
+    }
+
+    private static func makeSnapshotFile(
+        in rootDescriptor: Int32
+    ) throws -> (descriptor: Int32, name: String) {
+        while true {
+            let name = ".skillsmanager-tmp-archive-snapshot-\(UUID().uuidString.lowercased())"
+            let descriptor = Darwin.openat(
+                rootDescriptor, name,
+                O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
+                S_IRUSR
+            )
+            if descriptor < 0, errno == EEXIST { continue }
+            guard descriptor >= 0 else { throw zipSnapshotPOSIXError() }
+            return (descriptor, name)
+        }
+    }
+
+    private static func copy(
+        source: Int32,
+        destination: Int32,
+        maximumByteCount: UInt64,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws {
+        var copied: UInt64 = 0
+        var buffer = [UInt8](repeating: 0, count: 64 * 1_024)
+        while true {
+            try checkpoint()
+            let count = buffer.withUnsafeMutableBytes { Darwin.read(source, $0.baseAddress, $0.count) }
+            if count < 0, errno == EINTR { continue }
+            guard count >= 0 else { throw zipSnapshotPOSIXError() }
+            if count == 0 { return }
+            let (newCount, overflow) = copied.addingReportingOverflow(UInt64(count))
+            guard !overflow, newCount <= maximumByteCount else {
+                throw SafeSkillArchiveError.archiveTooLarge
+            }
+            try writeAll(buffer.prefix(count), to: destination, checkpoint: checkpoint)
+            copied = newCount
+        }
+    }
+
+    private static func writeAll(
+        _ bytes: ArraySlice<UInt8>,
+        to descriptor: Int32,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws {
+        try bytes.withUnsafeBytes { buffer in
+            var offset = 0
+            while offset < buffer.count {
+                try checkpoint()
+                let count = Darwin.write(
+                    descriptor,
+                    buffer.baseAddress!.advanced(by: offset),
+                    buffer.count - offset
+                )
+                if count < 0, errno == EINTR { continue }
+                guard count > 0 else { throw zipSnapshotPOSIXError() }
+                offset += count
+            }
+        }
+    }
+}
+
+private nonisolated func zipSnapshotPOSIXError() -> POSIXError {
+    POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+}
+
 nonisolated enum ZIPCentralDirectory {
     enum Kind { case file, directory, dosFileOrDirectory, symbolicLink }
 

@@ -2,34 +2,20 @@ import Darwin
 import Foundation
 import ZIPFoundation
 nonisolated struct SafeSkillArchive {
-    private final class ArchiveSnapshot {
-        let handle: FileHandle
-        let descriptorURL: URL
-
-        init(opening archiveURL: URL) throws {
-            let descriptor = Darwin.open(archiveURL.path, O_RDONLY | O_CLOEXEC)
-            guard descriptor >= 0 else { throw SafeSkillArchiveError.invalidArchive }
-            var status = stat()
-            guard Darwin.fstat(descriptor, &status) == 0,
-                  status.st_mode & S_IFMT == S_IFREG else {
-                Darwin.close(descriptor)
-                throw SafeSkillArchiveError.invalidArchive
-            }
-            handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
-            descriptorURL = URL(fileURLWithPath: "/dev/fd/\(descriptor)")
-        }
-    }
-
     struct Limits: Sendable {
         let maximumEntryCount: Int
+        let maximumArchiveByteCount: UInt64
         let content: SkillContentLimits
         init(
             maximumEntryCount: Int = 50_000,
             maximumFileCount: Int = SkillContentLimits.default.maximumFileCount,
             maximumTotalSize: UInt64 = SkillContentLimits.default.maximumTotalByteCount,
-            maximumFileSize: UInt64 = SkillContentLimits.default.maximumFileByteCount
+            maximumFileSize: UInt64 = SkillContentLimits.default.maximumFileByteCount,
+            maximumArchiveSize: UInt64? = nil
         ) {
             self.maximumEntryCount = maximumEntryCount
+            let (derivedArchiveSize, overflow) = maximumTotalSize.addingReportingOverflow(64 * 1_024 * 1_024)
+            maximumArchiveByteCount = maximumArchiveSize ?? (overflow ? .max : derivedArchiveSize)
             content = SkillContentLimits(
                 maximumFileCount: maximumFileCount,
                 maximumTotalByteCount: maximumTotalSize,
@@ -58,7 +44,12 @@ nonisolated struct SafeSkillArchive {
         let rootDescriptor = try openEmptyDestination(emptyDestinationURL)
         defer { Darwin.close(rootDescriptor) }
         do {
-            let snapshot = try ArchiveSnapshot(opening: archiveURL)
+            let snapshot = try ZIPArchiveSnapshot(
+                copying: archiveURL,
+                into: rootDescriptor,
+                maximumByteCount: limits.maximumArchiveByteCount,
+                checkpoint: checkpoint
+            )
             let rawKinds = try ZIPCentralDirectory.entryKinds(
                 in: snapshot.handle,
                 maximumEntryCount: limits.maximumEntryCount,
@@ -417,7 +408,7 @@ nonisolated enum SafeSkillArchiveError: LocalizedError, Equatable {
         case .tooManyEntries: "The archive contains too many entries."
         case .tooManyFiles: "The archive contains too many files."
         case .fileTooLarge(let path): "The archive contains a file that is too large: \(path)"
-        case .archiveTooLarge: "The archive expands beyond the allowed total size."
+        case .archiveTooLarge: "The archive exceeds the allowed size."
         case .invalidChecksum(let path), .invalidSize(let path):
             "The archive entry failed integrity validation: \(path)"
         }

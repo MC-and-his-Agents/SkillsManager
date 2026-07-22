@@ -84,7 +84,7 @@ struct SkillSplitView: View {
             remoteSearchState: remoteStore.searchState,
             remoteLatestState: remoteStore.latestState,
             remoteQuery: searchText,
-            installedPlatformsByIdentityKey: store.installedPlatformsByIdentityKey,
+            installedSkillPlatforms: store.installedSkillPlatformIndex,
             onInstallRemoteSkill: { skill in
                 presentRemoteInstallSheet(for: skill)
             },

@@ -115,17 +115,17 @@ struct SafeSkillArchiveTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.writeZIP64Declaration(entryCount: 50_001)
-        var checkpoints = 0
+        var completedPreflight = false
 
         expectError(.tooManyEntries) {
             try SafeSkillArchive().extract(
                 archiveAt: fixture.archiveURL,
                 to: fixture.destinationURL,
-                checkpoint: { checkpoints += 1 }
+                afterPreflight: { completedPreflight = true }
             )
         }
 
-        #expect(checkpoints == 0)
+        #expect(!completedPreflight)
         #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
     }
 

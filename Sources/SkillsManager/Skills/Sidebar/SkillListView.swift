@@ -10,7 +10,7 @@ struct SkillListView: View {
     let remoteSearchState: RemoteSkillStore.LoadState
     let remoteLatestState: RemoteSkillStore.LoadState
     let remoteQuery: String
-    let installedPlatformsByIdentityKey: [String: Set<SkillPlatform>]
+    let installedSkillPlatforms: InstalledSkillPlatformIndex
     let onInstallRemoteSkill: (RemoteSkill) -> Void
 
     @Binding var source: SkillSource
@@ -109,7 +109,7 @@ struct SkillListView: View {
             ForEach(remoteSearchResults) { skill in
                 RemoteSkillRowView(
                     skill: skill,
-                    installedTargets: installedPlatforms(for: skill.slug),
+                    installedTargets: installedSkillPlatforms.platforms(forSlug: skill.slug),
                     onInstall: { onInstallRemoteSkill(skill) }
                 )
             }
@@ -137,15 +137,11 @@ struct SkillListView: View {
             ForEach(remoteLatestSkills) { skill in
                 RemoteSkillRowView(
                     skill: skill,
-                    installedTargets: installedPlatforms(for: skill.slug),
+                    installedTargets: installedSkillPlatforms.platforms(forSlug: skill.slug),
                     onInstall: { onInstallRemoteSkill(skill) }
                 )
             }
         }
-    }
-
-    private func installedPlatforms(for slug: String) -> Set<SkillPlatform> {
-        installedPlatformsByIdentityKey[SkillContentPath.collisionKey(for: slug), default: []]
     }
 
     @ViewBuilder

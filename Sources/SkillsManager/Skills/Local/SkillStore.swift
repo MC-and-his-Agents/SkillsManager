@@ -248,14 +248,14 @@ import Observation
         }
     }
 
-    var installedPlatformsByIdentityKey: [String: Set<SkillPlatform>] {
-        Dictionary(grouping: skills) {
-            SkillContentPath.collisionKey(for: $0.name)
-        }.mapValues { Set($0.compactMap(\.platform)) }
+    var installedSkillPlatformIndex: InstalledSkillPlatformIndex {
+        InstalledSkillPlatformIndex(entries: skills.compactMap { skill in
+            skill.platform.map { (slug: skill.name, platform: $0) }
+        })
     }
 
     func installedPlatforms(for slug: String) -> Set<SkillPlatform> {
-        installedPlatformsByIdentityKey[SkillContentPath.collisionKey(for: slug), default: []]
+        installedSkillPlatformIndex.platforms(forSlug: slug)
     }
 
     func groupedLocalSkills(from filteredSkills: [Skill]) -> [LocalSkillGroup] {

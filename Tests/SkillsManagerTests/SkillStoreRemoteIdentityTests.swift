@@ -20,9 +20,9 @@ struct SkillStoreRemoteIdentityTests {
             #expect(store.isInstalled(slug: "CAFÉ-SKILL", in: .claude))
             #expect(store.installedPlatforms(for: "remote-slug") == [.codex])
             #expect(store.installedPlatforms(for: "caf\u{e9}-skill") == [.claude])
-            #expect(store.installedPlatformsByIdentityKey[
-                SkillContentPath.collisionKey(for: "REMOTE-SLUG")
-            ] == [.codex])
+            let index = store.installedSkillPlatformIndex
+            #expect(index.platforms(forSlug: "REMOTE-SLUG") == [.codex])
+            #expect(index.platforms(forSlug: "CAFÉ-SKILL") == [.claude])
         }
     }
 
