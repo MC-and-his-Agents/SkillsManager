@@ -72,13 +72,21 @@ nonisolated struct ManagedItemIdentity: Hashable, Sendable {
         fileType = UInt32(value.st_mode & mode_t(S_IFMT))
         generation = UInt64(value.st_gen)
     }
+    init(persistedComponents value: ManagedItemIdentityPersistedComponents) {
+        device = value.device
+        inode = value.inode
+        fileType = value.fileType
+        generation = value.generation
+    }
+    var persistedComponents: ManagedItemIdentityPersistedComponents {
+        .init(device: device, inode: inode, fileType: fileType, generation: generation)
+    }
 }
 nonisolated final class ManagedPathGuard {
     typealias FileIdentity = ManagedItemIdentity
     struct ManagedName {
         let value: String
     }
-
     struct PromotionNames {
         let staged: String
         let target: String
@@ -88,6 +96,20 @@ nonisolated final class ManagedPathGuard {
     private let rootIdentity: FileIdentity
     let rootDescriptor: Int32
     let hooks: ManagedPathGuardTestHooks
+    init(verifiedRoot: VerifiedSSOTRoot, hooks: ManagedPathGuardTestHooks = .init()) throws {
+        let descriptor = try verifiedRoot.duplicateDescriptor()
+        do {
+            rootPath = verifiedRoot.url.path
+            canonicalRootPath = try Self.canonicalPath(for: rootPath)
+            rootIdentity = verifiedRoot.identity
+            rootDescriptor = descriptor
+            self.hooks = hooks
+            try verifyRootIdentity()
+        } catch {
+            Darwin.close(descriptor)
+            throw error
+        }
+    }
     init(rootURL: URL, hooks: ManagedPathGuardTestHooks = .init()) throws {
         guard rootURL.isFileURL else {
             throw ManagedPathError.invalidRoot("not a file URL")

@@ -165,6 +165,68 @@ struct ManagedPathGuardFailureTests {
         }
     }
 
+    @Test("lost SSOT ownership preserves the unpublished directory")
+    func ownershipLossPreservesUnpublishedDirectory() throws {
+        try withSSOTFixture { root, guardValue, ownership in
+            let target = root.appendingPathComponent(".skillsmanager-tmp-target")
+            var unpublished: URL?
+
+            #expect(throws: SSOTWriterOwnershipError.invalidLockFile) {
+                _ = try guardValue.createDirectory(
+                    at: target,
+                    afterTemporaryCreate: { temporary in
+                        unpublished = temporary
+                        try self.replaceSSOTLock(in: root)
+                        try Data("new owner".utf8).write(
+                            to: temporary.appendingPathComponent("marker")
+                        )
+                        try ownership.validateForMutation(using: guardValue)
+                    },
+                    admitFailureCleanup: {
+                        try ownership.validateForMutation(using: guardValue)
+                    }
+                )
+            }
+
+            let retained = try #require(unpublished)
+            #expect(!self.fileManager.fileExists(atPath: target.path))
+            #expect(try String(
+                contentsOf: retained.appendingPathComponent("marker"),
+                encoding: .utf8
+            ) == "new owner")
+        }
+    }
+
+    @Test("lost SSOT ownership preserves the published directory")
+    func ownershipLossPreservesPublishedDirectory() throws {
+        try withSSOTFixture { root, guardValue, ownership in
+            let target = root.appendingPathComponent(".skillsmanager-tmp-published")
+
+            #expect(throws: SSOTWriterOwnershipError.invalidLockFile) {
+                _ = try guardValue.createDirectory(
+                    at: target,
+                    afterCreate: {
+                        try self.replaceSSOTLock(in: root)
+                        try Data("new owner".utf8).write(
+                            to: target.appendingPathComponent("marker")
+                        )
+                        try ownership.validateForMutation(using: guardValue)
+                    },
+                    admitFailureCleanup: {
+                        try ownership.validateForMutation(using: guardValue)
+                    }
+                )
+            }
+
+            #expect(try String(
+                contentsOf: target.appendingPathComponent("marker"),
+                encoding: .utf8
+            ) == "new owner")
+            let names = try self.fileManager.contentsOfDirectory(atPath: root.path)
+            #expect(!names.contains { $0.hasPrefix(".skillsmanager-tmp-create-") })
+        }
+    }
+
     @Test("staging verification preserves a concurrently replaced directory")
     func stagingVerificationReportsConcurrentReplacement() throws {
         try withFixture { _, root, guardValue in
@@ -297,6 +359,32 @@ struct ManagedPathGuardFailureTests {
             let root = temporary.appendingPathComponent("managed")
             try fileManager.createDirectory(at: root, withIntermediateDirectories: false)
             try body(temporary, root, ManagedPathGuard(rootURL: root))
+        }
+    }
+
+    private func withSSOTFixture(
+        _ body: (URL, ManagedPathGuard, SSOTWriterOwnership) throws -> Void
+    ) throws {
+        try withTemporaryDirectory { temporary in
+            let root = temporary.appendingPathComponent("managed")
+            try fileManager.createDirectory(at: root, withIntermediateDirectories: false)
+            #expect(Darwin.chmod(root.path, 0o700) == 0)
+            let descriptor = Darwin.open(root.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+            guard descriptor >= 0 else { throw CocoaError(.fileReadUnknown) }
+            defer { Darwin.close(descriptor) }
+            let verifiedRoot = try VerifiedSSOTRoot(existingRootURL: root, descriptor: descriptor)
+            let guardValue = try ManagedPathGuard(verifiedRoot: verifiedRoot)
+            let ownership = try SSOTWriterOwnership.acquire(using: guardValue)
+            try body(root, guardValue, ownership)
+        }
+    }
+
+    private func replaceSSOTLock(in root: URL) throws {
+        let lock = root.appendingPathComponent(SSOTWriterOwnership.lockFileName)
+        try fileManager.removeItem(at: lock)
+        try Data("replacement\n".utf8).write(to: lock)
+        guard Darwin.chmod(lock.path, 0o600) == 0 else {
+            throw CocoaError(.fileWriteUnknown)
         }
     }
 

@@ -15,13 +15,24 @@ nonisolated enum SQLiteStoreError: Error, Equatable, LocalizedError {
     }
 }
 
+nonisolated enum SQLiteAccessMode: Equatable, Sendable {
+    case readWrite
+    case readOnly
+}
+
 /// A deliberately non-Sendable SQLite connection. The composition root owns serialization.
 nonisolated final class SQLiteConnection {
     private let database: OpaquePointer
+    let accessMode: SQLiteAccessMode
 
-    init(path: String) throws {
+    init(path: String, accessMode: SQLiteAccessMode = .readWrite) throws {
         var opened: OpaquePointer?
-        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+        let flags: Int32 = switch accessMode {
+        case .readWrite:
+            SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+        case .readOnly:
+            SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX
+        }
         let result = sqlite3_open_v2(path, &opened, flags, nil)
         guard result == SQLITE_OK, let opened else {
             let message = opened.map { String(cString: sqlite3_errmsg($0)) }
@@ -30,6 +41,7 @@ nonisolated final class SQLiteConnection {
             throw SQLiteStoreError.sqlite(operation: "open", code: result, message: message)
         }
         database = opened
+        self.accessMode = accessMode
         sqlite3_extended_result_codes(database, 1)
 
         do {
@@ -43,14 +55,22 @@ nonisolated final class SQLiteConnection {
 
             try execute("PRAGMA synchronous = FULL")
             try requireIntegerPragma("synchronous", equals: 2)
+
+            switch accessMode {
+            case .readWrite:
+                try requireIntegerPragma("query_only", equals: 0)
+            case .readOnly:
+                try execute("PRAGMA query_only = ON")
+                try requireIntegerPragma("query_only", equals: 1)
+            }
         } catch {
             sqlite3_close_v2(database)
             throw error
         }
     }
 
-    convenience init(url: URL) throws {
-        try self.init(path: url.path)
+    convenience init(url: URL, accessMode: SQLiteAccessMode = .readWrite) throws {
+        try self.init(path: url.path, accessMode: accessMode)
     }
 
     deinit {

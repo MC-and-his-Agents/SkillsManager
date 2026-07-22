@@ -5,8 +5,8 @@ import Testing
 
 @Suite("Skill database schema migration")
 struct SkillDatabaseSchemaTests {
-    @Test("creates v1 outside the WAL transition and reopens it")
-    func createsAndReopensV1() throws {
+    @Test("creates the current schema outside the WAL transition and reopens it")
+    func createsAndReopensCurrentSchema() throws {
         let location = try temporaryDatabaseLocation()
         defer { try? FileManager.default.removeItem(at: location.root) }
 
@@ -16,25 +16,26 @@ struct SkillDatabaseSchemaTests {
             #expect(try connection.querySingleInt("PRAGMA foreign_keys") == 1)
             #expect(try connection.querySingleInt("PRAGMA busy_timeout") == 5_000)
             #expect(try connection.querySingleInt("PRAGMA synchronous") == 2)
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 1)
-            #expect(try connection.userTableNames() == SkillSchemaV1.tableNames)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 2)
+            #expect(try connection.userTableNames() == SkillSchemaV2.tableNames)
 
             let strictCount = try connection.querySingleInt(
                 "SELECT count(*) FROM pragma_table_list "
-                    + "WHERE name IN ('schema_metadata','skills','sources','provider_aliases') "
+                    + "WHERE name IN ('schema_metadata','skills','sources','provider_aliases',"
+                    + "'skill_operations','cleanup_debts') "
                     + "AND strict = 1"
             )
-            #expect(strictCount == 4)
+            #expect(strictCount == 6)
         }
 
         let reopened = try SkillSchemaMigrator.open(at: location.database)
-        #expect(try reopened.querySingleInt("PRAGMA user_version") == 1)
+        #expect(try reopened.querySingleInt("PRAGMA user_version") == 2)
         #expect(try reopened.querySingleInt(
             "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-        ) == 1)
+        ) == 2)
     }
 
-    @Test("rolls the complete v0 to v1 transaction back on failure")
+    @Test("rolls v0 back when the v1 stage fails")
     func rollsBackMigration() throws {
         enum InjectedFailure: Error { case stop }
         let location = try temporaryDatabaseLocation()
@@ -51,8 +52,29 @@ struct SkillDatabaseSchemaTests {
         #expect(try connection.userTableNames().isEmpty)
     }
 
+    @Test("rolls v0 back when the v2 stage fails and later migrates successfully")
+    func rollsV0BackWhenV2StageFails() throws {
+        enum InjectedFailure: Error { case stop }
+        let location = try temporaryDatabaseLocation()
+        defer { try? FileManager.default.removeItem(at: location.root) }
+
+        #expect(throws: InjectedFailure.self) {
+            _ = try SkillSchemaMigrator.open(at: location.database, beforeV2Commit: {
+                throw InjectedFailure.stop
+            })
+        }
+
+        let rolledBack = try SQLiteConnection(url: location.database)
+        #expect(try rolledBack.querySingleInt("PRAGMA user_version") == 0)
+        #expect(try rolledBack.userTableNames().isEmpty)
+
+        let migrated = try SkillSchemaMigrator.open(at: location.database)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 2)
+        #expect(try migrated.userTableNames() == SkillSchemaV2.tableNames)
+    }
+
     @Test("rechecks v0 after obtaining the migration write lock")
-    func handlesAConcurrentV0ToV1Migration() throws {
+    func handlesAConcurrentV0Migration() throws {
         let location = try temporaryDatabaseLocation()
         defer { try? FileManager.default.removeItem(at: location.root) }
         let first = try SQLiteConnection(url: location.database)
@@ -67,9 +89,9 @@ struct SkillDatabaseSchemaTests {
         })
 
         #expect(checkpointRan)
-        #expect(try first.querySingleInt("PRAGMA user_version") == 1)
-        #expect(try second.querySingleInt("PRAGMA user_version") == 1)
-        #expect(try second.userTableNames() == SkillSchemaV1.tableNames)
+        #expect(try first.querySingleInt("PRAGMA user_version") == 2)
+        #expect(try second.querySingleInt("PRAGMA user_version") == 2)
+        #expect(try second.userTableNames() == SkillSchemaV2.tableNames)
     }
 
     @Test("clears bindings even when reset reports a failed step")
@@ -124,7 +146,7 @@ struct SkillDatabaseSchemaTests {
         let future = try temporaryDatabaseLocation()
         defer { try? FileManager.default.removeItem(at: future.root) }
         let futureConnection = try SkillSchemaMigrator.open(at: future.database)
-        try futureConnection.execute("PRAGMA user_version = 2")
+        try futureConnection.execute("PRAGMA user_version = 3")
         #expect(throws: SQLiteStoreError.self) {
             _ = try SkillSchemaMigrator.open(at: future.database)
         }
@@ -132,7 +154,7 @@ struct SkillDatabaseSchemaTests {
         let mismatch = try temporaryDatabaseLocation()
         defer { try? FileManager.default.removeItem(at: mismatch.root) }
         let mismatchConnection = try SkillSchemaMigrator.open(at: mismatch.database)
-        try mismatchConnection.execute("UPDATE schema_metadata SET schema_version = 2")
+        try mismatchConnection.execute("UPDATE schema_metadata SET schema_version = 3")
         #expect(throws: SQLiteStoreError.self) {
             _ = try SkillSchemaMigrator.open(at: mismatch.database)
         }

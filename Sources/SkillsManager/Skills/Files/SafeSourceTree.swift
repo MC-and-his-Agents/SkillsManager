@@ -236,7 +236,8 @@ extension SkillContentSnapshot {
     nonisolated func copyFiles(
         toDirectoryDescriptor rootDescriptor: Int32,
         limits: SkillContentLimits = .default,
-        checkpoint: SkillCancellationCheckpoint = {}
+        checkpoint: SkillCancellationCheckpoint = {},
+        failureCleanupAdmission: SkillCancellationCheckpoint? = nil
     ) throws {
         var destinationMetadata = stat()
         guard Darwin.fstat(rootDescriptor, &destinationMetadata) == 0,
@@ -244,26 +245,33 @@ extension SkillContentSnapshot {
             throw SkillContentSnapshotError.rootIsNotDirectory(path: "destination")
         }
 
-        try sourceTree.verifyDirectories(sourceDirectories, checkpoint: checkpoint)
-        try Self.createDestinationDirectories(
-            sourceDirectories,
-            rootDescriptor: rootDescriptor,
-            checkpoint: checkpoint
-        )
-
-        var totalByteCount = UInt64.zero
-        for file in discoveredFiles {
-            try checkpoint()
-            try Self.copyFile(
-                file,
-                sourceTree: sourceTree,
-                toRootDescriptor: rootDescriptor,
-                limits: limits,
-                totalByteCount: &totalByteCount,
+        do {
+            try sourceTree.verifyDirectories(sourceDirectories, checkpoint: checkpoint)
+            try Self.createDestinationDirectories(
+                sourceDirectories,
+                rootDescriptor: rootDescriptor,
                 checkpoint: checkpoint
             )
+            var totalByteCount = UInt64.zero
+            for file in discoveredFiles {
+                try checkpoint()
+                try Self.copyFile(
+                    file,
+                    sourceTree: sourceTree,
+                    toRootDescriptor: rootDescriptor,
+                    limits: limits,
+                    totalByteCount: &totalByteCount,
+                    checkpoint: checkpoint,
+                    failureCleanupAdmission: failureCleanupAdmission
+                )
+            }
+            try sourceTree.verifyDirectories(sourceDirectories, checkpoint: checkpoint)
+        } catch let cleanupRequired as SSOTPartialCopyCleanupRequired {
+            throw cleanupRequired
+        } catch {
+            guard failureCleanupAdmission != nil else { throw error }
+            throw SSOTPartialCopyCleanupRequired(operationReason: error.localizedDescription)
         }
-        try sourceTree.verifyDirectories(sourceDirectories, checkpoint: checkpoint)
     }
 
     private nonisolated static func createDestinationDirectories(
@@ -294,7 +302,8 @@ extension SkillContentSnapshot {
         toRootDescriptor rootDescriptor: Int32,
         limits: SkillContentLimits,
         totalByteCount: inout UInt64,
-        checkpoint: SkillCancellationCheckpoint
+        checkpoint: SkillCancellationCheckpoint,
+        failureCleanupAdmission: SkillCancellationCheckpoint?
     ) throws {
         guard file.byteCount <= limits.maximumFileByteCount else {
             throw SkillContentSnapshotError.fileByteLimitExceeded(
@@ -311,175 +320,15 @@ extension SkillContentSnapshot {
                 from: sourceDescriptor,
                 file: file,
                 toParent: $0,
+                destinationRoot: rootDescriptor,
                 name: $1,
                 limits: limits,
                 totalByteCount: &totalByteCount,
-                checkpoint: checkpoint
+                checkpoint: checkpoint,
+                failureCleanupAdmission: failureCleanupAdmission
             )
         }
         try verifyFinalSource(sourceDescriptor, file: file)
     }
-
-    private nonisolated static func copyBytes(
-        from sourceDescriptor: Int32,
-        file: SkillContentFileEnumerator.DiscoveredFile,
-        toParent parentDescriptor: Int32,
-        name: String,
-        limits: SkillContentLimits,
-        totalByteCount: inout UInt64,
-        checkpoint: SkillCancellationCheckpoint
-    ) throws {
-        let destinationDescriptor = Darwin.openat(
-            parentDescriptor,
-            name,
-            O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
-            S_IRUSR | S_IWUSR
-        )
-        guard destinationDescriptor >= 0 else {
-            throw SkillContentSnapshotError.fileSystemFailure(path: file.relativePath, code: errno)
-        }
-        var destinationMetadata = stat()
-        guard Darwin.fstat(destinationDescriptor, &destinationMetadata) == 0 else {
-            let code = errno
-            Darwin.close(destinationDescriptor)
-            throw SkillContentSnapshotError.fileSystemFailure(path: file.relativePath, code: code)
-        }
-        let destinationIdentity = ManagedItemIdentity(destinationMetadata)
-        var completed = false
-        defer {
-            Darwin.close(destinationDescriptor)
-            if !completed {
-                unlinkCreatedFileIfUnchanged(
-                    named: name,
-                    in: parentDescriptor,
-                    expectedIdentity: destinationIdentity
-                )
-            }
-        }
-
-        var fileByteCount = UInt64.zero
-        var buffer = [UInt8](repeating: 0, count: 64 * 1_024)
-        while true {
-            try checkpoint()
-            let count = buffer.withUnsafeMutableBytes {
-                Darwin.read(sourceDescriptor, $0.baseAddress, $0.count)
-            }
-            if count < 0, errno == EINTR { continue }
-            guard count >= 0 else {
-                throw SkillContentSnapshotError.fileSystemFailure(path: file.relativePath, code: errno)
-            }
-            if count == 0 { break }
-            try addCopiedBytes(
-                UInt64(count),
-                file: file,
-                fileByteCount: &fileByteCount,
-                totalByteCount: &totalByteCount,
-                limits: limits
-            )
-            try writeAll(buffer.prefix(count), to: destinationDescriptor, checkpoint: checkpoint)
-        }
-        guard fileByteCount == file.byteCount else {
-            throw SkillContentSnapshotError.fileChanged(path: file.relativePath)
-        }
-        guard Darwin.fchmod(destinationDescriptor, file.safePermissions) == 0 else {
-            throw SkillContentSnapshotError.fileSystemFailure(path: file.relativePath, code: errno)
-        }
-        completed = true
-    }
-
-    private nonisolated static func addCopiedBytes(
-        _ count: UInt64,
-        file: SkillContentFileEnumerator.DiscoveredFile,
-        fileByteCount: inout UInt64,
-        totalByteCount: inout UInt64,
-        limits: SkillContentLimits
-    ) throws {
-        let (newFileCount, fileOverflow) = fileByteCount.addingReportingOverflow(count)
-        guard !fileOverflow, newFileCount <= limits.maximumFileByteCount,
-              newFileCount <= file.byteCount else {
-            throw SkillContentSnapshotError.fileChanged(path: file.relativePath)
-        }
-        let (newTotal, totalOverflow) = totalByteCount.addingReportingOverflow(count)
-        guard !totalOverflow, newTotal <= limits.maximumTotalByteCount else {
-            throw SkillContentSnapshotError.totalByteLimitExceeded(
-                limit: limits.maximumTotalByteCount,
-                actual: totalOverflow ? UInt64.max : newTotal
-            )
-        }
-        fileByteCount = newFileCount
-        totalByteCount = newTotal
-    }
-
-    private nonisolated static func writeAll(
-        _ bytes: ArraySlice<UInt8>,
-        to descriptor: Int32,
-        checkpoint: SkillCancellationCheckpoint
-    ) throws {
-        try bytes.withUnsafeBytes { rawBuffer in
-            var offset = 0
-            while offset < rawBuffer.count {
-                try checkpoint()
-                let count = Darwin.write(
-                    descriptor,
-                    rawBuffer.baseAddress!.advanced(by: offset),
-                    rawBuffer.count - offset
-                )
-                if count < 0, errno == EINTR { continue }
-                guard count > 0 else {
-                    throw SkillContentSnapshotError.fileSystemFailure(path: "destination", code: errno)
-                }
-                offset += count
-            }
-        }
-    }
-
-    private nonisolated static func withDestinationParent<T>(
-        for relativePath: String,
-        rootDescriptor: Int32,
-        body: (Int32, String) throws -> T
-    ) throws -> T {
-        var components = relativePath.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
-        guard let fileName = components.popLast(), !fileName.isEmpty else {
-            throw SkillContentSnapshotError.fileChanged(path: relativePath)
-        }
-        let parentDescriptor = try openDestinationDirectory(
-            components,
-            rootDescriptor: rootDescriptor,
-            displayPath: relativePath
-        )
-        defer { Darwin.close(parentDescriptor) }
-
-        return try body(parentDescriptor, fileName)
-    }
-
-    private nonisolated static func openDestinationDirectory(
-        _ components: [String],
-        rootDescriptor: Int32,
-        displayPath: String
-    ) throws -> Int32 {
-        var parentDescriptor = Darwin.dup(rootDescriptor)
-        guard parentDescriptor >= 0 else {
-            throw SkillContentSnapshotError.fileSystemFailure(path: displayPath, code: errno)
-        }
-        for component in components {
-            if Darwin.mkdirat(parentDescriptor, component, S_IRWXU) != 0, errno != EEXIST {
-                Darwin.close(parentDescriptor)
-                throw SkillContentSnapshotError.fileSystemFailure(path: displayPath, code: errno)
-            }
-            let next = Darwin.openat(
-                parentDescriptor,
-                component,
-                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
-            )
-            guard next >= 0 else {
-                let code = errno
-                Darwin.close(parentDescriptor)
-                throw SkillContentSnapshotError.fileSystemFailure(path: displayPath, code: code)
-            }
-            Darwin.close(parentDescriptor)
-            parentDescriptor = next
-    }
-    return parentDescriptor
-}
 
 }
