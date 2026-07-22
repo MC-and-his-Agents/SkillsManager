@@ -240,6 +240,40 @@ struct SkillContentSnapshotTests {
         }
     }
 
+    @Test("failed copy cleanup preserves a concurrently replaced destination file")
+    func failedCopyPreservesConcurrentReplacement() throws {
+        try withTemporaryDirectory { root in
+            let source = root.appendingPathComponent("source")
+            let destination = root.appendingPathComponent("destination")
+            let installedFile = destination.appendingPathComponent("SKILL.md")
+            let displacedFile = destination.appendingPathComponent("displaced")
+            try write(
+                Data(repeating: 0x41, count: 128 * 1_024),
+                to: source.appendingPathComponent("SKILL.md")
+            )
+            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            let snapshot = try SkillContentSnapshot.capture(at: source)
+            var replaced = false
+
+            #expect(throws: CancellationError.self) {
+                try snapshot.copyFiles(to: destination, checkpoint: {
+                    guard !replaced,
+                          FileManager.default.fileExists(atPath: installedFile.path) else {
+                        return
+                    }
+                    try FileManager.default.moveItem(at: installedFile, to: displacedFile)
+                    try Data("concurrent".utf8).write(to: installedFile)
+                    replaced = true
+                    throw CancellationError()
+                })
+            }
+
+            #expect(replaced)
+            #expect(try String(contentsOf: installedFile, encoding: .utf8) == "concurrent")
+            #expect(FileManager.default.fileExists(atPath: displacedFile.path))
+        }
+    }
+
     private func withTemporaryDirectory(
         _ body: (URL) throws -> Void
     ) throws {

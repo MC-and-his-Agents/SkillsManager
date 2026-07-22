@@ -317,10 +317,23 @@ nonisolated struct SafeSkillArchive {
             S_IRUSR | S_IWUSR
         )
         guard descriptor >= 0 else { throw archivePOSIXError() }
+        var destinationMetadata = stat()
+        guard Darwin.fstat(descriptor, &destinationMetadata) == 0 else {
+            let code = errno
+            Darwin.close(descriptor)
+            throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
+        }
+        let destinationIdentity = ManagedItemIdentity(destinationMetadata)
         var completed = false
         defer {
             Darwin.close(descriptor)
-            if !completed { Darwin.unlinkat(parent, name, 0) }
+            if !completed {
+                unlinkCreatedFileIfUnchanged(
+                    named: name,
+                    in: parent,
+                    expectedIdentity: destinationIdentity
+                )
+            }
         }
         var fileSize: UInt64 = 0
         let checksum = try archive.extract(item.entry) { data in

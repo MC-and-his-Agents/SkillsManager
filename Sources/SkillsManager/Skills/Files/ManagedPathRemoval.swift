@@ -1,6 +1,37 @@
 import Darwin
 import Foundation
 
+private nonisolated final class ManagedRemovalDirectoryFrame {
+    let directory: UnsafeMutablePointer<DIR>
+    let originalName: String?
+    let quarantinedName: String?
+    let identity: ManagedItemIdentity?
+    var removedAny = false
+
+    var descriptor: Int32 { Darwin.dirfd(directory) }
+
+    init(
+        descriptor: Int32,
+        originalName: String? = nil,
+        quarantinedName: String? = nil,
+        identity: ManagedItemIdentity? = nil
+    ) throws {
+        guard let directory = Darwin.fdopendir(descriptor) else {
+            let code = errno
+            Darwin.close(descriptor)
+            throw ManagedPathError.posix(operation: "enumerate directory", code: code)
+        }
+        self.directory = directory
+        self.originalName = originalName
+        self.quarantinedName = quarantinedName
+        self.identity = identity
+    }
+
+    deinit {
+        Darwin.closedir(directory)
+    }
+}
+
 nonisolated extension ManagedPathGuard {
     func removeItem(at targetURL: URL) throws {
         guard let expected = try itemIdentity(at: targetURL) else {
@@ -100,14 +131,14 @@ nonisolated extension ManagedPathGuard {
             guard childDescriptor >= 0 else {
                 throw ManagedPathError.posix(operation: "open directory for removal", code: errno)
             }
-            defer { Darwin.close(childDescriptor) }
 
             var openedStatus = stat()
             guard Darwin.fstat(childDescriptor, &openedStatus) == 0,
                   FileIdentity(openedStatus) == expectedIdentity else {
+                Darwin.close(childDescriptor)
                 throw ManagedPathError.itemChanged
             }
-            let removedContents = try removeDirectoryContents(descriptor: childDescriptor)
+            let removedContents = try removeDirectoryTree(descriptor: childDescriptor)
             do {
                 guard try identity(of: name, in: parentDescriptor) == expectedIdentity else {
                     throw ManagedPathError.itemChanged
@@ -200,38 +231,124 @@ nonisolated extension ManagedPathGuard {
         return itemStatus
     }
 
-    private func removeDirectoryContents(descriptor: Int32) throws -> Bool {
-        let streamDescriptor = Darwin.dup(descriptor)
-        guard streamDescriptor >= 0 else {
-            throw ManagedPathError.posix(operation: "duplicate directory descriptor", code: errno)
-        }
-        guard let directory = Darwin.fdopendir(streamDescriptor) else {
-            let code = errno
-            Darwin.close(streamDescriptor)
-            throw ManagedPathError.posix(operation: "enumerate directory", code: code)
-        }
-        defer { Darwin.closedir(directory) }
-
-        var removedAny = false
-        errno = 0
-        while let entry = Darwin.readdir(directory) {
-            let name = Self.name(of: entry)
-            if name == "." || name == ".." { continue }
-            do {
-                try removeNamedItem(name, from: descriptor)
-                removedAny = true
-            } catch {
-                throw Self.removalFailure(error, additionallyPartiallyDeleted: removedAny)
+    private func removeDirectoryTree(descriptor: Int32) throws -> Bool {
+        var stack = [try ManagedRemovalDirectoryFrame(descriptor: descriptor)]
+        do {
+            while let frame = stack.last {
+                errno = 0
+                if let entry = Darwin.readdir(frame.directory) {
+                    let name = Self.name(of: entry)
+                    if name == "." || name == ".." { continue }
+                    let itemStatus = try status(of: name, in: frame.descriptor)
+                    if Self.fileType(of: itemStatus) == S_IFDIR {
+                        stack.append(try quarantineDirectory(
+                            name,
+                            status: itemStatus,
+                            in: frame.descriptor
+                        ))
+                    } else {
+                        try removeNamedItem(name, from: frame.descriptor)
+                        frame.removedAny = true
+                    }
+                    continue
+                }
+                guard errno == 0 else {
+                    throw ManagedPathError.posix(operation: "enumerate directory", code: errno)
+                }
+                guard stack.count > 1 else { return frame.removedAny }
+                try finishDirectory(frame, in: stack[stack.count - 2].descriptor)
+                stack.removeLast()
+                stack[stack.count - 1].removedAny = true
             }
-            errno = 0
+            return false
+        } catch {
+            let partiallyDeleted = stack.contains(where: \.removedAny)
+            restoreNestedQuarantines(in: stack)
+            throw Self.removalFailure(error, additionallyPartiallyDeleted: partiallyDeleted)
         }
-        if errno != 0 {
-            throw Self.removalFailure(
-                ManagedPathError.posix(operation: "enumerate directory", code: errno),
-                additionallyPartiallyDeleted: removedAny
+    }
+
+    private func quarantineDirectory(
+        _ name: String,
+        status initialStatus: stat,
+        in parentDescriptor: Int32
+    ) throws -> ManagedRemovalDirectoryFrame {
+        let initialIdentity = FileIdentity(initialStatus)
+        try hooks.beforeQuarantineMove(name)
+        try verifyRootIdentity()
+        let quarantine = try moveToQuarantine(name, in: parentDescriptor)
+        do {
+            let movedStatus = try status(of: quarantine, in: parentDescriptor)
+            guard FileIdentity(movedStatus) == initialIdentity,
+                  Self.fileType(of: movedStatus) == S_IFDIR else {
+                throw ManagedPathError.itemChanged
+            }
+            try hooks.afterQuarantineMove(name, quarantine)
+            let descriptor = Darwin.openat(
+                parentDescriptor,
+                quarantine,
+                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+            )
+            guard descriptor >= 0 else {
+                throw ManagedPathError.posix(operation: "open directory for removal", code: errno)
+            }
+            var openedStatus = stat()
+            guard Darwin.fstat(descriptor, &openedStatus) == 0,
+                  FileIdentity(openedStatus) == initialIdentity else {
+                Darwin.close(descriptor)
+                throw ManagedPathError.itemChanged
+            }
+            return try ManagedRemovalDirectoryFrame(
+                descriptor: descriptor,
+                originalName: name,
+                quarantinedName: quarantine,
+                identity: initialIdentity
+            )
+        } catch {
+            let recovery = restoreQuarantined(
+                quarantine,
+                to: name,
+                in: parentDescriptor,
+                expectedIdentity: initialIdentity
+            )
+            throw ManagedPathError.removalFailed(
+                partiallyDeleted: false,
+                recoveryPath: recovery.path,
+                restored: recovery.restored,
+                cause: error.localizedDescription
             )
         }
-        return removedAny
+    }
+
+    private func finishDirectory(
+        _ frame: ManagedRemovalDirectoryFrame,
+        in parentDescriptor: Int32
+    ) throws {
+        guard let name = frame.quarantinedName,
+              let expectedIdentity = frame.identity,
+              try identity(of: name, in: parentDescriptor) == expectedIdentity else {
+            throw ManagedPathError.itemChanged
+        }
+        guard Darwin.unlinkat(parentDescriptor, name, AT_REMOVEDIR) == 0 else {
+            throw ManagedPathError.posix(operation: "remove managed directory", code: errno)
+        }
+        try verifyRootIdentity()
+    }
+
+    private func restoreNestedQuarantines(in stack: [ManagedRemovalDirectoryFrame]) {
+        guard stack.count > 1 else { return }
+        for index in stride(from: stack.count - 1, through: 1, by: -1) {
+            let frame = stack[index]
+            guard let original = frame.originalName,
+                  let quarantine = frame.quarantinedName,
+                  let identity = frame.identity else { continue }
+            _ = restoreQuarantined(
+                quarantine,
+                to: original,
+                in: stack[index - 1].descriptor,
+                expectedIdentity: identity
+            )
+        }
     }
 
     private static func removalFailure(

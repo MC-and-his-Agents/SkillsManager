@@ -338,10 +338,23 @@ extension SkillContentSnapshot {
         guard destinationDescriptor >= 0 else {
             throw SkillContentSnapshotError.fileSystemFailure(path: file.relativePath, code: errno)
         }
+        var destinationMetadata = stat()
+        guard Darwin.fstat(destinationDescriptor, &destinationMetadata) == 0 else {
+            let code = errno
+            Darwin.close(destinationDescriptor)
+            throw SkillContentSnapshotError.fileSystemFailure(path: file.relativePath, code: code)
+        }
+        let destinationIdentity = ManagedItemIdentity(destinationMetadata)
         var completed = false
         defer {
             Darwin.close(destinationDescriptor)
-            if !completed { Darwin.unlinkat(parentDescriptor, name, 0) }
+            if !completed {
+                unlinkCreatedFileIfUnchanged(
+                    named: name,
+                    in: parentDescriptor,
+                    expectedIdentity: destinationIdentity
+                )
+            }
         }
 
         var fileByteCount = UInt64.zero
@@ -468,4 +481,23 @@ extension SkillContentSnapshot {
         }
         return parentDescriptor
     }
+}
+
+@discardableResult
+nonisolated func unlinkCreatedFileIfUnchanged(
+    named name: String,
+    in parentDescriptor: Int32,
+    expectedIdentity: ManagedItemIdentity
+) -> Bool {
+    var currentMetadata = stat()
+    guard Darwin.fstatat(
+        parentDescriptor,
+        name,
+        &currentMetadata,
+        AT_SYMLINK_NOFOLLOW
+    ) == 0,
+        ManagedItemIdentity(currentMetadata) == expectedIdentity else {
+        return false
+    }
+    return Darwin.unlinkat(parentDescriptor, name, 0) == 0
 }

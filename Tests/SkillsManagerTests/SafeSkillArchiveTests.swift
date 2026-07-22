@@ -286,6 +286,38 @@ struct SafeSkillArchiveTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.destinationURL.path).isEmpty)
     }
 
+    @Test("Failed ZIP entry cleanup preserves a concurrently replaced file")
+    func failedEntryCleanupPreservesConcurrentReplacement() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let original = fixture.destinationURL.appendingPathComponent("entry")
+        let displaced = fixture.destinationURL.appendingPathComponent("displaced")
+        try Data("original".utf8).write(to: original)
+        let descriptor = Darwin.open(original.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        #expect(descriptor >= 0)
+        defer { Darwin.close(descriptor) }
+        var metadata = stat()
+        #expect(Darwin.fstat(descriptor, &metadata) == 0)
+        let expectedIdentity = ManagedItemIdentity(metadata)
+        let parent = Darwin.open(
+            fixture.destinationURL.path,
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
+        #expect(parent >= 0)
+        defer { Darwin.close(parent) }
+
+        try FileManager.default.moveItem(at: original, to: displaced)
+        try Data("concurrent".utf8).write(to: original)
+
+        #expect(!unlinkCreatedFileIfUnchanged(
+            named: original.lastPathComponent,
+            in: parent,
+            expectedIdentity: expectedIdentity
+        ))
+        #expect(try String(contentsOf: original, encoding: .utf8) == "concurrent")
+        #expect(try String(contentsOf: displaced, encoding: .utf8) == "original")
+    }
+
     @Test("Keeps owner access for archive directories with no permissions")
     func preservesOwnerAccessForLockedDirectory() throws {
         let fixture = try Fixture()
