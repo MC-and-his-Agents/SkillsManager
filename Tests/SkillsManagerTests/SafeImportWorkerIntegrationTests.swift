@@ -153,42 +153,6 @@ struct SafeImportWorkerIntegrationTests {
         }
     }
 
-    @Test("zip import rejects an archive replaced after validation")
-    func zipImportRejectsLatePermissionReplacement() async throws {
-        try await withTemporaryDirectory { root in
-            let archiveURL = root.appendingPathComponent("original.zip")
-            let replacementURL = root.appendingPathComponent("replacement.zip")
-            let displacedURL = root.appendingPathComponent("displaced.zip")
-            let destination = root.appendingPathComponent("destination", isDirectory: true)
-            let entries = [
-                ("archive-slug/SKILL.md", Data("# Archived".utf8)),
-                ("archive-slug/scripts/run.sh", Data("#!/bin/sh\nexit 0\n".utf8)),
-            ]
-            try writeArchive(at: archiveURL, entries: entries, permissions: 0o644)
-            try writeArchive(at: replacementURL, entries: entries, permissions: 0o755)
-
-            let worker = SkillImportWorker()
-            let candidate = try await worker.validateZip(archiveURL)
-            try FileManager.default.moveItem(at: archiveURL, to: displacedURL)
-            try FileManager.default.moveItem(at: replacementURL, to: archiveURL)
-
-            await #expect(throws: SafeSkillArchiveError.self) {
-                _ = try await worker.importCandidate(candidate, destinations: [
-                    .init(rootURL: destination, storageKey: "destination"),
-                ])
-            }
-            if let temporaryRoot = candidate.temporaryRoot {
-                await worker.cleanupTemporaryRoot(temporaryRoot)
-            }
-
-            #expect(FileManager.default.fileExists(atPath: archiveURL.path))
-            #expect(FileManager.default.fileExists(atPath: displacedURL.path))
-            #expect(!FileManager.default.fileExists(
-                atPath: destination.appendingPathComponent("archive-slug").path
-            ))
-        }
-    }
-
     @Test("zip worker entry rejects symbolic links before installation")
     func zipWorkerRejectsSymbolicLink() async throws {
         try await withTemporaryDirectory { root in

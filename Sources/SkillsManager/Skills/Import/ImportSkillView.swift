@@ -9,8 +9,7 @@ private struct ImportCandidate {
     let displayName: String
     let markdown: String
     let temporaryRoot: TemporaryItemLease?
-    let archiveURL: URL?
-    let archiveIdentity: ManagedItemIdentity?
+    let snapshot: SkillContentSnapshot
     let fingerprint: String
 }
 
@@ -227,8 +226,7 @@ struct ImportSkillView: View {
                 displayName: formatTitle(payload.skillName),
                 markdown: payload.markdown,
                 temporaryRoot: payload.temporaryRoot,
-                archiveURL: payload.archiveURL,
-                archiveIdentity: payload.archiveIdentity,
+                snapshot: payload.snapshot,
                 fingerprint: payload.fingerprint
             )
             self.candidate = candidate
@@ -258,8 +256,7 @@ struct ImportSkillView: View {
                 displayName: formatTitle(payload.skillName),
                 markdown: payload.markdown,
                 temporaryRoot: payload.temporaryRoot,
-                archiveURL: payload.archiveURL,
-                archiveIdentity: payload.archiveIdentity,
+                snapshot: payload.snapshot,
                 fingerprint: payload.fingerprint
             )
             self.candidate = candidate
@@ -289,8 +286,7 @@ struct ImportSkillView: View {
                 skillName: candidate.installName,
                 markdown: candidate.markdown,
                 temporaryRoot: candidate.temporaryRoot,
-                archiveURL: candidate.archiveURL,
-                archiveIdentity: candidate.archiveIdentity,
+                snapshot: candidate.snapshot,
                 fingerprint: candidate.fingerprint
             )
             let report = try await importWorker.importCandidate(payload, destinations: destinations)

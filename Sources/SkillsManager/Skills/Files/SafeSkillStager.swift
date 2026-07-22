@@ -47,7 +47,7 @@ nonisolated struct SafeSkillStager {
         )
     }
 
-    private func install(
+    func install(
         sourceSnapshot: SkillContentSnapshot,
         expectedFingerprint: String,
         destinationRoot: URL,
@@ -55,7 +55,7 @@ nonisolated struct SafeSkillStager {
         conflictPolicy: SkillInstallConflictPolicy,
         managedRoot: ManagedRootReference?,
         checkpoint: SkillCancellationCheckpoint,
-        metadataWriter: MetadataWriter
+        metadataWriter: MetadataWriter = { _ in }
     ) throws -> SafeSkillInstallResult {
         guard sourceSnapshot.fingerprint == expectedFingerprint else {
             throw SafeSkillStagingError.sourceChanged(

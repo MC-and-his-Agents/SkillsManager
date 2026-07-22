@@ -137,8 +137,6 @@ extension SkillFileWorker {
         }
         return try installRemoteSnapshot(
             snapshot,
-            archiveURL: zipURL,
-            expectedArchiveIdentity: expectedArchiveIdentity,
             slug: slug,
             version: version,
             destinations: destinations,
@@ -148,8 +146,6 @@ extension SkillFileWorker {
 
     private func installRemoteSnapshot(
         _ snapshot: SkillContentSnapshot,
-        archiveURL: URL,
-        expectedArchiveIdentity: ManagedItemIdentity?,
         slug: String,
         version: String?,
         destinations: [InstallDestination],
@@ -162,9 +158,8 @@ extension SkillFileWorker {
         for (index, destination) in destinations.enumerated() {
             do {
                 try beforeDestinationInstall(index, destination)
-                let result = try stager.installArchive(
-                    archiveAt: archiveURL,
-                    expectedArchiveIdentity: expectedArchiveIdentity,
+                let result = try stager.install(
+                    sourceSnapshot: snapshot,
                     expectedFingerprint: snapshot.fingerprint,
                     destinationRoot: destination.rootURL,
                     preferredName: slug,

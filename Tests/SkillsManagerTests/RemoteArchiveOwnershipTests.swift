@@ -42,12 +42,11 @@ struct RemoteArchiveOwnershipTests {
         }
     }
 
-    @Test("owned multi-target install rejects replacement before the second target")
-    func ownedMultiTargetInstallRejectsLatePermissionReplacement() async throws {
+    @Test("owned multi-target install keeps one snapshot after an in-place archive rewrite")
+    func ownedMultiTargetInstallUsesInitialSnapshot() async throws {
         try await withTemporaryDirectory { root in
             let archiveURL = root.appendingPathComponent("owned.zip")
             let replacementURL = root.appendingPathComponent("replacement.zip")
-            let displacedURL = root.appendingPathComponent("displaced.zip")
             let firstDestination = root.appendingPathComponent("first", isDirectory: true)
             let secondDestination = root.appendingPathComponent("second", isDirectory: true)
             try writeArchive(
@@ -62,37 +61,34 @@ struct RemoteArchiveOwnershipTests {
             )
             let archive = try DownloadedSkillArchive.takeOwnership(of: archiveURL)
 
-            var partialError: PartialSkillInstallError?
-            do {
-                _ = try await SkillFileWorker().installRemoteSkill(
-                    archive: archive,
-                    slug: "remote-skill",
-                    version: "1.0.0",
-                    destinations: [
-                        .init(rootURL: firstDestination, storageKey: "first"),
-                        .init(rootURL: secondDestination, storageKey: "second"),
-                    ],
-                    beforeDestinationInstall: { index, _ in
-                        guard index == 1 else { return }
-                        try FileManager.default.moveItem(at: archiveURL, to: displacedURL)
-                        try FileManager.default.moveItem(at: replacementURL, to: archiveURL)
-                    }
-                )
-                Issue.record("Expected the second destination to reject the replacement archive")
-            } catch let error as PartialSkillInstallError {
-                partialError = error
-            }
+            let result = try await SkillFileWorker().installRemoteSkill(
+                archive: archive,
+                slug: "remote-skill",
+                version: "1.0.0",
+                destinations: [
+                    .init(rootURL: firstDestination, storageKey: "first"),
+                    .init(rootURL: secondDestination, storageKey: "second"),
+                ],
+                beforeDestinationInstall: { index, _ in
+                    guard index == 1 else { return }
+                    try overwriteFileInPlace(
+                        at: archiveURL,
+                        withContentsOf: replacementURL
+                    )
+                }
+            )
 
-            #expect(partialError?.installedStorageKeys == ["first"])
-            #expect(partialError?.failedStorageKey == "second")
-            #expect(FileManager.default.fileExists(atPath: archiveURL.path))
-            #expect(FileManager.default.fileExists(atPath: displacedURL.path))
-            #expect(FileManager.default.fileExists(
-                atPath: firstDestination.appendingPathComponent("remote-skill/SKILL.md").path
-            ))
-            #expect(!FileManager.default.fileExists(
-                atPath: secondDestination.appendingPathComponent("remote-skill").path
-            ))
+            #expect(result.report.installedStorageKeys == ["first", "second"])
+            #expect(!FileManager.default.fileExists(atPath: archiveURL.path))
+            for destination in [firstDestination, secondDestination] {
+                let script = destination.appendingPathComponent(
+                    "remote-skill/scripts/run.sh",
+                    isDirectory: false
+                )
+                let attributes = try FileManager.default.attributesOfItem(atPath: script.path)
+                let permissions = try #require(attributes[.posixPermissions] as? NSNumber)
+                #expect(permissions.uint16Value & 0o111 == 0)
+            }
         }
     }
 
@@ -212,6 +208,15 @@ struct RemoteArchiveOwnershipTests {
             let start = Int(position)
             return script.subdata(in: start..<min(start + size, script.count))
         }
+    }
+
+    private func overwriteFileInPlace(at destination: URL, withContentsOf source: URL) throws {
+        let replacement = try Data(contentsOf: source)
+        let handle = try FileHandle(forWritingTo: destination)
+        defer { try? handle.close() }
+        try handle.truncate(atOffset: 0)
+        try handle.write(contentsOf: replacement)
+        try handle.synchronize()
     }
 
     private func withTemporaryDirectory<T>(

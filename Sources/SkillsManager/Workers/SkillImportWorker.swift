@@ -47,8 +47,7 @@ actor SkillImportWorker {
         let skillName: String
         let markdown: String
         let temporaryRoot: TemporaryItemLease?
-        let archiveURL: URL?
-        let archiveIdentity: ManagedItemIdentity?
+        let snapshot: SkillContentSnapshot
         let fingerprint: String
     }
 
@@ -58,8 +57,6 @@ actor SkillImportWorker {
         return try makePayload(
             rootURL: skillRoot,
             temporaryRoot: nil,
-            archiveURL: nil,
-            archiveIdentity: nil,
             checkpoint: { try Task.checkCancellation() }
         )
     }
@@ -92,8 +89,6 @@ actor SkillImportWorker {
             return try makePayload(
                 package: package,
                 temporaryRoot: temporary.lease,
-                archiveURL: archiveLease.url,
-                archiveIdentity: archiveLease.identity,
                 checkpoint: { try Task.checkCancellation() }
             )
         } catch {
@@ -111,34 +106,15 @@ actor SkillImportWorker {
         var cleanupDebts: [SafeSkillCleanupDebt] = []
         for destination in destinations {
             do {
-                let result: SafeSkillInstallResult
-                if let archiveURL = candidate.archiveURL {
-                    guard let archiveIdentity = candidate.archiveIdentity else {
-                        throw SkillImportValidationError.archiveRejected(
-                            "The validated archive identity is unavailable."
-                        )
-                    }
-                    result = try stager.installArchive(
-                        archiveAt: archiveURL,
-                        expectedArchiveIdentity: archiveIdentity,
-                        expectedFingerprint: candidate.fingerprint,
-                        destinationRoot: destination.rootURL,
-                        preferredName: candidate.skillName,
-                        conflictPolicy: .chooseUniqueName,
-                        managedRoot: destination.managedRoot,
-                        checkpoint: { try Task.checkCancellation() }
-                    )
-                } else {
-                    result = try stager.install(
-                        sourceRoot: candidate.rootURL,
-                        expectedFingerprint: candidate.fingerprint,
-                        destinationRoot: destination.rootURL,
-                        preferredName: candidate.skillName,
-                        conflictPolicy: .chooseUniqueName,
-                        managedRoot: destination.managedRoot,
-                        checkpoint: { try Task.checkCancellation() }
-                    )
-                }
+                let result = try stager.install(
+                    sourceSnapshot: candidate.snapshot,
+                    expectedFingerprint: candidate.fingerprint,
+                    destinationRoot: destination.rootURL,
+                    preferredName: candidate.skillName,
+                    conflictPolicy: .chooseUniqueName,
+                    managedRoot: destination.managedRoot,
+                    checkpoint: { try Task.checkCancellation() }
+                )
                 installedStorageKeys.append(destination.storageKey)
                 cleanupDebts.append(contentsOf: result.cleanupDebts)
             } catch {
@@ -164,8 +140,6 @@ actor SkillImportWorker {
     private func makePayload(
         rootURL: URL,
         temporaryRoot: TemporaryItemLease?,
-        archiveURL: URL?,
-        archiveIdentity: ManagedItemIdentity?,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> ImportCandidatePayload {
         do {
@@ -175,8 +149,6 @@ actor SkillImportWorker {
                 skillName: rootURL.lastPathComponent,
                 snapshot: snapshot,
                 temporaryRoot: temporaryRoot,
-                archiveURL: archiveURL,
-                archiveIdentity: archiveIdentity,
                 checkpoint: checkpoint
             )
         } catch let error as SkillContentSnapshotError {
@@ -187,8 +159,6 @@ actor SkillImportWorker {
     private func makePayload(
         package: AnchoredSkillPackage,
         temporaryRoot: TemporaryItemLease,
-        archiveURL: URL,
-        archiveIdentity: ManagedItemIdentity,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> ImportCandidatePayload {
         do {
@@ -202,8 +172,6 @@ actor SkillImportWorker {
                 skillName: package.skillName,
                 snapshot: snapshot,
                 temporaryRoot: temporaryRoot,
-                archiveURL: archiveURL,
-                archiveIdentity: archiveIdentity,
                 checkpoint: checkpoint
             )
         } catch let error as SkillContentSnapshotError {
@@ -216,8 +184,6 @@ actor SkillImportWorker {
         skillName: String,
         snapshot: SkillContentSnapshot,
         temporaryRoot: TemporaryItemLease?,
-        archiveURL: URL?,
-        archiveIdentity: ManagedItemIdentity?,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> ImportCandidatePayload {
         let skillFileURL = rootURL.appendingPathComponent("SKILL.md", isDirectory: false)
@@ -230,8 +196,7 @@ actor SkillImportWorker {
                 checkpoint: checkpoint
             ),
             temporaryRoot: temporaryRoot,
-            archiveURL: archiveURL,
-            archiveIdentity: archiveIdentity,
+            snapshot: snapshot,
             fingerprint: snapshot.fingerprint
         )
     }
