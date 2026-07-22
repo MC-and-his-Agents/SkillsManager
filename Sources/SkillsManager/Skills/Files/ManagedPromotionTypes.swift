@@ -28,4 +28,5 @@ nonisolated struct ManagedPathGuardTestHooks {
     var afterCleanup: () throws -> Void = {}
     var beforeQuarantineMove: (String) throws -> Void = { _ in }
     var afterQuarantineMove: (String, String) throws -> Void = { _, _ in }
+    var afterChildDirectoryRemoval: () throws -> Void = {}
 }

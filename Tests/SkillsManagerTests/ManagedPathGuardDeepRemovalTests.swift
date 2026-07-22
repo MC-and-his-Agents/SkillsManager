@@ -79,4 +79,35 @@ extension ManagedPathGuardTests {
             #expect(!names.contains(where: { $0.contains(".skillsmanager-delete-") }))
         }
     }
+
+    @Test("root replacement after nested deletion reports partial removal")
+    func rootReplacementAfterNestedDeletionReportsPartialRemoval() throws {
+        try withTemporaryDirectory { temporary in
+            let root = temporary.appendingPathComponent("managed", isDirectory: true)
+            let displaced = temporary.appendingPathComponent("displaced", isDirectory: true)
+            let skill = root.appendingPathComponent("skill/child", isDirectory: true)
+            try fileManager.createDirectory(at: skill, withIntermediateDirectories: true)
+            var replaced = false
+            let hooks = ManagedPathGuardTestHooks(afterChildDirectoryRemoval: {
+                guard !replaced else { return }
+                replaced = true
+                try fileManager.moveItem(at: root, to: displaced)
+                try fileManager.createDirectory(at: root, withIntermediateDirectories: false)
+            })
+
+            do {
+                try ManagedPathGuard(rootURL: root, hooks: hooks)
+                    .removeItem(at: root.appendingPathComponent("skill"))
+                Issue.record("Expected root replacement to stop removal")
+            } catch let ManagedPathError.removalFailed(partiallyDeleted, _, _, _) {
+                #expect(partiallyDeleted)
+            } catch {
+                Issue.record("Unexpected removal error: \(error)")
+            }
+
+            #expect(replaced)
+            #expect(fileManager.fileExists(atPath: root.path))
+            #expect(fileManager.fileExists(atPath: displaced.path))
+        }
+    }
 }

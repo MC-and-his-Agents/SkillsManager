@@ -6,7 +6,8 @@ nonisolated func unlinkCreatedFileIfUnchanged(
     named name: String,
     in parentDescriptor: Int32,
     expectedIdentity: ManagedItemIdentity,
-    beforeUnlink: () -> Void = {}
+    beforeUnlink: () -> Void = {},
+    beforeRestore: (String) -> Void = { _ in }
 ) -> Bool {
     let quarantine: String
     while true {
@@ -24,14 +25,28 @@ nonisolated func unlinkCreatedFileIfUnchanged(
         if errno != EEXIST { return false }
     }
 
-    var currentMetadata = stat()
+    var movedMetadata = stat()
     guard Darwin.fstatat(
         parentDescriptor,
         quarantine,
-        &currentMetadata,
+        &movedMetadata,
         AT_SYMLINK_NOFOLLOW
-    ) == 0,
-        ManagedItemIdentity(currentMetadata) == expectedIdentity else {
+    ) == 0 else {
+        return false
+    }
+    let movedIdentity = ManagedItemIdentity(movedMetadata)
+    guard movedIdentity == expectedIdentity else {
+        beforeRestore(quarantine)
+        var recoveryMetadata = stat()
+        guard Darwin.fstatat(
+            parentDescriptor,
+            quarantine,
+            &recoveryMetadata,
+            AT_SYMLINK_NOFOLLOW
+        ) == 0,
+            ManagedItemIdentity(recoveryMetadata) == movedIdentity else {
+            return false
+        }
         _ = Darwin.renameatx_np(
             parentDescriptor,
             quarantine,

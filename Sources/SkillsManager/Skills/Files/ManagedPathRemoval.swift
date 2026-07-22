@@ -336,7 +336,12 @@ nonisolated extension ManagedPathGuard {
         guard Darwin.unlinkat(parentDescriptor, name, AT_REMOVEDIR) == 0 else {
             throw ManagedPathError.posix(operation: "remove managed directory", code: errno)
         }
-        try verifyRootIdentity()
+        do {
+            try hooks.afterChildDirectoryRemoval()
+            try verifyRootIdentity()
+        } catch {
+            throw Self.removalFailure(error, additionallyPartiallyDeleted: true)
+        }
     }
 
     private func restoreNestedQuarantines(in stack: [ManagedRemovalDirectoryFrame]) {
