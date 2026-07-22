@@ -232,7 +232,11 @@ nonisolated extension ManagedPathGuard {
     }
 
     private func removeDirectoryTree(descriptor: Int32) throws -> Bool {
-        var stack = [try ManagedRemovalDirectoryFrame(descriptor: descriptor)]
+        let streamDescriptor = Darwin.dup(descriptor)
+        guard streamDescriptor >= 0 else {
+            throw ManagedPathError.posix(operation: "duplicate directory descriptor", code: errno)
+        }
+        var stack = [try ManagedRemovalDirectoryFrame(descriptor: streamDescriptor)]
         do {
             while let frame = stack.last {
                 errno = 0
