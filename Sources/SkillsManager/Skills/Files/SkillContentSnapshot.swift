@@ -35,6 +35,8 @@ nonisolated struct SkillContentLimits: Equatable, Sendable {
 typealias SkillCancellationCheckpoint = () throws -> Void
 
 nonisolated struct SkillContentSnapshot: Equatable, Sendable {
+    static let fingerprintAlgorithmVersion = 1
+
     struct File: Equatable, Sendable {
         let relativePath: String
         let byteCount: UInt64
@@ -45,7 +47,10 @@ nonisolated struct SkillContentSnapshot: Equatable, Sendable {
         let totalByteCount: UInt64
     }
 
-    let fingerprint: String
+    let fingerprintDigest: Data
+    var fingerprint: String {
+        fingerprintDigest.map { String(format: "%02x", $0) }.joined()
+    }
     let files: [File]
     let statistics: Statistics
     let sourceTree: SafeSourceTree
@@ -94,7 +99,7 @@ nonisolated struct SkillContentSnapshot: Equatable, Sendable {
         let discoveredFiles = discovery.files
         var hasher = SHA256()
         hasher.update(data: Data("SkillsManager.SkillContentSnapshot".utf8))
-        hasher.update(bigEndian: UInt32(1))
+        hasher.update(bigEndian: UInt32(fingerprintAlgorithmVersion))
 
         for file in discoveredFiles {
             try checkpoint()
@@ -118,8 +123,9 @@ nonisolated struct SkillContentSnapshot: Equatable, Sendable {
             File(relativePath: $0.relativePath, byteCount: $0.byteCount)
         }
         let totalByteCount = files.reduce(UInt64.zero) { $0 + $1.byteCount }
+        let fingerprintDigest = Data(hasher.finalize())
         return SkillContentSnapshot(
-            fingerprint: hasher.finalize().map { String(format: "%02x", $0) }.joined(),
+            fingerprintDigest: fingerprintDigest,
             files: files,
             statistics: Statistics(fileCount: files.count, totalByteCount: totalByteCount),
             sourceTree: discovery.sourceTree,

@@ -17,6 +17,11 @@ struct SkillContentSnapshotTests {
 
             let snapshot = try SkillContentSnapshot.capture(at: root)
 
+            #expect(SkillContentSnapshot.fingerprintAlgorithmVersion == 1)
+            #expect(snapshot.fingerprintDigest.count == 32)
+            #expect(snapshot.fingerprint == snapshot.fingerprintDigest.map {
+                String(format: "%02x", $0)
+            }.joined())
             #expect(snapshot.fingerprint == "5e989a06efbf35ff2d7f38a7d39531f14120448def4260b64499e0dffdc81008")
             #expect(snapshot.files == [
                 .init(relativePath: "SKILL.md", byteCount: 7),

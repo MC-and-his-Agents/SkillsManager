@@ -25,6 +25,9 @@ let package = Package(
                 .unsafeFlags(["-default-isolation", "MainActor"]),
                 .unsafeFlags(["-strict-concurrency=complete"]),
                 .unsafeFlags(["-warn-concurrency"]),
+            ],
+            linkerSettings: [
+                .linkedLibrary("sqlite3"),
             ]),
         .testTarget(
             name: "SkillsManagerTests",
