@@ -137,7 +137,7 @@ extension JournaledSSOTWriter {
             try markCleanupNeedsRepair(operation, error: SSOTOperationFileSystemError.itemChanged)
             throw JournaledSSOTWriterError.operationNeedsRepair(
                 operation.operationID,
-                mismatchCode(for: operation)
+                cleanupDriftCode(for: operation)
             )
         }
         do {
@@ -160,7 +160,7 @@ extension JournaledSSOTWriter {
             try markCleanupNeedsRepair(operation, error: error)
             throw JournaledSSOTWriterError.operationNeedsRepair(
                 operation.operationID,
-                mismatchCode(for: operation)
+                cleanupDriftCode(for: operation)
             )
         } catch {
             try requireAuthority()
@@ -249,6 +249,12 @@ extension JournaledSSOTWriter {
 
     func mismatchCode(for operation: SSOTJournalRecord) -> SSOTRecoveryErrorCode {
         operation.operationType == .create ? .createStateMismatch : .replaceStateMismatch
+    }
+
+    private func cleanupDriftCode(
+        for operation: SSOTJournalRecord
+    ) -> SSOTRecoveryErrorCode {
+        operation.state.phase == .completed ? .cleanupIdentityDrift : mismatchCode(for: operation)
     }
 
     private func isIdentityFailure(_ error: Error) -> Bool {

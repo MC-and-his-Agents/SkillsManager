@@ -103,53 +103,37 @@ private nonisolated func descriptorIdentity(_ descriptor: Int32) throws -> Manag
 /// renames the remaining tree away from its operation locator.
 nonisolated final class SSOTJournalOwnedItemRemoval {
     typealias Boundary = (SSOTOperationFileSystemCheckpoint) throws -> Void
+    typealias BeforeQuarantineMove = (_ name: String, _ parentDescriptor: Int32) throws -> Void
+    private typealias DirectoryLink = SSOTJournalDeletionManifest.DirectoryLink
+    private typealias FrozenEntry = SSOTJournalDeletionManifest.Entry
+    private typealias FrozenDirectory = SSOTJournalDeletionManifest.Directory
+    private typealias RegularFileSnapshot = SSOTJournalDeletionManifest.RegularFileSnapshot
 
     private struct TopLocator {
         let name: String
         let identity: ManagedItemIdentity
     }
 
-    private struct DirectoryLink {
-        let name: String
-        let identity: ManagedItemIdentity
-    }
-
-    private struct RegularFileSnapshot: Equatable {
-        let identity: ManagedItemIdentity
-        let size: off_t
-        let byteCount: UInt64
-        let modificationSeconds: time_t
-        let modificationNanoseconds: Int
-        let statusChangeSeconds: time_t
-        let statusChangeNanoseconds: Int
-
-        init?(_ metadata: stat) {
-            guard metadata.st_size >= 0 else { return nil }
-            identity = ManagedItemIdentity(metadata)
-            size = metadata.st_size
-            byteCount = UInt64(metadata.st_size)
-            modificationSeconds = metadata.st_mtimespec.tv_sec
-            modificationNanoseconds = metadata.st_mtimespec.tv_nsec
-            statusChangeSeconds = metadata.st_ctimespec.tv_sec
-            statusChangeNanoseconds = metadata.st_ctimespec.tv_nsec
-        }
-    }
-
     private let rootDescriptor: Int32
-    private let maximumDepth: Int
     private let boundary: Boundary
+    private let beforeQuarantineMove: BeforeQuarantineMove
 
     init(
         rootDescriptor: Int32,
-        maximumDepth: Int,
-        boundary: @escaping Boundary
+        boundary: @escaping Boundary,
+        beforeQuarantineMove: @escaping BeforeQuarantineMove = { _, _ in }
     ) {
         self.rootDescriptor = rootDescriptor
-        self.maximumDepth = maximumDepth
         self.boundary = boundary
+        self.beforeQuarantineMove = beforeQuarantineMove
     }
 
-    func remove(named name: String, expectedIdentity: ManagedItemIdentity) throws {
+    func remove(
+        named name: String,
+        expectedIdentity: ManagedItemIdentity,
+        manifest: SSOTJournalDeletionManifest
+    ) throws {
+        guard manifest.topIdentity == expectedIdentity else { throw ManagedPathError.itemChanged }
         let top = TopLocator(name: name, identity: expectedIdentity)
         let descriptor = try openDirectory(
             named: name,
@@ -157,8 +141,17 @@ nonisolated final class SSOTJournalOwnedItemRemoval {
             expectedIdentity: expectedIdentity
         )
         defer { Darwin.close(descriptor) }
-        let ancestry = [DirectoryLink(name: name, identity: expectedIdentity)]
-        try removeContents(of: descriptor, depth: 0, top: top, ancestry: ancestry)
+        try validateManifest(manifest)
+        for entry in manifest.removalOrder {
+            guard let parent = manifest.directories[entry.parentKey] else {
+                throw ManagedPathError.itemChanged
+            }
+            try removeFrozenEntry(
+                entry,
+                parent: parent,
+                top: top
+            )
+        }
         try removeEntry(
             named: name,
             in: rootDescriptor,
@@ -173,70 +166,50 @@ nonisolated final class SSOTJournalOwnedItemRemoval {
         )
     }
 
-    private func removeContents(
-        of descriptor: Int32,
-        depth: Int,
-        top: TopLocator,
-        ancestry: [DirectoryLink]
-    ) throws {
-        guard depth <= maximumDepth else { throw ManagedPathError.itemChanged }
-        let names = try SafeSourceTree.names(in: descriptor, displayPath: "journal-owned item")
-            .sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
-        for name in names {
-            let metadata = try status(named: name, in: descriptor)
-            let identity = ManagedItemIdentity(metadata)
-            switch metadata.st_mode & mode_t(S_IFMT) {
-            case mode_t(S_IFREG):
-                guard let snapshot = RegularFileSnapshot(metadata) else {
-                    throw ManagedPathError.itemChanged
-                }
-                let file = try openRegularFile(
-                    named: name,
-                    in: descriptor,
-                    expectedSnapshot: snapshot
-                )
-                do {
-                    defer { Darwin.close(file) }
-                    try removeEntry(
-                        named: name,
-                        in: descriptor,
-                        descriptor: file,
-                        expectedIdentity: identity,
-                        top: top,
-                        parentAncestry: ancestry,
-                        flags: 0,
-                        expectedFileSnapshot: snapshot
-                    )
-                }
-            case mode_t(S_IFDIR):
-                let child = try openDirectory(
-                    named: name,
-                    in: descriptor,
-                    expectedIdentity: identity
-                )
-                do {
-                    defer { Darwin.close(child) }
-                    let childAncestry = ancestry + [DirectoryLink(name: name, identity: identity)]
-                    try removeContents(
-                        of: child,
-                        depth: depth + 1,
-                        top: top,
-                        ancestry: childAncestry
-                    )
-                    try removeEntry(
-                        named: name,
-                        in: descriptor,
-                        descriptor: child,
-                        expectedIdentity: identity,
-                        top: top,
-                        parentAncestry: ancestry,
-                        flags: AT_REMOVEDIR
-                    )
-                }
-            default:
-                throw ManagedPathError.unsupportedItemType
-            }
+    private func validateManifest(_ manifest: SSOTJournalDeletionManifest) throws {
+        for directory in manifest.directories.values {
+            let descriptor = try openAncestry(directory.ancestry)
+            defer { Darwin.close(descriptor) }
+            try SSOTJournalDeletionManifest.requireChildren(
+                of: directory,
+                remaining: Set(directory.entries.keys),
+                descriptor: descriptor
+            )
         }
+    }
+
+    private func removeFrozenEntry(
+        _ entry: FrozenEntry,
+        parent: FrozenDirectory,
+        top: TopLocator
+    ) throws {
+        let parentDescriptor = try openAncestry(parent.ancestry)
+        defer { Darwin.close(parentDescriptor) }
+        let descriptor: Int32
+        let fileSnapshot: RegularFileSnapshot?
+        switch entry.item {
+        case .file(let snapshot):
+            descriptor = try openRegularFile(
+                named: entry.name, in: parentDescriptor, expectedSnapshot: snapshot
+            )
+            fileSnapshot = snapshot
+        case .directory(let identity):
+            descriptor = try openDirectory(
+                named: entry.name, in: parentDescriptor, expectedIdentity: identity
+            )
+            fileSnapshot = nil
+        }
+        defer { Darwin.close(descriptor) }
+        try removeEntry(
+            named: entry.name,
+            in: parentDescriptor,
+            descriptor: descriptor,
+            expectedIdentity: entry.item.identity,
+            top: top,
+            parentAncestry: parent.ancestry,
+            flags: fileSnapshot == nil ? AT_REMOVEDIR : 0,
+            expectedFileSnapshot: fileSnapshot
+        )
     }
 
     private func removeEntry(
@@ -271,13 +244,47 @@ nonisolated final class SSOTJournalOwnedItemRemoval {
                 try requireDescriptorIdentity(expectedIdentity, descriptor: descriptor)
                 try requireIdentity(expectedIdentity, named: name, in: parentDescriptor)
             }
-            guard Darwin.unlinkat(parentDescriptor, name, flags) == 0 else {
-                throw posix("remove journal-owned operation entry")
-            }
+            try beforeQuarantineMove(name, parentDescriptor)
+            try quarantineAndRemove(
+                named: name,
+                in: parentDescriptor,
+                descriptor: descriptor,
+                expectedIdentity: expectedIdentity,
+                operationScope: top.name,
+                flags: flags,
+                expectedFileSnapshot: expectedFileSnapshot
+            )
             try requireDescriptorIdentity(expectedIdentity, descriptor: descriptor)
             guard try identityIfPresent(named: name, in: parentDescriptor) == nil else {
                 throw ManagedPathError.itemChanged
             }
+        }
+    }
+
+    private func quarantineAndRemove(
+        named name: String,
+        in parentDescriptor: Int32,
+        descriptor: Int32,
+        expectedIdentity: ManagedItemIdentity,
+        operationScope: String,
+        flags: Int32,
+        expectedFileSnapshot: RegularFileSnapshot?
+    ) throws {
+        let quarantine = try SSOTJournalEntryQuarantine.move(
+            named: name,
+            in: parentDescriptor,
+            operationScope: operationScope
+        )
+        do {
+            try quarantine.requireExpected(
+                heldDescriptor: descriptor,
+                identity: expectedIdentity,
+                fileSnapshot: expectedFileSnapshot
+            )
+            try quarantine.remove(flags: flags)
+        } catch {
+            quarantine.restore()
+            throw error
         }
     }
 
@@ -291,7 +298,9 @@ nonisolated final class SSOTJournalOwnedItemRemoval {
             name,
             O_RDONLY | O_NOFOLLOW | O_CLOEXEC
         )
-        guard descriptor >= 0 else { throw posix("open journal-owned file") }
+        guard descriptor >= 0 else {
+            throw openFailure("open journal-owned file", code: errno)
+        }
         do {
             try requireFileSnapshot(expectedSnapshot, descriptor: descriptor)
             try requireFileSnapshot(expectedSnapshot, named: name, in: parentDescriptor)
@@ -312,7 +321,9 @@ nonisolated final class SSOTJournalOwnedItemRemoval {
             name,
             O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
         )
-        guard descriptor >= 0 else { throw posix("open journal-owned directory") }
+        guard descriptor >= 0 else {
+            throw openFailure("open journal-owned directory", code: errno)
+        }
         do {
             try requireDescriptorIdentity(expectedIdentity, descriptor: descriptor)
             try requireIdentity(expectedIdentity, named: name, in: parentDescriptor)
@@ -356,21 +367,29 @@ nonisolated final class SSOTJournalOwnedItemRemoval {
         _ ancestry: [DirectoryLink],
         heldDescriptor: Int32
     ) throws {
-        var descriptor = Darwin.dup(rootDescriptor)
-        guard descriptor >= 0 else { throw ManagedPathError.itemChanged }
+        let descriptor = try openAncestry(ancestry)
         defer { Darwin.close(descriptor) }
-        for link in ancestry {
-            let child = try openDirectory(
-                named: link.name,
-                in: descriptor,
-                expectedIdentity: link.identity
-            )
-            Darwin.close(descriptor)
-            descriptor = child
-        }
         guard try descriptorIdentity(descriptor) == descriptorIdentity(heldDescriptor) else {
             throw ManagedPathError.itemChanged
         }
+    }
+
+    private func openAncestry(_ ancestry: [DirectoryLink]) throws -> Int32 {
+        var descriptor = Darwin.dup(rootDescriptor)
+        guard descriptor >= 0 else { throw ManagedPathError.itemChanged }
+        for link in ancestry {
+            do {
+                let child = try openDirectory(
+                    named: link.name, in: descriptor, expectedIdentity: link.identity
+                )
+                Darwin.close(descriptor)
+                descriptor = child
+            } catch {
+                Darwin.close(descriptor)
+                throw error
+            }
+        }
+        return descriptor
     }
 
     private func requireTopLocator(_ top: TopLocator, exists: Bool) throws {
@@ -426,15 +445,34 @@ nonisolated final class SSOTJournalOwnedItemRemoval {
 
     private func status(named name: String, in parentDescriptor: Int32) throws -> stat {
         var metadata = stat()
-        guard Darwin.fstatat(
+        let result = Darwin.fstatat(
             parentDescriptor,
             name,
             &metadata,
             AT_SYMLINK_NOFOLLOW
-        ) == 0 else {
-            throw posix("inspect journal-owned operation entry")
+        )
+        guard result == 0 else {
+            throw openFailure("inspect journal-owned operation entry", code: errno)
         }
         return metadata
+    }
+
+    private func openFailure(_ operation: String, code: Int32) -> ManagedPathError {
+        switch code {
+        case ENOENT, ENOTDIR, ELOOP:
+            .itemChanged
+        default:
+            .posix(operation: operation, code: code)
+        }
+    }
+
+    private func removalFailure(_ operation: String, code: Int32) -> ManagedPathError {
+        switch code {
+        case ENOENT, ENOTDIR, EISDIR, ELOOP, ENOTEMPTY, EEXIST:
+            .itemChanged
+        default:
+            .posix(operation: operation, code: code)
+        }
     }
 
     private func posix(_ operation: String) -> ManagedPathError {

@@ -272,13 +272,24 @@ nonisolated final class SSOTOperationFileSystem {
             throw SSOTOperationFileSystemError.itemChanged
         }
         try hooks.reach(.beforeCleanupRemoval)
-        try requireExpectedOperationItem(
-            reference,
+        let snapshot = try requireExpectedSnapshot(
+            at: url,
             identity: identity,
             fingerprint: fingerprint
         )
+        let name = try guardValue.managedName(for: url).value
+        let manifest = try SSOTJournalDeletionManifest.freeze(
+            snapshot: snapshot,
+            topName: name,
+            topIdentity: identity,
+            maximumDepth: limits.maximumPathDepth
+        )
         try requireOwnership()
-        try removeOperationItem(reference, identity: identity)
+        try removeOperationItem(
+            reference,
+            identity: identity,
+            manifest: manifest
+        )
         try hooks.reach(.afterCleanupRemovalBeforeParentSync)
         try SSOTDurability.syncDirectory(guardValue.rootDescriptor)
         try hooks.reach(.afterCleanupParentSyncBeforeValidation)
@@ -290,15 +301,19 @@ nonisolated final class SSOTOperationFileSystem {
 
     private func removeOperationItem(
         _ reference: SSOTOperationItemReference,
-        identity: ManagedItemIdentity
+        identity: ManagedItemIdentity,
+        manifest: SSOTJournalDeletionManifest
     ) throws {
         let name = try guardValue.managedName(for: operationItemURL(for: reference)).value
         let removal = SSOTJournalOwnedItemRemoval(
             rootDescriptor: guardValue.rootDescriptor,
-            maximumDepth: limits.maximumPathDepth,
             boundary: removalBoundary
         )
-        try removal.remove(named: name, expectedIdentity: identity)
+        try removal.remove(
+            named: name,
+            expectedIdentity: identity,
+            manifest: manifest
+        )
     }
 
     private func observe(
@@ -361,14 +376,39 @@ nonisolated final class SSOTOperationFileSystem {
         expectedIdentity: ManagedItemIdentity,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> SkillContentFingerprint {
+        let snapshot = try snapshot(
+            at: url,
+            expectedIdentity: expectedIdentity,
+            checkpoint: checkpoint
+        )
+        return try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest)
+    }
+
+    private func requireExpectedSnapshot(
+        at url: URL,
+        identity: ManagedItemIdentity,
+        fingerprint: SkillContentFingerprint
+    ) throws -> SkillContentSnapshot {
+        let snapshot = try snapshot(at: url, expectedIdentity: identity, checkpoint: {})
+        let actual = try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest)
+        guard actual == fingerprint else {
+            throw SSOTOperationFileSystemError.itemChanged
+        }
+        return snapshot
+    }
+
+    private func snapshot(
+        at url: URL,
+        expectedIdentity: ManagedItemIdentity,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws -> SkillContentSnapshot {
         try guardValue.withItemDescriptor(at: url, expectedIdentity: expectedIdentity) { descriptor in
-            let snapshot = try SkillContentSnapshot.capture(
+            try SkillContentSnapshot.capture(
                 directoryDescriptor: descriptor,
                 displayPath: url.path,
                 limits: limits,
                 checkpoint: checkpoint
             )
-            return try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest)
         }
     }
 
