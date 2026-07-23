@@ -339,7 +339,8 @@ struct JournaledSSOTWriterTests {
                 sourceSnapshot: snapshot
             )
         } catch is SSOTWriterCheckpointInterruption {}
-        let lock = workspace.root.appendingPathComponent(SSOTWriterOwnership.lockFileName)
+        let lock = workspace.managementRoot
+            .appendingPathComponent(SSOTWriterOwnership.lockFileName)
         try FileManager.default.removeItem(at: lock)
         try Data("replacement\n".utf8).write(to: lock)
         #expect(Darwin.chmod(lock.path, 0o600) == 0)

@@ -53,17 +53,20 @@ nonisolated final class SSOTWriterOwnership: @unchecked Sendable {
 
     let owner: SSOTWriterOwner
     let lockIdentity: ManagedItemIdentity
+    private let authorityGuard: ManagedPathGuard
     private let rootIdentity: ManagedItemIdentity
     private let descriptor: Int32
 
     private init(
         owner: SSOTWriterOwner,
         lockIdentity: ManagedItemIdentity,
+        authorityGuard: ManagedPathGuard,
         rootIdentity: ManagedItemIdentity,
         descriptor: Int32
     ) {
         self.owner = owner
         self.lockIdentity = lockIdentity
+        self.authorityGuard = authorityGuard
         self.rootIdentity = rootIdentity
         self.descriptor = descriptor
     }
@@ -136,6 +139,7 @@ nonisolated final class SSOTWriterOwnership: @unchecked Sendable {
                 return SSOTWriterOwnership(
                     owner: owner,
                     lockIdentity: identity,
+                    authorityGuard: guardValue,
                     rootIdentity: rootIdentity,
                     descriptor: descriptor
                 )
@@ -149,15 +153,15 @@ nonisolated final class SSOTWriterOwnership: @unchecked Sendable {
         }
     }
 
-    func validateForMutation(using guardValue: ManagedPathGuard) throws {
-        try guardValue.verifyRootIdentity(expected: rootIdentity)
+    func validateForMutation() throws {
+        try authorityGuard.verifyRootIdentity(expected: rootIdentity)
         try VerifiedSSOTRoot.validateDescriptor(
-            guardValue.rootDescriptor,
+            authorityGuard.rootDescriptor,
             expectedIdentity: rootIdentity
         )
         guard try Self.validateLockFile(
             descriptor: descriptor,
-            rootDescriptor: guardValue.rootDescriptor
+            rootDescriptor: authorityGuard.rootDescriptor
         ) == lockIdentity else {
             throw SSOTWriterOwnershipError.invalidLockFile
         }

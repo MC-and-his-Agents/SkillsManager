@@ -17,7 +17,7 @@ nonisolated final class SSOTOperationFileSystem {
         hooks: SSOTOperationFileSystemTestHooks = .init()
     ) throws {
         let guardValue = try ManagedPathGuard(verifiedRoot: verifiedRoot)
-        try ownership.validateForMutation(using: guardValue)
+        try ownership.validateForMutation()
         self.verifiedRoot = verifiedRoot
         self.ownership = ownership
         self.guardValue = guardValue
@@ -51,7 +51,7 @@ nonisolated final class SSOTOperationFileSystem {
         }
         let reference = SSOTOperationItemReference.staging(operationID: operationID)
         let url = operationItemURL(for: reference)
-        try requireOwnership()
+        try validateAuthority()
         guard try !guardValue.itemExists(at: url) else {
             throw SSOTOperationFileSystemError.stagingAlreadyExists
         }
@@ -60,12 +60,12 @@ nonisolated final class SSOTOperationFileSystem {
         guard try !guardValue.itemExists(at: url) else {
             throw SSOTOperationFileSystemError.stagingAlreadyExists
         }
-        try requireOwnership()
+        try validateAuthority()
         let handle = try guardValue.createDirectory(
             at: url,
-            afterTemporaryCreate: { [self] _ in try requireOwnership() },
-            afterCreate: { [self] in try requireOwnership() },
-            admitFailureCleanup: { [self] in try requireOwnership() }
+            afterTemporaryCreate: { [self] _ in try validateAuthority() },
+            afterCreate: { [self] in try validateAuthority() },
+            admitFailureCleanup: { [self] in try validateAuthority() }
         )
         do {
             try hooks.reach(.afterStagingDirectoryCreateBeforeCopy)
@@ -98,7 +98,7 @@ nonisolated final class SSOTOperationFileSystem {
             try hooks.reach(.afterStagingDurabilityBeforeParentSync)
             try SSOTDurability.syncDirectory(guardValue.rootDescriptor)
             try hooks.reach(.afterStagingParentSyncBeforeValidation)
-            try requireOwnership()
+            try validateAuthority()
             try requireExpectedOperationItem(
                 reference,
                 identity: handle.identity,
@@ -143,7 +143,7 @@ nonisolated final class SSOTOperationFileSystem {
         guard try guardValue.itemIdentity(at: finalURL) == nil else {
             throw SSOTOperationFileSystemError.destinationAlreadyExists
         }
-        try requireOwnership()
+        try validateAuthority()
         guard Darwin.renameatx_np(
             guardValue.rootDescriptor,
             stagedName,
@@ -159,7 +159,7 @@ nonisolated final class SSOTOperationFileSystem {
         try hooks.reach(.afterCreateRenameBeforeParentSync)
         try SSOTDurability.syncDirectory(guardValue.rootDescriptor)
         try hooks.reach(.afterCreateParentSyncBeforeValidation)
-        try requireOwnership()
+        try validateAuthority()
         try requireExpectedFinal(
             skillID: skillID,
             identity: staged.identity,
@@ -206,14 +206,14 @@ nonisolated final class SSOTOperationFileSystem {
             identity: expectedOldIdentity,
             fingerprint: expectedOldFingerprint
         )
-        try requireOwnership()
+        try validateAuthority()
         guard guardValue.swap(names) == 0 else {
             throw SSOTOperationFileSystemError.posix(operation: "swap SSOT Skill", code: errno)
         }
         try hooks.reach(.afterReplacementSwapBeforeParentSync)
         try SSOTDurability.syncDirectory(guardValue.rootDescriptor)
         try hooks.reach(.afterReplacementParentSyncBeforeValidation)
-        try requireOwnership()
+        try validateAuthority()
         let recovery = SSOTOperationItemReference.recovery(
             operationID: staged.reference.operationID
         )
@@ -284,7 +284,7 @@ nonisolated final class SSOTOperationFileSystem {
             topIdentity: identity,
             maximumDepth: limits.maximumPathDepth
         )
-        try requireOwnership()
+        try validateAuthority()
         try removeOperationItem(
             reference,
             identity: identity,
@@ -296,7 +296,7 @@ nonisolated final class SSOTOperationFileSystem {
         guard try guardValue.itemIdentity(at: url) == nil else {
             throw SSOTOperationFileSystemError.itemChanged
         }
-        try requireOwnership()
+        try validateAuthority()
     }
 
     private func removeOperationItem(
@@ -412,26 +412,26 @@ nonisolated final class SSOTOperationFileSystem {
         }
     }
 
-    private func requireOwnership() throws {
+    func validateAuthority() throws {
         try verifiedRoot.revalidate()
-        try ownership.validateForMutation(using: guardValue)
+        try ownership.validateForMutation()
     }
 
     private func removalBoundary(_ checkpoint: SSOTOperationFileSystemCheckpoint) throws {
-        try requireOwnership()
+        try validateAuthority()
         try hooks.reach(checkpoint)
-        try requireOwnership()
+        try validateAuthority()
     }
 
     private func requireMutableOperationItem(
         _ reference: SSOTOperationItemReference,
         identity: ManagedItemIdentity
     ) throws {
-        try requireOwnership()
+        try validateAuthority()
         guard try guardValue.itemIdentity(at: operationItemURL(for: reference)) == identity else {
             throw SSOTOperationFileSystemError.itemChanged
         }
-        try requireOwnership()
+        try validateAuthority()
     }
 
     private func mutationCheckpoint(

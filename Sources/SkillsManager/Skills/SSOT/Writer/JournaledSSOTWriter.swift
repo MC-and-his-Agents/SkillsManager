@@ -24,15 +24,22 @@ actor JournaledSSOTWriter {
     }
 
     static func open(
-        existing verifiedRoot: VerifiedSSOTRoot,
+        managementRoot: VerifiedSSOTRoot,
+        ssotRoot: VerifiedSSOTRoot,
         databaseURL: URL,
         hooks: JournaledSSOTWriterHooks = .init()
     ) async throws -> JournaledSSOTWriter {
-        let guardValue = try ManagedPathGuard(verifiedRoot: verifiedRoot)
-        let ownership = try SSOTWriterOwnership.acquire(using: guardValue)
+        guard managementRoot.identity != ssotRoot.identity,
+              ssotRoot.url.lastPathComponent == "skills",
+              ssotRoot.url.deletingLastPathComponent().standardizedFileURL
+                == managementRoot.url.standardizedFileURL else {
+            throw ManagedPathError.invalidRoot("SSOT root must be the management root's skills directory")
+        }
+        let authorityGuard = try ManagedPathGuard(verifiedRoot: managementRoot)
+        let ownership = try SSOTWriterOwnership.acquire(using: authorityGuard)
         let connection = try SkillSchemaMigrator.open(at: databaseURL)
         let fileSystem = try SSOTOperationFileSystem(
-            verifiedRoot: verifiedRoot,
+            verifiedRoot: ssotRoot,
             ownership: ownership,
             hooks: SSOTOperationFileSystemTestHooks(
                 onCheckpoint: { point in
@@ -200,7 +207,7 @@ actor JournaledSSOTWriter {
     }
 
     func requireAuthority() throws {
-        try ownership.validateForMutation(using: fileSystem.managedRootGuard)
+        try fileSystem.validateAuthority()
     }
 
     private func requireNoRepairBlockers() throws {
