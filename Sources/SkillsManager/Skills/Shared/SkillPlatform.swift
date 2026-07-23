@@ -21,6 +21,41 @@ nonisolated enum SkillPlatform: String, CaseIterable, Identifiable, Hashable, Se
         }
     }
 
+    var readsGlobalDistributionTarget: Bool {
+        switch self {
+        case .codex, .opencode, .copilot:
+            return true
+        case .claude:
+            return false
+        }
+    }
+
+    /// Fixed MVP distribution target. Legacy discovery paths remain in `relativePaths`.
+    var dedicatedDistributionRelativePath: String {
+        switch self {
+        case .codex:
+            return ".codex/skills"
+        case .claude:
+            return ".claude/skills"
+        case .opencode:
+            return ".config/opencode/skills"
+        case .copilot:
+            return ".copilot/skills"
+        }
+    }
+
+    /// Paths recognized during discovery but never selected by the distribution planner.
+    var discoveryCompatibilityRelativePaths: [String] {
+        switch self {
+        case .codex:
+            return [".codex/skills/public"]
+        case .opencode:
+            return [".claude/skills"]
+        case .claude, .copilot:
+            return []
+        }
+    }
+
     func storageKey(forRelativePath relativePath: String) -> String {
         guard relativePath != self.relativePath else { return storageKey }
         let sanitized = relativePath
