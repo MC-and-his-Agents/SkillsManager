@@ -4,7 +4,7 @@ import Foundation
 /// Descriptor-anchored primitives for the journaled SSOT writer. The caller
 /// supplies an already verified root and a lifetime writer-ownership token.
 nonisolated final class SSOTOperationFileSystem {
-    private let verifiedRoot: VerifiedSSOTRoot
+    let verifiedRoot: VerifiedSSOTRoot
     private let ownership: SSOTWriterOwnership
     private let guardValue: ManagedPathGuard
     private let limits: SkillContentLimits

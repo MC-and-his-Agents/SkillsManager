@@ -46,6 +46,18 @@ nonisolated enum SkillSchemaInspection {
         )
     }
 
+    static func expectedV4SchemaFingerprint() throws -> Data {
+        try expectedSchemaFingerprint(
+            objectNames: SkillSchemaV4.fingerprintedObjectNames,
+            statements: SkillSchemaV1.statements
+                + SkillSchemaV2.statements
+                + SkillSchemaV3.statements
+                + SkillSchemaV4.statements
+                + [SkillSchemaV2.expectedSkillsTableSQL],
+            version: 4
+        )
+    }
+
     static func columnNames(
         _ connection: SQLiteConnection,
         table: String

@@ -228,12 +228,14 @@ struct AddCustomPathView: View {
 
     private func addPath() {
         guard let url = selectedURL else { return }
-        do {
-            try store.addCustomPath(url)
-            Task { await store.loadSkills() }
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
+        Task {
+            do {
+                try await store.addCustomPath(url)
+                await store.loadSkills()
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }

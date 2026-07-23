@@ -13,13 +13,12 @@ actor JournaledSSOTWriter {
         connection: SQLiteConnection,
         ownership: SSOTWriterOwnership,
         fileSystem: SSOTOperationFileSystem,
-        journal: SSOTJournalStore,
         hooks: JournaledSSOTWriterHooks
-    ) {
+    ) throws {
         self.connection = connection
         self.ownership = ownership
         self.fileSystem = fileSystem
-        self.journal = journal
+        journal = try SSOTJournalStore(connection: connection)
         self.hooks = hooks
     }
 
@@ -38,6 +37,30 @@ actor JournaledSSOTWriter {
         let authorityGuard = try ManagedPathGuard(verifiedRoot: managementRoot)
         let ownership = try SSOTWriterOwnership.acquire(using: authorityGuard)
         let connection = try SkillSchemaMigrator.open(at: databaseURL)
+        return try await open(
+            managementRoot: managementRoot,
+            ssotRoot: ssotRoot,
+            connection: connection,
+            ownership: ownership,
+            hooks: hooks
+        )
+    }
+
+    static func open(
+        managementRoot: VerifiedSSOTRoot,
+        ssotRoot: VerifiedSSOTRoot,
+        connection: sending SQLiteConnection,
+        ownership: SSOTWriterOwnership,
+        hooks: JournaledSSOTWriterHooks = .init()
+    ) async throws -> JournaledSSOTWriter {
+        guard connection.accessMode != .readOnly,
+              managementRoot.identity != ssotRoot.identity,
+              ssotRoot.url.lastPathComponent == "skills",
+              ssotRoot.url.deletingLastPathComponent().standardizedFileURL
+                == managementRoot.url.standardizedFileURL else {
+            throw ManagedPathError.invalidRoot("SSOT root must be the management root's skills directory")
+        }
+        try ownership.validateForMutation()
         let fileSystem = try SSOTOperationFileSystem(
             verifiedRoot: ssotRoot,
             ownership: ownership,
@@ -52,11 +75,48 @@ actor JournaledSSOTWriter {
             connection: connection,
             ownership: ownership,
             fileSystem: fileSystem,
-            journal: SSOTJournalStore(connection: connection),
             hooks: hooks
         )
         try await writer.recoverAll()
         return writer
+    }
+
+    func loadCustomPaths() throws -> [SQLiteCustomPathRecord] {
+        try SQLiteCustomPathPersistence(connection: connection).loadAll()
+    }
+
+    func insertCustomPath(_ path: CustomSkillPath) throws {
+        try requireAuthority()
+        try SQLiteCustomPathPersistence(connection: connection).insert(path)
+    }
+
+    func removeCustomPath(id: UUID) throws {
+        try requireAuthority()
+        try SQLiteCustomPathPersistence(connection: connection).remove(id: id)
+    }
+
+    func loadPublishState(forSlug slug: String) throws -> SQLitePublishState? {
+        try SQLitePublishStatePersistence(connection: connection).load(forSlug: slug)
+    }
+
+    func savePublishState(_ state: SQLitePublishState, forSlug slug: String) throws {
+        try requireAuthority()
+        try SQLitePublishStatePersistence(connection: connection).save(state, forSlug: slug)
+    }
+
+    func migrateLegacy(homeURL: URL) throws -> LegacyMigrationResult {
+        try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: homeURL,
+            connection: connection,
+            ownership: ownership
+        )
+    }
+
+    func healthDiagnostics() throws -> [LibraryRuntimeDiagnostic] {
+        try LibraryHealthInspector.inspect(
+            connection: connection,
+            ssotRoot: fileSystem.verifiedRoot
+        )
     }
 
     func create(

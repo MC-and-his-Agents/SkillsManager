@@ -34,8 +34,10 @@ struct CustomPathSectionHeader: View {
         .alert("Remove Custom Path?", isPresented: $showingRemoveAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Remove", role: .destructive) {
-                store.removeCustomPath(customPath)
-                Task { await store.loadSkills() }
+                Task {
+                    try? await store.removeCustomPath(customPath)
+                    await store.loadSkills()
+                }
             }
         } message: {
             Text("This will remove \"\(customPath.displayName)\" from the sidebar. The skills will not be deleted from disk.")

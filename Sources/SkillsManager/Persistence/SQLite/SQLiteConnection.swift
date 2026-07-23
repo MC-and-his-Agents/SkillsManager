@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import SQLite3
 
@@ -17,23 +18,35 @@ nonisolated enum SQLiteStoreError: Error, Equatable, LocalizedError {
 
 nonisolated enum SQLiteAccessMode: Equatable, Sendable {
     case readWrite
+    case readWriteExisting
     case readOnly
 }
 
-/// A deliberately non-Sendable SQLite connection. The composition root owns serialization.
-nonisolated final class SQLiteConnection {
+/// The composition root transfers each full-mutex connection to one serial owner.
+nonisolated final class SQLiteConnection: @unchecked Sendable {
     private let database: OpaquePointer
     let accessMode: SQLiteAccessMode
 
     init(path: String, accessMode: SQLiteAccessMode = .readWrite) throws {
         var opened: OpaquePointer?
+        let databaseExists = try Self.pathExistsWithoutFollowingSymlinks(path)
+        let openPath = try Self.resolvedDatabasePath(path)
+        let existingDatabaseFlag: Int32
+        if accessMode == .readWrite {
+            existingDatabaseFlag = databaseExists ? SQLITE_OPEN_NOFOLLOW : 0
+        } else {
+            existingDatabaseFlag = SQLITE_OPEN_NOFOLLOW
+        }
         let flags: Int32 = switch accessMode {
         case .readWrite:
             SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+                | existingDatabaseFlag
+        case .readWriteExisting:
+            SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW
         case .readOnly:
-            SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX
+            SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW
         }
-        let result = sqlite3_open_v2(path, &opened, flags, nil)
+        let result = sqlite3_open_v2(openPath, &opened, flags, nil)
         guard result == SQLITE_OK, let opened else {
             let message = opened.map { String(cString: sqlite3_errmsg($0)) }
                 ?? String(cString: sqlite3_errstr(result))
@@ -57,7 +70,7 @@ nonisolated final class SQLiteConnection {
             try requireIntegerPragma("synchronous", equals: 2)
 
             switch accessMode {
-            case .readWrite:
+            case .readWrite, .readWriteExisting:
                 try requireIntegerPragma("query_only", equals: 0)
             case .readOnly:
                 try execute("PRAGMA query_only = ON")
@@ -67,6 +80,48 @@ nonisolated final class SQLiteConnection {
             sqlite3_close_v2(database)
             throw error
         }
+    }
+
+    private static func pathExistsWithoutFollowingSymlinks(_ path: String) throws -> Bool {
+        var metadata = stat()
+        if Darwin.lstat(path, &metadata) == 0 {
+            guard metadata.st_mode & S_IFMT != S_IFLNK else {
+                throw SQLiteStoreError.invalidState("database path must not be a symbolic link")
+            }
+            return true
+        }
+
+        let code = errno
+        guard code == ENOENT else {
+            throw SQLiteStoreError.sqlite(
+                operation: "inspect database path",
+                code: code,
+                message: String(cString: strerror(code))
+            )
+        }
+        return false
+    }
+
+    private static func resolvedDatabasePath(_ path: String) throws -> String {
+        let databaseURL = URL(fileURLWithPath: path)
+        guard let resolvedParent = Darwin.realpath(
+            databaseURL.deletingLastPathComponent().path,
+            nil
+        ) else {
+            let code = errno
+            throw SQLiteStoreError.sqlite(
+                operation: "resolve database directory",
+                code: code,
+                message: String(cString: strerror(code))
+            )
+        }
+        defer { Darwin.free(resolvedParent) }
+        return URL(
+            fileURLWithPath: String(cString: resolvedParent),
+            isDirectory: true
+        )
+        .appendingPathComponent(databaseURL.lastPathComponent)
+        .path
     }
 
     convenience init(url: URL, accessMode: SQLiteAccessMode = .readWrite) throws {

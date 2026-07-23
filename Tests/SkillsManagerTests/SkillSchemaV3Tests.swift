@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Skill database schema v3")
 struct SkillSchemaV3Tests {
-    @Test("rolls the complete v0 to v3 schema transaction back on failure")
+    @Test("rolls the complete v0 schema transaction back on v3 failure")
     func migratesV0Atomically() throws {
         enum InjectedFailure: Error { case stop }
         let fixture = try LegacyMigrationTestFixture()
@@ -19,8 +19,8 @@ struct SkillSchemaV3Tests {
         #expect(try rolledBack.userTableNames().isEmpty)
 
         let migrated = try SkillSchemaMigrator.open(at: fixture.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 3)
-        #expect(try migrated.userTableNames() == SkillSchemaV3.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 4)
+        #expect(try migrated.userTableNames() == SkillSchemaV4.tableNames)
     }
 
     @Test("migrates v2 to v3 atomically")
@@ -39,11 +39,11 @@ struct SkillSchemaV3Tests {
         #expect(try rolledBack.userTableNames() == SkillSchemaV2.tableNames)
 
         let migrated = try SkillSchemaMigrator.open(at: fixture.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 3)
-        #expect(try migrated.userTableNames() == SkillSchemaV3.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 4)
+        #expect(try migrated.userTableNames() == SkillSchemaV4.tableNames)
         #expect(try migrated.querySingleInt(
             "SELECT count(*) FROM pragma_table_list WHERE strict = 1 AND name NOT LIKE 'sqlite_%'"
-        ) == Int64(SkillSchemaV3.tableNames.count))
+        ) == Int64(SkillSchemaV4.tableNames.count))
     }
 
     @Test("enforces custom path identity and uniqueness")

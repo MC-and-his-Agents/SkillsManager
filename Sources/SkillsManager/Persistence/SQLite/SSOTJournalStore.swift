@@ -4,7 +4,7 @@ nonisolated final class SSOTJournalStore {
     let connection: SQLiteConnection
 
     init(connection: SQLiteConnection) throws {
-        guard connection.accessMode == .readWrite else {
+        guard connection.accessMode != .readOnly else {
             throw SQLiteStoreError.invalidState("the SSOT journal store requires read-write access")
         }
         self.connection = connection

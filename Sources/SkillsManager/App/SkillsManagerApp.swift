@@ -11,7 +11,9 @@ struct SkillsManagerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var customPathStore: CustomPathStore
     @State private var store: SkillStore
+    @State private var libraryRuntime = LibraryRuntimeState()
     @State private var remoteStore = RemoteSkillStore(client: .live())
+    private let startupCoordinator = LibraryStartupCoordinator()
 
     init() {
         let pathStore = CustomPathStore()
@@ -25,6 +27,29 @@ struct SkillsManagerApp: App {
                 .environment(store)
                 .environment(remoteStore)
                 .environment(customPathStore)
+                .environment(libraryRuntime)
+                .task {
+                    let result = await startupCoordinator.start()
+                    libraryRuntime.apply(result)
+                    guard result.readiness == .ready, let session = result.session else { return }
+                    do {
+                        try await customPathStore.activate(using: session)
+                        store.activatePersistence(session)
+                        await store.loadSkills()
+                    } catch {
+                        libraryRuntime.apply(LibraryStartupResult(
+                            phase: .running,
+                            readiness: .blocked,
+                            diagnostics: [.make(
+                                .unrecoverable,
+                                subjectKind: .database,
+                                subjectID: "persistenceActivation"
+                            )],
+                            outcome: result.outcome,
+                            session: nil
+                        ))
+                    }
+                }
         }
         .commands {
             CommandGroup(replacing: .appInfo) {
