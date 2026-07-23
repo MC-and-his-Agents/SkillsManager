@@ -149,8 +149,8 @@ struct LegacyStateInventoryTests {
         ))
     }
 
-    @Test("non-regular JSON entries are ignored without following symlinks")
-    func ignoresNonRegularEntries() throws {
+    @Test("ignored entries produce relative diagnostics without following symlinks")
+    func ignoredEntryDiagnostics() throws {
         let fixture = try LegacyMigrationTestFixture()
         let destination = fixture.root.appendingPathComponent("outside.json")
         try writeLegacy(legacyPublishFixture, to: destination)
@@ -161,9 +161,17 @@ struct LegacyStateInventoryTests {
         try createOwnerOnlyDirectory(
             fixture.skillState.appendingPathComponent("directory.json", isDirectory: true)
         )
+        try writeLegacy("ignored", to: fixture.skillState.appendingPathComponent("notes.txt"))
+        try writeLegacy("ignored", to: fixture.legacyRoot.appendingPathComponent("unknown.dat"))
         let inventory = try fixture.inventory()
         #expect(inventory.entryCount == 0)
         #expect(inventory.inventoryDigest == LegacyStateInventory.emptyDigest)
+        #expect(inventory.diagnostics == [
+            LegacyMigrationDiagnostic(code: .ignoredLegacyEntry, locator: "skill-state/directory.json"),
+            LegacyMigrationDiagnostic(code: .ignoredLegacyEntry, locator: "skill-state/linked.json"),
+            LegacyMigrationDiagnostic(code: .ignoredLegacyEntry, locator: "skill-state/notes.txt"),
+            LegacyMigrationDiagnostic(code: .ignoredLegacyEntry, locator: "unknown.dat"),
+        ])
     }
 
     @Test("rejects a publish-state file above the one-megabyte limit")
@@ -172,6 +180,20 @@ struct LegacyStateInventoryTests {
         try Data(repeating: 0x20, count: 1_048_577).write(to: fixture.publishURL("oversized"))
         #expect(throws: LegacyMigrationFailure.self) {
             _ = try fixture.inventory()
+        }
+    }
+
+    @Test("enforces the aggregate byte budget while capturing files")
+    func rejectsAggregateLimitDuringCapture() throws {
+        let fixture = try LegacyMigrationTestFixture()
+        try writeLegacy("1234", to: fixture.publishURL("a"))
+        try writeLegacy("5678", to: fixture.publishURL("b"))
+        do {
+            _ = try fixture.inventory(maximumTotalBytes: 6)
+            Issue.record("Expected aggregate resource limit rejection")
+        } catch let failure as LegacyMigrationFailure {
+            #expect(failure.code == .legacyResourceLimitExceeded)
+            #expect(failure.locator == "skill-state/b.json")
         }
     }
 }

@@ -12,10 +12,9 @@ struct LegacyStateMigrationTests {
             customPaths: legacyCustomPathsFixture,
             publishStates: ["demo": legacyPublishFixture]
         )
-        let inventory = try fixture.inventory()
         let connection = try fixture.connection()
-        let result = try LegacyStateMigrationExecutor.migrate(
-            inventory: inventory,
+        let result = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
             connection: connection,
             ownership: fixture.ownership,
             nowMilliseconds: { 42 }
@@ -37,11 +36,10 @@ struct LegacyStateMigrationTests {
             "valid": legacyPublishFixture,
             "broken": "{not-json}",
         ])
-        let inventory = try fixture.inventory()
         let connection = try fixture.connection()
         #expect(throws: LegacyMigrationFailure.self) {
-            _ = try LegacyStateMigrationExecutor.migrate(
-                inventory: inventory,
+            _ = try LegacyStateMigrationGate.migrateIfNeeded(
+                homeURL: fixture.home,
                 connection: connection,
                 ownership: fixture.ownership
             )
@@ -55,8 +53,8 @@ struct LegacyStateMigrationTests {
     func completedLedgerWins() throws {
         let fixture = try LegacyMigrationTestFixture(publishStates: ["demo": legacyPublishFixture])
         let connection = try fixture.connection()
-        _ = try LegacyStateMigrationExecutor.migrate(
-            inventory: fixture.inventory(),
+        _ = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
             connection: connection,
             ownership: fixture.ownership,
             nowMilliseconds: { 42 }
@@ -65,8 +63,8 @@ struct LegacyStateMigrationTests {
             "demo",
             json: "{\"lastPublishedHash\":\"changed\",\"lastPublishedAt\":1,\"hashAlgorithmVersion\":1}"
         )
-        let result = try LegacyStateMigrationExecutor.migrate(
-            inventory: fixture.inventory(),
+        let result = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
             connection: connection,
             ownership: fixture.ownership,
             nowMilliseconds: { 99 }
@@ -78,6 +76,92 @@ struct LegacyStateMigrationTests {
         #expect(try connection.querySingleInt(
             "SELECT completed_at_ms FROM legacy_migration_ledger"
         ) == 42)
+    }
+
+    @Test("completed ledger makes archive capture failures non-blocking")
+    func completedLedgerAllowsUnavailableArchive() throws {
+        let fixture = try LegacyMigrationTestFixture(publishStates: ["demo": legacyPublishFixture])
+        let connection = try fixture.connection()
+        _ = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
+            connection: connection,
+            ownership: fixture.ownership,
+            nowMilliseconds: { 42 }
+        )
+
+        let moved = fixture.root.appendingPathComponent("legacy-archive", isDirectory: true)
+        try FileManager.default.moveItem(at: fixture.legacyRoot, to: moved)
+        try FileManager.default.createSymbolicLink(at: fixture.legacyRoot, withDestinationURL: moved)
+
+        let result = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
+            connection: connection,
+            ownership: fixture.ownership
+        )
+        #expect(result.diagnostics == [
+            LegacyMigrationDiagnostic(code: .legacyArchiveChanged, locator: nil),
+        ])
+        _ = try SQLitePublishStatePersistence(connection: connection)
+    }
+
+    @Test("completed ledger ignores later diagnostic capture limits")
+    func completedLedgerAllowsDiagnosticLimitFailure() throws {
+        let fixture = try LegacyMigrationTestFixture(publishStates: ["demo": legacyPublishFixture])
+        let connection = try fixture.connection()
+        _ = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
+            connection: connection,
+            ownership: fixture.ownership,
+            nowMilliseconds: { 42 }
+        )
+        let result = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
+            connection: connection,
+            ownership: fixture.ownership,
+            maximumTotalBytes: 0
+        )
+        #expect(result.archiveChanged)
+        _ = try SQLiteCustomPathPersistence(connection: connection)
+    }
+
+    @Test("completed ledger makes later archive permission drift non-blocking")
+    func completedLedgerAllowsArchivePermissionDrift() throws {
+        let fixture = try LegacyMigrationTestFixture(publishStates: ["demo": legacyPublishFixture])
+        let connection = try fixture.connection()
+        _ = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
+            connection: connection,
+            ownership: fixture.ownership,
+            nowMilliseconds: { 42 }
+        )
+        guard Darwin.chmod(fixture.legacyRoot.path, 0o777) == 0 else {
+            throw CocoaError(.fileWriteNoPermission)
+        }
+        defer { _ = Darwin.chmod(fixture.legacyRoot.path, 0o700) }
+        let result = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
+            connection: connection,
+            ownership: fixture.ownership
+        )
+        #expect(result.archiveChanged)
+        _ = try SQLitePublishStatePersistence(connection: connection)
+    }
+
+    @Test("migration timestamp uses the shared date codec")
+    func migrationTimestampCodec() throws {
+        let fixture = try LegacyMigrationTestFixture()
+        let connection = try fixture.connection()
+        _ = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
+            connection: connection,
+            ownership: fixture.ownership,
+            nowMilliseconds: {
+                try LegacyDateCodec.milliseconds(from: Date(timeIntervalSince1970: 1.2346))
+            }
+        )
+        #expect(try connection.querySingleInt(
+            "SELECT completed_at_ms FROM legacy_migration_ledger"
+        ) == 1_235)
     }
 
     @Test("failure after ledger staging rolls back every migration row")

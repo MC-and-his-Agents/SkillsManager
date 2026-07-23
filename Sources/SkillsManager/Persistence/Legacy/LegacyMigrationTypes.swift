@@ -19,6 +19,16 @@ nonisolated enum LegacyMigrationErrorCode: String, Sendable {
     case ledgerConflict
 }
 
+nonisolated enum LegacyMigrationDiagnosticCode: String, Sendable {
+    case legacyArchiveChanged
+    case ignoredLegacyEntry
+}
+
+nonisolated struct LegacyMigrationDiagnostic: Equatable, Sendable {
+    let code: LegacyMigrationDiagnosticCode
+    let locator: String?
+}
+
 nonisolated struct LegacyMigrationFailure: Error, Equatable, LocalizedError, Sendable {
     let code: LegacyMigrationErrorCode
     let retryable: Bool

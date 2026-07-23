@@ -53,8 +53,12 @@ final class LegacyMigrationTestFixture {
         try SkillSchemaMigrator.open(at: database)
     }
 
-    func inventory() throws -> LegacyStateInventory {
-        try LegacyStateInventory.capture(homeURL: home, ownership: ownership)
+    func inventory(maximumTotalBytes: Int = 64 * 1_024 * 1_024) throws -> LegacyStateInventory {
+        try LegacyStateInventory.capture(
+            homeURL: home,
+            ownership: ownership,
+            maximumTotalBytes: maximumTotalBytes
+        )
     }
 
     func publishURL(_ name: String) -> URL {

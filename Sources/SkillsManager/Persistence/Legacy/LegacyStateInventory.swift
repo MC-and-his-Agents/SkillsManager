@@ -13,6 +13,7 @@ nonisolated final class LegacyStateInventory: @unchecked Sendable {
     let inventoryDigest: Data
     let entryCount: Int
     let customPathsFilePresent: Bool
+    let diagnostics: [LegacyMigrationDiagnostic]
     private let chain: LegacyDirectoryChain
     private let customPathsFile: LegacyCapturedFile?
     private let publishFiles: [LegacyCapturedFile]
@@ -20,18 +21,27 @@ nonisolated final class LegacyStateInventory: @unchecked Sendable {
 
     static func capture(
         homeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
-        ownership: SSOTWriterOwnership
+        ownership: SSOTWriterOwnership,
+        maximumTotalBytes: Int = 64 * 1_024 * 1_024
     ) throws -> LegacyStateInventory {
+        guard maximumTotalBytes >= 0 else {
+            throw LegacyMigrationFailure(.legacyResourceLimitExceeded)
+        }
         try validateOwnership(ownership)
         let chain = try LegacyDirectoryChain.capture(homeURL: homeURL)
-        let customPathsFile = try captureCustomPaths(in: chain.legacyRoot)
-        let publishFiles = try capturePublishStates(in: chain.skillStateDirectory)
+        let rootDiagnostics = try ignoredRootEntries(in: chain.legacyRoot)
+        let customPathsFile = try captureCustomPaths(
+            in: chain.legacyRoot,
+            maximumBytes: min(8 * 1_024 * 1_024, maximumTotalBytes)
+        )
+        let remainingBytes = maximumTotalBytes - (customPathsFile?.bytes.count ?? 0)
+        let publishCapture = try capturePublishStates(
+            in: chain.skillStateDirectory,
+            maximumTotalBytes: remainingBytes
+        )
+        let publishFiles = publishCapture.files
         let files = ([customPathsFile].compactMap { $0 } + publishFiles).sorted {
             $0.locator.utf8.lexicographicallyPrecedes($1.locator.utf8)
-        }
-        let totalBytes = files.reduce(0) { $0 + $1.bytes.count }
-        guard totalBytes <= 64 * 1_024 * 1_024 else {
-            throw LegacyMigrationFailure(.legacyResourceLimitExceeded)
         }
         let digest = migrationDigest(files)
         if files.isEmpty, digest != emptyDigest {
@@ -42,7 +52,8 @@ nonisolated final class LegacyStateInventory: @unchecked Sendable {
             chain: chain,
             customPathsFile: customPathsFile,
             publishFiles: publishFiles,
-            publishNames: Set(publishFiles.map(\.name))
+            publishNames: Set(publishFiles.map(\.name)),
+            diagnostics: (rootDiagnostics + publishCapture.diagnostics).sorted(by: diagnosticOrder)
         )
     }
 
@@ -79,7 +90,8 @@ nonisolated final class LegacyStateInventory: @unchecked Sendable {
         chain: LegacyDirectoryChain,
         customPathsFile: LegacyCapturedFile?,
         publishFiles: [LegacyCapturedFile],
-        publishNames: Set<String>
+        publishNames: Set<String>,
+        diagnostics: [LegacyMigrationDiagnostic]
     ) {
         self.inventoryDigest = inventoryDigest
         self.entryCount = (customPathsFile == nil ? 0 : 1) + publishFiles.count
@@ -88,6 +100,7 @@ nonisolated final class LegacyStateInventory: @unchecked Sendable {
         self.customPathsFile = customPathsFile
         self.publishFiles = publishFiles
         self.publishNames = publishNames
+        self.diagnostics = diagnostics
     }
 
     private func validateCustomPathsPresence() throws {
@@ -104,14 +117,15 @@ nonisolated final class LegacyStateInventory: @unchecked Sendable {
 
     private func validatePublishFileSet() throws {
         guard let directory = chain.skillStateDirectory else { return }
-        let current = Set(try Self.publishCandidateNames(in: directory))
+        let current = Set(try Self.publishCandidates(in: directory).names)
         guard current == publishNames else {
             throw LegacyMigrationFailure(.legacyInventoryChanged)
         }
     }
 
     private static func captureCustomPaths(
-        in root: LegacyHeldDescriptor?
+        in root: LegacyHeldDescriptor?,
+        maximumBytes: Int
     ) throws -> LegacyCapturedFile? {
         guard let root else { return nil }
         var metadata = stat()
@@ -124,20 +138,23 @@ nonisolated final class LegacyStateInventory: @unchecked Sendable {
             locator: "custom-paths.json",
             name: "custom-paths.json",
             parent: root,
-            maximumBytes: 8 * 1_024 * 1_024
+            maximumBytes: maximumBytes
         )
     }
 
     private static func capturePublishStates(
-        in directory: LegacyHeldDescriptor?
-    ) throws -> [LegacyCapturedFile] {
-        guard let directory else { return [] }
-        let names = try publishCandidateNames(in: directory)
+        in directory: LegacyHeldDescriptor?,
+        maximumTotalBytes: Int
+    ) throws -> (files: [LegacyCapturedFile], diagnostics: [LegacyMigrationDiagnostic]) {
+        guard let directory else { return ([], []) }
+        let candidates = try publishCandidates(in: directory)
+        let names = candidates.names
         guard names.count <= 10_000 else {
             throw LegacyMigrationFailure(.legacyResourceLimitExceeded)
         }
         var collisionKeys = Set<String>()
         var files: [LegacyCapturedFile] = []
+        var remainingBytes = maximumTotalBytes
         for name in names {
             let normalizedName = name.precomposedStringWithCanonicalMapping
             let locator = "skill-state/\(normalizedName)"
@@ -148,27 +165,71 @@ nonisolated final class LegacyStateInventory: @unchecked Sendable {
             guard collisionKeys.insert(collisionKey).inserted else {
                 throw LegacyMigrationFailure(.legacyDuplicateRecord, locator: locator)
             }
-            files.append(try LegacyCapturedFile(
+            let file = try LegacyCapturedFile(
                 locator: locator,
                 name: name,
                 parent: directory,
-                maximumBytes: 1 * 1_024 * 1_024
-            ))
+                maximumBytes: min(1 * 1_024 * 1_024, remainingBytes)
+            )
+            remainingBytes -= file.bytes.count
+            files.append(file)
         }
-        return files.sorted { $0.locator.utf8.lexicographicallyPrecedes($1.locator.utf8) }
+        return (
+            files.sorted { $0.locator.utf8.lexicographicallyPrecedes($1.locator.utf8) },
+            candidates.diagnostics
+        )
     }
 
-    private static func publishCandidateNames(
+    private static func publishCandidates(
         in directory: LegacyHeldDescriptor
-    ) throws -> [String] {
-        try legacyDirectoryNames(directory).filter { name in
-            guard name.hasSuffix(".json") else { return false }
+    ) throws -> (names: [String], diagnostics: [LegacyMigrationDiagnostic]) {
+        var names: [String] = []
+        var diagnostics: [LegacyMigrationDiagnostic] = []
+        for name in try legacyDirectoryNames(directory).sorted() {
             var metadata = stat()
             guard Darwin.fstatat(directory.value, name, &metadata, AT_SYMLINK_NOFOLLOW) == 0 else {
                 throw LegacyMigrationFailure(.legacyInventoryChanged)
             }
-            return metadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG)
-        }.sorted()
+            if name.hasSuffix(".json"), metadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG) {
+                names.append(name)
+            } else {
+                diagnostics.append(ignoredDiagnostic(locator: "skill-state/\(name)"))
+            }
+        }
+        return (names, diagnostics)
+    }
+
+    private static func ignoredRootEntries(
+        in root: LegacyHeldDescriptor?
+    ) throws -> [LegacyMigrationDiagnostic] {
+        guard let root else { return [] }
+        var diagnostics: [LegacyMigrationDiagnostic] = []
+        for name in try legacyDirectoryNames(root).sorted() {
+            if name == "skill-state" { continue }
+            if name == "custom-paths.json" {
+                var metadata = stat()
+                guard Darwin.fstatat(root.value, name, &metadata, AT_SYMLINK_NOFOLLOW) == 0 else {
+                    throw LegacyMigrationFailure(.legacyInventoryChanged)
+                }
+                if metadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG) { continue }
+            }
+            diagnostics.append(ignoredDiagnostic(locator: name))
+        }
+        return diagnostics
+    }
+
+    private static func ignoredDiagnostic(locator: String) -> LegacyMigrationDiagnostic {
+        LegacyMigrationDiagnostic(
+            code: .ignoredLegacyEntry,
+            locator: locator.precomposedStringWithCanonicalMapping
+        )
+    }
+
+    private static func diagnosticOrder(
+        _ lhs: LegacyMigrationDiagnostic,
+        _ rhs: LegacyMigrationDiagnostic
+    ) -> Bool {
+        (lhs.locator ?? "").utf8.lexicographicallyPrecedes((rhs.locator ?? "").utf8)
     }
 
     private static func migrationDigest(_ files: [LegacyCapturedFile]) -> Data {

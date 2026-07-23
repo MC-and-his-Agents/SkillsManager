@@ -257,7 +257,12 @@ nonisolated func legacyDirectoryNames(_ descriptor: LegacyHeldDescriptor) throws
     }
     defer { Darwin.closedir(directory) }
     var names: [String] = []
-    while let entry = Darwin.readdir(directory) {
+    while true {
+        errno = 0
+        guard let entry = Darwin.readdir(directory) else {
+            guard errno == 0 else { throw LegacyMigrationFailure(.legacyPathChanged) }
+            break
+        }
         let name = withUnsafePointer(to: entry.pointee.d_name) { pointer in
             pointer.withMemoryRebound(to: CChar.self, capacity: Int(MAXNAMLEN) + 1) {
                 String(validatingCString: $0)

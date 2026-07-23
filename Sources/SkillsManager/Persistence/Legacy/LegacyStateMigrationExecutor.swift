@@ -1,7 +1,21 @@
 import Foundation
 
 nonisolated struct LegacyMigrationResult: Equatable, Sendable {
-    let archiveChanged: Bool
+    let diagnostics: [LegacyMigrationDiagnostic]
+
+    var archiveChanged: Bool {
+        diagnostics.contains { $0.code == .legacyArchiveChanged }
+    }
+
+    init(
+        diagnostics: [LegacyMigrationDiagnostic],
+        archiveChanged: Bool = false
+    ) {
+        self.diagnostics = diagnostics + (archiveChanged ? [LegacyMigrationDiagnostic(
+            code: .legacyArchiveChanged,
+            locator: nil
+        )] : [])
+    }
 }
 
 nonisolated enum LegacyMigrationLedgerAdmission {
@@ -85,23 +99,25 @@ nonisolated enum LegacyStateMigrationExecutor {
         inventory: LegacyStateInventory,
         connection: SQLiteConnection,
         ownership: SSOTWriterOwnership,
-        nowMilliseconds: () -> Int64 = {
-            Int64((Date().timeIntervalSince1970 * 1_000).rounded(.down))
-        },
+        nowMilliseconds: () throws -> Int64 = { try LegacyDateCodec.milliseconds(from: Date()) },
         beforeCommit: () throws -> Void = {}
     ) throws -> LegacyMigrationResult {
         try LegacyStateInventory.validateOwnership(ownership)
         if let completed = try LegacyMigrationLedgerAdmission.read(connection) {
-            return LegacyMigrationResult(archiveChanged: completed.digest != inventory.inventoryDigest)
+            return LegacyMigrationResult(
+                diagnostics: inventory.diagnostics,
+                archiveChanged: completed.digest != inventory.inventoryDigest
+            )
         }
         let decoded = try inventory.decode()
-        let timestamp = nowMilliseconds()
+        let timestamp = try nowMilliseconds()
         guard timestamp >= 0 else { throw LegacyMigrationFailure(.databaseFailure) }
 
         do {
             return try connection.withImmediateTransaction {
                 if let completed = try LegacyMigrationLedgerAdmission.read(connection) {
                     return LegacyMigrationResult(
+                        diagnostics: inventory.diagnostics,
                         archiveChanged: completed.digest != inventory.inventoryDigest
                     )
                 }
@@ -120,7 +136,7 @@ nonisolated enum LegacyStateMigrationExecutor {
                 try inventory.validateUnchanged(ownership: ownership)
                 _ = try LegacyMigrationLedgerAdmission.requireCompleted(connection)
                 try beforeCommit()
-                return LegacyMigrationResult(archiveChanged: false)
+                return LegacyMigrationResult(diagnostics: inventory.diagnostics)
             }
         } catch let failure as LegacyMigrationFailure {
             throw failure
@@ -214,6 +230,44 @@ nonisolated enum LegacyStateMigrationExecutor {
         try statement.bind(Int64(decoded.publishStates.count), at: 5)
         try statement.bind(completedAtMilliseconds, at: 6)
         guard try !statement.step() else { throw LegacyMigrationFailure(.databaseFailure) }
+    }
+}
+
+nonisolated enum LegacyStateMigrationGate {
+    static func migrateIfNeeded(
+        homeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
+        connection: SQLiteConnection,
+        ownership: SSOTWriterOwnership,
+        maximumTotalBytes: Int = 64 * 1_024 * 1_024,
+        nowMilliseconds: () throws -> Int64 = { try LegacyDateCodec.milliseconds(from: Date()) }
+    ) throws -> LegacyMigrationResult {
+        try LegacyStateInventory.validateOwnership(ownership)
+        if let completed = try LegacyMigrationLedgerAdmission.read(connection) {
+            do {
+                let inventory = try LegacyStateInventory.capture(
+                    homeURL: homeURL,
+                    ownership: ownership,
+                    maximumTotalBytes: maximumTotalBytes
+                )
+                return LegacyMigrationResult(
+                    diagnostics: inventory.diagnostics,
+                    archiveChanged: completed.digest != inventory.inventoryDigest
+                )
+            } catch {
+                return LegacyMigrationResult(diagnostics: [], archiveChanged: true)
+            }
+        }
+        let inventory = try LegacyStateInventory.capture(
+            homeURL: homeURL,
+            ownership: ownership,
+            maximumTotalBytes: maximumTotalBytes
+        )
+        return try LegacyStateMigrationExecutor.migrate(
+            inventory: inventory,
+            connection: connection,
+            ownership: ownership,
+            nowMilliseconds: nowMilliseconds
+        )
     }
 }
 
