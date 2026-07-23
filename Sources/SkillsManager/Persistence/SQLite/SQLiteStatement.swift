@@ -63,6 +63,10 @@ nonisolated final class SQLiteStatement {
         sqlite3_column_int64(statement, column)
     }
 
+    func isNull(at column: Int32) -> Bool {
+        sqlite3_column_type(statement, column) == SQLITE_NULL
+    }
+
     func text(at column: Int32) -> String? {
         guard let bytes = sqlite3_column_text(statement, column) else { return nil }
         let count = Int(sqlite3_column_bytes(statement, column))

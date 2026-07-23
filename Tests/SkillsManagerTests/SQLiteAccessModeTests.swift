@@ -17,7 +17,7 @@ struct SQLiteAccessModeTests {
         let reader = try SkillSchemaMigrator.open(at: location.database, accessMode: .readOnly)
         #expect(reader.accessMode == .readOnly)
         #expect(try reader.querySingleInt("PRAGMA query_only") == 1)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == Int64(SkillSchemaV2.version))
+        #expect(try reader.querySingleInt("PRAGMA user_version") == Int64(SkillSchemaV3.version))
         #expect(throws: SQLiteStoreError.self) {
             try reader.execute("DELETE FROM schema_metadata")
         }
@@ -46,7 +46,7 @@ struct SQLiteAccessModeTests {
             let connection = try SQLiteConnection(url: location.database)
             let mode = try connection.querySingleText("PRAGMA journal_mode")
             originalMode = try #require(mode)
-            try connection.execute("PRAGMA user_version = 3")
+            try connection.execute("PRAGMA user_version = 4")
         }
 
         #expect(throws: SQLiteStoreError.self) {
