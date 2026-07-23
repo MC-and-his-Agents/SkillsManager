@@ -11,7 +11,10 @@ struct SkillsManagerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var customPathStore: CustomPathStore
     @State private var store: SkillStore
+    @State private var libraryRuntime = LibraryRuntimeState()
     @State private var remoteStore = RemoteSkillStore(client: .live())
+    @State private var runtimeBootstrap = AppLibraryRuntimeBootstrap()
+    private let startupCoordinator = LibraryStartupCoordinator()
 
     init() {
         let pathStore = CustomPathStore()
@@ -25,6 +28,15 @@ struct SkillsManagerApp: App {
                 .environment(store)
                 .environment(remoteStore)
                 .environment(customPathStore)
+                .environment(libraryRuntime)
+                .task {
+                    await runtimeBootstrap.start(
+                        using: { await startupCoordinator.start() },
+                        runtimeState: libraryRuntime,
+                        customPathStore: customPathStore,
+                        skillStore: store
+                    )
+                }
         }
         .commands {
             CommandGroup(replacing: .appInfo) {

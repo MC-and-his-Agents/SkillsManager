@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Skill database schema v2")
 struct SkillSchemaV2Tests {
-    @Test("migrates v1 through v2 to v3 atomically and preserves v1 on failure")
+    @Test("migrates v1 through v2 to the current schema atomically and preserves v1 on failure")
     func migratesV1Atomically() throws {
         enum InjectedFailure: Error { case stop }
         let location = try v2DatabaseLocation()
@@ -35,8 +35,8 @@ struct SkillSchemaV2Tests {
         #expect(try rolledBackAtV3.userTableNames() == SkillSchemaV1.tableNames)
 
         let migrated = try SkillSchemaMigrator.open(at: location.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 3)
-        #expect(try migrated.userTableNames() == SkillSchemaV3.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 4)
+        #expect(try migrated.userTableNames() == SkillSchemaV4.tableNames)
         #expect(try migrated.querySingleInt(
             "SELECT count(*) FROM pragma_table_list WHERE name IN "
                 + "('skill_operations', 'cleanup_debts') AND strict = 1"
@@ -48,7 +48,7 @@ struct SkillSchemaV2Tests {
         let future = try v2DatabaseLocation()
         defer { try? FileManager.default.removeItem(at: future.root) }
         let futureConnection = try SkillSchemaMigrator.open(at: future.database)
-        try futureConnection.execute("PRAGMA user_version = 4")
+        try futureConnection.execute("PRAGMA user_version = 5")
         #expect(throws: SQLiteStoreError.self) {
             _ = try SkillSchemaMigrator.open(at: future.database)
         }

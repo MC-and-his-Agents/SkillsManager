@@ -18,12 +18,23 @@ enum CustomPathError: LocalizedError {
 @MainActor
 @Observable final class CustomPathStore {
     private(set) var customPaths: [CustomSkillPath] = []
+    private var persistence: JournaledSSOTWriter?
 
-    init() {
-        loadPaths()
+    func activate(using persistence: JournaledSSOTWriter) async throws {
+        let records = try await persistence.loadCustomPaths()
+        customPaths = records.map {
+            CustomSkillPath(
+                id: $0.id,
+                url: $0.url,
+                displayName: $0.displayName,
+                addedAt: Date(timeIntervalSince1970: Double($0.addedAtMilliseconds) / 1_000)
+            )
+        }
+        self.persistence = persistence
     }
 
-    func addPath(_ url: URL) throws {
+    func addPath(_ url: URL) async throws {
+        guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: url.path) else {
             throw CustomPathError.directoryNotFound
@@ -34,46 +45,13 @@ enum CustomPathError: LocalizedError {
         }
 
         let newPath = CustomSkillPath(url: url)
+        try await persistence.insertCustomPath(newPath)
         customPaths.append(newPath)
-        savePaths()
     }
 
-    func removePath(_ path: CustomSkillPath) {
+    func removePath(_ path: CustomSkillPath) async throws {
+        guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
+        try await persistence.removeCustomPath(id: path.id)
         customPaths.removeAll { $0.id == path.id }
-        savePaths()
-    }
-
-    func removePath(at url: URL) {
-        customPaths.removeAll { $0.url == url }
-        savePaths()
-    }
-
-    // MARK: - Persistence
-
-    private func configDirectory() -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first ?? FileManager.default.homeDirectoryForCurrentUser
-        return base.appendingPathComponent("SkillsManager")
-    }
-
-    private func configURL() -> URL {
-        configDirectory().appendingPathComponent("custom-paths.json")
-    }
-
-    private func loadPaths() {
-        let url = configURL()
-        guard let data = try? Data(contentsOf: url) else {
-            customPaths = []
-            return
-        }
-        customPaths = (try? JSONDecoder().decode([CustomSkillPath].self, from: data)) ?? []
-    }
-
-    private func savePaths() {
-        let dir = configDirectory()
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(customPaths) {
-            try? data.write(to: configURL(), options: [.atomic])
-        }
     }
 }

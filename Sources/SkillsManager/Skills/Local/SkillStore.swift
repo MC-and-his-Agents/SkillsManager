@@ -47,6 +47,7 @@ import Observation
     private let importWorker = SkillImportWorker()
     private let cliWorker = ClawdhubCLIWorker()
     private let customPathStore: CustomPathStore
+    var persistence: JournaledSSOTWriter?
 
     init(customPathStore: CustomPathStore = CustomPathStore()) {
         self.customPathStore = customPathStore
@@ -56,12 +57,16 @@ import Observation
         customPathStore.customPaths
     }
 
-    func addCustomPath(_ url: URL) throws {
-        try customPathStore.addPath(url)
+    func activatePersistence(_ persistence: JournaledSSOTWriter) {
+        self.persistence = persistence
     }
 
-    func removeCustomPath(_ path: CustomSkillPath) {
-        customPathStore.removePath(path)
+    func addCustomPath(_ url: URL) async throws {
+        try await customPathStore.addPath(url)
+    }
+
+    func removeCustomPath(_ path: CustomSkillPath) async throws {
+        try await customPathStore.removePath(path)
     }
 
     var selectedSkill: Skill? {
@@ -305,7 +310,7 @@ import Observation
     func skillNeedsPublish(_ skill: Skill) async -> Bool {
         do {
             let hash = try await fileWorker.computeSkillHash(for: skill.folderURL)
-            guard let state = loadPublishState(for: skill.name) else { return true }
+            guard let state = try await loadPublishState(for: skill.name) else { return true }
             let legacyHash: String? = if state.hashAlgorithmVersion == nil {
                 try await fileWorker.computeLegacyPublishHash(for: skill.folderURL)
             } else {
@@ -317,7 +322,7 @@ import Observation
             case .changed:
                 return true
             case .migrate(let migratedState):
-                savePublishState(migratedState, for: skill.name)
+                try await savePublishState(migratedState, for: skill.name)
                 return false
             }
         } catch {
@@ -332,6 +337,7 @@ import Observation
         tags: [String],
         publishedVersion: String?
     ) async throws {
+        guard persistence != nil else { throw LibraryPersistenceError.runtimeNotReady }
         try await cliWorker.publishSkill(
             skillURL: skill.folderURL,
             publishedVersion: publishedVersion,
@@ -341,7 +347,7 @@ import Observation
         )
 
         let hash = try await fileWorker.computeSkillHash(for: skill.folderURL)
-        savePublishState(for: skill.name, hash: hash)
+        try await savePublishState(for: skill.name, hash: hash)
     }
 
     func fetchClawdhubStatus() async -> CliStatus {

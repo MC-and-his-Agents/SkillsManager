@@ -19,6 +19,12 @@ nonisolated final class LegacyStateInventory: @unchecked Sendable {
     private let publishFiles: [LegacyCapturedFile]
     private let publishNames: Set<String>
 
+    static func hasHistory(
+        homeURL: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) throws -> Bool {
+        try LegacyDirectoryChain.capture(homeURL: homeURL).legacyRoot != nil
+    }
+
     static func capture(
         homeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
         ownership: SSOTWriterOwnership,
