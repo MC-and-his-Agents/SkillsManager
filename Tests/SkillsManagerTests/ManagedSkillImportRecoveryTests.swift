@@ -8,6 +8,56 @@ import Testing
 struct ManagedSkillImportRecoveryTests {
     private enum Stop: Error { case requested }
 
+    @Test("a second token recovers an interrupted import before mutating")
+    func recoversInterruptedImportBeforeSecondToken() async throws {
+        let workspace = try WriterWorkspace()
+        let discoveryRoot = workspace.workspace.appendingPathComponent(
+            "discovery",
+            isDirectory: true
+        )
+        let source = discoveryRoot.appendingPathComponent("demo", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: source,
+            withIntermediateDirectories: true
+        )
+        try "# Demo".write(
+            to: source.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let fired = Mutex(false)
+        var hooks = JournaledSSOTWriterHooks()
+        hooks.checkpoint = { point, _ in
+            guard point == .afterFilesystemPhase else { return }
+            if fired.withLock({ value in
+                defer { value = true }
+                return !value
+            }) {
+                throw Stop.requested
+            }
+        }
+        let writer = try await workspace.openWriter(hooks: hooks)
+        let observation = try #require(
+            SkillDiscoveryScanner().scan(
+                roots: [SkillDiscoveryRoot(scope: .global, url: discoveryRoot)]
+            ).observations.first
+        )
+        let service = ManagedSkillImportService(writer: writer)
+        let first = try await service.preview(observation: observation, action: .importNew)
+        let second = try await service.preview(observation: observation, action: .importNew)
+
+        await #expect(throws: SSOTWriterCheckpointInterruption.self) {
+            _ = try await service.execute(first.token)
+        }
+        let recovered = try await service.execute(second.token)
+
+        #expect(recovered.disposition == .alreadyManaged)
+        #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
+        #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 1)
+        #expect(try workspace.integer("SELECT count(*) FROM skill_operations") == 1)
+        #expect(try workspace.internalItemCount() == 0)
+    }
+
     @Test(
         "create-time local origins recover at every persisted checkpoint",
         arguments: [

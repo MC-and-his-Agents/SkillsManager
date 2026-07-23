@@ -56,9 +56,14 @@ nonisolated extension SSOTJournalStore {
 
     func claimLocalOrigins(
         skillID: SkillID,
-        expectedFingerprint: SkillContentFingerprint,
+        candidate: SkillDiscoveryCandidate,
         origins: [LocalSkillOriginRecord]
     ) throws -> ManagedSkillRecord {
+        guard let expectedFingerprint = candidate.fingerprint,
+              candidate.terminalStatus == nil,
+              candidate.terminalReason == nil else {
+            throw LocalSkillOriginStoreError.invalidInput
+        }
         guard !origins.isEmpty,
               origins.allSatisfy({
                   $0.skillID == skillID && $0.fingerprint == expectedFingerprint
@@ -66,6 +71,15 @@ nonisolated extension SSOTJournalStore {
             throw LocalSkillOriginStoreError.invalidInput
         }
         return try transaction {
+            let current = SkillDiscoveryClassifier().classify(
+                [candidate],
+                catalog: try discoveryCatalog()
+            ).first
+            guard let current,
+                  current.matchedSkillID == skillID,
+                  current.status == .claimable || current.status == .managed else {
+                throw LocalSkillOriginStoreError.conflict
+            }
             guard let skill = try managedSkillRecord(skillID),
                   skill.contentFingerprint == expectedFingerprint else {
                 throw LocalSkillOriginStoreError.conflict

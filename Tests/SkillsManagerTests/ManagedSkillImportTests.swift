@@ -139,6 +139,38 @@ struct ManagedSkillImportTests {
         #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 1)
     }
 
+    @Test("claim rejects matching evidence that became ambiguous after preview")
+    func staleClaimEvidenceConflicts() async throws {
+        let workspace = try WriterWorkspace()
+        let root = try discoveryRoot(in: workspace)
+        _ = try createSkill(named: "demo", content: "# Demo", in: root)
+        let writer = try await workspace.openWriter()
+        let snapshot = try workspace.snapshot(content: "# Demo")
+        _ = try await writer.create(
+            payload: workspace.payload(name: "First", snapshot: snapshot),
+            sourceSnapshot: snapshot
+        )
+        let observation = try await scanObservation(
+            roots: [SkillDiscoveryRoot(scope: .global, url: root)],
+            writer: writer
+        )
+        let service = ManagedSkillImportService(writer: writer)
+        let preview = try await service.preview(
+            observation: observation,
+            action: .claimExisting
+        )
+        _ = try await writer.create(
+            payload: workspace.payload(name: "Second", snapshot: snapshot),
+            sourceSnapshot: snapshot
+        )
+
+        await #expect(throws: ManagedSkillImportError.conflict) {
+            _ = try await service.execute(preview.token)
+        }
+        #expect(try workspace.integer("SELECT count(*) FROM skills") == 2)
+        #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 0)
+    }
+
     @Test("claim fills a missing alias scope atomically")
     func fillsMissingAliasScope() async throws {
         let workspace = try WriterWorkspace()
@@ -150,22 +182,16 @@ struct ManagedSkillImportTests {
         let snapshot = try workspace.snapshot(content: "# Demo")
         let seed = try workspace.payload(name: "Existing", snapshot: snapshot)
         _ = try await writer.create(payload: seed, sourceSnapshot: snapshot)
-        let fingerprint = seed.skill.contentFingerprint
-        _ = try await writer.claimExisting(
-            skillID: seed.skill.skillID,
-            fingerprint: fingerprint,
-            origins: [
-                try LocalSkillOriginRecord(
-                    skillID: seed.skill.skillID,
-                    scope: .global,
-                    rawLocator: "demo",
-                    normalizedLocator: "demo",
-                    collisionKey: "demo",
-                    fingerprint: fingerprint,
-                    confirmedAtMilliseconds: 1
-                ),
-            ]
+        let service = ManagedSkillImportService(writer: writer)
+        let globalObservation = try await scanObservation(
+            roots: [SkillDiscoveryRoot(scope: .global, url: root)],
+            writer: writer
         )
+        let globalPreview = try await service.preview(
+            observation: globalObservation,
+            action: .claimExisting
+        )
+        _ = try await service.execute(globalPreview.token)
         let observation = try await scanObservation(
             roots: [
                 SkillDiscoveryRoot(scope: .global, url: root),
@@ -177,7 +203,6 @@ struct ManagedSkillImportTests {
             writer: writer
         )
         #expect(observation.status == .claimable)
-        let service = ManagedSkillImportService(writer: writer)
 
         let preview = try await service.preview(
             observation: observation,

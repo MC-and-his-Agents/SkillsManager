@@ -55,6 +55,7 @@ actor ManagedSkillImportService {
         let collisionKey: String
         let candidateIdentity: ManagedItemIdentity
         let fingerprint: SkillContentFingerprint
+        let providerAliases: Set<ProviderAliasIdentity>
         let matchedSkillID: SkillID?
         let newSkillID: SkillID?
     }
@@ -122,6 +123,7 @@ actor ManagedSkillImportService {
             collisionKey: observation.relativeLocatorKey,
             candidateIdentity: candidateIdentity,
             fingerprint: fingerprint,
+            providerAliases: observation.providerAliases,
             matchedSkillID: matchedSkillID,
             newSkillID: newSkillID
         ))
@@ -145,7 +147,6 @@ actor ManagedSkillImportService {
             throw ManagedSkillImportError.tokenExpired
         }
 
-        try await writer.recoverAll()
         let snapshot = try captureSnapshot(pending)
         let timestamp = max(0, nowMilliseconds())
         let result: ManagedSkillImportResult
@@ -184,7 +185,7 @@ actor ManagedSkillImportService {
                 result = ManagedSkillImportResult(
                     skill: try await writer.claimExisting(
                         skillID: skillID,
-                        fingerprint: pending.fingerprint,
+                        candidate: candidate(for: pending),
                         origins: origins
                     ),
                     disposition: .claimed
@@ -273,9 +274,13 @@ actor ManagedSkillImportService {
             let snapshot = try SkillContentSnapshot.capture(
                 directoryDescriptor: candidateDescriptor,
                 displayPath: pending.normalizedLocator,
-                limits: limits
+                limits: limits,
+                checkpoint: { try Task.checkCancellation() }
             )
-            _ = try snapshot.readUTF8File(relativePath: "SKILL.md")
+            _ = try snapshot.readUTF8File(
+                relativePath: "SKILL.md",
+                checkpoint: { try Task.checkCancellation() }
+            )
             guard try identity(of: candidateDescriptor) == pending.candidateIdentity,
                   try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest)
                     == pending.fingerprint,
@@ -310,6 +315,23 @@ actor ManagedSkillImportService {
                 confirmedAtMilliseconds: timestamp
             )
         }
+    }
+
+    private func candidate(for pending: Pending) -> SkillDiscoveryCandidate {
+        SkillDiscoveryCandidate(
+            roots: pending.roots.map {
+                SkillDiscoveryRoot(scope: $0.scope, url: $0.reference.canonicalURL)
+            },
+            rootIdentity: pending.rootIdentity,
+            rawRelativeLocator: pending.rawLocator,
+            relativeLocator: pending.normalizedLocator,
+            relativeLocatorKey: pending.collisionKey,
+            candidateIdentity: pending.candidateIdentity,
+            fingerprint: pending.fingerprint,
+            providerAliases: pending.providerAliases,
+            terminalStatus: nil,
+            terminalReason: nil
+        )
     }
 
     private func managedSkill(

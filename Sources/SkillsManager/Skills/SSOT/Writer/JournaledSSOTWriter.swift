@@ -135,6 +135,7 @@ actor JournaledSSOTWriter {
             throw JournaledSSOTWriterError.invalidInput
         }
         try requireAuthority()
+        try recoverAll()
         if let existing = try journal.resolveExistingImport(origins: payload.localOrigins) {
             return (existing, false)
         }
@@ -148,13 +149,14 @@ actor JournaledSSOTWriter {
 
     func claimExisting(
         skillID: SkillID,
-        fingerprint: SkillContentFingerprint,
+        candidate: SkillDiscoveryCandidate,
         origins: [LocalSkillOriginRecord]
     ) throws -> ManagedSkillRecord {
         try requireAuthority()
+        try recoverAll()
         return try journal.claimLocalOrigins(
             skillID: skillID,
-            expectedFingerprint: fingerprint,
+            candidate: candidate,
             origins: origins
         )
     }
