@@ -13,6 +13,7 @@ struct SkillsManagerApp: App {
     @State private var store: SkillStore
     @State private var libraryRuntime = LibraryRuntimeState()
     @State private var remoteStore = RemoteSkillStore(client: .live())
+    @State private var runtimeBootstrap = AppLibraryRuntimeBootstrap()
     private let startupCoordinator = LibraryStartupCoordinator()
 
     init() {
@@ -29,26 +30,12 @@ struct SkillsManagerApp: App {
                 .environment(customPathStore)
                 .environment(libraryRuntime)
                 .task {
-                    let result = await startupCoordinator.start()
-                    libraryRuntime.apply(result)
-                    guard result.readiness == .ready, let session = result.session else { return }
-                    do {
-                        try await customPathStore.activate(using: session)
-                        store.activatePersistence(session)
-                        await store.loadSkills()
-                    } catch {
-                        libraryRuntime.apply(LibraryStartupResult(
-                            phase: .running,
-                            readiness: .blocked,
-                            diagnostics: [.make(
-                                .unrecoverable,
-                                subjectKind: .database,
-                                subjectID: "persistenceActivation"
-                            )],
-                            outcome: result.outcome,
-                            session: nil
-                        ))
-                    }
+                    await runtimeBootstrap.start(
+                        using: { await startupCoordinator.start() },
+                        runtimeState: libraryRuntime,
+                        customPathStore: customPathStore,
+                        skillStore: store
+                    )
                 }
         }
         .commands {

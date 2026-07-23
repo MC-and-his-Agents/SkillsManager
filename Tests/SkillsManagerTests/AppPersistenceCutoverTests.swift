@@ -50,4 +50,47 @@ struct AppPersistenceCutoverTests {
         #expect(try await skillStore.loadPublishState(for: "demo")?.lastPublishedHash == "abc")
         #expect(try Data(contentsOf: legacy.0) == legacy.1)
     }
+
+    @MainActor
+    @Test("repeated window startup shares one ready runtime and one persistence cutover")
+    func coalescesRepeatedStartup() async throws {
+        let fixture = try LibraryRuntimeTestHome()
+        defer { fixture.remove() }
+        let invocations = StartupInvocationCounter()
+        let coordinator = LibraryStartupCoordinator(homeURL: fixture.home)
+        let paths = CustomPathStore()
+        let skills = SkillStore(customPathStore: paths)
+        let state = LibraryRuntimeState()
+        let bootstrap = AppLibraryRuntimeBootstrap()
+        let startup: @Sendable () async -> LibraryStartupResult = {
+            await invocations.record()
+            return await coordinator.start()
+        }
+
+        await bootstrap.start(
+            using: startup,
+            runtimeState: state,
+            customPathStore: paths,
+            skillStore: skills
+        )
+        await bootstrap.start(
+            using: startup,
+            runtimeState: state,
+            customPathStore: paths,
+            skillStore: skills
+        )
+
+        #expect(await invocations.count == 1)
+        #expect(state.readiness == .ready)
+        #expect(state.phase == .running)
+        #expect(skills.persistence != nil)
+    }
+}
+
+private actor StartupInvocationCounter {
+    private(set) var count = 0
+
+    func record() {
+        count += 1
+    }
 }

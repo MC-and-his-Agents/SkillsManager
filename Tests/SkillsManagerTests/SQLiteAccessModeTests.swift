@@ -59,6 +59,31 @@ struct SQLiteAccessModeTests {
         }
     }
 
+    @Test("parent alias replacement cannot redirect an existing database open")
+    func rejectsParentAliasReplacement() throws {
+        let location = try accessModeDatabaseLocation()
+        defer { try? FileManager.default.removeItem(at: location.root) }
+        let first = location.root.appendingPathComponent("first", isDirectory: true)
+        let second = location.root.appendingPathComponent("second", isDirectory: true)
+        let alias = location.root.appendingPathComponent("alias", isDirectory: true)
+        try FileManager.default.createDirectory(at: first, withIntermediateDirectories: false)
+        try FileManager.default.createDirectory(at: second, withIntermediateDirectories: false)
+        _ = try SkillSchemaMigrator.open(at: first.appendingPathComponent("manager.sqlite"))
+        _ = try SkillSchemaMigrator.open(at: second.appendingPathComponent("manager.sqlite"))
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: first)
+
+        #expect(throws: SQLiteStoreError.self) {
+            _ = try SQLiteConnection(
+                path: alias.appendingPathComponent("manager.sqlite").path,
+                accessMode: .readWriteExisting,
+                afterNamedIdentityRead: {
+                    try FileManager.default.removeItem(at: alias)
+                    try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: second)
+                }
+            )
+        }
+    }
+
     @Test("future schemas are rejected before journal mode can be changed")
     func futureSchemaDoesNotChangeJournalMode() throws {
         let location = try accessModeDatabaseLocation()

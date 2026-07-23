@@ -27,13 +27,21 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
     private let database: OpaquePointer
     let accessMode: SQLiteAccessMode
 
-    init(path: String, accessMode: SQLiteAccessMode = .readWrite) throws {
+    init(
+        path: String,
+        accessMode: SQLiteAccessMode = .readWrite,
+        afterNamedIdentityRead: () throws -> Void = {}
+    ) throws {
         var opened: OpaquePointer?
-        let databaseExists = try Self.pathExistsWithoutFollowingSymlinks(path)
+        let namedIdentity = try Self.databaseIdentity(at: path)
+        try afterNamedIdentityRead()
         let openPath = try Self.resolvedDatabasePath(path)
+        guard try Self.databaseIdentity(at: openPath) == namedIdentity else {
+            throw SQLiteStoreError.invalidState("database parent identity changed before open")
+        }
         let existingDatabaseFlag: Int32
         if accessMode == .readWrite {
-            existingDatabaseFlag = databaseExists ? SQLITE_OPEN_NOFOLLOW : 0
+            existingDatabaseFlag = namedIdentity == nil ? 0 : SQLITE_OPEN_NOFOLLOW
         } else {
             existingDatabaseFlag = SQLITE_OPEN_NOFOLLOW
         }
@@ -52,6 +60,16 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
                 ?? String(cString: sqlite3_errstr(result))
             if let opened { sqlite3_close_v2(opened) }
             throw SQLiteStoreError.sqlite(operation: "open", code: result, message: message)
+        }
+        do {
+            guard let openedIdentity = try Self.databaseIdentity(at: openPath),
+                  try Self.databaseIdentity(at: path) == openedIdentity,
+                  namedIdentity == nil || namedIdentity == openedIdentity else {
+                throw SQLiteStoreError.invalidState("database identity changed during open")
+            }
+        } catch {
+            sqlite3_close_v2(opened)
+            throw error
         }
         database = opened
         self.accessMode = accessMode
@@ -82,13 +100,13 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
         }
     }
 
-    private static func pathExistsWithoutFollowingSymlinks(_ path: String) throws -> Bool {
+    private static func databaseIdentity(at path: String) throws -> ManagedItemIdentity? {
         var metadata = stat()
         if Darwin.lstat(path, &metadata) == 0 {
-            guard metadata.st_mode & S_IFMT != S_IFLNK else {
-                throw SQLiteStoreError.invalidState("database path must not be a symbolic link")
+            guard metadata.st_mode & S_IFMT == S_IFREG else {
+                throw SQLiteStoreError.invalidState("database path must be a regular file")
             }
-            return true
+            return ManagedItemIdentity(metadata)
         }
 
         let code = errno
@@ -99,7 +117,7 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
                 message: String(cString: strerror(code))
             )
         }
-        return false
+        return nil
     }
 
     private static func resolvedDatabasePath(_ path: String) throws -> String {

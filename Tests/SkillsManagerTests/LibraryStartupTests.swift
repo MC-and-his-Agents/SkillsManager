@@ -53,6 +53,31 @@ struct LibraryStartupTests {
         }
     }
 
+    @Test("a marker can recover an empty provisional database file")
+    func recoversEmptyProvisionalDatabase() async throws {
+        enum InjectedCrash: Error { case stop }
+        let fixture = try LibraryRuntimeTestHome()
+        defer { fixture.remove() }
+        let interrupted = await LibraryStartupCoordinator(
+            homeURL: fixture.home,
+            hooks: LibraryStartupHooks { checkpoint in
+                if checkpoint == .markerDurable { throw InjectedCrash.stop }
+            }
+        ).start()
+        #expect(interrupted.readiness == .blocked)
+
+        let database = fixture.home.appendingPathComponent(
+            ".SkillsManager/manager.sqlite"
+        )
+        #expect(FileManager.default.createFile(atPath: database.path, contents: Data()))
+        #expect(Darwin.chmod(database.path, 0o600) == 0)
+
+        let resumed = await LibraryStartupCoordinator(homeURL: fixture.home).start()
+        #expect(resumed.readiness == .ready)
+        #expect(resumed.phase == .running)
+        #expect(resumed.outcome == .firstRunInitialized)
+    }
+
     @Test("two first-run instances produce one ready owner and one busy diagnostic")
     func serializesFirstRun() async throws {
         let fixture = try LibraryRuntimeTestHome()

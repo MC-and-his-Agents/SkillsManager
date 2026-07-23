@@ -72,14 +72,36 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
             }
 
             phase = .openingDatabase
-            let connection = try SkillSchemaMigrator.open(
-                at: layout.databaseURL,
-                accessMode: .readWriteExisting
-            )
-            let bootstrap = try LibraryBootstrapStore.load(connection)
             let marker = try markerExists
                 ? LibraryRootBootstrap.openMarker(root: managementRoot)
                 : nil
+            if marker != nil {
+                try LibraryRootBootstrap.requireOnlyManagementEntries(
+                    [
+                        SSOTWriterOwnership.lockFileName,
+                        LibraryRootLayout.bootstrapMarkerName,
+                        LibraryRootLayout.databaseFileName,
+                        "\(LibraryRootLayout.databaseFileName)-shm",
+                        "\(LibraryRootLayout.databaseFileName)-wal",
+                        LibraryRootLayout.ssotDirectoryName,
+                    ],
+                    root: managementRoot
+                )
+            }
+            let connection = try SkillSchemaMigrator.open(
+                at: layout.databaseURL,
+                accessMode: .readWriteExisting,
+                initializeV4: { connection in
+                    guard let marker else { return }
+                    try LibraryBootstrapStore.insertPrepared(
+                        kind: marker.marker.bootstrapKind,
+                        bootstrapID: marker.marker.bootstrapID,
+                        expectedMarkerIdentity: marker.identity,
+                        connection: connection
+                    )
+                }
+            )
+            let bootstrap = try LibraryBootstrapStore.load(connection)
             try validateBootstrapPair(record: bootstrap, marker: marker)
 
             if !ssotExists {
