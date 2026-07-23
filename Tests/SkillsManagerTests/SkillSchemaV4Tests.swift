@@ -12,6 +12,7 @@ struct SkillSchemaV4Tests {
         defer { try? FileManager.default.removeItem(at: location.root) }
         do {
             let connection = try SkillSchemaMigrator.open(at: location.database)
+            try removeV6ObjectsForLegacyFixture(connection)
             try connection.execute("DROP TABLE local_skill_origins")
             try connection.execute("DROP TABLE library_bootstrap")
             try connection.execute(
@@ -30,8 +31,8 @@ struct SkillSchemaV4Tests {
         #expect(try rolledBack.userTableNames() == SkillSchemaV3.tableNames)
 
         let migrated = try SkillSchemaMigrator.open(at: location.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 5)
-        #expect(try migrated.userTableNames() == SkillSchemaV5.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 6)
+        #expect(try migrated.userTableNames() == SkillSchemaV6.tableNames)
     }
 
     @Test("read-write-existing never creates a missing database")

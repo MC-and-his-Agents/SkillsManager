@@ -138,7 +138,7 @@ struct ManagedSkillImportRecoveryTests {
 
         let recovered = try await workspace.openWriter()
         _ = recovered
-        #expect(try workspace.integer("PRAGMA user_version") == 5)
+        #expect(try workspace.integer("PRAGMA user_version") == 6)
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
         #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 0)
         #expect(try workspace.scalar("SELECT outcome FROM skill_operations") == "applied")
@@ -197,6 +197,7 @@ struct ManagedSkillImportRecoveryTests {
         let connection = try SQLiteConnection(url: database)
         try connection.execute("BEGIN IMMEDIATE")
         do {
+            try removeV6ObjectsForLegacyFixture(connection)
             try connection.execute("DROP TABLE local_skill_origins")
             try connection.execute(
                 "UPDATE schema_metadata SET schema_version = 4 WHERE singleton = 1"
