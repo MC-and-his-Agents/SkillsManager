@@ -331,6 +331,20 @@ nonisolated enum SkillContentPath {
         component.precomposedStringWithCanonicalMapping
     }
 
+    nonisolated static func visibleDirectoryName(_ component: String) -> String? {
+        let normalized = normalizedComponent(component)
+        guard !normalized.isEmpty,
+              normalized != ".",
+              normalized != "..",
+              !normalized.hasPrefix("."),
+              !normalized.contains("/"),
+              !normalized.contains("\\"),
+              !normalized.contains("\0") else {
+            return nil
+        }
+        return normalized
+    }
+
     nonisolated static func collisionKey(for component: String) -> String {
         normalizedComponent(component).folding(
             options: [.caseInsensitive],
