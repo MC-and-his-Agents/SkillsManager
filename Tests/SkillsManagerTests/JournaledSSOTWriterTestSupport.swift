@@ -5,24 +5,46 @@ import Foundation
 
 final class WriterWorkspace: @unchecked Sendable {
     let workspace: URL
+    let managementRoot: URL
     let root: URL
     let source: URL
     let database: URL
+    let verifiedManagementRoot: VerifiedSSOTRoot
     let verifiedRoot: VerifiedSSOTRoot
 
     init() throws {
         workspace = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        root = workspace.appendingPathComponent("skills", isDirectory: true)
+        managementRoot = workspace.appendingPathComponent("management", isDirectory: true)
+        root = managementRoot.appendingPathComponent("skills", isDirectory: true)
         source = workspace.appendingPathComponent("source", isDirectory: true)
-        database = workspace.appendingPathComponent("manager.sqlite")
+        database = managementRoot.appendingPathComponent("manager.sqlite")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: false)
+        guard Darwin.chmod(managementRoot.path, 0o700) == 0 else {
+            throw CocoaError(.fileWriteUnknown)
+        }
         guard Darwin.chmod(root.path, 0o700) == 0 else { throw CocoaError(.fileWriteUnknown) }
-        let descriptor = Darwin.open(root.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
-        guard descriptor >= 0 else { throw CocoaError(.fileReadUnknown) }
-        defer { Darwin.close(descriptor) }
-        verifiedRoot = try VerifiedSSOTRoot(existingRootURL: root, descriptor: descriptor)
+        let managementDescriptor = Darwin.open(
+            managementRoot.path,
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
+        guard managementDescriptor >= 0 else { throw CocoaError(.fileReadUnknown) }
+        defer { Darwin.close(managementDescriptor) }
+        verifiedManagementRoot = try VerifiedSSOTRoot(
+            existingRootURL: managementRoot,
+            descriptor: managementDescriptor
+        )
+        let rootDescriptor = Darwin.open(
+            root.path,
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
+        guard rootDescriptor >= 0 else { throw CocoaError(.fileReadUnknown) }
+        defer { Darwin.close(rootDescriptor) }
+        verifiedRoot = try VerifiedSSOTRoot(
+            existingRootURL: root,
+            descriptor: rootDescriptor
+        )
     }
 
     deinit { try? FileManager.default.removeItem(at: workspace) }
@@ -31,7 +53,8 @@ final class WriterWorkspace: @unchecked Sendable {
         hooks: JournaledSSOTWriterHooks = .init()
     ) async throws -> JournaledSSOTWriter {
         try await JournaledSSOTWriter.open(
-            existing: verifiedRoot,
+            managementRoot: verifiedManagementRoot,
+            ssotRoot: verifiedRoot,
             databaseURL: database,
             hooks: hooks
         )

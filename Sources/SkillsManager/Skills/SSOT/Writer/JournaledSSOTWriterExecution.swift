@@ -155,9 +155,9 @@ extension JournaledSSOTWriter {
     }
 
     private func restoreParentDurability(for operation: SSOTJournalRecord) throws {
-        try ownership.validateForMutation(using: fileSystem.managedRootGuard)
+        try fileSystem.validateAuthority()
         try SSOTDurability.syncDirectory(fileSystem.managedRootGuard.rootDescriptor)
-        try ownership.validateForMutation(using: fileSystem.managedRootGuard)
+        try fileSystem.validateAuthority()
         let snapshot = try recoverySnapshot(for: operation)
         guard SSOTRecoveryClassifier.classify(snapshot) == .advance(.recordFilesystemApplied) else {
             let code: SSOTRecoveryErrorCode = operation.operationType == .create

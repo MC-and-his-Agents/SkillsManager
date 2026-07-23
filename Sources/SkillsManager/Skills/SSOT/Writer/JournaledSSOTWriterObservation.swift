@@ -8,7 +8,7 @@ extension JournaledSSOTWriter {
               operation.recoveryLocator == expectedRecoveryLocator(operation) else {
             return unknownSnapshot(for: operation)
         }
-        try ownership.validateForMutation(using: fileSystem.managedRootGuard)
+        try fileSystem.validateAuthority()
         let temporary = try temporaryObservations(for: operation)
         return SSOTRecoverySnapshot(
             operationType: operation.operationType,

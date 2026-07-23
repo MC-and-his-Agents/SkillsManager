@@ -180,10 +180,10 @@ struct ManagedPathGuardFailureTests {
                         try Data("new owner".utf8).write(
                             to: temporary.appendingPathComponent("marker")
                         )
-                        try ownership.validateForMutation(using: guardValue)
+                        try ownership.validateForMutation()
                     },
                     admitFailureCleanup: {
-                        try ownership.validateForMutation(using: guardValue)
+                        try ownership.validateForMutation()
                     }
                 )
             }
@@ -210,10 +210,10 @@ struct ManagedPathGuardFailureTests {
                         try Data("new owner".utf8).write(
                             to: target.appendingPathComponent("marker")
                         )
-                        try ownership.validateForMutation(using: guardValue)
+                        try ownership.validateForMutation()
                     },
                     admitFailureCleanup: {
-                        try ownership.validateForMutation(using: guardValue)
+                        try ownership.validateForMutation()
                     }
                 )
             }

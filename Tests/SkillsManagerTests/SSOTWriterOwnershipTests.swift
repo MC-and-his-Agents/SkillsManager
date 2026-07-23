@@ -7,6 +7,72 @@ import Testing
 
 @Suite("SSOT writer ownership")
 struct SSOTWriterOwnershipTests {
+    @Test("journaled writer keeps ownership in the management root")
+    func journaledWriterUsesManagementRoot() async throws {
+        let workspace = try WriterWorkspace()
+
+        let writer = try await workspace.openWriter()
+        _ = writer
+
+        #expect(FileManager.default.fileExists(
+            atPath: workspace.managementRoot
+                .appendingPathComponent(SSOTWriterOwnership.lockFileName).path
+        ))
+        #expect(!FileManager.default.fileExists(
+            atPath: workspace.root
+                .appendingPathComponent(SSOTWriterOwnership.lockFileName).path
+        ))
+    }
+
+    @Test("journaled writer rejects a shared management and SSOT root")
+    func journaledWriterRequiresDistinctRoots() async throws {
+        let workspace = try WriterWorkspace()
+
+        await #expect(throws: ManagedPathError.self) {
+            _ = try await JournaledSSOTWriter.open(
+                managementRoot: workspace.verifiedRoot,
+                ssotRoot: workspace.verifiedRoot,
+                databaseURL: workspace.database
+            )
+        }
+    }
+
+    @Test("journaled writer fails closed when the management lock is replaced")
+    func journaledWriterRejectsReplacedManagementLock() async throws {
+        let workspace = try WriterWorkspace()
+        let writer = try await workspace.openWriter()
+        let snapshot = try workspace.snapshot(content: "# replacement\n")
+        let payload = try workspace.payload(name: "replacement", snapshot: snapshot)
+        let lock = workspace.managementRoot
+            .appendingPathComponent(SSOTWriterOwnership.lockFileName)
+        try FileManager.default.removeItem(at: lock)
+        try Data("replacement\n".utf8).write(to: lock)
+        #expect(Darwin.chmod(lock.path, 0o600) == 0)
+
+        await #expect(throws: SSOTWriterOwnershipError.invalidLockFile) {
+            _ = try await writer.create(payload: payload, sourceSnapshot: snapshot)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: workspace.root.path).isEmpty)
+    }
+
+    @Test("ownership fails closed when the management root is replaced")
+    func ownershipRejectsReplacedManagementRoot() async throws {
+        let workspace = try WriterWorkspace()
+        let writer = try await workspace.openWriter()
+        let ownership = await writer.ownership
+        let displaced = workspace.workspace.appendingPathComponent("displaced-management")
+        try FileManager.default.moveItem(at: workspace.managementRoot, to: displaced)
+        try FileManager.default.createDirectory(
+            at: workspace.managementRoot,
+            withIntermediateDirectories: false
+        )
+        #expect(Darwin.chmod(workspace.managementRoot.path, 0o700) == 0)
+
+        #expect(throws: ManagedPathError.rootReplaced) {
+            try ownership.validateForMutation()
+        }
+    }
+
     @Test("verified root retains and revalidates the supplied descriptor")
     func retainsVerifiedRootDescriptor() throws {
         try withTemporaryDirectory { root in
