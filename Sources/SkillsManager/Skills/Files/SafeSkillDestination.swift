@@ -71,14 +71,7 @@ nonisolated extension SafeSkillStager {
     }
 
     func validatedName(_ name: String) throws -> String {
-        let normalized = name.precomposedStringWithCanonicalMapping
-        guard !normalized.isEmpty,
-              normalized != ".",
-              normalized != "..",
-              !normalized.hasPrefix("."),
-              !normalized.contains("/"),
-              !normalized.contains("\\"),
-              !normalized.contains("\0") else {
+        guard let normalized = SkillContentPath.visibleDirectoryName(name) else {
             throw SafeSkillStagingError.invalidDestinationName(name)
         }
         return normalized

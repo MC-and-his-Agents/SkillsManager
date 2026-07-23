@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum SkillPlatform: String, CaseIterable, Identifiable, Hashable, Sendable, Codable {
+nonisolated enum SkillPlatform: String, CaseIterable, Identifiable, Hashable, Sendable, Codable {
     case codex = "Codex"
     case claude = "Claude Code"
     case opencode = "OpenCode"
