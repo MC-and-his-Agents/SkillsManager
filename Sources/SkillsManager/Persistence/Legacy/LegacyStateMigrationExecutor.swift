@@ -239,21 +239,28 @@ nonisolated enum LegacyStateMigrationGate {
         connection: SQLiteConnection,
         ownership: SSOTWriterOwnership,
         maximumTotalBytes: Int = 64 * 1_024 * 1_024,
-        nowMilliseconds: () throws -> Int64 = { try LegacyDateCodec.milliseconds(from: Date()) }
+        nowMilliseconds: () throws -> Int64 = { try LegacyDateCodec.milliseconds(from: Date()) },
+        afterCompletedLedgerRead: () throws -> Void = {}
     ) throws -> LegacyMigrationResult {
         try LegacyStateInventory.validateOwnership(ownership)
         if let completed = try LegacyMigrationLedgerAdmission.read(connection) {
+            try afterCompletedLedgerRead()
             do {
                 let inventory = try LegacyStateInventory.capture(
                     homeURL: homeURL,
                     ownership: ownership,
                     maximumTotalBytes: maximumTotalBytes
                 )
+                try LegacyStateInventory.validateOwnership(ownership)
                 return LegacyMigrationResult(
                     diagnostics: inventory.diagnostics,
                     archiveChanged: completed.digest != inventory.inventoryDigest
                 )
+            } catch let failure as LegacyMigrationFailure
+                where failure.code == .ownershipUnavailable {
+                throw failure
             } catch {
+                try LegacyStateInventory.validateOwnership(ownership)
                 return LegacyMigrationResult(diagnostics: [], archiveChanged: true)
             }
         }

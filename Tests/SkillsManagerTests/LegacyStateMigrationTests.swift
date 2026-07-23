@@ -147,6 +147,35 @@ struct LegacyStateMigrationTests {
         _ = try SQLitePublishStatePersistence(connection: connection)
     }
 
+    @Test("completed ledger still fails closed when writer ownership drifts")
+    func completedLedgerRejectsOwnershipDrift() throws {
+        let fixture = try LegacyMigrationTestFixture()
+        let connection = try fixture.connection()
+        _ = try LegacyStateMigrationGate.migrateIfNeeded(
+            homeURL: fixture.home,
+            connection: connection,
+            ownership: fixture.ownership,
+            nowMilliseconds: { 42 }
+        )
+        let managementRoot = fixture.database.deletingLastPathComponent()
+        defer { _ = Darwin.chmod(managementRoot.path, 0o700) }
+        do {
+            _ = try LegacyStateMigrationGate.migrateIfNeeded(
+                homeURL: fixture.home,
+                connection: connection,
+                ownership: fixture.ownership,
+                afterCompletedLedgerRead: {
+                    guard Darwin.chmod(managementRoot.path, 0o777) == 0 else {
+                        throw CocoaError(.fileWriteNoPermission)
+                    }
+                }
+            )
+            Issue.record("Expected ownership drift rejection")
+        } catch let failure as LegacyMigrationFailure {
+            #expect(failure.code == .ownershipUnavailable)
+        }
+    }
+
     @Test("migration timestamp uses the shared date codec")
     func migrationTimestampCodec() throws {
         let fixture = try LegacyMigrationTestFixture()
