@@ -345,8 +345,8 @@ struct SafeSkillStagerTests {
     }
 
     @Test("serializes normalization-equivalent promotions within one managed root")
-    func serializesEquivalentPromotions() async throws {
-        try await withTemporaryDirectory { root in
+    func serializesEquivalentPromotions() throws {
+        try withTemporaryDirectory { root in
             let firstSource = root.appendingPathComponent("first-source", isDirectory: true)
             let secondSource = root.appendingPathComponent("second-source", isDirectory: true)
             let destination = root.appendingPathComponent("destination", isDirectory: true)
@@ -362,45 +362,72 @@ struct SafeSkillStagerTests {
             let aliasRoot = try ManagedRootReference.capture(at: destinationAlias)
             let firstFingerprint = try SkillContentSnapshot.capture(at: firstSource).fingerprint
             let secondFingerprint = try SkillContentSnapshot.capture(at: secondSource).fingerprint
-            let arrivals = DispatchSemaphore(value: 0)
-            let release = DispatchSemaphore(value: 0)
-            let commitEntries = DispatchSemaphore(value: 0)
-            let commitRelease = DispatchSemaphore(value: 0)
-            let first = Self.promotionTask(
+            let gate = PromotionContentionTestGate()
+            gate.startPromotion(
+                role: .holder,
                 source: firstSource,
                 fingerprint: firstFingerprint,
                 destination: destination,
                 name: "Foo",
-                managedRoot: directRoot,
-                arrivals: arrivals,
-                release: release,
-                commitEntries: commitEntries,
-                commitRelease: commitRelease
-            )
-            let second = Self.promotionTask(
-                source: secondSource,
-                fingerprint: secondFingerprint,
-                destination: destinationAlias,
-                name: "foo",
-                managedRoot: aliasRoot,
-                arrivals: arrivals,
-                release: release,
-                commitEntries: commitEntries,
-                commitRelease: commitRelease
+                managedRoot: directRoot
             )
 
-            #expect(await wait(arrivals, timeout: .now() + 5) == .success)
-            #expect(await wait(arrivals, timeout: .now() + 5) == .success)
-            release.signal()
-            release.signal()
-            #expect(await wait(commitEntries, timeout: .now() + 5) == .success)
-            #expect(await wait(commitEntries, timeout: .now() + 0.1) == .timedOut)
-            commitRelease.signal()
-            #expect(await wait(commitEntries, timeout: .now() + 5) == .success)
-            commitRelease.signal()
-            let results = try await [first.value, second.value]
-            let names = Set(results.map { $0.installedURL.lastPathComponent })
-            #expect(names == ["Foo", "foo-1"] || names == ["foo", "Foo-1"])
+            do {
+                try gate.wait(for: .holderCommit)
+                gate.startPromotion(
+                    role: .contender,
+                    source: secondSource,
+                    fingerprint: secondFingerprint,
+                    destination: destinationAlias,
+                    name: "foo",
+                    managedRoot: aliasRoot
+                )
+                try gate.wait(for: .contention)
+                gate.release(.holder)
+                try gate.wait(for: .contenderCommit)
+                gate.release(.contender)
+                let names = Set(try gate.finish().map { $0.installedURL.lastPathComponent })
+                #expect(names == ["Foo", "foo-1"])
+            } catch let operationError {
+                do {
+                    try gate.abortAndWait()
+                } catch let cleanupError {
+                    throw cleanupError
+                }
+                throw operationError
+            }
+        }
+    }
+
+    @Test("promotion contention watchdog aborts and drains the active worker")
+    func promotionContentionWatchdogDrainsWorker() throws {
+        try withTemporaryDirectory { root in
+            let source = root.appendingPathComponent("source", isDirectory: true)
+            let destination = root.appendingPathComponent("destination", isDirectory: true)
+            try makeSkill(at: source, markdown: "# Watchdog")
+            try FileManager.default.createDirectory(
+                at: destination,
+                withIntermediateDirectories: false
+            )
+            let managedRoot = try ManagedRootReference.capture(at: destination)
+            let fingerprint = try SkillContentSnapshot.capture(at: source).fingerprint
+            let gate = PromotionContentionTestGate()
+            gate.startPromotion(
+                role: .holder,
+                source: source,
+                fingerprint: fingerprint,
+                destination: destination,
+                name: "watchdog",
+                managedRoot: managedRoot
+            )
+            try gate.wait(for: .holderCommit)
+
+            do {
+                _ = try gate.finish(workerWatchdogInterval: 0.01)
+                Issue.record("Expected the worker completion watchdog to expire")
+            } catch let error as PromotionContentionTestGate.GateError {
+                #expect(error == .watchdogExpired("worker completion"))
+            }
         }
     }
 
@@ -411,53 +438,6 @@ struct SafeSkillStagerTests {
             atomically: true,
             encoding: .utf8
         )
-    }
-
-    private static func promotionTask(
-        source: URL,
-        fingerprint: String,
-        destination: URL,
-        name: String,
-        managedRoot: ManagedRootReference,
-        arrivals: DispatchSemaphore,
-        release: DispatchSemaphore,
-        commitEntries: DispatchSemaphore,
-        commitRelease: DispatchSemaphore
-    ) -> Task<SafeSkillInstallResult, Error> {
-        Task {
-            try await withCheckedThrowingContinuation { continuation in
-                Thread.detachNewThread {
-                    autoreleasepool {
-                        continuation.resume(with: Result {
-                            var hooks = ManagedPathGuardTestHooks()
-                            hooks.beforeNoReplaceCommit = {
-                                commitEntries.signal()
-                                guard commitRelease.wait(timeout: .now() + 5) == .success else {
-                                    throw PromotionBarrierError.timedOut
-                                }
-                            }
-                            let stager = SafeSkillStager(
-                                guardFactory: { try ManagedPathGuard(rootURL: $0, hooks: hooks) }
-                            )
-                            return try stager.install(
-                                sourceRoot: source,
-                                expectedFingerprint: fingerprint,
-                                destinationRoot: destination,
-                                preferredName: name,
-                                conflictPolicy: .chooseUniqueName,
-                                managedRoot: managedRoot,
-                                metadataWriter: { _ in
-                                    arrivals.signal()
-                                    guard release.wait(timeout: .now() + 5) == .success else {
-                                        throw PromotionBarrierError.timedOut
-                                    }
-                                }
-                            )
-                        })
-                    }
-                }
-            }
-        }
     }
 
     private func hasPartiallyCopiedFile(in destination: URL) throws -> Bool {
@@ -480,26 +460,4 @@ struct SafeSkillStagerTests {
         try body(root)
     }
 
-    private func withTemporaryDirectory(_ body: (URL) async throws -> Void) async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        try await body(root)
-    }
-
-    private func wait(
-        _ semaphore: DispatchSemaphore,
-        timeout: DispatchTime
-    ) async -> DispatchTimeoutResult {
-        await withCheckedContinuation { continuation in
-            Thread.detachNewThread {
-                continuation.resume(returning: semaphore.wait(timeout: timeout))
-            }
-        }
-    }
-}
-
-private enum PromotionBarrierError: Error {
-    case timedOut
 }

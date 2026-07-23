@@ -9,15 +9,18 @@ nonisolated struct SafeSkillStager {
     private let fileManager: FileManager
     private let limits: SkillContentLimits
     private let guardFactory: GuardFactory
+    let onPromotionLockContention: @Sendable () -> Void
 
     init(
         fileManager: FileManager = .default,
         limits: SkillContentLimits = .default,
-        guardFactory: @escaping GuardFactory = { try ManagedPathGuard(rootURL: $0) }
+        guardFactory: @escaping GuardFactory = { try ManagedPathGuard(rootURL: $0) },
+        onPromotionLockContention: @escaping @Sendable () -> Void = {}
     ) {
         self.fileManager = fileManager
         self.limits = limits
         self.guardFactory = guardFactory
+        self.onPromotionLockContention = onPromotionLockContention
     }
 
     func install(

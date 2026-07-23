@@ -6,6 +6,7 @@ private nonisolated enum SkillRootPromotionLocks {
 
     static func withLock<T>(
         for rootIdentity: ManagedItemIdentity,
+        onContention: () -> Void,
         _ body: () throws -> T
     ) rethrows -> T {
         let lock = locks.withLock { locks in
@@ -14,7 +15,12 @@ private nonisolated enum SkillRootPromotionLocks {
             locks[rootIdentity] = created
             return created
         }
-        return try lock.withLock(body)
+        if !lock.try() {
+            onContention()
+            lock.lock()
+        }
+        defer { lock.unlock() }
+        return try body()
     }
 }
 
@@ -23,7 +29,11 @@ nonisolated extension SafeSkillStager {
         for rootIdentity: ManagedItemIdentity,
         _ body: () throws -> T
     ) rethrows -> T {
-        try SkillRootPromotionLocks.withLock(for: rootIdentity, body)
+        try SkillRootPromotionLocks.withLock(
+            for: rootIdentity,
+            onContention: onPromotionLockContention,
+            body
+        )
     }
 
     func destinationURL(
