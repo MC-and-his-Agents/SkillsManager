@@ -136,6 +136,7 @@ nonisolated struct SkillDiscoveryScanner {
             if let candidate = try candidate(
                 named: name,
                 roots: roots,
+                rootIdentity: representative.identity,
                 in: descriptor,
                 limits: limits,
                 checkpoint: checkpoint
@@ -163,6 +164,7 @@ nonisolated struct SkillDiscoveryScanner {
     private func candidate(
         named rawName: String,
         roots: [SkillDiscoveryRoot],
+        rootIdentity: ManagedItemIdentity,
         in rootDescriptor: Int32,
         limits: SkillContentLimits,
         checkpoint: SkillCancellationCheckpoint
@@ -173,6 +175,7 @@ nonisolated struct SkillDiscoveryScanner {
             return failedCandidate(
                 named: rawName,
                 roots: roots,
+                rootIdentity: rootIdentity,
                 status: permissionError(errno) ? .permissionDenied : .damaged,
                 reason: permissionError(errno) ? .candidatePermissionDenied : .sourceChanged
             )
@@ -183,6 +186,7 @@ nonisolated struct SkillDiscoveryScanner {
             return failedCandidate(
                 named: rawName,
                 roots: roots,
+                rootIdentity: rootIdentity,
                 identity: ManagedItemIdentity(metadata),
                 status: .conflict,
                 reason: .unknownSymlink
@@ -192,6 +196,7 @@ nonisolated struct SkillDiscoveryScanner {
             return failedCandidate(
                 named: rawName,
                 roots: roots,
+                rootIdentity: rootIdentity,
                 identity: ManagedItemIdentity(metadata),
                 status: .damaged,
                 reason: .unsupportedEntryType
@@ -201,6 +206,7 @@ nonisolated struct SkillDiscoveryScanner {
             return failedCandidate(
                 named: rawName,
                 roots: roots,
+                rootIdentity: rootIdentity,
                 identity: ManagedItemIdentity(metadata),
                 status: .damaged,
                 reason: .unsafeContent
@@ -210,6 +216,7 @@ nonisolated struct SkillDiscoveryScanner {
             rawName: rawName,
             normalizedName: name,
             roots: roots,
+            rootIdentity: rootIdentity,
             metadata: metadata,
             rootDescriptor: rootDescriptor,
             limits: limits,
@@ -221,6 +228,7 @@ nonisolated struct SkillDiscoveryScanner {
         rawName: String,
         normalizedName name: String,
         roots: [SkillDiscoveryRoot],
+        rootIdentity: ManagedItemIdentity,
         metadata: stat,
         rootDescriptor: Int32,
         limits: SkillContentLimits,
@@ -235,6 +243,7 @@ nonisolated struct SkillDiscoveryScanner {
             return failedCandidate(
                 named: name,
                 roots: roots,
+                rootIdentity: rootIdentity,
                 identity: ManagedItemIdentity(metadata),
                 status: permissionError(errno) ? .permissionDenied : .damaged,
                 reason: permissionError(errno) ? .candidatePermissionDenied : .sourceChanged
@@ -246,13 +255,16 @@ nonisolated struct SkillDiscoveryScanner {
             return failedCandidate(
                 named: name,
                 roots: roots,
+                rootIdentity: rootIdentity,
                 status: .damaged,
                 reason: .sourceChanged
             )
         }
         let candidate = try snapshotCandidate(
-            named: name,
+            rawName: rawName,
+            normalizedName: name,
             roots: roots,
+            rootIdentity: rootIdentity,
             descriptor: descriptor,
             revision: opened,
             limits: limits,
@@ -262,6 +274,7 @@ nonisolated struct SkillDiscoveryScanner {
             return failedCandidate(
                 named: name,
                 roots: roots,
+                rootIdentity: rootIdentity,
                 status: .damaged,
                 reason: .sourceChanged
             )
@@ -270,8 +283,10 @@ nonisolated struct SkillDiscoveryScanner {
     }
 
     private func snapshotCandidate(
-        named name: String,
+        rawName: String,
+        normalizedName name: String,
         roots: [SkillDiscoveryRoot],
+        rootIdentity: ManagedItemIdentity,
         descriptor: Int32,
         revision: SkillDiscoveryFileRevision,
         limits: SkillContentLimits,
@@ -287,6 +302,8 @@ nonisolated struct SkillDiscoveryScanner {
             _ = try snapshot.readUTF8File(relativePath: "SKILL.md", checkpoint: checkpoint)
             return SkillDiscoveryCandidate(
                 roots: roots,
+                rootIdentity: rootIdentity,
+                rawRelativeLocator: rawName,
                 relativeLocator: name,
                 relativeLocatorKey: SkillContentPath.collisionKey(for: name),
                 candidateIdentity: revision.identity,
@@ -305,6 +322,7 @@ nonisolated struct SkillDiscoveryScanner {
             return failedCandidate(
                 named: name,
                 roots: roots,
+                rootIdentity: rootIdentity,
                 identity: revision.identity,
                 status: status(for: error),
                 reason: reason(for: error)
@@ -313,6 +331,7 @@ nonisolated struct SkillDiscoveryScanner {
             return failedCandidate(
                 named: name,
                 roots: roots,
+                rootIdentity: rootIdentity,
                 identity: revision.identity,
                 status: .damaged,
                 reason: .candidateReadFailed
@@ -323,6 +342,7 @@ nonisolated struct SkillDiscoveryScanner {
     private func failedCandidate(
         named name: String,
         roots: [SkillDiscoveryRoot],
+        rootIdentity: ManagedItemIdentity,
         identity: ManagedItemIdentity? = nil,
         status: SkillDiscoveryStatus,
         reason: SkillDiscoveryReason
@@ -330,6 +350,8 @@ nonisolated struct SkillDiscoveryScanner {
         let normalized = SkillContentPath.normalizedComponent(name)
         return SkillDiscoveryCandidate(
             roots: roots,
+            rootIdentity: rootIdentity,
+            rawRelativeLocator: name,
             relativeLocator: normalized,
             relativeLocatorKey: SkillContentPath.collisionKey(for: normalized),
             candidateIdentity: identity,
@@ -377,6 +399,8 @@ nonisolated struct SkillDiscoveryScanner {
     ) -> SkillDiscoveryCandidate {
         SkillDiscoveryCandidate(
             roots: roots,
+            rootIdentity: candidate.rootIdentity,
+            rawRelativeLocator: candidate.rawRelativeLocator,
             relativeLocator: candidate.relativeLocator,
             relativeLocatorKey: candidate.relativeLocatorKey,
             candidateIdentity: candidate.candidateIdentity,

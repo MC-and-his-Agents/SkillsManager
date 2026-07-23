@@ -18,12 +18,12 @@ struct SkillDiscoveryClassifierTests {
         #expect(observation.reason == nil)
     }
 
-    @Test("same-scope slug conflict wins over a fingerprint match")
+    @Test("same-scope collision siblings conflict even when content matches")
     func slugConflictWinsOverFingerprintMatch() {
         let skill = managedSkill(id: 1, fingerprintByte: 7)
         let observations = classify([
             candidate(name: "Demo", fingerprintByte: 7),
-            candidate(name: "demo", fingerprintByte: 8),
+            candidate(name: "demo", fingerprintByte: 7),
         ], catalog: SkillDiscoveryCatalog(managedSkills: [skill]))
 
         #expect(observations.count == 2)
@@ -56,6 +56,32 @@ struct SkillDiscoveryClassifierTests {
         ).first)
 
         #expect(observation.status == .managed)
+        #expect(observation.matchedSkillID == skill.skillID)
+    }
+
+    @Test("a partially associated alias set remains claimable")
+    func partiallyAssociatedAliasesAreClaimable() throws {
+        let skill = managedSkill(id: 1, fingerprintByte: 7)
+        let agent = SkillDiscoveryScope.agent(
+            adapterCode: "codex",
+            pathVariant: ".codex/skills"
+        )
+        let observation = try #require(classify(
+            [candidate(name: "demo", fingerprintByte: 7, scopes: [agent, .global])],
+            catalog: SkillDiscoveryCatalog(
+                managedSkills: [skill],
+                localAssociations: [
+                    SkillDiscoveryLocalAssociation(
+                        scope: .global,
+                        relativeLocatorKey: "demo",
+                        skillID: skill.skillID,
+                        fingerprint: skill.fingerprint
+                    ),
+                ]
+            )
+        ).first)
+
+        #expect(observation.status == .claimable)
         #expect(observation.matchedSkillID == skill.skillID)
     }
 
@@ -105,6 +131,20 @@ struct SkillDiscoveryClassifierTests {
 
         #expect(observation.status == .conflict)
         #expect(observation.reason == .evidenceConflict)
+    }
+
+    @Test("unique source evidence with different content is a conflict")
+    func uniqueSourceWithDifferentContentConflicts() throws {
+        let alias = try ProviderAliasIdentity(provider: "clawdhub", identifier: "demo")
+        let sourceSkill = managedSkill(id: 1, fingerprintByte: 1, aliases: [alias])
+        let observation = try #require(classify(
+            [candidate(name: "demo", fingerprintByte: 2, aliases: [alias])],
+            catalog: SkillDiscoveryCatalog(managedSkills: [sourceSkill])
+        ).first)
+
+        #expect(observation.status == .conflict)
+        #expect(observation.reason == .evidenceConflict)
+        #expect(observation.matchedSkillID == nil)
     }
 
     @Test("provider aliases without a persisted Source are not source evidence")
@@ -164,6 +204,8 @@ struct SkillDiscoveryClassifierTests {
     func terminalObservationNeedsNoFingerprint() throws {
         let failed = SkillDiscoveryCandidate(
             roots: [root(scope: .global)],
+            rootIdentity: ManagedItemIdentity(stat()),
+            rawRelativeLocator: "demo",
             relativeLocator: "demo",
             relativeLocatorKey: "demo",
             candidateIdentity: nil,
@@ -194,6 +236,8 @@ struct SkillDiscoveryClassifierTests {
     ) -> SkillDiscoveryCandidate {
         SkillDiscoveryCandidate(
             roots: scopes.map(root(scope:)),
+            rootIdentity: ManagedItemIdentity(stat()),
+            rawRelativeLocator: name,
             relativeLocator: name,
             relativeLocatorKey: SkillContentPath.collisionKey(for: name),
             candidateIdentity: nil,

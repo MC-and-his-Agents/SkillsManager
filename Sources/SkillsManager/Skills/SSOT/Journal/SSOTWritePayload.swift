@@ -30,15 +30,18 @@ nonisolated struct SSOTCleanupDebtID: Hashable, Sendable {
 
 nonisolated struct SSOTSkillWritePayload: Sendable {
     static let maximumProviderAliasCount = 64
+    static let maximumLocalOriginCount = 64
 
     let skill: ManagedSkillRecord
     let source: SkillSourceRecord?
     let providerAliases: [ProviderAliasRecord]
+    let localOrigins: [LocalSkillOriginRecord]
 
     init(
         skill: ManagedSkillRecord,
         source: SkillSourceRecord? = nil,
-        providerAliases: [ProviderAliasRecord] = []
+        providerAliases: [ProviderAliasRecord] = [],
+        localOrigins: [LocalSkillOriginRecord] = []
     ) throws {
         guard source?.skillID == nil || source?.skillID == skill.skillID else {
             throw SSOTWritePayloadError.sourceSkillMismatch
@@ -54,11 +57,27 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
         guard Set(identities).count == identities.count else {
             throw SSOTWritePayloadError.duplicateProviderAlias
         }
+        guard localOrigins.count <= Self.maximumLocalOriginCount else {
+            throw SSOTWritePayloadError.tooManyLocalOrigins
+        }
+        guard localOrigins.allSatisfy({
+            $0.skillID == skill.skillID && $0.fingerprint == skill.contentFingerprint
+        }) else {
+            throw SSOTWritePayloadError.localOriginSkillMismatch
+        }
+        let positions = localOrigins.map(\.position)
+        guard Set(positions).count == positions.count else {
+            throw SSOTWritePayloadError.duplicateLocalOrigin
+        }
         self.skill = skill
         self.source = source
         self.providerAliases = providerAliases.sorted {
             ($0.identity.provider, $0.identity.identifier)
                 < ($1.identity.provider, $1.identity.identifier)
+        }
+        self.localOrigins = localOrigins.sorted {
+            ($0.scope.sortKey, $0.collisionKey, $0.rawLocator)
+                < ($1.scope.sortKey, $1.collisionKey, $1.rawLocator)
         }
     }
 }
@@ -71,6 +90,9 @@ nonisolated enum SSOTWritePayloadError: LocalizedError, Equatable {
     case aliasSourceMismatch
     case duplicateProviderAlias
     case tooManyProviderAliases
+    case localOriginSkillMismatch
+    case duplicateLocalOrigin
+    case tooManyLocalOrigins
 
     var errorDescription: String? {
         switch self {
@@ -82,13 +104,17 @@ nonisolated enum SSOTWritePayloadError: LocalizedError, Equatable {
         case .aliasSourceMismatch: "A provider alias belongs to another source."
         case .duplicateProviderAlias: "The Skill write payload contains a duplicate provider alias."
         case .tooManyProviderAliases: "The Skill write payload contains too many provider aliases."
+        case .localOriginSkillMismatch:
+            "A local Skill origin belongs to another Skill or content fingerprint."
+        case .duplicateLocalOrigin: "The Skill write payload contains a duplicate local origin."
+        case .tooManyLocalOrigins: "The Skill write payload contains too many local origins."
         }
     }
 }
 
 nonisolated enum SSOTWritePayloadCodec {
     static let maximumEncodedByteCount = 128 * 1_024
-    private static let currentVersion = 1
+    private static let currentVersion = 2
 
     static func encode(_ payload: SSOTSkillWritePayload) throws -> Data {
         let data = try JSONEncoder.skillsManager.encode(Envelope(payload))
@@ -108,8 +134,11 @@ nonisolated enum SSOTWritePayloadCodec {
         } catch {
             throw SSOTWritePayloadError.invalidPayload
         }
-        guard envelope.version == currentVersion else {
+        guard 1...currentVersion ~= envelope.version else {
             throw SSOTWritePayloadError.unsupportedVersion(envelope.version)
+        }
+        guard envelope.version != 1 || envelope.localOrigins?.isEmpty != false else {
+            throw SSOTWritePayloadError.invalidPayload
         }
         do {
             return try envelope.payload()
@@ -136,6 +165,46 @@ nonisolated enum SSOTWritePayloadCodec {
             let identifier: String
         }
 
+        struct LocalOrigin: Codable {
+            let scopeKind: String
+            let adapterCode: String?
+            let pathVariant: String?
+            let customPathID: UUID?
+            let rawLocator: String
+            let normalizedLocator: String
+            let collisionKey: String
+            let fingerprintAlgorithmVersion: Int
+            let fingerprintDigest: Data
+            let confirmedAtMilliseconds: Int64
+
+            func scope() throws -> SkillDiscoveryScope {
+                guard let kind = SkillDiscoveryScopeKind(rawValue: scopeKind) else {
+                    throw SSOTWritePayloadError.invalidPayload
+                }
+                switch kind {
+                case .global:
+                    guard adapterCode == nil, pathVariant == nil, customPathID == nil else {
+                        throw SSOTWritePayloadError.invalidPayload
+                    }
+                    return .global
+                case .agent:
+                    guard let adapterCode, let pathVariant, customPathID == nil else {
+                        throw SSOTWritePayloadError.invalidPayload
+                    }
+                    return .agent(adapterCode: adapterCode, pathVariant: pathVariant)
+                case .custom:
+                    guard let adapterCode, let pathVariant, let customPathID else {
+                        throw SSOTWritePayloadError.invalidPayload
+                    }
+                    return .custom(
+                        pathID: customPathID,
+                        adapterCode: adapterCode,
+                        pathVariant: pathVariant
+                    )
+                }
+            }
+        }
+
         let version: Int
         let skillID: UUID
         let displayName: String
@@ -147,6 +216,7 @@ nonisolated enum SSOTWritePayloadCodec {
         let updatedAtMilliseconds: Int64
         let source: Source?
         let aliases: [Alias]
+        let localOrigins: [LocalOrigin]?
 
         init(_ payload: SSOTSkillWritePayload) {
             version = currentVersion
@@ -173,6 +243,20 @@ nonisolated enum SSOTWritePayloadCodec {
                     sourceID: $0.sourceID.uuid,
                     provider: $0.identity.provider,
                     identifier: $0.identity.identifier
+                )
+            }
+            localOrigins = payload.localOrigins.map {
+                LocalOrigin(
+                    scopeKind: $0.scope.kind.rawValue,
+                    adapterCode: $0.scope.adapterCode,
+                    pathVariant: $0.scope.pathVariant,
+                    customPathID: $0.scope.customPathID,
+                    rawLocator: $0.rawLocator,
+                    normalizedLocator: $0.normalizedLocator,
+                    collisionKey: $0.collisionKey,
+                    fingerprintAlgorithmVersion: $0.fingerprint.algorithmVersion,
+                    fingerprintDigest: $0.fingerprint.digest,
+                    confirmedAtMilliseconds: $0.confirmedAtMilliseconds
                 )
             }
         }
@@ -214,10 +298,25 @@ nonisolated enum SSOTWritePayloadCodec {
                     )
                 )
             }
+            let localOriginRecords = try (localOrigins ?? []).map { origin in
+                try LocalSkillOriginRecord(
+                    skillID: skillID,
+                    scope: try origin.scope(),
+                    rawLocator: origin.rawLocator,
+                    normalizedLocator: origin.normalizedLocator,
+                    collisionKey: origin.collisionKey,
+                    fingerprint: SkillContentFingerprint(
+                        algorithmVersion: origin.fingerprintAlgorithmVersion,
+                        digest: origin.fingerprintDigest
+                    ),
+                    confirmedAtMilliseconds: origin.confirmedAtMilliseconds
+                )
+            }
             return try SSOTSkillWritePayload(
                 skill: skill,
                 source: sourceRecord,
-                providerAliases: aliasRecords
+                providerAliases: aliasRecords,
+                localOrigins: localOriginRecords
             )
         }
     }

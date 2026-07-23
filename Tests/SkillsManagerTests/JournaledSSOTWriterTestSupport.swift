@@ -72,7 +72,8 @@ final class WriterWorkspace: @unchecked Sendable {
         skillID: SkillID = SkillID(),
         name: String,
         snapshot: SkillContentSnapshot,
-        sourceKey: String? = nil
+        sourceKey: String? = nil,
+        localOrigins: [LocalSkillOriginRecord] = []
     ) throws -> SSOTSkillWritePayload {
         let skill = try ManagedSkillRecord(
             skillID: skillID,
@@ -90,7 +91,11 @@ final class WriterWorkspace: @unchecked Sendable {
                 subpath: try RepositorySubpath($0)
             )
         }
-        return try SSOTSkillWritePayload(skill: skill, source: source)
+        return try SSOTSkillWritePayload(
+            skill: skill,
+            source: source,
+            localOrigins: localOrigins
+        )
     }
 
     func integer(_ sql: String) throws -> Int64? {

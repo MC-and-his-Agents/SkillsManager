@@ -10,6 +10,7 @@ nonisolated enum SkillSchemaMigrator {
         beforeV2Commit: () throws -> Void = {},
         beforeV3Commit: () throws -> Void = {},
         beforeV4Commit: () throws -> Void = {},
+        beforeV5Commit: () throws -> Void = {},
         initializeV4: (SQLiteConnection) throws -> Void = { _ in }
     ) throws -> SQLiteConnection {
         let connection = try SQLiteConnection(
@@ -28,10 +29,11 @@ nonisolated enum SkillSchemaMigrator {
                 beforeV2Commit: beforeV2Commit,
                 beforeV3Commit: beforeV3Commit,
                 beforeV4Commit: beforeV4Commit,
+                beforeV5Commit: beforeV5Commit,
                 initializeV4: initializeV4
             )
         case .readOnly:
-            try validateV4(connection)
+            try validateV5(connection)
         }
         return connection
     }
@@ -43,6 +45,7 @@ nonisolated enum SkillSchemaMigrator {
         beforeV2Commit: () throws -> Void = {},
         beforeV3Commit: () throws -> Void = {},
         beforeV4Commit: () throws -> Void = {},
+        beforeV5Commit: () throws -> Void = {},
         initializeV4: (SQLiteConnection) throws -> Void = { _ in }
     ) throws {
         guard connection.accessMode != .readOnly else {
@@ -53,45 +56,56 @@ nonisolated enum SkillSchemaMigrator {
         switch rawVersion {
         case 0:
             try afterInitialV0Read()
-            try migrateV0ToV4(
+            try migrateV0ToV5(
                 connection,
                 beforeV1Commit: beforeCommit,
                 beforeV2Commit: beforeV2Commit,
                 beforeV3Commit: beforeV3Commit,
                 beforeV4Commit: beforeV4Commit,
+                beforeV5Commit: beforeV5Commit,
                 initializeV4: initializeV4
             )
         case Int64(SkillSchemaV1.version):
             try validateV1(connection)
-            try migrateV1ToV4(
+            try migrateV1ToV5(
                 connection,
                 beforeV2Commit: beforeV2Commit,
                 beforeV3Commit: beforeV3Commit,
-                beforeV4Commit: beforeV4Commit
+                beforeV4Commit: beforeV4Commit,
+                beforeV5Commit: beforeV5Commit
             )
         case Int64(SkillSchemaV2.version):
             try validateV2(connection)
-            try migrateV2ToV4(
+            try migrateV2ToV5(
                 connection,
                 beforeV3Commit: beforeV3Commit,
-                beforeV4Commit: beforeV4Commit
+                beforeV4Commit: beforeV4Commit,
+                beforeV5Commit: beforeV5Commit
             )
         case Int64(SkillSchemaV3.version):
             try validateV3(connection)
-            try migrateV3ToV4(connection, beforeCommit: beforeV4Commit)
+            try migrateV3ToV5(
+                connection,
+                beforeV4Commit: beforeV4Commit,
+                beforeV5Commit: beforeV5Commit
+            )
         case Int64(SkillSchemaV4.version):
             try validateV4(connection)
+            try migrateV4ToV5(connection, beforeCommit: beforeV5Commit)
+        case Int64(SkillSchemaV5.version):
+            try validateV5(connection)
         default:
             throw SQLiteStoreError.invalidState("unsupported schema version \(rawVersion)")
         }
     }
 
-    private static func migrateV0ToV4(
+    private static func migrateV0ToV5(
         _ connection: SQLiteConnection,
         beforeV1Commit: () throws -> Void,
         beforeV2Commit: () throws -> Void,
         beforeV3Commit: () throws -> Void,
         beforeV4Commit: () throws -> Void,
+        beforeV5Commit: () throws -> Void,
         initializeV4: (SQLiteConnection) throws -> Void
     ) throws {
         try connection.execute("BEGIN IMMEDIATE")
@@ -99,14 +113,21 @@ nonisolated enum SkillSchemaMigrator {
             guard let lockedVersion = try connection.querySingleInt("PRAGMA user_version") else {
                 throw SQLiteStoreError.invalidState("PRAGMA user_version returned no row")
             }
+            if lockedVersion == Int64(SkillSchemaV5.version) {
+                try validateV5(connection)
+                try connection.execute("COMMIT")
+                return
+            }
             if lockedVersion == Int64(SkillSchemaV4.version) {
                 try validateV4(connection)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
                 try connection.execute("COMMIT")
                 return
             }
             if lockedVersion == Int64(SkillSchemaV3.version) {
                 try validateV3(connection)
                 try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
                 try connection.execute("COMMIT")
                 return
             }
@@ -114,6 +135,7 @@ nonisolated enum SkillSchemaMigrator {
                 try validateV2(connection)
                 try applyV3Migration(connection, beforeCommit: beforeV3Commit)
                 try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
                 try connection.execute("COMMIT")
                 return
             }
@@ -122,6 +144,7 @@ nonisolated enum SkillSchemaMigrator {
                 try applyV2Migration(connection, beforeCommit: beforeV2Commit)
                 try applyV3Migration(connection, beforeCommit: beforeV3Commit)
                 try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
                 try connection.execute("COMMIT")
                 return
             }
@@ -147,6 +170,7 @@ nonisolated enum SkillSchemaMigrator {
             try applyV3Migration(connection, beforeCommit: beforeV3Commit)
             try applyV4Migration(connection, beforeCommit: beforeV4Commit)
             try initializeV4(connection)
+            try applyV5Migration(connection, beforeCommit: beforeV5Commit)
             try connection.execute("COMMIT")
         } catch {
             try? connection.execute("ROLLBACK")
@@ -154,25 +178,33 @@ nonisolated enum SkillSchemaMigrator {
         }
     }
 
-    private static func migrateV1ToV4(
+    private static func migrateV1ToV5(
         _ connection: SQLiteConnection,
         beforeV2Commit: () throws -> Void,
         beforeV3Commit: () throws -> Void,
-        beforeV4Commit: () throws -> Void
+        beforeV4Commit: () throws -> Void,
+        beforeV5Commit: () throws -> Void
     ) throws {
         try connection.execute("BEGIN IMMEDIATE")
         do {
             guard let lockedVersion = try connection.querySingleInt("PRAGMA user_version") else {
                 throw SQLiteStoreError.invalidState("PRAGMA user_version returned no row")
             }
+            if lockedVersion == Int64(SkillSchemaV5.version) {
+                try validateV5(connection)
+                try connection.execute("COMMIT")
+                return
+            }
             if lockedVersion == Int64(SkillSchemaV4.version) {
                 try validateV4(connection)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
                 try connection.execute("COMMIT")
                 return
             }
             if lockedVersion == Int64(SkillSchemaV3.version) {
                 try validateV3(connection)
                 try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
                 try connection.execute("COMMIT")
                 return
             }
@@ -180,6 +212,7 @@ nonisolated enum SkillSchemaMigrator {
                 try validateV2(connection)
                 try applyV3Migration(connection, beforeCommit: beforeV3Commit)
                 try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
                 try connection.execute("COMMIT")
                 return
             }
@@ -192,6 +225,7 @@ nonisolated enum SkillSchemaMigrator {
             try applyV2Migration(connection, beforeCommit: beforeV2Commit)
             try applyV3Migration(connection, beforeCommit: beforeV3Commit)
             try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+            try applyV5Migration(connection, beforeCommit: beforeV5Commit)
             try connection.execute("COMMIT")
         } catch {
             try? connection.execute("ROLLBACK")
@@ -199,24 +233,32 @@ nonisolated enum SkillSchemaMigrator {
         }
     }
 
-    private static func migrateV2ToV4(
+    private static func migrateV2ToV5(
         _ connection: SQLiteConnection,
         beforeV3Commit: () throws -> Void,
-        beforeV4Commit: () throws -> Void
+        beforeV4Commit: () throws -> Void,
+        beforeV5Commit: () throws -> Void
     ) throws {
         try connection.execute("BEGIN IMMEDIATE")
         do {
             guard let lockedVersion = try connection.querySingleInt("PRAGMA user_version") else {
                 throw SQLiteStoreError.invalidState("PRAGMA user_version returned no row")
             }
+            if lockedVersion == Int64(SkillSchemaV5.version) {
+                try validateV5(connection)
+                try connection.execute("COMMIT")
+                return
+            }
             if lockedVersion == Int64(SkillSchemaV4.version) {
                 try validateV4(connection)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
                 try connection.execute("COMMIT")
                 return
             }
             if lockedVersion == Int64(SkillSchemaV3.version) {
                 try validateV3(connection)
                 try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
                 try connection.execute("COMMIT")
                 return
             }
@@ -228,6 +270,7 @@ nonisolated enum SkillSchemaMigrator {
             try validateV2(connection)
             try applyV3Migration(connection, beforeCommit: beforeV3Commit)
             try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+            try applyV5Migration(connection, beforeCommit: beforeV5Commit)
             try connection.execute("COMMIT")
         } catch {
             try? connection.execute("ROLLBACK")
@@ -468,7 +511,7 @@ nonisolated enum SkillSchemaMigrator {
         guard version >= 0 else {
             throw SQLiteStoreError.invalidState("negative schema version \(version)")
         }
-        guard version <= Int64(SkillSchemaV4.version) else {
+        guard version <= Int64(SkillSchemaV5.version) else {
             throw SQLiteStoreError.invalidState("unsupported schema version \(version)")
         }
         return version

@@ -27,7 +27,9 @@ nonisolated extension SSOTJournalStore {
             expectedRevision = operation.expectedDatabaseRevision + 1
         }
         guard stored.revision == expectedRevision,
-              try canonicalPayload(stored.payload) == canonicalPayload(operation.payload) else {
+              try canonicalDomainPayload(stored.payload)
+                == canonicalDomainPayload(operation.payload),
+              try localOriginsMatch(operation.payload.localOrigins) else {
             return .unknown
         }
         return .expectedNew
@@ -50,6 +52,7 @@ nonisolated extension SSOTJournalStore {
             }
             try insertSkill(operation.payload.skill, revision: 0)
             try replaceSourceAndAliases(operation.payload)
+            try insertLocalOrigins(operation.payload.localOrigins)
             try recordDatabaseCommitted(
                 operationID: operationID,
                 updatedAtMilliseconds: updatedAtMilliseconds
@@ -131,6 +134,41 @@ nonisolated extension SSOTJournalStore {
                 providerAliases: aliases
             ),
             revision: revision
+        )
+    }
+
+    func managedSkillRecord(_ skillID: SkillID) throws -> ManagedSkillRecord? {
+        try loadStoredDomain(skillID: skillID)?.payload.skill
+    }
+
+    func discoveryCatalog() throws -> SkillDiscoveryCatalog {
+        let statement = try connection.prepare(
+            "SELECT skill_id FROM skills ORDER BY skill_id"
+        )
+        var managedSkills: [SkillDiscoveryManagedSkill] = []
+        while try statement.step() {
+            let skillID = try SkillID(bytes: journalRequiredBlob(statement, 0))
+            guard let stored = try loadStoredDomain(skillID: skillID) else {
+                throw SSOTJournalStoreError.corruptRecord("stored Skill disappeared")
+            }
+            managedSkills.append(SkillDiscoveryManagedSkill(
+                skillID: skillID,
+                fingerprint: stored.payload.skill.contentFingerprint,
+                sourceKey: stored.payload.source.map(SkillDiscoverySourceKey.init),
+                providerAliases: Set(stored.payload.providerAliases.map(\.identity))
+            ))
+        }
+        let associations = try localOrigins().map {
+            SkillDiscoveryLocalAssociation(
+                scope: $0.scope,
+                relativeLocatorKey: $0.collisionKey,
+                skillID: $0.skillID,
+                fingerprint: $0.fingerprint
+            )
+        }
+        return SkillDiscoveryCatalog(
+            managedSkills: managedSkills,
+            localAssociations: associations
         )
     }
 
@@ -302,8 +340,14 @@ private nonisolated struct StoredDomain {
     let revision: Int64
 }
 
-private nonisolated func canonicalPayload(_ payload: SSOTSkillWritePayload) throws -> Data {
-    try SSOTWritePayloadCodec.encode(payload)
+private nonisolated func canonicalDomainPayload(
+    _ payload: SSOTSkillWritePayload
+) throws -> Data {
+    try SSOTWritePayloadCodec.encode(SSOTSkillWritePayload(
+        skill: payload.skill,
+        source: payload.source,
+        providerAliases: payload.providerAliases
+    ))
 }
 
 private nonisolated func bindOptionalText(
