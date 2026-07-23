@@ -2,6 +2,8 @@ import Foundation
 
 nonisolated struct SkillDiscoveryCandidate: Sendable {
     let roots: [SkillDiscoveryRoot]
+    let rootIdentity: ManagedItemIdentity
+    let rawRelativeLocator: String
     let relativeLocator: String
     let relativeLocatorKey: String
     let candidateIdentity: ManagedItemIdentity?
@@ -29,7 +31,7 @@ nonisolated struct SkillDiscoveryClassifier {
         catalog: SkillDiscoveryCatalog
     ) -> [SkillDiscoveryObservation] {
         let index = makeIndex(catalog)
-        let slugConflicts = slugConflictIndices(candidates, index: index)
+        let slugConflicts = slugConflictIndices(candidates)
         return candidates.enumerated().map { candidateIndex, candidate in
             if let status = candidate.terminalStatus {
                 return observation(
@@ -71,13 +73,17 @@ nonisolated struct SkillDiscoveryClassifier {
         if fingerprintIDs.count > 1 {
             return observation(candidate, status: .conflict, reason: .ambiguousFingerprint)
         }
+        if let sourceID = sourceIDs.first,
+           index.skillsByID[sourceID]?.fingerprint != fingerprint {
+            return observation(candidate, status: .conflict, reason: .evidenceConflict)
+        }
         if evidenceConflicts(local.skillIDs, sourceIDs, fingerprintIDs) {
             return observation(candidate, status: .conflict, reason: .evidenceConflict)
         }
         if let skillID = local.skillIDs.first {
             return observation(
                 candidate,
-                status: .managed,
+                status: local.coversAllScopes ? .managed : .claimable,
                 matchedSkillID: skillID,
                 sourceKey: index.skillsByID[skillID]?.sourceKey
             )
@@ -97,21 +103,31 @@ nonisolated struct SkillDiscoveryClassifier {
         for candidate: SkillDiscoveryCandidate,
         fingerprint: SkillContentFingerprint,
         index: CatalogIndex
-    ) -> (skillIDs: Set<SkillID>, conflict: SkillDiscoveryReason?) {
-        let associations = candidate.roots.flatMap {
+    ) -> (
+        skillIDs: Set<SkillID>,
+        conflict: SkillDiscoveryReason?,
+        coversAllScopes: Bool
+    ) {
+        let scopes = Set(candidate.roots.map(\.scope))
+        let associationsByScope = scopes.map {
             index.associations[
-                AssociationKey(scope: $0.scope, locatorKey: candidate.relativeLocatorKey),
+                AssociationKey(scope: $0, locatorKey: candidate.relativeLocatorKey),
                 default: []
             ]
         }
-        guard !associations.isEmpty else { return ([], nil) }
+        let associations = associationsByScope.flatMap { $0 }
+        guard !associations.isEmpty else { return ([], nil, false) }
         let skillIDs = Set(associations.map(\.skillID))
-        guard skillIDs.count == 1 else { return (skillIDs, .ambiguousLocalAssociation) }
+        guard skillIDs.count == 1 else {
+            return (skillIDs, .ambiguousLocalAssociation, false)
+        }
         let drifted = associations.contains {
             $0.fingerprint != fingerprint
                 || index.skillsByID[$0.skillID]?.fingerprint != fingerprint
         }
-        return drifted ? (skillIDs, .localAssociationDrift) : (skillIDs, nil)
+        return drifted
+            ? (skillIDs, .localAssociationDrift, false)
+            : (skillIDs, nil, associationsByScope.allSatisfy { !$0.isEmpty })
     }
 
     private func sourceSkillIDs(
@@ -130,8 +146,7 @@ nonisolated struct SkillDiscoveryClassifier {
     }
 
     private func slugConflictIndices(
-        _ candidates: [SkillDiscoveryCandidate],
-        index: CatalogIndex
+        _ candidates: [SkillDiscoveryCandidate]
     ) -> Set<Int> {
         var groups: [String: [Int]] = [:]
         for (candidateIndex, candidate) in candidates.enumerated()
@@ -144,29 +159,9 @@ nonisolated struct SkillDiscoveryClassifier {
 
         var conflicts = Set<Int>()
         for group in groups.values where group.count > 1 {
-            for leftOffset in group.indices {
-                for rightOffset in group.indices where rightOffset > leftOffset {
-                    let leftIndex = group[leftOffset]
-                    let rightIndex = group[rightOffset]
-                    if candidatesConflict(candidates[leftIndex], candidates[rightIndex], index: index) {
-                        conflicts.insert(leftIndex)
-                        conflicts.insert(rightIndex)
-                    }
-                }
-            }
+            conflicts.formUnion(group)
         }
         return conflicts
-    }
-
-    private func candidatesConflict(
-        _ lhs: SkillDiscoveryCandidate,
-        _ rhs: SkillDiscoveryCandidate,
-        index: CatalogIndex
-    ) -> Bool {
-        guard lhs.fingerprint == rhs.fingerprint else { return true }
-        let leftSources = sourceSkillIDs(for: lhs, index: index)
-        let rightSources = sourceSkillIDs(for: rhs, index: index)
-        return !leftSources.isEmpty && !rightSources.isEmpty && leftSources != rightSources
     }
 
     private func makeIndex(_ catalog: SkillDiscoveryCatalog) -> CatalogIndex {
@@ -203,6 +198,8 @@ nonisolated struct SkillDiscoveryClassifier {
     ) -> SkillDiscoveryObservation {
         SkillDiscoveryObservation(
             roots: candidate.roots,
+            rootIdentity: candidate.rootIdentity,
+            rawRelativeLocator: candidate.rawRelativeLocator,
             relativeLocator: candidate.relativeLocator,
             relativeLocatorKey: candidate.relativeLocatorKey,
             candidateIdentity: candidate.candidateIdentity,

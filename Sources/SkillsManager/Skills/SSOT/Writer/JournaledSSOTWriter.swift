@@ -122,6 +122,45 @@ actor JournaledSSOTWriter {
         )
     }
 
+    func discoveryCatalog() throws -> SkillDiscoveryCatalog {
+        try journal.discoveryCatalog()
+    }
+
+    func importNew(
+        payload: SSOTSkillWritePayload,
+        sourceSnapshot: SkillContentSnapshot,
+        operationID: SSOTOperationID = SSOTOperationID()
+    ) throws -> (skill: ManagedSkillRecord, created: Bool) {
+        guard !payload.localOrigins.isEmpty else {
+            throw JournaledSSOTWriterError.invalidInput
+        }
+        try requireAuthority()
+        try recoverAll()
+        if let existing = try journal.resolveExistingImport(origins: payload.localOrigins) {
+            return (existing, false)
+        }
+        _ = try create(
+            payload: payload,
+            sourceSnapshot: sourceSnapshot,
+            operationID: operationID
+        )
+        return (payload.skill, true)
+    }
+
+    func claimExisting(
+        skillID: SkillID,
+        candidate: SkillDiscoveryCandidate,
+        origins: [LocalSkillOriginRecord]
+    ) throws -> ManagedSkillRecord {
+        try requireAuthority()
+        try recoverAll()
+        return try journal.claimLocalOrigins(
+            skillID: skillID,
+            candidate: candidate,
+            origins: origins
+        )
+    }
+
     func create(
         payload: SSOTSkillWritePayload,
         sourceSnapshot: SkillContentSnapshot,
@@ -165,7 +204,8 @@ actor JournaledSSOTWriter {
         expectedOld: SSOTReplacementExpectation,
         operationID: SSOTOperationID = SSOTOperationID()
     ) throws -> SSOTJournalRecord {
-        guard payload.skill.contentFingerprint.digest == sourceSnapshot.fingerprintDigest else {
+        guard payload.localOrigins.isEmpty,
+              payload.skill.contentFingerprint.digest == sourceSnapshot.fingerprintDigest else {
             throw JournaledSSOTWriterError.invalidInput
         }
         let staged = try stage(

@@ -150,6 +150,8 @@ nonisolated struct SkillDiscoveryRootDiagnostic: Hashable, Sendable {
 
 nonisolated struct SkillDiscoveryObservation: Hashable, Sendable {
     let roots: [SkillDiscoveryRoot]
+    let rootIdentity: ManagedItemIdentity
+    let rawRelativeLocator: String
     let relativeLocator: String
     let relativeLocatorKey: String
     let candidateIdentity: ManagedItemIdentity?

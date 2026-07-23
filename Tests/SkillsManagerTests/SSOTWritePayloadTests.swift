@@ -17,6 +17,28 @@ struct SSOTWritePayloadTests {
         #expect(decoded.skill == payload.skill)
         #expect(decoded.source == payload.source)
         #expect(decoded.providerAliases == payload.providerAliases)
+        #expect(decoded.localOrigins == payload.localOrigins)
+    }
+
+    @Test("decodes legacy v1 payloads without local origins")
+    func decodesLegacyV1() throws {
+        let payload = try makePayload(includeLocalOrigins: false)
+        var legacyEnvelope = try #require(
+            JSONSerialization.jsonObject(
+                with: SSOTWritePayloadCodec.encode(payload)
+            ) as? [String: Any]
+        )
+        legacyEnvelope["version"] = 1
+        legacyEnvelope.removeValue(forKey: "localOrigins")
+
+        let decoded = try SSOTWritePayloadCodec.decode(
+            JSONSerialization.data(withJSONObject: legacyEnvelope)
+        )
+
+        #expect(decoded.skill == payload.skill)
+        #expect(decoded.source == payload.source)
+        #expect(decoded.providerAliases == payload.providerAliases)
+        #expect(decoded.localOrigins.isEmpty)
     }
 
     @Test("rejects source and Provider aliases outside the Skill domain")
@@ -86,8 +108,8 @@ struct SSOTWritePayloadTests {
                 with: SSOTWritePayloadCodec.encode(payload)
             ) as? [String: Any]
         )
-        futureEnvelope["version"] = 2
-        #expect(throws: SSOTWritePayloadError.unsupportedVersion(2)) {
+        futureEnvelope["version"] = 3
+        #expect(throws: SSOTWritePayloadError.unsupportedVersion(3)) {
             _ = try SSOTWritePayloadCodec.decode(
                 JSONSerialization.data(withJSONObject: futureEnvelope)
             )
@@ -100,7 +122,7 @@ struct SSOTWritePayloadTests {
     }
 }
 
-private func makePayload() throws -> SSOTSkillWritePayload {
+private func makePayload(includeLocalOrigins: Bool = true) throws -> SSOTSkillWritePayload {
     let skillID = SkillID(UUID(uuidString: "00112233-4455-6677-8899-aabbccddeeff")!)
     let sourceID = SourceID(UUID(uuidString: "11223344-5566-7788-99aa-bbccddeeff00")!)
     let displayName = try SkillDisplayName("Sample Skill")
@@ -134,9 +156,47 @@ private func makePayload() throws -> SSOTSkillWritePayload {
             identity: try ProviderAliasIdentity(provider: "clawdhub", identifier: "sample")
         ),
     ]
+    let localOrigins: [LocalSkillOriginRecord] = if includeLocalOrigins {
+        try [
+            LocalSkillOriginRecord(
+                skillID: skillID,
+                scope: .global,
+                rawLocator: "Sample",
+                normalizedLocator: "Sample",
+                collisionKey: SkillContentPath.collisionKey(for: "Sample"),
+                fingerprint: skill.contentFingerprint,
+                confirmedAtMilliseconds: 300
+            ),
+            LocalSkillOriginRecord(
+                skillID: skillID,
+                scope: .agent(adapterCode: "codex", pathVariant: ".codex/skills"),
+                rawLocator: "Sample",
+                normalizedLocator: "Sample",
+                collisionKey: SkillContentPath.collisionKey(for: "Sample"),
+                fingerprint: skill.contentFingerprint,
+                confirmedAtMilliseconds: 301
+            ),
+            LocalSkillOriginRecord(
+                skillID: skillID,
+                scope: .custom(
+                    pathID: UUID(uuidString: "22334455-6677-8899-aabb-ccddeeff0011")!,
+                    adapterCode: "claude",
+                    pathVariant: ".claude/skills"
+                ),
+                rawLocator: "Sample",
+                normalizedLocator: "Sample",
+                collisionKey: SkillContentPath.collisionKey(for: "Sample"),
+                fingerprint: skill.contentFingerprint,
+                confirmedAtMilliseconds: 302
+            ),
+        ]
+    } else {
+        []
+    }
     return try SSOTSkillWritePayload(
         skill: skill,
         source: source,
-        providerAliases: aliases
+        providerAliases: aliases,
+        localOrigins: localOrigins
     )
 }
