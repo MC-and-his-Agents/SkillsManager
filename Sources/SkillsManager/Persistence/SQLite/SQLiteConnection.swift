@@ -33,22 +33,33 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
         afterNamedIdentityRead: () throws -> Void = {}
     ) throws {
         var opened: OpaquePointer?
-        let namedIdentity = try Self.databaseIdentity(at: path)
+        let databaseURL = URL(fileURLWithPath: path)
+        let databaseName = databaseURL.lastPathComponent
+        let parentDescriptor = try Self.openDatabaseDirectory(
+            databaseURL.deletingLastPathComponent().path
+        )
+        defer { Darwin.close(parentDescriptor) }
+        let namedIdentity = try Self.databaseIdentity(
+            named: databaseName,
+            parentDescriptor: parentDescriptor
+        )
         try afterNamedIdentityRead()
-        let openPath = try Self.resolvedDatabasePath(path)
-        guard try Self.databaseIdentity(at: openPath) == namedIdentity else {
-            throw SQLiteStoreError.invalidState("database parent identity changed before open")
-        }
-        let existingDatabaseFlag: Int32
-        if accessMode == .readWrite {
-            existingDatabaseFlag = namedIdentity == nil ? 0 : SQLITE_OPEN_NOFOLLOW
+        let expectedIdentity: ManagedItemIdentity?
+        if accessMode == .readWrite, namedIdentity == nil {
+            expectedIdentity = try Self.createDatabaseFile(
+                named: databaseName,
+                parentDescriptor: parentDescriptor
+            )
         } else {
-            existingDatabaseFlag = SQLITE_OPEN_NOFOLLOW
+            expectedIdentity = namedIdentity
         }
+        let openPath = try Self.databasePath(
+            named: databaseName,
+            parentDescriptor: parentDescriptor
+        )
         let flags: Int32 = switch accessMode {
         case .readWrite:
-            SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
-                | existingDatabaseFlag
+            SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW
         case .readWriteExisting:
             SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW
         case .readOnly:
@@ -63,8 +74,11 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
         }
         do {
             guard let openedIdentity = try Self.databaseIdentity(at: openPath),
-                  try Self.databaseIdentity(at: path) == openedIdentity,
-                  namedIdentity == nil || namedIdentity == openedIdentity else {
+                  try Self.databaseIdentity(
+                    named: databaseName,
+                    parentDescriptor: parentDescriptor
+                  ) == openedIdentity,
+                  expectedIdentity == openedIdentity else {
                 throw SQLiteStoreError.invalidState("database identity changed during open")
             }
         } catch {
@@ -100,6 +114,82 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
         }
     }
 
+    private static func openDatabaseDirectory(_ path: String) throws -> Int32 {
+        let descriptor = Darwin.open(
+            path,
+            O_RDONLY | O_DIRECTORY | O_CLOEXEC
+        )
+        guard descriptor >= 0 else {
+            let code = errno
+            throw SQLiteStoreError.sqlite(
+                operation: "open database directory",
+                code: code,
+                message: String(cString: strerror(code))
+            )
+        }
+        return descriptor
+    }
+
+    private static func createDatabaseFile(
+        named name: String,
+        parentDescriptor: Int32
+    ) throws -> ManagedItemIdentity {
+        let descriptor = Darwin.openat(
+            parentDescriptor,
+            name,
+            O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
+            mode_t(0o600)
+        )
+        guard descriptor >= 0 else {
+            let code = errno
+            throw SQLiteStoreError.sqlite(
+                operation: "create database file",
+                code: code,
+                message: String(cString: strerror(code))
+            )
+        }
+        defer { Darwin.close(descriptor) }
+        guard Darwin.fchmod(descriptor, mode_t(0o600)) == 0 else {
+            let code = errno
+            throw SQLiteStoreError.sqlite(
+                operation: "set database file permissions",
+                code: code,
+                message: String(cString: strerror(code))
+            )
+        }
+        var metadata = stat()
+        guard Darwin.fstat(descriptor, &metadata) == 0,
+              metadata.st_mode & S_IFMT == S_IFREG,
+              metadata.st_uid == Darwin.geteuid(),
+              metadata.st_nlink == 1,
+              metadata.st_mode & mode_t(0o7777) == mode_t(0o600) else {
+            throw SQLiteStoreError.invalidState("created database file is invalid")
+        }
+        return ManagedItemIdentity(metadata)
+    }
+
+    private static func databaseIdentity(
+        named name: String,
+        parentDescriptor: Int32
+    ) throws -> ManagedItemIdentity? {
+        var metadata = stat()
+        if Darwin.fstatat(parentDescriptor, name, &metadata, AT_SYMLINK_NOFOLLOW) == 0 {
+            guard metadata.st_mode & S_IFMT == S_IFREG else {
+                throw SQLiteStoreError.invalidState("database path must be a regular file")
+            }
+            return ManagedItemIdentity(metadata)
+        }
+        let code = errno
+        guard code == ENOENT else {
+            throw SQLiteStoreError.sqlite(
+                operation: "inspect database path",
+                code: code,
+                message: String(cString: strerror(code))
+            )
+        }
+        return nil
+    }
+
     private static func databaseIdentity(at path: String) throws -> ManagedItemIdentity? {
         var metadata = stat()
         if Darwin.lstat(path, &metadata) == 0 {
@@ -120,25 +210,28 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
         return nil
     }
 
-    private static func resolvedDatabasePath(_ path: String) throws -> String {
-        let databaseURL = URL(fileURLWithPath: path)
-        guard let resolvedParent = Darwin.realpath(
-            databaseURL.deletingLastPathComponent().path,
-            nil
-        ) else {
+    private static func databasePath(
+        named name: String,
+        parentDescriptor: Int32
+    ) throws -> String {
+        var path = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        guard Darwin.fcntl(parentDescriptor, F_GETPATH, &path) != -1 else {
             let code = errno
             throw SQLiteStoreError.sqlite(
-                operation: "resolve database directory",
+                operation: "resolve database directory descriptor",
                 code: code,
                 message: String(cString: strerror(code))
             )
         }
-        defer { Darwin.free(resolvedParent) }
+        let directoryPath = String(
+            decoding: path.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) },
+            as: UTF8.self
+        )
         return URL(
-            fileURLWithPath: String(cString: resolvedParent),
+            fileURLWithPath: directoryPath,
             isDirectory: true
         )
-        .appendingPathComponent(databaseURL.lastPathComponent)
+        .appendingPathComponent(name)
         .path
     }
 

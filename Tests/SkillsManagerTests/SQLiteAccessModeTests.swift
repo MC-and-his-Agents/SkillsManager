@@ -70,18 +70,54 @@ struct SQLiteAccessModeTests {
         try FileManager.default.createDirectory(at: second, withIntermediateDirectories: false)
         _ = try SkillSchemaMigrator.open(at: first.appendingPathComponent("manager.sqlite"))
         _ = try SkillSchemaMigrator.open(at: second.appendingPathComponent("manager.sqlite"))
+        do {
+            let redirected = try SQLiteConnection(
+                url: second.appendingPathComponent("manager.sqlite")
+            )
+            try redirected.execute("PRAGMA user_version = 99")
+        }
         try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: first)
 
-        #expect(throws: SQLiteStoreError.self) {
-            _ = try SQLiteConnection(
-                path: alias.appendingPathComponent("manager.sqlite").path,
-                accessMode: .readWriteExisting,
-                afterNamedIdentityRead: {
-                    try FileManager.default.removeItem(at: alias)
-                    try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: second)
-                }
-            )
-        }
+        let connection = try SQLiteConnection(
+            path: alias.appendingPathComponent("manager.sqlite").path,
+            accessMode: .readWriteExisting,
+            afterNamedIdentityRead: {
+                try FileManager.default.removeItem(at: alias)
+                try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: second)
+            }
+        )
+        #expect(
+            try connection.querySingleInt("PRAGMA user_version")
+                == Int64(SkillSchemaV4.version)
+        )
+    }
+
+    @Test("database creation remains bound to the opened parent directory")
+    func bindsCreationToParentDirectory() throws {
+        let location = try accessModeDatabaseLocation()
+        defer { try? FileManager.default.removeItem(at: location.root) }
+        let first = location.root.appendingPathComponent("first", isDirectory: true)
+        let second = location.root.appendingPathComponent("second", isDirectory: true)
+        let alias = location.root.appendingPathComponent("alias", isDirectory: true)
+        try FileManager.default.createDirectory(at: first, withIntermediateDirectories: false)
+        try FileManager.default.createDirectory(at: second, withIntermediateDirectories: false)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: first)
+
+        _ = try SQLiteConnection(
+            path: alias.appendingPathComponent("manager.sqlite").path,
+            accessMode: .readWrite,
+            afterNamedIdentityRead: {
+                try FileManager.default.removeItem(at: alias)
+                try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: second)
+            }
+        )
+
+        #expect(FileManager.default.fileExists(
+            atPath: first.appendingPathComponent("manager.sqlite").path
+        ))
+        #expect(!FileManager.default.fileExists(
+            atPath: second.appendingPathComponent("manager.sqlite").path
+        ))
     }
 
     @Test("future schemas are rejected before journal mode can be changed")
