@@ -36,7 +36,10 @@ actor JournaledSSOTWriter {
         }
         let authorityGuard = try ManagedPathGuard(verifiedRoot: managementRoot)
         let ownership = try SSOTWriterOwnership.acquire(using: authorityGuard)
-        let connection = try SkillSchemaMigrator.open(at: databaseURL)
+        let connection = try SkillSchemaMigrator.open(
+            at: databaseURL,
+            expectedParentIdentity: managementRoot.identity
+        )
         return try await open(
             managementRoot: managementRoot,
             ssotRoot: ssotRoot,

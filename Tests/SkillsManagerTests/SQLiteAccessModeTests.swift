@@ -120,6 +120,32 @@ struct SQLiteAccessModeTests {
         ))
     }
 
+    @Test("database creation rejects a replacement management root")
+    func rejectsReplacementManagementRoot() throws {
+        let location = try accessModeDatabaseLocation()
+        defer { try? FileManager.default.removeItem(at: location.root) }
+        let original = location.root.appendingPathComponent("original", isDirectory: true)
+        let replacement = location.root.appendingPathComponent("replacement", isDirectory: true)
+        try FileManager.default.createDirectory(at: original, withIntermediateDirectories: false)
+        try FileManager.default.createDirectory(
+            at: replacement,
+            withIntermediateDirectories: false
+        )
+        var originalMetadata = stat()
+        #expect(Darwin.lstat(original.path, &originalMetadata) == 0)
+
+        #expect(throws: SQLiteStoreError.self) {
+            _ = try SQLiteConnection(
+                url: replacement.appendingPathComponent("manager.sqlite"),
+                accessMode: .readWrite,
+                expectedParentIdentity: ManagedItemIdentity(originalMetadata)
+            )
+        }
+        #expect(!FileManager.default.fileExists(
+            atPath: replacement.appendingPathComponent("manager.sqlite").path
+        ))
+    }
+
     @Test("future schemas are rejected before journal mode can be changed")
     func futureSchemaDoesNotChangeJournalMode() throws {
         let location = try accessModeDatabaseLocation()

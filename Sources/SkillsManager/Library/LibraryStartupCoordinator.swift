@@ -91,6 +91,7 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
             let connection = try SkillSchemaMigrator.open(
                 at: layout.databaseURL,
                 accessMode: .readWriteExisting,
+                expectedParentIdentity: managementRoot.identity,
                 initializeV4: { connection in
                     guard let marker else { return }
                     try LibraryBootstrapStore.insertPrepared(
@@ -238,6 +239,7 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
             connection = try SkillSchemaMigrator.open(
                 at: layout.databaseURL,
                 accessMode: .readWrite,
+                expectedParentIdentity: managementRoot.identity,
                 initializeV4: { connection in
                     try LibraryBootstrapStore.insertPrepared(
                         kind: marker.marker.bootstrapKind,

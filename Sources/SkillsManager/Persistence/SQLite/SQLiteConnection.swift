@@ -30,6 +30,7 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
     init(
         path: String,
         accessMode: SQLiteAccessMode = .readWrite,
+        expectedParentIdentity: ManagedItemIdentity? = nil,
         afterNamedIdentityRead: () throws -> Void = {}
     ) throws {
         var opened: OpaquePointer?
@@ -39,6 +40,13 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
             databaseURL.deletingLastPathComponent().path
         )
         defer { Darwin.close(parentDescriptor) }
+        if let expectedParentIdentity {
+            var parentMetadata = stat()
+            guard Darwin.fstat(parentDescriptor, &parentMetadata) == 0,
+                  ManagedItemIdentity(parentMetadata) == expectedParentIdentity else {
+                throw SQLiteStoreError.invalidState("database directory identity changed")
+            }
+        }
         let namedIdentity = try Self.databaseIdentity(
             named: databaseName,
             parentDescriptor: parentDescriptor
@@ -235,8 +243,16 @@ nonisolated final class SQLiteConnection: @unchecked Sendable {
         .path
     }
 
-    convenience init(url: URL, accessMode: SQLiteAccessMode = .readWrite) throws {
-        try self.init(path: url.path, accessMode: accessMode)
+    convenience init(
+        url: URL,
+        accessMode: SQLiteAccessMode = .readWrite,
+        expectedParentIdentity: ManagedItemIdentity? = nil
+    ) throws {
+        try self.init(
+            path: url.path,
+            accessMode: accessMode,
+            expectedParentIdentity: expectedParentIdentity
+        )
     }
 
     deinit {

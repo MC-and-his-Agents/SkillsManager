@@ -4,6 +4,7 @@ nonisolated enum SkillSchemaMigrator {
     static func open(
         at url: URL,
         accessMode: SQLiteAccessMode = .readWrite,
+        expectedParentIdentity: ManagedItemIdentity? = nil,
         afterInitialV0Read: () throws -> Void = {},
         beforeCommit: () throws -> Void = {},
         beforeV2Commit: () throws -> Void = {},
@@ -11,7 +12,11 @@ nonisolated enum SkillSchemaMigrator {
         beforeV4Commit: () throws -> Void = {},
         initializeV4: (SQLiteConnection) throws -> Void = { _ in }
     ) throws -> SQLiteConnection {
-        let connection = try SQLiteConnection(url: url, accessMode: accessMode)
+        let connection = try SQLiteConnection(
+            url: url,
+            accessMode: accessMode,
+            expectedParentIdentity: expectedParentIdentity
+        )
         switch accessMode {
         case .readWrite, .readWriteExisting:
             try admitSchemaVersion(connection)
