@@ -225,15 +225,7 @@ nonisolated final class SSOTJournalStore {
     }
 
     func transaction<T>(_ body: () throws -> T) throws -> T {
-        try connection.execute("BEGIN IMMEDIATE")
-        do {
-            let result = try body()
-            try connection.execute("COMMIT")
-            return result
-        } catch {
-            try? connection.execute("ROLLBACK")
-            throw error
-        }
+        try connection.withImmediateTransaction(body)
     }
 
     func finishMutation(_ statement: SQLiteStatement) throws {

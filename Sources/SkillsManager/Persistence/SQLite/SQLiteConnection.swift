@@ -88,6 +88,18 @@ nonisolated final class SQLiteConnection {
         }
     }
 
+    func withImmediateTransaction<T>(_ body: () throws -> T) throws -> T {
+        try execute("BEGIN IMMEDIATE")
+        do {
+            let result = try body()
+            try execute("COMMIT")
+            return result
+        } catch {
+            try? execute("ROLLBACK")
+            throw error
+        }
+    }
+
     func prepare(_ sql: String) throws -> SQLiteStatement {
         var statement: OpaquePointer?
         let result = sqlite3_prepare_v2(database, sql, -1, &statement, nil)

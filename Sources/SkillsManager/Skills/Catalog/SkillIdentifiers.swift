@@ -33,7 +33,7 @@ nonisolated struct SourceID: Hashable, Sendable {
     var bytes: Data { catalogUUIDBytes(uuid) }
 }
 
-private nonisolated func catalogUUIDBytes(_ uuid: UUID) -> Data {
+nonisolated func catalogUUIDBytes(_ uuid: UUID) -> Data {
     let value = uuid.uuid
     return Data([
         value.0, value.1, value.2, value.3,
@@ -43,7 +43,7 @@ private nonisolated func catalogUUIDBytes(_ uuid: UUID) -> Data {
     ])
 }
 
-private nonisolated func catalogUUID(from bytes: Data) throws -> UUID {
+nonisolated func catalogUUID(from bytes: Data) throws -> UUID {
     guard bytes.count == 16 else {
         throw SkillIdentifierError.invalidByteCount(bytes.count)
     }
