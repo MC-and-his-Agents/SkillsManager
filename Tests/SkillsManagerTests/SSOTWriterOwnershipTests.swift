@@ -1,4 +1,5 @@
 import Darwin
+import Dispatch
 import Foundation
 import Testing
 
@@ -84,35 +85,55 @@ struct SSOTWriterOwnershipTests {
     func reportsBusyOwner() throws {
         try withTemporaryDirectory { root in
             let lockURL = root.appendingPathComponent(SSOTWriterOwnership.lockFileName)
-            let readyURL = root.appendingPathComponent("ready")
             try Data().write(to: lockURL)
             #expect(Darwin.chmod(lockURL.path, 0o600) == 0)
 
-            let holder = Process()
-            holder.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-            holder.arguments = [
-                "-c",
-                "import fcntl,os,sys,time; f=open(sys.argv[1], 'r+'); fcntl.flock(f, fcntl.LOCK_EX); f.seek(0); f.truncate(); f.write(str(os.getpid()) + '\\n'); f.flush(); os.fsync(f.fileno()); open(sys.argv[2], 'w').close(); time.sleep(5)",
-                lockURL.path,
-                readyURL.path,
-            ]
-            try holder.run()
-            defer {
-                if holder.isRunning { holder.terminate() }
-                holder.waitUntilExit()
-            }
-            try waitUntilExists(readyURL)
-
-            let guardValue = try ManagedPathGuard(rootURL: root)
-            do {
-                _ = try SSOTWriterOwnership.acquire(using: guardValue)
-                Issue.record("Expected the external writer to own the lock")
-            } catch let error as SSOTWriterOwnershipError {
-                guard case .busy(let owner) = error else {
-                    Issue.record("Unexpected error: \(error)")
-                    return
+            try withExternalLockHolder(
+                at: lockURL,
+                script: Self.externalWriterScript
+            ) {
+                let guardValue = try ManagedPathGuard(rootURL: root)
+                do {
+                    _ = try SSOTWriterOwnership.acquire(using: guardValue)
+                    Issue.record("Expected the external writer to own the lock")
+                } catch let error as SSOTWriterOwnershipError {
+                    guard case .busy(let owner) = error else {
+                        Issue.record("Unexpected error: \(error)")
+                        return
+                    }
+                    #expect(owner?.processID ?? 0 > 0)
                 }
-                #expect(owner?.processID ?? 0 > 0)
+            }
+        }
+    }
+
+    @Test("external writer handshake reports early exit diagnostics")
+    func reportsExternalWriterStartupFailure() throws {
+        try withTemporaryDirectory { root in
+            let lockURL = root.appendingPathComponent(SSOTWriterOwnership.lockFileName)
+            try Data().write(to: lockURL)
+            #expect(Darwin.chmod(lockURL.path, 0o600) == 0)
+
+            do {
+                try withExternalLockHolder(
+                    at: lockURL,
+                    script: "import sys; sys.stderr.write('holder failed\\n'); sys.stderr.flush(); sys.exit(7)"
+                ) {}
+                Issue.record("Expected the external holder handshake to fail")
+            } catch let error as ExternalLockHolderStartupError {
+                #expect(error.status == 7)
+                #expect(error.standardError == "holder failed\n")
+            }
+
+            do {
+                try withExternalLockHolder(
+                    at: lockURL,
+                    script: "import signal; signal.pause()",
+                    watchdogInterval: .milliseconds(10)
+                ) {}
+                Issue.record("Expected the stalled external holder to be reaped")
+            } catch let error as ExternalLockHolderStartupError {
+                #expect(error.status != 0)
             }
         }
     }
@@ -147,13 +168,59 @@ struct SSOTWriterOwnershipTests {
         }
     }
 
-    private func waitUntilExists(_ url: URL) throws {
-        for _ in 0..<100 {
-            if FileManager.default.fileExists(atPath: url.path) { return }
-            Thread.sleep(forTimeInterval: 0.01)
+    private func withExternalLockHolder(
+        at lockURL: URL,
+        script: String,
+        watchdogInterval: DispatchTimeInterval = .seconds(60),
+        _ body: () throws -> Void
+    ) throws {
+        let holder = Process()
+        let readyPipe = Pipe()
+        let errorPipe = Pipe()
+        holder.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        holder.standardOutput = readyPipe
+        holder.standardError = errorPipe
+        holder.arguments = ["-c", script, lockURL.path]
+        try holder.run()
+        var holderReaped = false
+        func stopAndWaitForHolder() {
+            guard !holderReaped else { return }
+            if holder.isRunning { holder.terminate() }
+            holder.waitUntilExit()
+            holderReaped = true
         }
-        throw CocoaError(.fileNoSuchFile)
+        defer { stopAndWaitForHolder() }
+        let watchdog = DispatchWorkItem { [weak holder] in
+            guard let holder, holder.isRunning else { return }
+            holder.terminate()
+        }
+        DispatchQueue.global(qos: .utility).asyncAfter(
+            deadline: .now() + watchdogInterval,
+            execute: watchdog
+        )
+        defer { watchdog.cancel() }
+
+        try readyPipe.fileHandleForWriting.close()
+        try errorPipe.fileHandleForWriting.close()
+        let ready = try readyPipe.fileHandleForReading.readToEnd() ?? Data()
+        guard ready == Data("ready\n".utf8) else {
+            stopAndWaitForHolder()
+            let errorData = try errorPipe.fileHandleForReading.readToEnd() ?? Data()
+            throw ExternalLockHolderStartupError(
+                status: holder.terminationStatus,
+                standardError: String(data: errorData, encoding: .utf8) ?? "<non-UTF-8 stderr>"
+            )
+        }
+        watchdog.cancel()
+        try body()
     }
+
+    private static let externalWriterScript =
+        "import fcntl,os,signal,sys; f=open(sys.argv[1], 'r+'); "
+        + "fcntl.flock(f, fcntl.LOCK_EX); f.seek(0); f.truncate(); "
+        + "f.write(str(os.getpid()) + '\\n'); f.flush(); os.fsync(f.fileno()); "
+        + "os.write(sys.stdout.fileno(), b'ready\\n'); "
+        + "os.close(sys.stdout.fileno()); signal.pause()"
 
     private func withTemporaryDirectory(_ body: (URL) throws -> Void) throws {
         let url = FileManager.default.temporaryDirectory
@@ -163,4 +230,9 @@ struct SSOTWriterOwnershipTests {
         defer { try? FileManager.default.removeItem(at: url) }
         try body(url)
     }
+}
+
+private struct ExternalLockHolderStartupError: Error {
+    let status: Int32
+    let standardError: String
 }
