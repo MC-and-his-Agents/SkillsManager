@@ -166,6 +166,31 @@ struct SkillDiscoveryScannerTests {
         }
     }
 
+    @Test("missing Provider metadata cannot hide candidate revision drift")
+    func missingProviderMetadataStillValidatesCandidateRevision() throws {
+        try withWorkspace { workspace in
+            let skillURL = try createSkill(named: "demo", in: workspace)
+            let descriptor = Darwin.open(
+                skillURL.path,
+                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+            )
+            #expect(descriptor >= 0)
+            defer { Darwin.close(descriptor) }
+            let revision = try #require(SkillDiscoveryFileRevision(descriptor: descriptor))
+            try Data().write(to: skillURL.appendingPathComponent("changed"))
+
+            #expect(throws: SkillContentSnapshotError.fileChanged(
+                path: ".clawdhub/origin.json"
+            )) {
+                _ = try SkillDiscoveryProviderMetadataReader().aliases(
+                    in: descriptor,
+                    expectedCandidate: revision,
+                    checkpoint: {}
+                )
+            }
+        }
+    }
+
     @Test("invalid UTF-8 manifests are damaged")
     func invalidManifestIsDamaged() throws {
         try withWorkspace { workspace in

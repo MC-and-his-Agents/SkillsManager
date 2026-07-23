@@ -250,7 +250,7 @@ nonisolated struct SkillDiscoveryScanner {
                 reason: .sourceChanged
             )
         }
-        return try snapshotCandidate(
+        let candidate = try snapshotCandidate(
             named: name,
             roots: roots,
             descriptor: descriptor,
@@ -258,6 +258,15 @@ nonisolated struct SkillDiscoveryScanner {
             limits: limits,
             checkpoint: checkpoint
         )
+        guard SkillDiscoveryFileRevision(named: rawName, in: rootDescriptor) == opened else {
+            return failedCandidate(
+                named: name,
+                roots: roots,
+                status: .damaged,
+                reason: .sourceChanged
+            )
+        }
+        return candidate
     }
 
     private func snapshotCandidate(

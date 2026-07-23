@@ -18,6 +18,19 @@ nonisolated struct SkillDiscoveryFileRevision: Equatable {
         self.init(metadata)
     }
 
+    init?(named name: String, in directoryDescriptor: Int32) {
+        var metadata = stat()
+        guard Darwin.fstatat(
+            directoryDescriptor,
+            name,
+            &metadata,
+            AT_SYMLINK_NOFOLLOW
+        ) == 0 else {
+            return nil
+        }
+        self.init(metadata)
+    }
+
     static func == (lhs: SkillDiscoveryFileRevision, rhs: SkillDiscoveryFileRevision) -> Bool {
         lhs.identity == rhs.identity
             && lhs.modification.tv_sec == rhs.modification.tv_sec
@@ -34,13 +47,17 @@ nonisolated struct SkillDiscoveryProviderMetadataReader {
         checkpoint: SkillCancellationCheckpoint
     ) throws -> Set<ProviderAliasIdentity> {
         try checkpoint()
-        guard let data = boundedMetadata(
+        let data = boundedMetadata(
             directory: ".clawdhub",
             file: "origin.json",
             in: candidateDescriptor,
             maximumBytes: 64 * 1_024
-        ), SkillDiscoveryFileRevision(descriptor: candidateDescriptor) == expectedCandidate,
-        let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        )
+        guard SkillDiscoveryFileRevision(descriptor: candidateDescriptor) == expectedCandidate else {
+            throw SkillContentSnapshotError.fileChanged(path: ".clawdhub/origin.json")
+        }
+        guard let data,
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
         object["source"] as? String == "clawdhub",
         let slug = object["slug"] as? String,
         let alias = try? ProviderAliasIdentity(provider: "clawdhub", identifier: slug) else {
