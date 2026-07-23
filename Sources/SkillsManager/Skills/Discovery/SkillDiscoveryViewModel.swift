@@ -24,6 +24,7 @@ nonisolated struct SkillDiscoveryDependencies: Sendable {
 nonisolated struct SkillDiscoveryItemID: Hashable, Sendable {
     let rootIdentity: ManagedItemIdentity
     let relativeLocatorKey: String
+    let rawRelativeLocator: String
 }
 
 nonisolated struct SkillDiscoveryRefreshSnapshot: Sendable {
@@ -87,7 +88,8 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
         init(_ observation: SkillDiscoveryObservation) {
             id = SkillDiscoveryItemID(
                 rootIdentity: observation.rootIdentity,
-                relativeLocatorKey: observation.relativeLocatorKey
+                relativeLocatorKey: observation.relativeLocatorKey,
+                rawRelativeLocator: observation.rawRelativeLocator
             )
             self.observation = observation
         }

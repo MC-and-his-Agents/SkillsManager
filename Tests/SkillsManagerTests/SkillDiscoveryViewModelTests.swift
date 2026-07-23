@@ -77,6 +77,36 @@ struct SkillDiscoveryViewModelTests {
         #expect(viewModel.summary.conflictCount == 1)
     }
 
+    @Test("collision-equivalent directory names keep distinct list identities")
+    @MainActor
+    func collisionItemsHaveUniqueIDs() async throws {
+        let probe = SkillDiscoveryScanProbe()
+        let viewModel = discoveryTestViewModel(scanProbe: probe)
+        let upper = discoveryTestObservation(
+            name: "Demo",
+            status: .conflict,
+            reason: .scopeSlugConflict
+        )
+        let lower = discoveryTestObservation(
+            name: "demo",
+            status: .conflict,
+            reason: .scopeSlugConflict
+        )
+        #expect(upper.relativeLocatorKey == lower.relativeLocatorKey)
+
+        let refresh = Task { await viewModel.refresh() }
+        #expect(await probe.waitForCallCount(1))
+        await probe.succeedNext(SkillDiscoveryResult(
+            observations: [upper, lower],
+            rootDiagnostics: []
+        ))
+        await refresh.value
+
+        #expect(viewModel.items.count == 2)
+        #expect(Set(viewModel.items.map(\.id)).count == 2)
+        #expect(Set(viewModel.items.map(\.observation.rawRelativeLocator)) == ["Demo", "demo"])
+    }
+
     @Test("a refresh published during preview invalidates the old preview")
     @MainActor
     func refreshSupersedesPreview() async throws {
