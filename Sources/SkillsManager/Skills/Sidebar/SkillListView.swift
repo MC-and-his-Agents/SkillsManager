@@ -72,6 +72,8 @@ struct SkillListView: View {
                         switch source {
                         case .local:
                             await store.loadSkills()
+                        case .discovery:
+                            break
                         case .clawdhub:
                             await remoteStore.loadLatest()
                         }

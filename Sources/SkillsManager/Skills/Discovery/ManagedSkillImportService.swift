@@ -19,6 +19,7 @@ nonisolated struct ManagedSkillImportPreview: Hashable, Sendable {
     let action: ManagedSkillImportAction
     let displayName: String
     let matchedSkillID: SkillID?
+    let newSkillID: SkillID?
 }
 
 nonisolated enum ManagedSkillImportDisposition: Hashable, Sendable {
@@ -69,6 +70,26 @@ actor ManagedSkillImportService {
     private let limits: SkillContentLimits
     private let nowMilliseconds: @Sendable () -> Int64
     private var states: [ManagedSkillImportToken: State] = [:]
+
+    nonisolated static func allowedActions(
+        for observation: SkillDiscoveryObservation
+    ) -> Set<ManagedSkillImportAction> {
+        switch observation.status {
+        case .unmanaged:
+            [.importNew]
+        case .claimable where observation.matchedSkillID != nil:
+            [.claimExisting]
+        case .conflict:
+            switch observation.reason {
+            case .ambiguousSource, .ambiguousFingerprint, .evidenceConflict:
+                [.importNew]
+            default:
+                []
+            }
+        default:
+            []
+        }
+    }
 
     init(
         writer: JournaledSSOTWriter,
@@ -131,7 +152,8 @@ actor ManagedSkillImportService {
             token: token,
             action: action,
             displayName: observation.relativeLocator,
-            matchedSkillID: matchedSkillID
+            matchedSkillID: matchedSkillID,
+            newSkillID: newSkillID
         )
     }
 
@@ -204,27 +226,16 @@ actor ManagedSkillImportService {
         observation: SkillDiscoveryObservation,
         action: ManagedSkillImportAction
     ) throws -> SkillID? {
+        guard Self.allowedActions(for: observation).contains(action) else {
+            throw ManagedSkillImportError.actionNotAllowed
+        }
         switch action {
         case .claimExisting:
-            guard observation.status == .claimable,
-                  let matchedSkillID = observation.matchedSkillID else {
+            guard let matchedSkillID = observation.matchedSkillID else {
                 throw ManagedSkillImportError.actionNotAllowed
             }
             return matchedSkillID
         case .importNew:
-            if observation.status == .unmanaged {
-                return nil
-            }
-            let allowedConflicts: Set<SkillDiscoveryReason> = [
-                .ambiguousSource,
-                .ambiguousFingerprint,
-                .evidenceConflict,
-            ]
-            guard observation.status == .conflict,
-                  let reason = observation.reason,
-                  allowedConflicts.contains(reason) else {
-                throw ManagedSkillImportError.actionNotAllowed
-            }
             return nil
         }
     }

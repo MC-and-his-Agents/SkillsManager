@@ -4,6 +4,7 @@ import SwiftUI
 struct SkillSplitView: View {
     @Environment(SkillStore.self) private var store
     @Environment(RemoteSkillStore.self) private var remoteStore
+    @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
 
     @State private var searchText = ""
     @State private var showingImport = false
@@ -21,6 +22,19 @@ struct SkillSplitView: View {
         return store.skills.filter { skill in
             skill.displayName.localizedCaseInsensitiveContains(searchText)
                 || skill.description.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private var filteredDiscoveryItems: [SkillDiscoveryViewModel.Item] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return discoveryModel.items }
+        return discoveryModel.items.filter { item in
+            let observation = item.observation
+            return observation.relativeLocator.localizedCaseInsensitiveContains(query)
+                || observation.scopeSummary.localizedCaseInsensitiveContains(query)
+                || observation.displayURLs.contains {
+                    $0.path.localizedCaseInsensitiveContains(query)
+                }
         }
     }
 
@@ -64,7 +78,7 @@ struct SkillSplitView: View {
             .searchable(
                 text: $searchText,
                 placement: .sidebar,
-                prompt: source == .local ? "Filter skills" : "Search Clawdhub"
+                prompt: searchPrompt
             )
     }
 
@@ -76,22 +90,31 @@ struct SkillSplitView: View {
         }
     }
 
+    @ViewBuilder
     private var listView: some View {
-        SkillListView(
-            localSkills: filteredSkills,
-            remoteLatestSkills: remoteStore.latestSkills,
-            remoteSearchResults: remoteStore.searchResults,
-            remoteSearchState: remoteStore.searchState,
-            remoteLatestState: remoteStore.latestState,
-            remoteQuery: searchText,
-            installedSkillPlatforms: store.installedSkillPlatformIndex,
-            onInstallRemoteSkill: { skill in
-                presentRemoteInstallSheet(for: skill)
-            },
-            source: $source,
-            localSelection: localSelectionBinding,
-            remoteSelection: remoteSelectionBinding
-        )
+        switch source {
+        case .local, .clawdhub:
+            SkillListView(
+                localSkills: filteredSkills,
+                remoteLatestSkills: remoteStore.latestSkills,
+                remoteSearchResults: remoteStore.searchResults,
+                remoteSearchState: remoteStore.searchState,
+                remoteLatestState: remoteStore.latestState,
+                remoteQuery: searchText,
+                installedSkillPlatforms: store.installedSkillPlatformIndex,
+                onInstallRemoteSkill: { skill in
+                    presentRemoteInstallSheet(for: skill)
+                },
+                source: $source,
+                localSelection: localSelectionBinding,
+                remoteSelection: remoteSelectionBinding
+            )
+        case .discovery:
+            SkillDiscoverySidebarView(
+                items: filteredDiscoveryItems,
+                source: $source
+            )
+        }
     }
 
     @ViewBuilder
@@ -99,6 +122,8 @@ struct SkillSplitView: View {
         switch source {
         case .local:
             SkillDetailView()
+        case .discovery:
+            SkillDiscoveryDetailView()
         case .clawdhub:
             RemoteSkillDetailView()
         }
@@ -123,26 +148,36 @@ struct SkillSplitView: View {
 
         }
 
-        ToolbarItem(id: "open") {
-            openFolderItem
-        }
-
-        if #available(macOS 26.0, *) {
-            ToolbarSpacer(.fixed)
-        }
-
-        ToolbarItem(id: "add") {
-            Menu {
-                Button("Import Skill...") {
-                    showingImport = true
-                }
-                Button("Add Custom Path...") {
-                    showingAddPath = true
-                }
-            } label: {
-                Label("Add", systemImage: "plus")
+        if source != .discovery {
+            ToolbarItem(id: "open") {
+                openFolderItem
             }
-            .labelStyle(.iconOnly)
+
+            if #available(macOS 26.0, *) {
+                ToolbarSpacer(.fixed)
+            }
+
+            ToolbarItem(id: "add") {
+                Menu {
+                    Button("Import Skill...") {
+                        showingImport = true
+                    }
+                    Button("Add Custom Path...") {
+                        showingAddPath = true
+                    }
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
+                .labelStyle(.iconOnly)
+            }
+        }
+    }
+
+    private var searchPrompt: String {
+        switch source {
+        case .local: "Filter skills"
+        case .discovery: "Filter discovered skills"
+        case .clawdhub: "Search Clawdhub"
         }
     }
 
@@ -354,8 +389,11 @@ private struct RemoteInstallSheet: View {
 }
 
 private struct SkillSplitLifecycleModifier: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(SkillStore.self) private var store
     @Environment(RemoteSkillStore.self) private var remoteStore
+    @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
+    @Environment(LibraryRuntimeState.self) private var libraryRuntime
 
     @Binding var source: SkillSource
     @Binding var searchText: String
@@ -367,6 +405,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 await store.loadSkills()
                 await remoteStore.loadLatest()
             }
+            .task {
+                await synchronizeDiscoveryRuntime()
+            }
             .onChange(of: store.selectedSkillID) { _, _ in
                 Task { await store.loadSelectedSkill() }
             }
@@ -374,10 +415,12 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 Task { await remoteStore.loadSelectedSkill() }
             }
             .onChange(of: source) { _, newValue in
-                if newValue == .local {
-                    Task { await store.loadSelectedSkill() }
+                if newValue != .clawdhub {
                     searchTask?.cancel()
                     searchTask = nil
+                }
+                if newValue == .local {
+                    Task { await store.loadSelectedSkill() }
                 }
             }
             .onChange(of: searchText) { _, newValue in
@@ -389,5 +432,43 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                     await remoteStore.search(query: newValue)
                 }
             }
+            .onChange(of: libraryRuntime.readiness) { _, _ in
+                Task { await synchronizeDiscoveryRuntime() }
+            }
+            .onChange(of: scenePhase) { oldValue, newValue in
+                guard oldValue != .active,
+                      newValue == .active,
+                      libraryRuntime.readiness == .ready else {
+                    return
+                }
+                Task { await discoveryModel.refresh() }
+            }
+    }
+
+    private func synchronizeDiscoveryRuntime() async {
+        guard libraryRuntime.readiness == .ready else {
+            discoveryModel.blockRuntime(
+                message: "The managed library is not ready. Resolve its startup diagnostics first."
+            )
+            return
+        }
+        guard let writer = store.persistence else {
+            discoveryModel.blockRuntime(
+                message: "The managed library session is unavailable."
+            )
+            return
+        }
+        let needsInitialRefresh = discoveryModel.activate(
+            dependencies: .live(writer: writer),
+            roots: {
+                SkillDiscoveryRootPlan.make(
+                    homeURL: FileManager.default.homeDirectoryForCurrentUser,
+                    customPaths: store.customPaths
+                )
+            }
+        )
+        if needsInitialRefresh {
+            await discoveryModel.refresh()
+        }
     }
 }
