@@ -424,31 +424,39 @@ struct SafeSkillStagerTests {
         commitEntries: DispatchSemaphore,
         commitRelease: DispatchSemaphore
     ) -> Task<SafeSkillInstallResult, Error> {
-        Task.detached {
-            var hooks = ManagedPathGuardTestHooks()
-            hooks.beforeNoReplaceCommit = {
-                commitEntries.signal()
-                guard commitRelease.wait(timeout: .now() + 5) == .success else {
-                    throw PromotionBarrierError.timedOut
-                }
-            }
-            let stager = SafeSkillStager(
-                guardFactory: { try ManagedPathGuard(rootURL: $0, hooks: hooks) }
-            )
-            return try stager.install(
-                sourceRoot: source,
-                expectedFingerprint: fingerprint,
-                destinationRoot: destination,
-                preferredName: name,
-                conflictPolicy: .chooseUniqueName,
-                managedRoot: managedRoot,
-                metadataWriter: { _ in
-                    arrivals.signal()
-                    guard release.wait(timeout: .now() + 5) == .success else {
-                        throw PromotionBarrierError.timedOut
+        Task {
+            try await withCheckedThrowingContinuation { continuation in
+                Thread.detachNewThread {
+                    autoreleasepool {
+                        continuation.resume(with: Result {
+                            var hooks = ManagedPathGuardTestHooks()
+                            hooks.beforeNoReplaceCommit = {
+                                commitEntries.signal()
+                                guard commitRelease.wait(timeout: .now() + 5) == .success else {
+                                    throw PromotionBarrierError.timedOut
+                                }
+                            }
+                            let stager = SafeSkillStager(
+                                guardFactory: { try ManagedPathGuard(rootURL: $0, hooks: hooks) }
+                            )
+                            return try stager.install(
+                                sourceRoot: source,
+                                expectedFingerprint: fingerprint,
+                                destinationRoot: destination,
+                                preferredName: name,
+                                conflictPolicy: .chooseUniqueName,
+                                managedRoot: managedRoot,
+                                metadataWriter: { _ in
+                                    arrivals.signal()
+                                    guard release.wait(timeout: .now() + 5) == .success else {
+                                        throw PromotionBarrierError.timedOut
+                                    }
+                                }
+                            )
+                        })
                     }
                 }
-            )
+            }
         }
     }
 
@@ -485,7 +493,7 @@ struct SafeSkillStagerTests {
         timeout: DispatchTime
     ) async -> DispatchTimeoutResult {
         await withCheckedContinuation { continuation in
-            DispatchQueue.global().async {
+            Thread.detachNewThread {
                 continuation.resume(returning: semaphore.wait(timeout: timeout))
             }
         }
