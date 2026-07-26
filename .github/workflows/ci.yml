@@ -45,7 +45,7 @@ jobs:
         if: needs.changes.outputs.swift == 'true'
         uses: swift-actions/setup-swift@v2
         with:
-          swift-version: "6.3"
+          swift-version: "6.2"
       - name: Build
         if: needs.changes.outputs.swift == 'true'
         run: swift build
@@ -63,7 +63,7 @@ jobs:
         if: needs.changes.outputs.swift == 'true'
         uses: swift-actions/setup-swift@v2
         with:
-          swift-version: "6.3"
+          swift-version: "6.2"
       - name: Test
         if: needs.changes.outputs.swift == 'true'
         run: swift test --no-parallel
