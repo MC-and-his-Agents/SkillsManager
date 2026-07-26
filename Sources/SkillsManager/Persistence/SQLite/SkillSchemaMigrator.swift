@@ -12,6 +12,7 @@ nonisolated enum SkillSchemaMigrator {
         beforeV4Commit: () throws -> Void = {},
         beforeV5Commit: () throws -> Void = {},
         beforeV6Commit: () throws -> Void = {},
+        beforeV7Commit: () throws -> Void = {},
         initializeV4: (SQLiteConnection) throws -> Void = { _ in }
     ) throws -> SQLiteConnection {
         let connection = try SQLiteConnection(
@@ -32,10 +33,11 @@ nonisolated enum SkillSchemaMigrator {
                 beforeV4Commit: beforeV4Commit,
                 beforeV5Commit: beforeV5Commit,
                 beforeV6Commit: beforeV6Commit,
+                beforeV7Commit: beforeV7Commit,
                 initializeV4: initializeV4
             )
         case .readOnly:
-            try validateV6(connection)
+            try validateV7(connection)
         }
         return connection
     }
@@ -49,6 +51,7 @@ nonisolated enum SkillSchemaMigrator {
         beforeV4Commit: () throws -> Void = {},
         beforeV5Commit: () throws -> Void = {},
         beforeV6Commit: () throws -> Void = {},
+        beforeV7Commit: () throws -> Void = {},
         initializeV4: (SQLiteConnection) throws -> Void = { _ in }
     ) throws {
         guard connection.accessMode != .readOnly else {
@@ -56,61 +59,20 @@ nonisolated enum SkillSchemaMigrator {
         }
         let rawVersion = try admittedSchemaVersion(connection)
 
-        switch rawVersion {
-        case 0:
+        if rawVersion == 0 {
             try afterInitialV0Read()
-            try migrateV0ToV6(
-                connection,
-                beforeV1Commit: beforeCommit,
-                beforeV2Commit: beforeV2Commit,
-                beforeV3Commit: beforeV3Commit,
-                beforeV4Commit: beforeV4Commit,
-                beforeV5Commit: beforeV5Commit,
-                beforeV6Commit: beforeV6Commit,
-                initializeV4: initializeV4
-            )
-        case Int64(SkillSchemaV1.version):
-            try validateV1(connection)
-            try migrateV1ToV6(
-                connection,
-                beforeV2Commit: beforeV2Commit,
-                beforeV3Commit: beforeV3Commit,
-                beforeV4Commit: beforeV4Commit,
-                beforeV5Commit: beforeV5Commit,
-                beforeV6Commit: beforeV6Commit
-            )
-        case Int64(SkillSchemaV2.version):
-            try validateV2(connection)
-            try migrateV2ToV6(
-                connection,
-                beforeV3Commit: beforeV3Commit,
-                beforeV4Commit: beforeV4Commit,
-                beforeV5Commit: beforeV5Commit,
-                beforeV6Commit: beforeV6Commit
-            )
-        case Int64(SkillSchemaV3.version):
-            try validateV3(connection)
-            try migrateV3ToV6(
-                connection,
-                beforeV4Commit: beforeV4Commit,
-                beforeV5Commit: beforeV5Commit,
-                beforeV6Commit: beforeV6Commit
-            )
-        case Int64(SkillSchemaV4.version):
-            try validateV4(connection)
-            try migrateV4ToV6(
-                connection,
-                beforeV5Commit: beforeV5Commit,
-                beforeV6Commit: beforeV6Commit
-            )
-        case Int64(SkillSchemaV5.version):
-            try validateV5(connection)
-            try migrateV5ToV6(connection, beforeCommit: beforeV6Commit)
-        case Int64(SkillSchemaV6.version):
-            try validateV6(connection)
-        default:
-            throw SQLiteStoreError.invalidState("unsupported schema version \(rawVersion)")
         }
+        try migrateToV7(
+            connection,
+            beforeV1Commit: beforeCommit,
+            beforeV2Commit: beforeV2Commit,
+            beforeV3Commit: beforeV3Commit,
+            beforeV4Commit: beforeV4Commit,
+            beforeV5Commit: beforeV5Commit,
+            beforeV6Commit: beforeV6Commit,
+            beforeV7Commit: beforeV7Commit,
+            initializeV4: initializeV4
+        )
     }
 
     private static func migrateV0ToV6(
@@ -197,6 +159,95 @@ nonisolated enum SkillSchemaMigrator {
             try initializeV4(connection)
             try applyV5Migration(connection, beforeCommit: beforeV5Commit)
             try applyV6Migration(connection, beforeCommit: beforeV6Commit)
+            try connection.execute("COMMIT")
+        } catch {
+            try? connection.execute("ROLLBACK")
+            throw error
+        }
+    }
+
+    private static func migrateToV7(
+        _ connection: SQLiteConnection,
+        beforeV1Commit: () throws -> Void,
+        beforeV2Commit: () throws -> Void,
+        beforeV3Commit: () throws -> Void,
+        beforeV4Commit: () throws -> Void,
+        beforeV5Commit: () throws -> Void,
+        beforeV6Commit: () throws -> Void,
+        beforeV7Commit: () throws -> Void,
+        initializeV4: (SQLiteConnection) throws -> Void
+    ) throws {
+        try connection.execute("BEGIN IMMEDIATE")
+        do {
+            guard let lockedVersion = try connection.querySingleInt("PRAGMA user_version") else {
+                throw SQLiteStoreError.invalidState("PRAGMA user_version returned no row")
+            }
+            guard (0...SkillSchemaV7.version).contains(Int(lockedVersion)) else {
+                throw SQLiteStoreError.invalidState(
+                    "schema version changed to unsupported value \(lockedVersion)"
+                )
+            }
+            switch lockedVersion {
+            case Int64(SkillSchemaV7.version):
+                try validateV7(connection)
+            case Int64(SkillSchemaV6.version):
+                try validateV6(connection)
+                try applyV7Migration(connection, beforeCommit: beforeV7Commit)
+            case Int64(SkillSchemaV5.version):
+                try validateV5(connection)
+                try applyV6Migration(connection, beforeCommit: beforeV6Commit)
+                try applyV7Migration(connection, beforeCommit: beforeV7Commit)
+            case Int64(SkillSchemaV4.version):
+                try validateV4(connection)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
+                try applyV6Migration(connection, beforeCommit: beforeV6Commit)
+                try applyV7Migration(connection, beforeCommit: beforeV7Commit)
+            case Int64(SkillSchemaV3.version):
+                try validateV3(connection)
+                try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
+                try applyV6Migration(connection, beforeCommit: beforeV6Commit)
+                try applyV7Migration(connection, beforeCommit: beforeV7Commit)
+            case Int64(SkillSchemaV2.version):
+                try validateV2(connection)
+                try applyV3Migration(connection, beforeCommit: beforeV3Commit)
+                try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
+                try applyV6Migration(connection, beforeCommit: beforeV6Commit)
+                try applyV7Migration(connection, beforeCommit: beforeV7Commit)
+            case Int64(SkillSchemaV1.version):
+                try validateV1(connection)
+                try applyV2Migration(connection, beforeCommit: beforeV2Commit)
+                try applyV3Migration(connection, beforeCommit: beforeV3Commit)
+                try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
+                try applyV6Migration(connection, beforeCommit: beforeV6Commit)
+                try applyV7Migration(connection, beforeCommit: beforeV7Commit)
+            case 0:
+                guard try connection.userTableNames().isEmpty else {
+                    throw SQLiteStoreError.invalidState("schema v0 contains unknown user tables")
+                }
+                for statement in SkillSchemaV1.statements {
+                    try connection.execute(statement)
+                }
+                try connection.execute(
+                    "INSERT INTO schema_metadata(singleton, schema_version) VALUES (1, 1)"
+                )
+                try connection.execute("PRAGMA user_version = 1")
+                try beforeV1Commit()
+                try validateV1(connection)
+                try applyV2Migration(connection, beforeCommit: beforeV2Commit)
+                try applyV3Migration(connection, beforeCommit: beforeV3Commit)
+                try applyV4Migration(connection, beforeCommit: beforeV4Commit)
+                try initializeV4(connection)
+                try applyV5Migration(connection, beforeCommit: beforeV5Commit)
+                try applyV6Migration(connection, beforeCommit: beforeV6Commit)
+                try applyV7Migration(connection, beforeCommit: beforeV7Commit)
+            default:
+                throw SQLiteStoreError.invalidState(
+                    "schema version changed to unsupported value \(lockedVersion)"
+                )
+            }
             try connection.execute("COMMIT")
         } catch {
             try? connection.execute("ROLLBACK")
@@ -558,7 +609,7 @@ nonisolated enum SkillSchemaMigrator {
         guard version >= 0 else {
             throw SQLiteStoreError.invalidState("negative schema version \(version)")
         }
-        guard version <= Int64(SkillSchemaV6.version) else {
+        guard version <= Int64(SkillSchemaV7.version) else {
             throw SQLiteStoreError.invalidState("unsupported schema version \(version)")
         }
         return version
