@@ -46,6 +46,7 @@ struct DistributionSymlinkFileSystemTests {
             actionIndex: 0
         )
         try fileSystem.restore(entry, quarantined: quarantined)
+        try fileSystem.restore(entry, quarantined: quarantined)
         let secondQuarantine = try fileSystem.quarantine(
             entry,
             expected: evidence,
@@ -53,7 +54,16 @@ struct DistributionSymlinkFileSystemTests {
             actionIndex: 1
         )
         try fileSystem.cleanup(entry, quarantined: secondQuarantine)
+        try fileSystem.cleanup(entry, quarantined: secondQuarantine)
         #expect(try fileSystem.observe(entry) == .missing(rootIdentity: evidence.rootIdentity))
+
+        let recreated = try fileSystem.create(
+            entry,
+            absoluteTarget: target,
+            expectedRootIdentity: evidence.rootIdentity
+        )
+        try fileSystem.removeCreated(entry, expected: recreated)
+        try fileSystem.removeCreated(entry, expected: recreated)
     }
 
     @Test("classifies a dangling intermediate symlink as unavailable")

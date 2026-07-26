@@ -131,6 +131,59 @@ struct DistributionOperationStoreTests {
                 createdAtMilliseconds: 1
             )
         }
+
+        let operationID = SSOTOperationID(
+            UUID(uuidString: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee")!
+        )
+        let newBindings = Data(
+            #"[{"adapter":null,"scope":"global","skillID":"00112233445546778899aabbccddeeff","slug":"demo","syncMode":"symlink"}]"#.utf8
+        )
+        let createPlan = TestPlan(
+            status: "executable",
+            filesystemActions: [TestPlanAction(
+                action: "create_symlink",
+                targetScopeKey: "global",
+                targetLocator: "~/.agents/skills/demo",
+                ssotLocator: "~/.SkillsManager/skills/\(skillID.directoryName)"
+            )],
+            bindingsChanged: true,
+            bindingReplacement: [TestPlanBinding(
+                skillID: skillID.directoryName,
+                scopeKind: "global",
+                adapterCode: nil,
+                targetScopeKey: "global",
+                distributionSlug: "demo",
+                slugKey: "demo",
+                syncMode: "symlink"
+            )],
+            conflicts: []
+        )
+        var metadata = stat()
+        metadata.st_mode = mode_t(S_IFDIR)
+        let identity = try ManagedItemIdentityCodec.encode(ManagedItemIdentity(metadata))
+        let malformedPreflight = [TestPreflight(
+            kind: "create_symlink",
+            targetScopeKey: "global",
+            slug: "demo",
+            absoluteLinkTarget: "/tmp/../tmp/.SkillsManager/skills/\(skillID.directoryName)",
+            ssotIdentity: identity,
+            rootIdentity: Data(),
+            entryIdentity: nil,
+            temporaryName: ".skillsmanager-distribution-"
+                + operationID.uuid.uuidString.lowercased() + "-0"
+        )]
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            _ = try DistributionOperationDraft(
+                operationID: operationID,
+                skillID: skillID,
+                oldBindings: Data("[]".utf8),
+                newBindings: newBindings,
+                planPayload: try DistributionOperationPayloadCodec.encode(createPlan),
+                preflightPayload: try DistributionOperationPayloadCodec.encode(malformedPreflight),
+                runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
+                createdAtMilliseconds: 1
+            )
+        }
     }
 }
 
@@ -164,8 +217,37 @@ private struct TestPlanAction: Codable {
     }
 }
 
-private struct TestPlanBinding: Codable {}
+private struct TestPlanBinding: Codable {
+    let skillID: String
+    let scopeKind: String
+    let adapterCode: String?
+    let targetScopeKey: String
+    let distributionSlug: String
+    let slugKey: String
+    let syncMode: String
+
+    enum CodingKeys: String, CodingKey {
+        case skillID = "skill_id"
+        case scopeKind = "scope_kind"
+        case adapterCode = "adapter_code"
+        case targetScopeKey = "target_scope_key"
+        case distributionSlug = "distribution_slug"
+        case slugKey = "slug_key"
+        case syncMode = "sync_mode"
+    }
+}
 private struct TestPlanConflict: Codable {}
+
+private struct TestPreflight: Codable {
+    let kind: String
+    let targetScopeKey: String
+    let slug: String
+    let absoluteLinkTarget: String
+    let ssotIdentity: Data
+    let rootIdentity: Data
+    let entryIdentity: Data?
+    let temporaryName: String
+}
 
 private func withDistributionJournalFixture(
     _ body: (

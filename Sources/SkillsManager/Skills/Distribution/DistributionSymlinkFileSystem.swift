@@ -273,8 +273,19 @@ nonisolated final class DistributionSymlinkFileSystem {
             throw DistributionSymlinkFileSystemError.entryChanged
         }
         let finalName = entry.distributionSlug.value
-        guard try identityIfPresent(finalName, in: handle.descriptor) == nil else {
-            throw DistributionSymlinkFileSystemError.entryChanged
+        if let finalIdentity = try identityIfPresent(finalName, in: handle.descriptor) {
+            try verify(
+                name: finalName,
+                expectedIdentity: quarantined.evidence.entryIdentity,
+                expectedTarget: quarantined.evidence.absoluteTarget,
+                in: handle.descriptor
+            )
+            guard try identityIfPresent(quarantined.temporaryName, in: handle.descriptor) == nil,
+                  finalIdentity == quarantined.evidence.entryIdentity else {
+                throw DistributionSymlinkFileSystemError.entryChanged
+            }
+            try verifyRoot(handle, components: components)
+            return
         }
         try verify(
             name: quarantined.temporaryName,
@@ -336,6 +347,10 @@ nonisolated final class DistributionSymlinkFileSystem {
         defer { Darwin.close(handle.descriptor) }
         guard handle.identity == expected.rootIdentity else {
             throw DistributionSymlinkFileSystemError.entryChanged
+        }
+        guard try identityIfPresent(name, in: handle.descriptor) != nil else {
+            try verifyRoot(handle, components: components)
+            return
         }
         try verify(
             name: name,

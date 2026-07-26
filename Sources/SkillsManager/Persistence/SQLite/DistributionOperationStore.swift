@@ -75,6 +75,8 @@ private nonisolated struct DistributionBindingWire: Codable, Equatable {
     let adapter: String?
     let slug: String
     let syncMode: String
+    let createdAtMilliseconds: Int64?
+    let updatedAtMilliseconds: Int64?
 
     private enum CodingKeys: String, CodingKey {
         case skillID
@@ -82,6 +84,8 @@ private nonisolated struct DistributionBindingWire: Codable, Equatable {
         case adapter
         case slug
         case syncMode
+        case createdAtMilliseconds
+        case updatedAtMilliseconds
     }
 
     init(from decoder: Decoder) throws {
@@ -91,6 +95,14 @@ private nonisolated struct DistributionBindingWire: Codable, Equatable {
         adapter = try container.decodeIfPresent(String.self, forKey: .adapter)
         slug = try container.decode(String.self, forKey: .slug)
         syncMode = try container.decode(String.self, forKey: .syncMode)
+        createdAtMilliseconds = try container.decodeIfPresent(
+            Int64.self,
+            forKey: .createdAtMilliseconds
+        )
+        updatedAtMilliseconds = try container.decodeIfPresent(
+            Int64.self,
+            forKey: .updatedAtMilliseconds
+        )
     }
 
     func encode(to encoder: Encoder) throws {
@@ -100,6 +112,8 @@ private nonisolated struct DistributionBindingWire: Codable, Equatable {
         try container.encode(adapter, forKey: .adapter)
         try container.encode(slug, forKey: .slug)
         try container.encode(syncMode, forKey: .syncMode)
+        try container.encodeIfPresent(createdAtMilliseconds, forKey: .createdAtMilliseconds)
+        try container.encodeIfPresent(updatedAtMilliseconds, forKey: .updatedAtMilliseconds)
     }
 }
 
@@ -179,6 +193,15 @@ private nonisolated struct DistributionPreflightWire: Codable, Equatable {
 }
 
 private nonisolated struct DistributionRuntimeWire: Codable, Equatable {
+    struct OldOwnership: Codable, Equatable {
+        let targetScopeKey: String
+        let appliedOperationID: Data
+        let rootIdentity: Data
+        let entryIdentity: Data
+        let absoluteLinkTarget: String
+        let verifiedAtMilliseconds: Int64
+    }
+
     struct Created: Codable, Equatable {
         let actionIndex: Int
         let rootIdentity: Data
@@ -196,6 +219,32 @@ private nonisolated struct DistributionRuntimeWire: Codable, Equatable {
 
     let created: [Created]
     let removed: [Removed]
+    let oldOwnership: [OldOwnership]
+
+    private enum CodingKeys: String, CodingKey {
+        case created
+        case removed
+        case oldOwnership
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        created = try container.decode([Created].self, forKey: .created)
+        removed = try container.decode([Removed].self, forKey: .removed)
+        oldOwnership = try container.decodeIfPresent(
+            [OldOwnership].self,
+            forKey: .oldOwnership
+        ) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(created, forKey: .created)
+        try container.encode(removed, forKey: .removed)
+        if !oldOwnership.isEmpty {
+            try container.encode(oldOwnership, forKey: .oldOwnership)
+        }
+    }
 }
 
 private nonisolated enum DistributionOperationPayloadValidator {
@@ -217,8 +266,8 @@ private nonisolated enum DistributionOperationPayloadValidator {
     ) throws {
         let old = try decodeBindings(oldBindingsData)
         let new = try decodeBindings(newBindingsData)
-        try validateBindings(old, skillID: skillID)
-        try validateBindings(new, skillID: skillID)
+        try validateBindings(old, skillID: skillID, requireTimestamps: true)
+        try validateBindings(new, skillID: skillID, requireTimestamps: false)
         let plan = try decodePlan(planData)
         try validatePlan(
             plan,
@@ -234,6 +283,15 @@ private nonisolated enum DistributionOperationPayloadValidator {
             operationID: operationID
         )
         let runtime = try decodeRuntime(runtimeData)
+        guard Set(runtime.oldOwnership.map(\.targetScopeKey))
+                == Set(old.map(bindingScopeKey)),
+              runtime.oldOwnership.allSatisfy({
+                  $0.absoluteLinkTarget.hasSuffix(
+                      "/.SkillsManager/skills/\(skillID.directoryName)"
+                  )
+              }) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
         try validateRuntime(
             runtime,
             preflight: preflight,
@@ -275,7 +333,12 @@ private nonisolated enum DistributionOperationPayloadValidator {
         )
         guard let array = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
               array.allSatisfy({
-                  Set($0.keys) == ["skillID", "scope", "adapter", "slug", "syncMode"]
+                  let keys = Set($0.keys)
+                  return keys == ["skillID", "scope", "adapter", "slug", "syncMode"]
+                      || keys == [
+                          "skillID", "scope", "adapter", "slug", "syncMode",
+                          "createdAtMilliseconds", "updatedAtMilliseconds"
+                      ]
               }) else {
             throw DistributionOperationStoreError.invalidRecord
         }
@@ -343,7 +406,8 @@ private nonisolated enum DistributionOperationPayloadValidator {
             from: data
         )
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              Set(object.keys) == ["created", "removed"],
+              (Set(object.keys) == ["created", "removed"]
+                  || Set(object.keys) == ["created", "removed", "oldOwnership"]),
               let created = object["created"] as? [[String: Any]],
               created.allSatisfy({
                   Set($0.keys) == [
@@ -359,22 +423,64 @@ private nonisolated enum DistributionOperationPayloadValidator {
               }) else {
             throw DistributionOperationStoreError.invalidRecord
         }
+        let oldOwnership = (object["oldOwnership"] as? [[String: Any]]) ?? []
+        guard !object.keys.contains("oldOwnership")
+                || oldOwnership.allSatisfy({
+                    Set($0.keys) == [
+                        "targetScopeKey", "appliedOperationID", "rootIdentity",
+                        "entryIdentity", "absoluteLinkTarget", "verifiedAtMilliseconds"
+                    ]
+                }) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        guard value.oldOwnership.count <= maximumRoots,
+              Set(value.oldOwnership.map(\.targetScopeKey)).count
+                  == value.oldOwnership.count,
+              value.oldOwnership.allSatisfy({
+                  $0.appliedOperationID.count == 16
+                      && $0.rootIdentity.count == ManagedItemIdentityCodec.encodedByteCount
+                      && $0.entryIdentity.count == ManagedItemIdentityCodec.encodedByteCount
+                      && $0.absoluteLinkTarget.hasPrefix("/")
+                      && URL(fileURLWithPath: $0.absoluteLinkTarget).standardizedFileURL.path
+                        == $0.absoluteLinkTarget
+                      && $0.verifiedAtMilliseconds >= 0
+              }) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        for ownership in value.oldOwnership {
+            try validateIdentity(ownership.rootIdentity)
+            try validateIdentity(ownership.entryIdentity)
+        }
         return value
     }
 
     private static func validateBindings(
         _ bindings: [DistributionBindingWire],
-        skillID: SkillID
+        skillID: SkillID,
+        requireTimestamps: Bool
     ) throws {
         guard bindings.count <= maximumRoots else {
             throw DistributionOperationStoreError.invalidRecord
         }
         var scopes = Set<String>()
         for binding in bindings {
+            let timestampsValid: Bool
+            if requireTimestamps {
+                if let created = binding.createdAtMilliseconds,
+                   let updated = binding.updatedAtMilliseconds {
+                    timestampsValid = created >= 0 && updated >= created
+                } else {
+                    timestampsValid = false
+                }
+            } else {
+                timestampsValid = binding.createdAtMilliseconds == nil
+                    && binding.updatedAtMilliseconds == nil
+            }
             guard binding.skillID == skillID.directoryName,
                   binding.syncMode == DistributionSyncMode.symlink.rawValue,
                   let slug = try? DefaultDistributionSlug(validating: binding.slug),
-                  slug.collisionKey == SkillContentPath.collisionKey(for: slug.value)
+                  slug.collisionKey == SkillContentPath.collisionKey(for: slug.value),
+                  timestampsValid
             else {
                 throw DistributionOperationStoreError.invalidRecord
             }
@@ -486,6 +592,8 @@ private nonisolated enum DistributionOperationPayloadValidator {
                   value.targetScopeKey == action.targetScopeKey,
                   value.slug == slug(for: action.targetLocator, scope: scope(for: action.targetScopeKey)),
                   value.absoluteLinkTarget.hasPrefix("/"),
+                  URL(fileURLWithPath: value.absoluteLinkTarget).standardizedFileURL.path
+                    == value.absoluteLinkTarget,
                   value.absoluteLinkTarget.hasSuffix("/.SkillsManager/skills/\(skillID.directoryName)"),
                   value.temporaryName == temporaryName(operationID, index),
                   value.ssotIdentity.count == ManagedItemIdentityCodec.encodedByteCount,
@@ -576,6 +684,10 @@ private nonisolated enum DistributionOperationPayloadValidator {
 
     private static func bindingKey(_ value: DistributionBindingWire) -> String {
         "\(value.scope):\(value.adapter ?? ""):\(value.slug):\(value.syncMode)"
+    }
+
+    private static func bindingScopeKey(_ value: DistributionBindingWire) -> String {
+        value.scope == "global" ? "global" : "agent:\(value.adapter ?? "")"
     }
 
     private static func planBindingKey(

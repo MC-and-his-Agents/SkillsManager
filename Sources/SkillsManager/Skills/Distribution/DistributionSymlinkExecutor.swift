@@ -18,6 +18,8 @@ private nonisolated struct DistributionBindingPayload: Codable, Equatable {
     let adapter: String?
     let slug: String
     let syncMode: String
+    let createdAtMilliseconds: Int64?
+    let updatedAtMilliseconds: Int64?
 
     private enum CodingKeys: String, CodingKey {
         case skillID
@@ -25,6 +27,8 @@ private nonisolated struct DistributionBindingPayload: Codable, Equatable {
         case adapter
         case slug
         case syncMode
+        case createdAtMilliseconds
+        case updatedAtMilliseconds
     }
 
     init(from decoder: Decoder) throws {
@@ -34,6 +38,14 @@ private nonisolated struct DistributionBindingPayload: Codable, Equatable {
         adapter = try container.decodeIfPresent(String.self, forKey: .adapter)
         slug = try container.decode(String.self, forKey: .slug)
         syncMode = try container.decode(String.self, forKey: .syncMode)
+        createdAtMilliseconds = try container.decodeIfPresent(
+            Int64.self,
+            forKey: .createdAtMilliseconds
+        )
+        updatedAtMilliseconds = try container.decodeIfPresent(
+            Int64.self,
+            forKey: .updatedAtMilliseconds
+        )
     }
 
     func encode(to encoder: Encoder) throws {
@@ -43,6 +55,8 @@ private nonisolated struct DistributionBindingPayload: Codable, Equatable {
         try container.encode(adapter, forKey: .adapter)
         try container.encode(slug, forKey: .slug)
         try container.encode(syncMode, forKey: .syncMode)
+        try container.encodeIfPresent(createdAtMilliseconds, forKey: .createdAtMilliseconds)
+        try container.encodeIfPresent(updatedAtMilliseconds, forKey: .updatedAtMilliseconds)
     }
 
     init(_ intent: DistributionBindingIntent) {
@@ -57,6 +71,19 @@ private nonisolated struct DistributionBindingPayload: Codable, Equatable {
         }
         slug = intent.distributionSlug.value
         syncMode = intent.syncMode.rawValue
+        createdAtMilliseconds = nil
+        updatedAtMilliseconds = nil
+    }
+
+    init(_ binding: DistributionBinding) {
+        let payload = DistributionBindingPayload(binding.intent)
+        skillID = payload.skillID
+        scope = payload.scope
+        adapter = payload.adapter
+        slug = payload.slug
+        syncMode = payload.syncMode
+        createdAtMilliseconds = binding.createdAtMilliseconds
+        updatedAtMilliseconds = binding.updatedAtMilliseconds
     }
 
     func intent(skillID: SkillID) throws -> DistributionBindingIntent {
@@ -87,6 +114,23 @@ private nonisolated struct DistributionBindingPayload: Codable, Equatable {
             syncMode: syncMode
         )
     }
+
+    func binding(skillID: SkillID) throws -> DistributionBinding {
+        guard let createdAtMilliseconds, let updatedAtMilliseconds else {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "binding snapshot is missing timestamps"
+            )
+        }
+        let intent = try intent(skillID: skillID)
+        return try DistributionBinding(
+            skillID: skillID,
+            scope: intent.scope,
+            distributionSlug: intent.distributionSlug,
+            syncMode: intent.syncMode,
+            createdAtMilliseconds: createdAtMilliseconds,
+            updatedAtMilliseconds: updatedAtMilliseconds
+        )
+    }
 }
 
 private nonisolated struct DistributionPreflightAction: Codable {
@@ -101,6 +145,15 @@ private nonisolated struct DistributionPreflightAction: Codable {
 }
 
 private nonisolated struct DistributionRuntimeEvidence: Codable {
+    struct OldOwnership: Codable {
+        let targetScopeKey: String
+        let appliedOperationID: Data
+        let rootIdentity: Data
+        let entryIdentity: Data
+        let absoluteLinkTarget: String
+        let verifiedAtMilliseconds: Int64
+    }
+
     struct Created: Codable {
         let actionIndex: Int
         let rootIdentity: Data
@@ -118,6 +171,42 @@ private nonisolated struct DistributionRuntimeEvidence: Codable {
 
     var created: [Created] = []
     var removed: [Removed] = []
+    var oldOwnership: [OldOwnership] = []
+
+    private enum CodingKeys: String, CodingKey {
+        case created
+        case removed
+        case oldOwnership
+    }
+
+    init(
+        created: [Created] = [],
+        removed: [Removed] = [],
+        oldOwnership: [OldOwnership] = []
+    ) {
+        self.created = created
+        self.removed = removed
+        self.oldOwnership = oldOwnership
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        created = try container.decode([Created].self, forKey: .created)
+        removed = try container.decode([Removed].self, forKey: .removed)
+        oldOwnership = try container.decodeIfPresent(
+            [OldOwnership].self,
+            forKey: .oldOwnership
+        ) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(created, forKey: .created)
+        try container.encode(removed, forKey: .removed)
+        if !oldOwnership.isEmpty {
+            try container.encode(oldOwnership, forKey: .oldOwnership)
+        }
+    }
 }
 
 nonisolated enum DistributionSymlinkExecutorError: Error, Equatable, LocalizedError {
@@ -231,19 +320,23 @@ nonisolated final class DistributionSymlinkExecutor {
             expectedOldOwnership: expectedOldOwnership,
             operationID: operationID
         )
-        let runtime = DistributionRuntimeEvidence()
+        let runtime = try runtimePayload(
+            created: [:],
+            quarantined: [:],
+            oldOwnership: expectedOldOwnership
+        )
         let draft = try DistributionOperationDraft(
             operationID: operationID,
             skillID: skillID,
             oldBindings: try DistributionOperationPayloadCodec.encode(
-                expectedOldBindings.map { DistributionBindingPayload($0.intent) }
+                expectedOldBindings.map(DistributionBindingPayload.init)
             ),
             newBindings: try DistributionOperationPayloadCodec.encode(
                 plan.bindingReplacement.map(DistributionBindingPayload.init)
             ),
             planPayload: try plan.canonicalJSONData(),
             preflightPayload: try DistributionOperationPayloadCodec.encode(preflight),
-            runtimePayload: try DistributionOperationPayloadCodec.encode(runtime),
+            runtimePayload: runtime,
             createdAtMilliseconds: timestamp
         )
         _ = try operationStore.transaction {
@@ -286,7 +379,9 @@ nonisolated final class DistributionSymlinkExecutor {
                           let expectedSSOTIdentity = try? ManagedItemIdentityCodec.decode(
                               preflightAction.ssotIdentity
                           ),
-                          try fileSystem.ssotEvidence(for: skillID).identity == expectedSSOTIdentity
+                          let ssot = try? fileSystem.ssotEvidence(for: skillID),
+                          ssot.identity == expectedSSOTIdentity,
+                          ssot.absoluteTarget == preflightAction.absoluteLinkTarget
                     else {
                         throw DistributionSymlinkExecutorError.needsRepair("SSOT identity changed")
                     }
@@ -304,7 +399,11 @@ nonisolated final class DistributionSymlinkExecutor {
                     forwardCursor: Int64(index + 1),
                     rollbackCursor: 0,
                     cleanupCursor: 0,
-                    runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                    runtimePayload: try runtimePayload(
+                        created: created,
+                        quarantined: quarantined,
+                        oldOwnership: expectedOldOwnership
+                    ),
                     attemptCount: Int64(index + 2),
                     lastError: nil,
                     updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
@@ -333,24 +432,24 @@ nonisolated final class DistributionSymlinkExecutor {
                 forwardCursor: Int64(plan.filesystemActions.count),
                 rollbackCursor: 0,
                 cleanupCursor: 0,
-                runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                runtimePayload: try runtimePayload(
+                    created: created,
+                    quarantined: quarantined,
+                    oldOwnership: expectedOldOwnership
+                ),
                 attemptCount: record.attemptCount + 1,
                 lastError: nil,
                 updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
             )
 
             try operationStore.transaction {
-                _ = try bindingStore.replaceInCurrentTransaction(
+                try replaceDatabaseState(
                     skillID: skillID,
-                    expectedOld: expectedOldBindings,
-                    desired: plan.bindingReplacement,
-                    nowMilliseconds: timestamp
-                )
-                _ = try ownershipStore.replaceInCurrentTransaction(
-                    skillID: skillID,
-                    expectedOld: expectedOldOwnership,
-                    desired: desiredOwnership,
-                    appliedOperationID: operationID,
+                    expectedOldBindings: expectedOldBindings,
+                    expectedOldOwnership: expectedOldOwnership,
+                    desiredBindings: plan.bindingReplacement,
+                    desiredOwnership: desiredOwnership,
+                    operationID: operationID,
                     nowMilliseconds: timestamp
                 )
                 try operationStore.updateProgress(
@@ -359,7 +458,11 @@ nonisolated final class DistributionSymlinkExecutor {
                     forwardCursor: Int64(plan.filesystemActions.count),
                     rollbackCursor: 0,
                     cleanupCursor: 0,
-                    runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                    runtimePayload: try runtimePayload(
+                        created: created,
+                        quarantined: quarantined,
+                        oldOwnership: expectedOldOwnership
+                    ),
                     attemptCount: record.attemptCount + 2,
                     lastError: nil,
                     updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
@@ -372,7 +475,11 @@ nonisolated final class DistributionSymlinkExecutor {
                 forwardCursor: Int64(plan.filesystemActions.count),
                 rollbackCursor: 0,
                 cleanupCursor: 0,
-                runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                runtimePayload: try runtimePayload(
+                    created: created,
+                    quarantined: quarantined,
+                    oldOwnership: expectedOldOwnership
+                ),
                 attemptCount: record.attemptCount + 1,
                 lastError: nil,
                 updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
@@ -386,7 +493,11 @@ nonisolated final class DistributionSymlinkExecutor {
                     forwardCursor: Int64(plan.filesystemActions.count),
                     rollbackCursor: 0,
                     cleanupCursor: Int64(cleanupIndex + 1),
-                    runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                    runtimePayload: try runtimePayload(
+                        created: created,
+                        quarantined: quarantined,
+                        oldOwnership: expectedOldOwnership
+                    ),
                     attemptCount: record.attemptCount + Int64(cleanupIndex + 2),
                     lastError: nil,
                     updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
@@ -417,7 +528,11 @@ nonisolated final class DistributionSymlinkExecutor {
                         forwardCursor: current.forwardCursor,
                         rollbackCursor: 0,
                         cleanupCursor: 0,
-                        runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                        runtimePayload: try runtimePayload(
+                            created: created,
+                            quarantined: quarantined,
+                            oldOwnership: expectedOldOwnership
+                        ),
                         attemptCount: current.attemptCount + 1,
                         lastError: error.localizedDescription,
                         updatedAtMilliseconds: max(timestamp, current.updatedAtMilliseconds)
@@ -432,6 +547,7 @@ nonisolated final class DistributionSymlinkExecutor {
                         created: created,
                         quarantined: quarantined,
                         record: current,
+                        expectedOldOwnership: expectedOldOwnership,
                         error: error,
                         timestamp: timestamp
                     )
@@ -795,7 +911,15 @@ nonisolated final class DistributionSymlinkExecutor {
             bindings: newBindings,
             preflight: preflight
         )
-        let oldOwnership = try ownershipStore.load(skillID: operation.skillID)
+        let expectedOldBindings = try decodeBindings(
+            operation.oldBindings,
+            skillID: operation.skillID
+        )
+        let oldOwnership = try expectedOwnership(
+            operation: operation,
+            bindings: expectedOldBindings.map(\.intent),
+            expectation: .old
+        )
         let desiredOwnership = try makeDesiredOwnership(
             skillID: operation.skillID,
             plan: plan,
@@ -812,17 +936,6 @@ nonisolated final class DistributionSymlinkExecutor {
             operationID: operation.operationID,
             timestamp: operation.createdAtMilliseconds
         )
-        let expectedOldBindings = try decodeBindingIntents(
-            operation.oldBindings,
-            skillID: operation.skillID
-        )
-        let actualOldBindings = try bindingStore.load(skillID: operation.skillID)
-        guard actualOldBindings.map(\.intent).sorted(by: distributionBindingIntentPrecedes)
-                == expectedOldBindings.sorted(by: distributionBindingIntentPrecedes) else {
-            throw DistributionSymlinkExecutorError.needsRepair(
-                "database changed before filesystemApplied commit"
-            )
-        }
         guard try finalReadback(
             skillID: operation.skillID,
             bindings: newBindings,
@@ -834,17 +947,13 @@ nonisolated final class DistributionSymlinkExecutor {
             )
         }
         try operationStore.transaction {
-            _ = try bindingStore.replaceInCurrentTransaction(
+            try replaceDatabaseState(
                 skillID: operation.skillID,
-                expectedOld: actualOldBindings,
-                desired: newBindings,
-                nowMilliseconds: operation.createdAtMilliseconds
-            )
-            _ = try ownershipStore.replaceInCurrentTransaction(
-                skillID: operation.skillID,
-                expectedOld: oldOwnership,
-                desired: desiredOwnership,
-                appliedOperationID: operation.operationID,
+                expectedOldBindings: expectedOldBindings,
+                expectedOldOwnership: oldOwnership,
+                desiredBindings: newBindings,
+                desiredOwnership: desiredOwnership,
+                operationID: operation.operationID,
                 nowMilliseconds: operation.createdAtMilliseconds
             )
             let current = try operationStore.load(operation.operationID)
@@ -863,6 +972,37 @@ nonisolated final class DistributionSymlinkExecutor {
                 )
             )
         }
+    }
+
+    private func replaceDatabaseState(
+        skillID: SkillID,
+        expectedOldBindings: [DistributionBinding],
+        expectedOldOwnership: [DistributionLinkOwnership],
+        desiredBindings: [DistributionBindingIntent],
+        desiredOwnership: [DistributionLinkOwnership],
+        operationID: SSOTOperationID,
+        nowMilliseconds: Int64
+    ) throws {
+        _ = try ownershipStore.replaceInCurrentTransaction(
+            skillID: skillID,
+            expectedOld: expectedOldOwnership,
+            desired: [],
+            appliedOperationID: operationID,
+            nowMilliseconds: nowMilliseconds
+        )
+        _ = try bindingStore.replaceInCurrentTransaction(
+            skillID: skillID,
+            expectedOld: expectedOldBindings,
+            desired: desiredBindings,
+            nowMilliseconds: nowMilliseconds
+        )
+        _ = try ownershipStore.replaceInCurrentTransaction(
+            skillID: skillID,
+            expectedOld: [],
+            desired: desiredOwnership,
+            appliedOperationID: operationID,
+            nowMilliseconds: nowMilliseconds
+        )
     }
 
     private func decodeRuntime(
@@ -891,12 +1031,17 @@ nonisolated final class DistributionSymlinkExecutor {
         created: [Int: DistributionSymlinkEvidence],
         quarantined: [Int: DistributionQuarantinedSymlink],
         record: DistributionOperationRecord,
+        expectedOldOwnership: [DistributionLinkOwnership],
         error: Error,
         timestamp: Int64
     ) throws {
         let runtime = try DistributionOperationPayloadCodec.decode(
             DistributionRuntimeEvidence.self,
-            from: try runtimePayload(created: created, quarantined: quarantined)
+            from: try runtimePayload(
+                created: created,
+                quarantined: quarantined,
+                oldOwnership: expectedOldOwnership
+            )
         )
         let items = rollbackItems(runtime)
         guard record.rollbackCursor <= Int64(items.count) else {
@@ -910,7 +1055,11 @@ nonisolated final class DistributionSymlinkExecutor {
                 forwardCursor: current.forwardCursor,
                 rollbackCursor: current.rollbackCursor,
                 cleanupCursor: 0,
-                runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                runtimePayload: try runtimePayload(
+                    created: created,
+                    quarantined: quarantined,
+                    oldOwnership: expectedOldOwnership
+                ),
                 attemptCount: current.attemptCount + 1,
                 lastError: error.localizedDescription,
                 updatedAtMilliseconds: max(timestamp, current.updatedAtMilliseconds)
@@ -941,7 +1090,11 @@ nonisolated final class DistributionSymlinkExecutor {
                 forwardCursor: current.forwardCursor,
                 rollbackCursor: current.rollbackCursor + 1,
                 cleanupCursor: 0,
-                runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                runtimePayload: try runtimePayload(
+                    created: created,
+                    quarantined: quarantined,
+                    oldOwnership: expectedOldOwnership
+                ),
                 attemptCount: current.attemptCount + 1,
                 lastError: error.localizedDescription,
                 updatedAtMilliseconds: max(timestamp, current.updatedAtMilliseconds)
@@ -990,6 +1143,17 @@ nonisolated final class DistributionSymlinkExecutor {
         return try payloads.map { try $0.intent(skillID: skillID) }
     }
 
+    private func decodeBindings(
+        _ data: Data,
+        skillID: SkillID
+    ) throws -> [DistributionBinding] {
+        let payloads = try DistributionOperationPayloadCodec.decode(
+            [DistributionBindingPayload].self,
+            from: data
+        )
+        return try payloads.map { try $0.binding(skillID: skillID) }
+    }
+
     private func recoveryPlan(
         skillID: SkillID,
         bindings: [DistributionBindingIntent],
@@ -1027,13 +1191,83 @@ nonisolated final class DistributionSymlinkExecutor {
                 == expectedBindings.map(\.scope.targetScopeKey).sorted() else {
             return false
         }
-        for row in ownership {
-            guard !row.absoluteLinkTarget.isEmpty else { return false }
-            if expected == .new, row.appliedOperationID != operation.operationID {
-                return false
+        let expectedOwnership = try expectedOwnership(
+            operation: operation,
+            bindings: expectedBindings,
+            expectation: expected
+        )
+        return ownership.sorted { $0.targetScopeKey < $1.targetScopeKey }
+            == expectedOwnership.sorted { $0.targetScopeKey < $1.targetScopeKey }
+    }
+
+    private func expectedOwnership(
+        operation: DistributionOperationRecord,
+        bindings: [DistributionBindingIntent],
+        expectation: RecoveryExpectation
+    ) throws -> [DistributionLinkOwnership] {
+        let runtime = try decodeRuntime(operation)
+        if expectation == .old {
+            guard runtime.oldOwnership.count == bindings.count else {
+                throw DistributionSymlinkExecutorError.needsRepair(
+                    "journal has no complete old ownership snapshot"
+                )
+            }
+            return try runtime.oldOwnership.map {
+                try DistributionLinkOwnership(
+                    skillID: operation.skillID,
+                    targetScopeKey: $0.targetScopeKey,
+                    appliedOperationID: try SSOTOperationID(bytes: $0.appliedOperationID),
+                    rootIdentity: try ManagedItemIdentityCodec.decode($0.rootIdentity),
+                    entryIdentity: try ManagedItemIdentityCodec.decode($0.entryIdentity),
+                    absoluteLinkTarget: $0.absoluteLinkTarget,
+                    verifiedAtMilliseconds: $0.verifiedAtMilliseconds
+                )
             }
         }
-        return true
+
+        let preflight = try DistributionOperationPayloadCodec.decode(
+            [DistributionPreflightAction].self,
+            from: operation.preflightPayload
+        )
+        let oldOwnership = try expectedOwnership(
+            operation: operation,
+            bindings: try decodeBindingIntents(operation.oldBindings, skillID: operation.skillID),
+            expectation: .old
+        )
+        return try bindings.map { binding in
+            if let actionIndex = preflight.firstIndex(where: {
+                $0.kind == DistributionFilesystemActionKind.createSymlink.rawValue
+                    && $0.targetScopeKey == binding.scope.targetScopeKey
+            }), let created = runtime.created.first(where: {
+                $0.actionIndex == actionIndex
+            }) {
+                return try DistributionLinkOwnership(
+                    skillID: operation.skillID,
+                    targetScopeKey: binding.scope.targetScopeKey,
+                    appliedOperationID: operation.operationID,
+                    rootIdentity: try ManagedItemIdentityCodec.decode(created.rootIdentity),
+                    entryIdentity: try ManagedItemIdentityCodec.decode(created.entryIdentity),
+                    absoluteLinkTarget: created.absoluteLinkTarget,
+                    verifiedAtMilliseconds: operation.createdAtMilliseconds
+                )
+            }
+            guard let old = oldOwnership.first(where: {
+                $0.targetScopeKey == binding.scope.targetScopeKey
+            }) else {
+                throw DistributionSymlinkExecutorError.needsRepair(
+                    "journal is missing retained ownership evidence"
+                )
+            }
+            return try DistributionLinkOwnership(
+                skillID: operation.skillID,
+                targetScopeKey: binding.scope.targetScopeKey,
+                appliedOperationID: operation.operationID,
+                rootIdentity: old.rootIdentity,
+                entryIdentity: old.entryIdentity,
+                absoluteLinkTarget: old.absoluteLinkTarget,
+                verifiedAtMilliseconds: operation.createdAtMilliseconds
+            )
+        }
     }
 
     private func diskMatches(
@@ -1073,8 +1307,9 @@ nonisolated final class DistributionSymlinkExecutor {
             [DistributionPreflightAction].self,
             from: operation.preflightPayload
         )
-        return try fileSystem.ssotEvidence(for: operation.skillID).identity
-            == expectedSSOTIdentity(from: preflight)
+        let evidence = try fileSystem.ssotEvidence(for: operation.skillID)
+        return evidence.identity == (try expectedSSOTIdentity(from: preflight))
+            && preflight.allSatisfy { $0.absoluteLinkTarget == evidence.absoluteTarget }
     }
 
     private func preflightEntry(
@@ -1187,7 +1422,8 @@ nonisolated final class DistributionSymlinkExecutor {
 
     private func runtimePayload(
         created: [Int: DistributionSymlinkEvidence],
-        quarantined: [Int: DistributionQuarantinedSymlink]
+        quarantined: [Int: DistributionQuarantinedSymlink],
+        oldOwnership: [DistributionLinkOwnership] = []
     ) throws -> Data {
         let createdEvidence = try created.map {
             DistributionRuntimeEvidence.Created(
@@ -1206,8 +1442,22 @@ nonisolated final class DistributionSymlinkExecutor {
                 absoluteLinkTarget: $0.value.evidence.absoluteTarget
             )
         }.sorted { $0.actionIndex < $1.actionIndex }
+        let oldOwnershipEvidence = try oldOwnership.map {
+            DistributionRuntimeEvidence.OldOwnership(
+                targetScopeKey: $0.targetScopeKey,
+                appliedOperationID: $0.appliedOperationID.bytes,
+                rootIdentity: try ManagedItemIdentityCodec.encode($0.rootIdentity),
+                entryIdentity: try ManagedItemIdentityCodec.encode($0.entryIdentity),
+                absoluteLinkTarget: $0.absoluteLinkTarget,
+                verifiedAtMilliseconds: $0.verifiedAtMilliseconds
+            )
+        }.sorted { $0.targetScopeKey < $1.targetScopeKey }
         return try DistributionOperationPayloadCodec.encode(
-            DistributionRuntimeEvidence(created: createdEvidence, removed: removedEvidence)
+            DistributionRuntimeEvidence(
+                created: createdEvidence,
+                removed: removedEvidence,
+                oldOwnership: oldOwnershipEvidence
+            )
         )
     }
 
