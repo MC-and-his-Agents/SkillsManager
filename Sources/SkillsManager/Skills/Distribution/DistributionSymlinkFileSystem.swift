@@ -36,6 +36,7 @@ nonisolated struct DistributionFilesystemTestHooks: Sendable {
 
 nonisolated enum DistributionSymlinkObservation: Equatable, Sendable {
     case missing(rootIdentity: ManagedItemIdentity?)
+    case unavailable
     case symlink(
         rootIdentity: ManagedItemIdentity,
         entryIdentity: ManagedItemIdentity,
@@ -136,7 +137,14 @@ nonisolated final class DistributionSymlinkFileSystem {
         do {
             handle = try openDirectory(components: components, createMissing: false)
         } catch DistributionSymlinkFileSystemError.unavailable {
-            return .missing(rootIdentity: nil)
+            let path = components.reduce(homeURL) {
+                $0.appendingPathComponent($1, isDirectory: true)
+            }.path
+            var metadata = stat()
+            if Darwin.lstat(path, &metadata) != 0, errno == ENOENT {
+                return .missing(rootIdentity: nil)
+            }
+            return .unavailable
         }
         defer { Darwin.close(handle.descriptor) }
         try requireUniqueName(entry.distributionSlug.value, in: handle.descriptor)

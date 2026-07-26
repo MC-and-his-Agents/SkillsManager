@@ -59,6 +59,13 @@ nonisolated enum DistributionOperationPayloadCodec {
         guard JSONSerialization.isValidJSONObject(object) else {
             throw DistributionOperationPayloadError.invalid
         }
+        let canonical = try JSONSerialization.data(
+            withJSONObject: object,
+            options: [.sortedKeys, .withoutEscapingSlashes]
+        )
+        guard canonical == data else {
+            throw DistributionOperationPayloadError.notCanonical
+        }
     }
 }
 
@@ -206,9 +213,8 @@ nonisolated struct DistributionOperationRecord: Sendable, Equatable {
         outcome: DistributionOperationOutcome?
     ) throws {
         for payload in [oldBindings, newBindings, planPayload, preflightPayload, runtimePayload] {
-            guard !payload.isEmpty, payload.count <= DistributionOperationPayloadCodec.maximumByteCount else {
-                throw DistributionOperationStoreError.invalidRecord
-            }
+            do { try DistributionOperationPayloadCodec.validate(payload) }
+            catch { throw DistributionOperationStoreError.invalidRecord }
         }
         guard forwardCursor >= 0, rollbackCursor >= 0, cleanupCursor >= 0,
               attemptCount >= 0, createdAtMilliseconds >= 0,
@@ -321,9 +327,19 @@ nonisolated final class DistributionOperationStore {
         lastError: String?,
         updatedAtMilliseconds: Int64
     ) throws {
+        let current = try loadOperation(operationID)
+        guard phaseTransitionAllowed(from: current.phase, to: phase) else {
+            throw DistributionOperationStoreError.conflict
+        }
+        let actionCount = try filesystemActionCount(in: current.planPayload)
+        guard forwardCursor <= actionCount,
+              rollbackCursor <= actionCount,
+              cleanupCursor <= actionCount else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
         try DistributionOperationRecord.validate(
-            oldBindings: Data([1]), newBindings: Data([1]), planPayload: Data([1]),
-            preflightPayload: Data([1]), runtimePayload: runtimePayload,
+            oldBindings: Data("[]".utf8), newBindings: Data("[]".utf8), planPayload: Data("{}".utf8),
+            preflightPayload: Data("[]".utf8), runtimePayload: runtimePayload,
             forwardCursor: forwardCursor, rollbackCursor: rollbackCursor,
             cleanupCursor: cleanupCursor, attemptCount: attemptCount, lastError: lastError,
             createdAtMilliseconds: 0, updatedAtMilliseconds: updatedAtMilliseconds,
@@ -348,6 +364,34 @@ nonisolated final class DistributionOperationStore {
         try statement.bind(updatedAtMilliseconds, at: 8)
         try statement.bind(operationID.bytes, at: 9)
         try finishMutation(statement)
+    }
+
+    private func phaseTransitionAllowed(
+        from old: DistributionOperationPhase,
+        to new: DistributionOperationPhase
+    ) -> Bool {
+        switch (old, new) {
+        case (.prepared, .applying), (.prepared, .rollingBack),
+             (.applying, .applying), (.applying, .filesystemApplied),
+             (.applying, .rollingBack), (.filesystemApplied, .databaseCommitted),
+             (.filesystemApplied, .rollingBack),
+             (.databaseCommitted, .cleaning), (.cleaning, .cleaning),
+             (.rollingBack, .rollingBack), (.rollingBack, .completed):
+            true
+        default:
+            false
+        }
+    }
+
+    private func filesystemActionCount(in payload: Data) throws -> Int64 {
+        guard let object = try JSONSerialization.jsonObject(with: payload)
+                as? [String: Any] else {
+            throw DistributionOperationStoreError.corruptRecord
+        }
+        guard let actions = object["filesystem_actions"] as? [Any] else {
+            return 0
+        }
+        return Int64(actions.count)
     }
 
     func markNeedsRepair(

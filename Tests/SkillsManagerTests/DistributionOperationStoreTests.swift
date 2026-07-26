@@ -10,11 +10,11 @@ struct DistributionOperationStoreTests {
         try withDistributionJournalFixture { connection, operationStore, ownershipStore, skillID in
             let draft = try DistributionOperationDraft(
                 skillID: skillID,
-                oldBindings: Data([1]),
-                newBindings: Data([2]),
-                planPayload: Data([3]),
-                preflightPayload: Data([4]),
-                runtimePayload: Data([5]),
+                oldBindings: Data("[]".utf8),
+                newBindings: Data("[]".utf8),
+                planPayload: Data(#"{"filesystem_actions":[]}"#.utf8),
+                preflightPayload: Data("[]".utf8),
+                runtimePayload: Data("{}".utf8),
                 createdAtMilliseconds: 10
             )
             let inserted = try operationStore.insertPrepared(draft)
@@ -23,10 +23,10 @@ struct DistributionOperationStoreTests {
             try operationStore.updateProgress(
                 operationID: inserted.operationID,
                 phase: .applying,
-                forwardCursor: 1,
+                forwardCursor: 0,
                 rollbackCursor: 0,
                 cleanupCursor: 0,
-                runtimePayload: Data([6]),
+                runtimePayload: Data("{}".utf8),
                 attemptCount: 1,
                 lastError: nil,
                 updatedAtMilliseconds: 11

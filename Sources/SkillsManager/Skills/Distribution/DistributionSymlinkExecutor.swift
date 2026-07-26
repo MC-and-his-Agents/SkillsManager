@@ -39,8 +39,10 @@ private nonisolated struct DistributionPreflightAction: Codable {
     let targetScopeKey: String
     let slug: String
     let absoluteLinkTarget: String
+    let ssotIdentity: Data
     let rootIdentity: Data
     let entryIdentity: Data?
+    let temporaryName: String
 }
 
 private nonisolated struct DistributionRuntimeEvidence: Codable {
@@ -157,13 +159,14 @@ nonisolated final class DistributionSymlinkExecutor {
             throw DistributionSymlinkExecutorError.operationInProgress
         }
 
+        let operationID = SSOTOperationID()
         let preflight = try makePreflight(
             skillID: skillID,
             plan: plan,
             expectedOldBindings: expectedOldBindings,
-            expectedOldOwnership: expectedOldOwnership
+            expectedOldOwnership: expectedOldOwnership,
+            operationID: operationID
         )
-        let operationID = SSOTOperationID()
         let runtime = DistributionRuntimeEvidence()
         let draft = try DistributionOperationDraft(
             operationID: operationID,
@@ -186,6 +189,21 @@ nonisolated final class DistributionSymlinkExecutor {
         var quarantined: [Int: DistributionQuarantinedSymlink] = [:]
         var created: [Int: DistributionSymlinkEvidence] = [:]
         do {
+            let desiredOwnership = try makeDesiredOwnership(
+                skillID: skillID,
+                plan: plan,
+                oldOwnership: expectedOldOwnership,
+                created: created,
+                operationID: operationID,
+                timestamp: timestamp
+            )
+            guard try finalReadback(
+                skillID: skillID,
+                bindings: plan.bindingReplacement,
+                ownership: desiredOwnership
+            ) else {
+                throw DistributionSymlinkExecutorError.needsRepair("filesystem readback drifted")
+            }
             try operationStore.updateProgress(
                 operationID: operationID,
                 phase: .applying,
@@ -215,10 +233,18 @@ nonisolated final class DistributionSymlinkExecutor {
                         actionIndex: index
                     )
                 case .createSymlink:
+                    guard let preflightAction = preflight[safe: index],
+                          let expectedSSOTIdentity = try? ManagedItemIdentityCodec.decode(
+                              preflightAction.ssotIdentity
+                          ),
+                          try fileSystem.ssotEvidence(for: skillID).identity == expectedSSOTIdentity
+                    else {
+                        throw DistributionSymlinkExecutorError.needsRepair("SSOT identity changed")
+                    }
                     let rootIdentity = try fileSystem.ensureRoot(for: action.entry.target.scope)
                     let evidence = try fileSystem.create(
                         action.entry,
-                        absoluteTarget: try fileSystem.ssotEvidence(for: skillID).absoluteTarget,
+                        absoluteTarget: preflightAction.absoluteLinkTarget,
                         expectedRootIdentity: rootIdentity
                     )
                     created[index] = evidence
@@ -248,14 +274,6 @@ nonisolated final class DistributionSymlinkExecutor {
                 updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
             )
 
-            let desiredOwnership = try makeDesiredOwnership(
-                skillID: skillID,
-                plan: plan,
-                oldOwnership: expectedOldOwnership,
-                created: created,
-                operationID: operationID,
-                timestamp: timestamp
-            )
             try operationStore.transaction {
                 _ = try bindingStore.replaceInCurrentTransaction(
                     skillID: skillID,
@@ -282,8 +300,38 @@ nonisolated final class DistributionSymlinkExecutor {
                     updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
                 )
             }
-            for (index, item) in quarantined {
+            try operationStore.updateProgress(
+                operationID: operationID,
+                phase: .cleaning,
+                forwardCursor: Int64(plan.filesystemActions.count),
+                rollbackCursor: 0,
+                cleanupCursor: 0,
+                runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                attemptCount: record.attemptCount + 1,
+                lastError: nil,
+                updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
+            )
+            for (cleanupIndex, pair) in quarantined.sorted(by: { $0.key < $1.key }).enumerated() {
+                let (index, item) = pair
                 try fileSystem.cleanup(plan.filesystemActions[index].entry, quarantined: item)
+                try operationStore.updateProgress(
+                    operationID: operationID,
+                    phase: .cleaning,
+                    forwardCursor: Int64(plan.filesystemActions.count),
+                    rollbackCursor: 0,
+                    cleanupCursor: Int64(cleanupIndex + 1),
+                    runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                    attemptCount: record.attemptCount + Int64(cleanupIndex + 2),
+                    lastError: nil,
+                    updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
+                )
+            }
+            guard try finalReadback(
+                skillID: skillID,
+                bindings: plan.bindingReplacement,
+                ownership: desiredOwnership
+            ) else {
+                throw DistributionSymlinkExecutorError.needsRepair("final distribution readback drifted")
             }
             try operationStore.complete(
                 operationID: operationID,
@@ -293,11 +341,50 @@ nonisolated final class DistributionSymlinkExecutor {
             return try operationStore.load(operationID)
         } catch {
             do {
+                if let current = try? operationStore.load(operationID),
+                   current.phase != .databaseCommitted {
+                    try? operationStore.updateProgress(
+                        operationID: operationID,
+                        phase: .rollingBack,
+                        forwardCursor: current.forwardCursor,
+                        rollbackCursor: 0,
+                        cleanupCursor: 0,
+                        runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                        attemptCount: current.attemptCount + 1,
+                        lastError: error.localizedDescription,
+                        updatedAtMilliseconds: max(timestamp, current.updatedAtMilliseconds)
+                    )
+                }
+                var rollbackCursor: Int64 = 0
                 for (index, evidence) in created.sorted(by: { $0.key > $1.key }) {
                     try? fileSystem.removeCreated(plan.filesystemActions[index].entry, expected: evidence)
+                    rollbackCursor += 1
+                    try? operationStore.updateProgress(
+                        operationID: operationID,
+                        phase: .rollingBack,
+                        forwardCursor: (try? operationStore.load(operationID).forwardCursor) ?? 0,
+                        rollbackCursor: rollbackCursor,
+                        cleanupCursor: 0,
+                        runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                        attemptCount: rollbackCursor + 1,
+                        lastError: error.localizedDescription,
+                        updatedAtMilliseconds: timestamp
+                    )
                 }
                 for (index, item) in quarantined.sorted(by: { $0.key > $1.key }) {
                     try? fileSystem.restore(plan.filesystemActions[index].entry, quarantined: item)
+                    rollbackCursor += 1
+                    try? operationStore.updateProgress(
+                        operationID: operationID,
+                        phase: .rollingBack,
+                        forwardCursor: (try? operationStore.load(operationID).forwardCursor) ?? 0,
+                        rollbackCursor: rollbackCursor,
+                        cleanupCursor: 0,
+                        runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                        attemptCount: rollbackCursor + 1,
+                        lastError: error.localizedDescription,
+                        updatedAtMilliseconds: timestamp
+                    )
                 }
                 if let current = try? operationStore.load(operationID),
                    current.phase != .databaseCommitted {
@@ -348,23 +435,163 @@ nonisolated final class DistributionSymlinkExecutor {
 
     func recoverAll() throws {
         for operation in try operationStore.recoverableOperations() {
-            // A durable runtime phase without captured evidence is deliberately fail-closed.
-            try operationStore.markNeedsRepair(
-                operationID: operation.operationID,
-                detail: "recovery requires a fresh preflight",
-                updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+            if operation.phase == .prepared {
+                try operationStore.complete(
+                    operationID: operation.operationID,
+                    outcome: .rolledBack,
+                    updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+                )
+            } else if operation.phase == .applying || operation.phase == .rollingBack {
+                do {
+                    try recoverRollback(operation)
+                    try operationStore.complete(
+                        operationID: operation.operationID,
+                        outcome: .rolledBack,
+                        updatedAtMilliseconds: max(
+                            operation.updatedAtMilliseconds,
+                            nowMilliseconds()
+                        )
+                    )
+                } catch {
+                    try operationStore.markNeedsRepair(
+                        operationID: operation.operationID,
+                        detail: error.localizedDescription,
+                        updatedAtMilliseconds: max(
+                            operation.updatedAtMilliseconds,
+                            nowMilliseconds()
+                        )
+                    )
+                }
+            } else if operation.phase == .databaseCommitted || operation.phase == .cleaning {
+                do {
+                    try recoverCleanup(operation)
+                    try operationStore.complete(
+                        operationID: operation.operationID,
+                        outcome: .applied,
+                        updatedAtMilliseconds: max(
+                            operation.updatedAtMilliseconds,
+                            nowMilliseconds()
+                        )
+                    )
+                } catch {
+                    try operationStore.markNeedsRepair(
+                        operationID: operation.operationID,
+                        detail: error.localizedDescription,
+                        updatedAtMilliseconds: max(
+                            operation.updatedAtMilliseconds,
+                            nowMilliseconds()
+                        )
+                    )
+                }
+            } else {
+                try operationStore.markNeedsRepair(
+                    operationID: operation.operationID,
+                    detail: "recovery evidence requires explicit repair",
+                    updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+                )
+            }
+        }
+    }
+
+    private func recoverRollback(_ operation: DistributionOperationRecord) throws {
+        let preflight = try DistributionOperationPayloadCodec.decode(
+            [DistributionPreflightAction].self,
+            from: operation.preflightPayload
+        )
+        let runtime = try DistributionOperationPayloadCodec.decode(
+            DistributionRuntimeEvidence.self,
+            from: operation.runtimePayload
+        )
+        for created in runtime.created.sorted(by: { $0.actionIndex > $1.actionIndex }) {
+            guard let action = preflight[safe: created.actionIndex],
+                  let entry = preflightEntry(action) else {
+                throw DistributionSymlinkExecutorError.needsRepair("invalid rollback action")
+            }
+            try fileSystem.removeCreated(
+                entry,
+                expected: DistributionSymlinkEvidence(
+                    rootIdentity: try ManagedItemIdentityCodec.decode(created.rootIdentity),
+                    entryIdentity: try ManagedItemIdentityCodec.decode(created.entryIdentity),
+                    absoluteTarget: created.absoluteLinkTarget
+                )
             )
         }
+        for removed in runtime.removed.sorted(by: { $0.actionIndex > $1.actionIndex }) {
+            guard let action = preflight[safe: removed.actionIndex],
+                  let entry = preflightEntry(action) else {
+                throw DistributionSymlinkExecutorError.needsRepair("invalid restore action")
+            }
+            try fileSystem.restore(
+                entry,
+                quarantined: DistributionQuarantinedSymlink(
+                    temporaryName: removed.temporaryName,
+                    evidence: DistributionSymlinkEvidence(
+                        rootIdentity: try ManagedItemIdentityCodec.decode(removed.rootIdentity),
+                        entryIdentity: try ManagedItemIdentityCodec.decode(removed.entryIdentity),
+                        absoluteTarget: removed.absoluteLinkTarget
+                    )
+                )
+            )
+        }
+    }
+
+    private func recoverCleanup(_ operation: DistributionOperationRecord) throws {
+        let preflight = try DistributionOperationPayloadCodec.decode(
+            [DistributionPreflightAction].self,
+            from: operation.preflightPayload
+        )
+        let runtime = try DistributionOperationPayloadCodec.decode(
+            DistributionRuntimeEvidence.self,
+            from: operation.runtimePayload
+        )
+        for removed in runtime.removed {
+            guard let action = preflight[safe: removed.actionIndex],
+                  let entry = preflightEntry(action) else {
+                throw DistributionSymlinkExecutorError.needsRepair("invalid cleanup action")
+            }
+            try fileSystem.cleanup(
+                entry,
+                quarantined: DistributionQuarantinedSymlink(
+                    temporaryName: removed.temporaryName,
+                    evidence: DistributionSymlinkEvidence(
+                        rootIdentity: try ManagedItemIdentityCodec.decode(removed.rootIdentity),
+                        entryIdentity: try ManagedItemIdentityCodec.decode(removed.entryIdentity),
+                        absoluteTarget: removed.absoluteLinkTarget
+                    )
+                )
+            )
+        }
+    }
+
+    private func preflightEntry(
+        _ action: DistributionPreflightAction
+    ) -> DistributionTargetEntry? {
+        let scope: DistributionBindingScope
+        if action.targetScopeKey == "global" {
+            scope = .global
+        } else if let key = action.targetScopeKey.split(separator: ":", maxSplits: 1).last,
+                  let adapter = SkillPlatform.allCases.first(where: { $0.storageKey == key }) {
+            scope = .agent(adapter)
+        } else {
+            return nil
+        }
+        guard let slug = try? DefaultDistributionSlug(validating: action.slug) else {
+            return nil
+        }
+        return DistributionTargetCatalog.current.entry(for: scope, slug: slug)
     }
 
     private func makePreflight(
         skillID: SkillID,
         plan: DistributionPlan,
         expectedOldBindings: [DistributionBinding],
-        expectedOldOwnership: [DistributionLinkOwnership]
+        expectedOldOwnership: [DistributionLinkOwnership],
+        operationID: SSOTOperationID
     ) throws -> [DistributionPreflightAction] {
-        let target = try fileSystem.ssotEvidence(for: skillID).absoluteTarget
-        return try plan.filesystemActions.map { action in
+        let ssotEvidence = try fileSystem.ssotEvidence(for: skillID)
+        let target = ssotEvidence.absoluteTarget
+        let ssotIdentity = try ManagedItemIdentityCodec.encode(ssotEvidence.identity)
+        return try plan.filesystemActions.enumerated().map { index, action in
             let observation = try observe(
                 entry: action.entry,
                 skillID: skillID,
@@ -379,8 +606,10 @@ nonisolated final class DistributionSymlinkExecutor {
                     targetScopeKey: action.entry.target.scope.targetScopeKey,
                     slug: action.entry.distributionSlug.value,
                     absoluteLinkTarget: target,
+                    ssotIdentity: ssotIdentity,
                     rootIdentity: try root.map(ManagedItemIdentityCodec.encode) ?? Data(),
-                    entryIdentity: nil
+                    entryIdentity: nil,
+                    temporaryName: distributionTemporaryName(operationID, actionIndex: index)
                 )
             case .removeSymlink:
                 guard let ownership = expectedOldOwnership.first(where: {
@@ -392,8 +621,10 @@ nonisolated final class DistributionSymlinkExecutor {
                     targetScopeKey: action.entry.target.scope.targetScopeKey,
                     slug: action.entry.distributionSlug.value,
                     absoluteLinkTarget: ownership.absoluteLinkTarget,
-                rootIdentity: try ManagedItemIdentityCodec.encode(ownership.rootIdentity),
-                    entryIdentity: try ManagedItemIdentityCodec.encode(ownership.entryIdentity)
+                    ssotIdentity: ssotIdentity,
+                    rootIdentity: try ManagedItemIdentityCodec.encode(ownership.rootIdentity),
+                    entryIdentity: try ManagedItemIdentityCodec.encode(ownership.entryIdentity),
+                    temporaryName: distributionTemporaryName(operationID, actionIndex: index)
                 )
             }
         }
@@ -407,6 +638,8 @@ nonisolated final class DistributionSymlinkExecutor {
         switch try fileSystem.observe(entry) {
         case .missing:
             return DistributionTargetObservation.missing
+        case .unavailable:
+            return DistributionTargetObservation.unavailable
         case .unknown:
             return DistributionTargetObservation.unknownObject
         case .symlink(let root, let entryIdentity, let target):
@@ -502,6 +735,42 @@ nonisolated final class DistributionSymlinkExecutor {
                 verifiedAtMilliseconds: timestamp
             )
         }
+    }
+
+    private func finalReadback(
+        skillID: SkillID,
+        bindings: [DistributionBindingIntent],
+        ownership: [DistributionLinkOwnership]
+    ) throws -> Bool {
+        let target = try fileSystem.ssotEvidence(for: skillID)
+        guard try fileSystem.ssotEvidence(for: skillID).identity == target.identity else { return false }
+        for binding in bindings {
+            guard let entry = DistributionTargetCatalog.current.entry(
+                for: binding.scope,
+                slug: binding.distributionSlug
+            ), let row = ownership.first(where: {
+                $0.targetScopeKey == binding.scope.targetScopeKey
+            }), row.absoluteLinkTarget == target.absoluteTarget,
+            case .symlink(let root, let entryIdentity, let absoluteTarget) = try fileSystem.observe(entry),
+            root == row.rootIdentity, entryIdentity == row.entryIdentity,
+            absoluteTarget == row.absoluteLinkTarget else {
+                return false
+            }
+        }
+        return true
+    }
+}
+
+private nonisolated func distributionTemporaryName(
+    _ operationID: SSOTOperationID,
+    actionIndex: Int
+) -> String {
+    ".skillsmanager-distribution-\(operationID.uuid.uuidString.lowercased())-\(actionIndex)"
+}
+
+private extension Array {
+    nonisolated subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 
