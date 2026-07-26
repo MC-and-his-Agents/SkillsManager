@@ -4,7 +4,7 @@ import Testing
 
 @testable import SkillsManager
 
-@Suite("DistributionSymlinkFileSystem")
+@Suite("DistributionSymlinkFileSystem", .serialized)
 struct DistributionSymlinkFileSystemTests {
     @Test("creates, observes, quarantines, restores, and cleans a managed link")
     func lifecycle() throws {

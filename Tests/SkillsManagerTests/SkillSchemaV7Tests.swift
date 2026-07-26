@@ -3,7 +3,7 @@ import Testing
 
 @testable import SkillsManager
 
-@Suite("Skill database schema v7")
+@Suite("Skill database schema v7", .serialized)
 struct SkillSchemaV7Tests {
     @Test("migrates every supported schema version to v7")
     func migratesEverySupportedVersion() throws {

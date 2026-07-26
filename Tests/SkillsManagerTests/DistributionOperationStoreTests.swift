@@ -3,7 +3,7 @@ import Testing
 
 @testable import SkillsManager
 
-@Suite("Distribution operation journal")
+@Suite("Distribution operation journal", .serialized)
 struct DistributionOperationStoreTests {
     @Test("insert, progress, repair and complete are durable")
     func journalLifecycle() throws {
