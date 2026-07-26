@@ -37,7 +37,7 @@ jobs:
 
   build:
     needs: changes
-    runs-on: ${{ needs.changes.outputs.swift == 'true' && 'macos-26' || 'ubuntu-latest' }}
+    runs-on: ${{ needs.changes.outputs.swift == 'true' && 'macos-15' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.swift == 'true'
@@ -55,7 +55,7 @@ jobs:
 
   test:
     needs: changes
-    runs-on: ${{ needs.changes.outputs.swift == 'true' && 'macos-26' || 'ubuntu-latest' }}
+    runs-on: ${{ needs.changes.outputs.swift == 'true' && 'macos-15' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.swift == 'true'
