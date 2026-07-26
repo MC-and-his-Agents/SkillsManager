@@ -137,11 +137,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         do {
             handle = try openDirectory(components: components, createMissing: false)
         } catch DistributionSymlinkFileSystemError.unavailable {
-            let path = components.reduce(homeURL) {
-                $0.appendingPathComponent($1, isDirectory: true)
-            }.path
-            var metadata = stat()
-            if Darwin.lstat(path, &metadata) != 0, errno == ENOENT {
+            if try classifyUnavailableRoot(components) == .missing {
                 return .missing(rootIdentity: nil)
             }
             return .unavailable
@@ -363,6 +359,37 @@ nonisolated final class DistributionSymlinkFileSystem {
     private struct DirectoryHandle {
         let descriptor: Int32
         let identity: ManagedItemIdentity
+    }
+
+    private enum RootAvailability {
+        case missing
+        case unavailable
+    }
+
+    private func classifyUnavailableRoot(
+        _ components: [String]
+    ) throws -> RootAvailability {
+        var current = try openHome()
+        defer { Darwin.close(current) }
+        for component in components {
+            var metadata = stat()
+            guard Darwin.fstatat(current, component, &metadata, AT_SYMLINK_NOFOLLOW) == 0 else {
+                return errno == ENOENT ? .missing : .unavailable
+            }
+            guard metadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFDIR),
+                  metadata.st_uid == Darwin.geteuid() else {
+                return .unavailable
+            }
+            let next = Darwin.openat(
+                current,
+                component,
+                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+            )
+            guard next >= 0 else { return .unavailable }
+            Darwin.close(current)
+            current = next
+        }
+        return .unavailable
     }
 
     private func openDirectory(

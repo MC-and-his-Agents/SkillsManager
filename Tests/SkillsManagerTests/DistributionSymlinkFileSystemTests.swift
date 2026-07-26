@@ -55,4 +55,27 @@ struct DistributionSymlinkFileSystemTests {
         try fileSystem.cleanup(entry, quarantined: secondQuarantine)
         #expect(try fileSystem.observe(entry) == .missing(rootIdentity: evidence.rootIdentity))
     }
+
+    @Test("classifies a dangling intermediate symlink as unavailable")
+    func danglingIntermediateRootIsUnavailable() throws {
+        let home = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: home.appendingPathComponent(".agents"),
+            withDestinationURL: home.appendingPathComponent("missing-agents")
+        )
+
+        let fileSystem = try DistributionSymlinkFileSystem(homeURL: home)
+        let entry = DistributionTargetEntry(
+            target: DistributionTarget(
+                scope: .global,
+                rootLocator: "~/.agents/skills"
+            ),
+            distributionSlug: try DefaultDistributionSlug(validating: "demo"),
+            canonicalLocator: "~/.agents/skills/demo"
+        )
+        #expect(try fileSystem.observe(entry) == .unavailable)
+    }
 }

@@ -19,6 +19,32 @@ private nonisolated struct DistributionBindingPayload: Codable, Equatable {
     let slug: String
     let syncMode: String
 
+    private enum CodingKeys: String, CodingKey {
+        case skillID
+        case scope
+        case adapter
+        case slug
+        case syncMode
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        skillID = try container.decode(String.self, forKey: .skillID)
+        scope = try container.decode(String.self, forKey: .scope)
+        adapter = try container.decodeIfPresent(String.self, forKey: .adapter)
+        slug = try container.decode(String.self, forKey: .slug)
+        syncMode = try container.decode(String.self, forKey: .syncMode)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(skillID, forKey: .skillID)
+        try container.encode(scope, forKey: .scope)
+        try container.encode(adapter, forKey: .adapter)
+        try container.encode(slug, forKey: .slug)
+        try container.encode(syncMode, forKey: .syncMode)
+    }
+
     init(_ intent: DistributionBindingIntent) {
         skillID = intent.skillID.directoryName
         switch intent.scope {
@@ -31,6 +57,35 @@ private nonisolated struct DistributionBindingPayload: Codable, Equatable {
         }
         slug = intent.distributionSlug.value
         syncMode = intent.syncMode.rawValue
+    }
+
+    func intent(skillID: SkillID) throws -> DistributionBindingIntent {
+        guard self.skillID == skillID.directoryName,
+              let syncMode = DistributionSyncMode(rawValue: syncMode),
+              let slug = try? DefaultDistributionSlug(validating: slug) else {
+            throw DistributionSymlinkExecutorError.needsRepair("invalid binding snapshot")
+        }
+        let bindingScope: DistributionBindingScope
+        switch scope {
+        case "global" where adapter == nil:
+            bindingScope = .global
+        case "agent":
+            guard let adapter,
+                  let platform = SkillPlatform.allCases.first(where: {
+                      $0.storageKey == adapter
+                  }) else {
+                throw DistributionSymlinkExecutorError.needsRepair("invalid binding scope")
+            }
+            bindingScope = .agent(platform)
+        default:
+            throw DistributionSymlinkExecutorError.needsRepair("invalid binding scope")
+        }
+        return DistributionBindingIntent(
+            skillID: skillID,
+            scope: bindingScope,
+            distributionSlug: slug,
+            syncMode: syncMode
+        )
     }
 }
 
@@ -87,6 +142,15 @@ nonisolated enum DistributionSymlinkExecutorError: Error, Equatable, LocalizedEr
 
 /// The bounded write-side coordinator for the planner and descriptor-backed file system.
 nonisolated final class DistributionSymlinkExecutor {
+    private enum RecoveryExpectation: Equatable {
+        case old
+        case new
+    }
+
+    private enum RollbackItem {
+        case created(DistributionRuntimeEvidence.Created)
+        case removed(DistributionRuntimeEvidence.Removed)
+    }
     private let bindingStore: DistributionBindingStore
     private let ownershipStore: DistributionLinkOwnershipStore
     private let operationStore: DistributionOperationStore
@@ -189,21 +253,6 @@ nonisolated final class DistributionSymlinkExecutor {
         var quarantined: [Int: DistributionQuarantinedSymlink] = [:]
         var created: [Int: DistributionSymlinkEvidence] = [:]
         do {
-            let desiredOwnership = try makeDesiredOwnership(
-                skillID: skillID,
-                plan: plan,
-                oldOwnership: expectedOldOwnership,
-                created: created,
-                operationID: operationID,
-                timestamp: timestamp
-            )
-            guard try finalReadback(
-                skillID: skillID,
-                bindings: plan.bindingReplacement,
-                ownership: desiredOwnership
-            ) else {
-                throw DistributionSymlinkExecutorError.needsRepair("filesystem readback drifted")
-            }
             try operationStore.updateProgress(
                 operationID: operationID,
                 phase: .applying,
@@ -262,6 +311,22 @@ nonisolated final class DistributionSymlinkExecutor {
                 )
                 record = try operationStore.load(operationID)
             }
+            let desiredOwnership = try makeDesiredOwnership(
+                skillID: skillID,
+                plan: plan,
+                oldOwnership: expectedOldOwnership,
+                created: created,
+                operationID: operationID,
+                timestamp: timestamp
+            )
+            guard try finalReadback(
+                skillID: skillID,
+                bindings: plan.bindingReplacement,
+                ownership: desiredOwnership,
+                expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
+            ) else {
+                throw DistributionSymlinkExecutorError.needsRepair("filesystem readback drifted")
+            }
             try operationStore.updateProgress(
                 operationID: operationID,
                 phase: .filesystemApplied,
@@ -300,6 +365,7 @@ nonisolated final class DistributionSymlinkExecutor {
                     updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
                 )
             }
+            record = try operationStore.load(operationID)
             try operationStore.updateProgress(
                 operationID: operationID,
                 phase: .cleaning,
@@ -329,7 +395,8 @@ nonisolated final class DistributionSymlinkExecutor {
             guard try finalReadback(
                 skillID: skillID,
                 bindings: plan.bindingReplacement,
-                ownership: desiredOwnership
+                ownership: desiredOwnership,
+                expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
             ) else {
                 throw DistributionSymlinkExecutorError.needsRepair("final distribution readback drifted")
             }
@@ -342,8 +409,9 @@ nonisolated final class DistributionSymlinkExecutor {
         } catch {
             do {
                 if let current = try? operationStore.load(operationID),
-                   current.phase != .databaseCommitted {
-                    try? operationStore.updateProgress(
+                   current.phase != .databaseCommitted,
+                   current.phase != .cleaning {
+                    try operationStore.updateProgress(
                         operationID: operationID,
                         phase: .rollingBack,
                         forwardCursor: current.forwardCursor,
@@ -355,46 +423,30 @@ nonisolated final class DistributionSymlinkExecutor {
                         updatedAtMilliseconds: max(timestamp, current.updatedAtMilliseconds)
                     )
                 }
-                var rollbackCursor: Int64 = 0
-                for (index, evidence) in created.sorted(by: { $0.key > $1.key }) {
-                    try? fileSystem.removeCreated(plan.filesystemActions[index].entry, expected: evidence)
-                    rollbackCursor += 1
-                    try? operationStore.updateProgress(
-                        operationID: operationID,
-                        phase: .rollingBack,
-                        forwardCursor: (try? operationStore.load(operationID).forwardCursor) ?? 0,
-                        rollbackCursor: rollbackCursor,
-                        cleanupCursor: 0,
-                        runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
-                        attemptCount: rollbackCursor + 1,
-                        lastError: error.localizedDescription,
-                        updatedAtMilliseconds: timestamp
-                    )
-                }
-                for (index, item) in quarantined.sorted(by: { $0.key > $1.key }) {
-                    try? fileSystem.restore(plan.filesystemActions[index].entry, quarantined: item)
-                    rollbackCursor += 1
-                    try? operationStore.updateProgress(
-                        operationID: operationID,
-                        phase: .rollingBack,
-                        forwardCursor: (try? operationStore.load(operationID).forwardCursor) ?? 0,
-                        rollbackCursor: rollbackCursor,
-                        cleanupCursor: 0,
-                        runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
-                        attemptCount: rollbackCursor + 1,
-                        lastError: error.localizedDescription,
-                        updatedAtMilliseconds: timestamp
-                    )
-                }
                 if let current = try? operationStore.load(operationID),
-                   current.phase != .databaseCommitted {
-                    try? operationStore.complete(
+                   current.phase != .databaseCommitted,
+                   current.phase != .cleaning {
+                    try rollback(
+                        operationID: operationID,
+                        plan: plan,
+                        created: created,
+                        quarantined: quarantined,
+                        record: current,
+                        error: error,
+                        timestamp: timestamp
+                    )
+                    try verifyRollback(
+                        skillID: skillID,
+                        plan: plan,
+                        expectedOldOwnership: expectedOldOwnership
+                    )
+                    try operationStore.complete(
                         operationID: operationID,
                         outcome: .rolledBack,
                         updatedAtMilliseconds: max(timestamp, current.updatedAtMilliseconds)
                     )
                 } else {
-                    try? operationStore.markNeedsRepair(
+                    try operationStore.markNeedsRepair(
                         operationID: operationID,
                         detail: error.localizedDescription,
                         updatedAtMilliseconds: timestamp
@@ -436,14 +488,57 @@ nonisolated final class DistributionSymlinkExecutor {
     func recoverAll() throws {
         for operation in try operationStore.recoverableOperations() {
             if operation.phase == .prepared {
-                try operationStore.complete(
-                    operationID: operation.operationID,
-                    outcome: .rolledBack,
-                    updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
-                )
+                let runtime = try decodeRuntime(operation)
+                if runtime.created.isEmpty && runtime.removed.isEmpty {
+                    guard try databaseMatches(operation: operation, expected: .old),
+                          try diskMatches(operation: operation, expected: .old) else {
+                        try operationStore.markNeedsRepair(
+                            operationID: operation.operationID,
+                            detail: "prepared operation is not the complete old state",
+                            updatedAtMilliseconds: max(
+                                operation.updatedAtMilliseconds,
+                                nowMilliseconds()
+                            )
+                        )
+                        continue
+                    }
+                    try operationStore.updateProgress(
+                        operationID: operation.operationID,
+                        phase: .rollingBack,
+                        forwardCursor: 0,
+                        rollbackCursor: 0,
+                        cleanupCursor: 0,
+                        runtimePayload: operation.runtimePayload,
+                        attemptCount: operation.attemptCount + 1,
+                        lastError: nil,
+                        updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+                    )
+                    try operationStore.complete(
+                        operationID: operation.operationID,
+                        outcome: .rolledBack,
+                        updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+                    )
+                } else {
+                    try operationStore.markNeedsRepair(
+                        operationID: operation.operationID,
+                        detail: "prepared operation contains filesystem evidence",
+                        updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+                    )
+                }
             } else if operation.phase == .applying || operation.phase == .rollingBack {
                 do {
+                    guard try databaseMatches(operation: operation, expected: .old) else {
+                        throw DistributionSymlinkExecutorError.needsRepair(
+                            "rollback database snapshot is not complete old state"
+                        )
+                    }
                     try recoverRollback(operation)
+                    guard try databaseMatches(operation: operation, expected: .old),
+                          try diskMatches(operation: operation, expected: .old) else {
+                        throw DistributionSymlinkExecutorError.needsRepair(
+                            "rollback readback is not the complete old state"
+                        )
+                    }
                     try operationStore.complete(
                         operationID: operation.operationID,
                         outcome: .rolledBack,
@@ -462,14 +557,80 @@ nonisolated final class DistributionSymlinkExecutor {
                         )
                     )
                 }
+            } else if operation.phase == .filesystemApplied {
+                do {
+                    try recoverFilesystemApplied(operation)
+                    try operationStore.updateProgress(
+                        operationID: operation.operationID,
+                        phase: .cleaning,
+                        forwardCursor: operation.forwardCursor,
+                        rollbackCursor: operation.rollbackCursor,
+                        cleanupCursor: operation.cleanupCursor,
+                        runtimePayload: operation.runtimePayload,
+                        attemptCount: operation.attemptCount + 1,
+                        lastError: nil,
+                        updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+                    )
+                    let cleaning = try operationStore.load(operation.operationID)
+                    try recoverCleanup(cleaning)
+                    guard try diskMatches(
+                        operation: cleaning,
+                        expected: .new
+                    ) else {
+                        throw DistributionSymlinkExecutorError.needsRepair(
+                            "filesystem readback is not the complete new state"
+                        )
+                    }
+                    try operationStore.complete(
+                        operationID: operation.operationID,
+                        outcome: .applied,
+                        updatedAtMilliseconds: max(cleaning.updatedAtMilliseconds, nowMilliseconds())
+                    )
+                } catch {
+                    try operationStore.markNeedsRepair(
+                        operationID: operation.operationID,
+                        detail: error.localizedDescription,
+                        updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+                    )
+                }
             } else if operation.phase == .databaseCommitted || operation.phase == .cleaning {
                 do {
-                    try recoverCleanup(operation)
+                    if operation.phase == .databaseCommitted {
+                        try operationStore.updateProgress(
+                            operationID: operation.operationID,
+                            phase: .cleaning,
+                            forwardCursor: operation.forwardCursor,
+                            rollbackCursor: operation.rollbackCursor,
+                            cleanupCursor: operation.cleanupCursor,
+                            runtimePayload: operation.runtimePayload,
+                            attemptCount: operation.attemptCount + 1,
+                            lastError: nil,
+                            updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+                        )
+                    }
+                    let cleaning = try operationStore.load(operation.operationID)
+                    guard try databaseMatches(
+                        operation: cleaning,
+                        expected: .new
+                    ) else {
+                        throw DistributionSymlinkExecutorError.needsRepair(
+                            "database snapshot is not the complete new state"
+                        )
+                    }
+                    try recoverCleanup(cleaning)
+                    guard try diskMatches(
+                        operation: cleaning,
+                        expected: .new
+                    ) else {
+                        throw DistributionSymlinkExecutorError.needsRepair(
+                            "filesystem readback is not the complete new state"
+                        )
+                    }
                     try operationStore.complete(
                         operationID: operation.operationID,
                         outcome: .applied,
                         updatedAtMilliseconds: max(
-                            operation.updatedAtMilliseconds,
+                            cleaning.updatedAtMilliseconds,
                             nowMilliseconds()
                         )
                     )
@@ -494,6 +655,9 @@ nonisolated final class DistributionSymlinkExecutor {
     }
 
     private func recoverRollback(_ operation: DistributionOperationRecord) throws {
+        guard try currentSSOTMatches(operation) else {
+            throw DistributionSymlinkExecutorError.needsRepair("SSOT identity changed")
+        }
         let preflight = try DistributionOperationPayloadCodec.decode(
             [DistributionPreflightAction].self,
             from: operation.preflightPayload
@@ -502,7 +666,26 @@ nonisolated final class DistributionSymlinkExecutor {
             DistributionRuntimeEvidence.self,
             from: operation.runtimePayload
         )
-        for created in runtime.created.sorted(by: { $0.actionIndex > $1.actionIndex }) {
+        let items = rollbackItems(runtime)
+        guard operation.rollbackCursor <= Int64(items.count) else {
+            throw DistributionSymlinkExecutorError.needsRepair("rollback cursor exceeds evidence")
+        }
+        if operation.phase == .applying {
+            try operationStore.updateProgress(
+                operationID: operation.operationID,
+                phase: .rollingBack,
+                forwardCursor: operation.forwardCursor,
+                rollbackCursor: operation.rollbackCursor,
+                cleanupCursor: 0,
+                runtimePayload: operation.runtimePayload,
+                attemptCount: operation.attemptCount + 1,
+                lastError: operation.lastError,
+                updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
+            )
+        }
+        for item in items.dropFirst(Int(operation.rollbackCursor)) {
+            switch item {
+            case .created(let created):
             guard let action = preflight[safe: created.actionIndex],
                   let entry = preflightEntry(action) else {
                 throw DistributionSymlinkExecutorError.needsRepair("invalid rollback action")
@@ -515,8 +698,7 @@ nonisolated final class DistributionSymlinkExecutor {
                     absoluteTarget: created.absoluteLinkTarget
                 )
             )
-        }
-        for removed in runtime.removed.sorted(by: { $0.actionIndex > $1.actionIndex }) {
+            case .removed(let removed):
             guard let action = preflight[safe: removed.actionIndex],
                   let entry = preflightEntry(action) else {
                 throw DistributionSymlinkExecutorError.needsRepair("invalid restore action")
@@ -532,10 +714,26 @@ nonisolated final class DistributionSymlinkExecutor {
                     )
                 )
             )
+            }
+            let current = try operationStore.load(operation.operationID)
+            try operationStore.updateProgress(
+                operationID: operation.operationID,
+                phase: .rollingBack,
+                forwardCursor: current.forwardCursor,
+                rollbackCursor: current.rollbackCursor + 1,
+                cleanupCursor: 0,
+                runtimePayload: operation.runtimePayload,
+                attemptCount: current.attemptCount + 1,
+                lastError: current.lastError,
+                updatedAtMilliseconds: max(current.updatedAtMilliseconds, nowMilliseconds())
+            )
         }
     }
 
     private func recoverCleanup(_ operation: DistributionOperationRecord) throws {
+        guard try currentSSOTMatches(operation) else {
+            throw DistributionSymlinkExecutorError.needsRepair("SSOT identity changed")
+        }
         let preflight = try DistributionOperationPayloadCodec.decode(
             [DistributionPreflightAction].self,
             from: operation.preflightPayload
@@ -544,7 +742,10 @@ nonisolated final class DistributionSymlinkExecutor {
             DistributionRuntimeEvidence.self,
             from: operation.runtimePayload
         )
-        for removed in runtime.removed {
+        guard operation.cleanupCursor <= Int64(runtime.removed.count) else {
+            throw DistributionSymlinkExecutorError.needsRepair("cleanup cursor exceeds evidence")
+        }
+        for removed in runtime.removed.dropFirst(Int(operation.cleanupCursor)) {
             guard let action = preflight[safe: removed.actionIndex],
                   let entry = preflightEntry(action) else {
                 throw DistributionSymlinkExecutorError.needsRepair("invalid cleanup action")
@@ -560,7 +761,320 @@ nonisolated final class DistributionSymlinkExecutor {
                     )
                 )
             )
+            let current = try operationStore.load(operation.operationID)
+            try operationStore.updateProgress(
+                operationID: operation.operationID,
+                phase: .cleaning,
+                forwardCursor: current.forwardCursor,
+                rollbackCursor: current.rollbackCursor,
+                cleanupCursor: current.cleanupCursor + 1,
+                runtimePayload: operation.runtimePayload,
+                attemptCount: current.attemptCount + 1,
+                lastError: current.lastError,
+                updatedAtMilliseconds: max(current.updatedAtMilliseconds, nowMilliseconds())
+            )
         }
+    }
+
+    private func recoverFilesystemApplied(
+        _ operation: DistributionOperationRecord
+    ) throws {
+        guard try databaseMatches(operation: operation, expected: .old) else {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "filesystemApplied operation has a non-old database snapshot"
+            )
+        }
+        let preflight = try DistributionOperationPayloadCodec.decode(
+            [DistributionPreflightAction].self,
+            from: operation.preflightPayload
+        )
+        let runtime = try decodeRuntime(operation)
+        let newBindings = try decodeBindingIntents(operation.newBindings, skillID: operation.skillID)
+        let plan = try recoveryPlan(
+            skillID: operation.skillID,
+            bindings: newBindings,
+            preflight: preflight
+        )
+        let oldOwnership = try ownershipStore.load(skillID: operation.skillID)
+        let desiredOwnership = try makeDesiredOwnership(
+            skillID: operation.skillID,
+            plan: plan,
+            oldOwnership: oldOwnership,
+            created: Dictionary(
+                uniqueKeysWithValues: runtime.created.map {
+                    ($0.actionIndex, DistributionSymlinkEvidence(
+                        rootIdentity: try ManagedItemIdentityCodec.decode($0.rootIdentity),
+                        entryIdentity: try ManagedItemIdentityCodec.decode($0.entryIdentity),
+                        absoluteTarget: $0.absoluteLinkTarget
+                    ))
+                }
+            ),
+            operationID: operation.operationID,
+            timestamp: operation.createdAtMilliseconds
+        )
+        let expectedOldBindings = try decodeBindingIntents(
+            operation.oldBindings,
+            skillID: operation.skillID
+        )
+        let actualOldBindings = try bindingStore.load(skillID: operation.skillID)
+        guard actualOldBindings.map(\.intent).sorted(by: distributionBindingIntentPrecedes)
+                == expectedOldBindings.sorted(by: distributionBindingIntentPrecedes) else {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "database changed before filesystemApplied commit"
+            )
+        }
+        guard try finalReadback(
+            skillID: operation.skillID,
+            bindings: newBindings,
+            ownership: desiredOwnership,
+            expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
+        ) else {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "filesystemApplied readback drifted"
+            )
+        }
+        try operationStore.transaction {
+            _ = try bindingStore.replaceInCurrentTransaction(
+                skillID: operation.skillID,
+                expectedOld: actualOldBindings,
+                desired: newBindings,
+                nowMilliseconds: operation.createdAtMilliseconds
+            )
+            _ = try ownershipStore.replaceInCurrentTransaction(
+                skillID: operation.skillID,
+                expectedOld: oldOwnership,
+                desired: desiredOwnership,
+                appliedOperationID: operation.operationID,
+                nowMilliseconds: operation.createdAtMilliseconds
+            )
+            let current = try operationStore.load(operation.operationID)
+            try operationStore.updateProgress(
+                operationID: operation.operationID,
+                phase: .databaseCommitted,
+                forwardCursor: current.forwardCursor,
+                rollbackCursor: current.rollbackCursor,
+                cleanupCursor: current.cleanupCursor,
+                runtimePayload: current.runtimePayload,
+                attemptCount: current.attemptCount + 1,
+                lastError: nil,
+                updatedAtMilliseconds: max(
+                    current.updatedAtMilliseconds,
+                    operation.createdAtMilliseconds
+                )
+            )
+        }
+    }
+
+    private func decodeRuntime(
+        _ operation: DistributionOperationRecord
+    ) throws -> DistributionRuntimeEvidence {
+        try DistributionOperationPayloadCodec.decode(
+            DistributionRuntimeEvidence.self,
+            from: operation.runtimePayload
+        )
+    }
+
+    private func rollbackItems(
+        _ runtime: DistributionRuntimeEvidence
+    ) -> [RollbackItem] {
+        runtime.created
+            .sorted { $0.actionIndex > $1.actionIndex }
+            .map(RollbackItem.created)
+        + runtime.removed
+            .sorted { $0.actionIndex > $1.actionIndex }
+            .map(RollbackItem.removed)
+    }
+
+    private func rollback(
+        operationID: SSOTOperationID,
+        plan: DistributionPlan,
+        created: [Int: DistributionSymlinkEvidence],
+        quarantined: [Int: DistributionQuarantinedSymlink],
+        record: DistributionOperationRecord,
+        error: Error,
+        timestamp: Int64
+    ) throws {
+        let runtime = try DistributionOperationPayloadCodec.decode(
+            DistributionRuntimeEvidence.self,
+            from: try runtimePayload(created: created, quarantined: quarantined)
+        )
+        let items = rollbackItems(runtime)
+        guard record.rollbackCursor <= Int64(items.count) else {
+            throw DistributionSymlinkExecutorError.needsRepair("rollback cursor exceeds evidence")
+        }
+        var current = record
+        if current.phase != .rollingBack {
+            try operationStore.updateProgress(
+                operationID: operationID,
+                phase: .rollingBack,
+                forwardCursor: current.forwardCursor,
+                rollbackCursor: current.rollbackCursor,
+                cleanupCursor: 0,
+                runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                attemptCount: current.attemptCount + 1,
+                lastError: error.localizedDescription,
+                updatedAtMilliseconds: max(timestamp, current.updatedAtMilliseconds)
+            )
+            current = try operationStore.load(operationID)
+        }
+        for item in items.dropFirst(Int(current.rollbackCursor)) {
+            switch item {
+            case .created(let evidence):
+                guard let action = plan.filesystemActions[safe: evidence.actionIndex] else {
+                    throw DistributionSymlinkExecutorError.needsRepair("invalid rollback action")
+                }
+                guard let expected = created[evidence.actionIndex] else {
+                    throw DistributionSymlinkExecutorError.needsRepair("missing created evidence")
+                }
+                try fileSystem.removeCreated(action.entry, expected: expected)
+            case .removed(let evidence):
+                guard let action = plan.filesystemActions[safe: evidence.actionIndex],
+                      let quarantined = quarantined[evidence.actionIndex] else {
+                    throw DistributionSymlinkExecutorError.needsRepair("missing removed evidence")
+                }
+                try fileSystem.restore(action.entry, quarantined: quarantined)
+            }
+            current = try operationStore.load(operationID)
+            try operationStore.updateProgress(
+                operationID: operationID,
+                phase: .rollingBack,
+                forwardCursor: current.forwardCursor,
+                rollbackCursor: current.rollbackCursor + 1,
+                cleanupCursor: 0,
+                runtimePayload: try runtimePayload(created: created, quarantined: quarantined),
+                attemptCount: current.attemptCount + 1,
+                lastError: error.localizedDescription,
+                updatedAtMilliseconds: max(timestamp, current.updatedAtMilliseconds)
+            )
+        }
+    }
+
+    private func verifyRollback(
+        skillID: SkillID,
+        plan: DistributionPlan,
+        expectedOldOwnership: [DistributionLinkOwnership]
+    ) throws {
+        for action in plan.filesystemActions {
+            let observation = try fileSystem.observe(action.entry)
+            switch action.kind {
+            case .createSymlink:
+                guard case .missing = observation else {
+                    throw DistributionSymlinkExecutorError.needsRepair(
+                        "rollback left a created link"
+                    )
+                }
+            case .removeSymlink:
+                guard let expected = expectedOldOwnership.first(where: {
+                    $0.targetScopeKey == action.entry.target.scope.targetScopeKey
+                }), case .symlink(let root, let entry, let target) = observation,
+                      root == expected.rootIdentity,
+                      entry == expected.entryIdentity,
+                      target == expected.absoluteLinkTarget else {
+                    throw DistributionSymlinkExecutorError.needsRepair("rollback did not restore a link")
+                }
+            }
+        }
+        guard try ownershipStore.load(skillID: skillID) == expectedOldOwnership else {
+            throw DistributionSymlinkExecutorError.needsRepair("rollback ownership drifted")
+        }
+    }
+
+    private func decodeBindingIntents(
+        _ data: Data,
+        skillID: SkillID
+    ) throws -> [DistributionBindingIntent] {
+        let payloads = try DistributionOperationPayloadCodec.decode(
+            [DistributionBindingPayload].self,
+            from: data
+        )
+        return try payloads.map { try $0.intent(skillID: skillID) }
+    }
+
+    private func recoveryPlan(
+        skillID: SkillID,
+        bindings: [DistributionBindingIntent],
+        preflight: [DistributionPreflightAction]
+    ) throws -> DistributionPlan {
+        let actions = try preflight.map { action in
+            guard let entry = preflightEntry(action),
+                  let kind = DistributionFilesystemActionKind(rawValue: action.kind) else {
+                throw DistributionSymlinkExecutorError.needsRepair("invalid persisted plan")
+            }
+            return DistributionFilesystemAction(kind: kind, entry: entry, ssotLocator: action.absoluteLinkTarget)
+        }
+        return DistributionPlan(
+            status: .executable,
+            filesystemActions: actions,
+            bindingsChanged: true,
+            bindingReplacement: bindings,
+            conflicts: []
+        )
+    }
+
+    private func databaseMatches(
+        operation: DistributionOperationRecord,
+        expected: RecoveryExpectation
+    ) throws -> Bool {
+        let bindingPayload = expected == .old ? operation.oldBindings : operation.newBindings
+        let expectedBindings = try decodeBindingIntents(bindingPayload, skillID: operation.skillID)
+        let actualBindings = try bindingStore.load(skillID: operation.skillID).map(\.intent)
+        let canonical: ([DistributionBindingIntent]) -> [DistributionBindingIntent] = {
+            $0.sorted { $0.scope.targetScopeKey < $1.scope.targetScopeKey }
+        }
+        guard canonical(actualBindings) == canonical(expectedBindings) else { return false }
+        let ownership = try ownershipStore.load(skillID: operation.skillID)
+        guard ownership.map(\.targetScopeKey).sorted()
+                == expectedBindings.map(\.scope.targetScopeKey).sorted() else {
+            return false
+        }
+        for row in ownership {
+            guard !row.absoluteLinkTarget.isEmpty else { return false }
+            if expected == .new, row.appliedOperationID != operation.operationID {
+                return false
+            }
+        }
+        return true
+    }
+
+    private func diskMatches(
+        operation: DistributionOperationRecord,
+        expected: RecoveryExpectation
+    ) throws -> Bool {
+        let preflight = try DistributionOperationPayloadCodec.decode(
+            [DistributionPreflightAction].self,
+            from: operation.preflightPayload
+        )
+        let bindings = try decodeBindingIntents(
+            expected == .old ? operation.oldBindings : operation.newBindings,
+            skillID: operation.skillID
+        )
+        let ownership = try ownershipStore.load(skillID: operation.skillID)
+        return try finalReadback(
+            skillID: operation.skillID,
+            bindings: bindings,
+            ownership: ownership,
+            expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
+        )
+    }
+
+    private func expectedSSOTIdentity(
+        from preflight: [DistributionPreflightAction]
+    ) throws -> ManagedItemIdentity {
+        guard let first = preflight.first else {
+            throw DistributionSymlinkExecutorError.needsRepair("missing SSOT identity")
+        }
+        return try ManagedItemIdentityCodec.decode(first.ssotIdentity)
+    }
+
+    private func currentSSOTMatches(
+        _ operation: DistributionOperationRecord
+    ) throws -> Bool {
+        let preflight = try DistributionOperationPayloadCodec.decode(
+            [DistributionPreflightAction].self,
+            from: operation.preflightPayload
+        )
+        return try fileSystem.ssotEvidence(for: operation.skillID).identity
+            == expectedSSOTIdentity(from: preflight)
     }
 
     private func preflightEntry(
@@ -740,10 +1254,11 @@ nonisolated final class DistributionSymlinkExecutor {
     private func finalReadback(
         skillID: SkillID,
         bindings: [DistributionBindingIntent],
-        ownership: [DistributionLinkOwnership]
+        ownership: [DistributionLinkOwnership],
+        expectedSSOTIdentity: ManagedItemIdentity
     ) throws -> Bool {
         let target = try fileSystem.ssotEvidence(for: skillID)
-        guard try fileSystem.ssotEvidence(for: skillID).identity == target.identity else { return false }
+        guard target.identity == expectedSSOTIdentity else { return false }
         for binding in bindings {
             guard let entry = DistributionTargetCatalog.current.entry(
                 for: binding.scope,

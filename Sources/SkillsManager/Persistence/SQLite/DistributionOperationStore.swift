@@ -69,6 +69,570 @@ nonisolated enum DistributionOperationPayloadCodec {
     }
 }
 
+private nonisolated struct DistributionBindingWire: Codable, Equatable {
+    let skillID: String
+    let scope: String
+    let adapter: String?
+    let slug: String
+    let syncMode: String
+
+    private enum CodingKeys: String, CodingKey {
+        case skillID
+        case scope
+        case adapter
+        case slug
+        case syncMode
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        skillID = try container.decode(String.self, forKey: .skillID)
+        scope = try container.decode(String.self, forKey: .scope)
+        adapter = try container.decodeIfPresent(String.self, forKey: .adapter)
+        slug = try container.decode(String.self, forKey: .slug)
+        syncMode = try container.decode(String.self, forKey: .syncMode)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(skillID, forKey: .skillID)
+        try container.encode(scope, forKey: .scope)
+        try container.encode(adapter, forKey: .adapter)
+        try container.encode(slug, forKey: .slug)
+        try container.encode(syncMode, forKey: .syncMode)
+    }
+}
+
+private nonisolated struct DistributionPlanBindingWire: Codable, Equatable {
+    let skillID: String
+    let scopeKind: String
+    let adapterCode: String?
+    let targetScopeKey: String
+    let distributionSlug: String
+    let slugKey: String
+    let syncMode: String
+
+    enum CodingKeys: String, CodingKey {
+        case skillID = "skill_id"
+        case scopeKind = "scope_kind"
+        case adapterCode = "adapter_code"
+        case targetScopeKey = "target_scope_key"
+        case distributionSlug = "distribution_slug"
+        case slugKey = "slug_key"
+        case syncMode = "sync_mode"
+    }
+}
+
+private nonisolated struct DistributionPlanActionWire: Codable, Equatable {
+    let action: String
+    let targetScopeKey: String
+    let targetLocator: String
+    let ssotLocator: String
+
+    enum CodingKeys: String, CodingKey {
+        case action
+        case targetScopeKey = "target_scope_key"
+        case targetLocator = "target_locator"
+        case ssotLocator = "ssot_locator"
+    }
+}
+
+private nonisolated struct DistributionPlanConflictWire: Codable, Equatable {
+    let reason: String
+    let targetScopeKey: String
+    let slugKey: String
+    let targetLocator: String
+
+    enum CodingKeys: String, CodingKey {
+        case reason
+        case targetScopeKey = "target_scope_key"
+        case slugKey = "slug_key"
+        case targetLocator = "target_locator"
+    }
+}
+
+private nonisolated struct DistributionPlanWire: Codable, Equatable {
+    let status: String
+    let filesystemActions: [DistributionPlanActionWire]
+    let bindingsChanged: Bool
+    let bindingReplacement: [DistributionPlanBindingWire]
+    let conflicts: [DistributionPlanConflictWire]
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case filesystemActions = "filesystem_actions"
+        case bindingsChanged = "bindings_changed"
+        case bindingReplacement = "binding_replacement"
+        case conflicts
+    }
+}
+
+private nonisolated struct DistributionPreflightWire: Codable, Equatable {
+    let kind: String
+    let targetScopeKey: String
+    let slug: String
+    let absoluteLinkTarget: String
+    let ssotIdentity: Data
+    let rootIdentity: Data
+    let entryIdentity: Data?
+    let temporaryName: String
+}
+
+private nonisolated struct DistributionRuntimeWire: Codable, Equatable {
+    struct Created: Codable, Equatable {
+        let actionIndex: Int
+        let rootIdentity: Data
+        let entryIdentity: Data
+        let absoluteLinkTarget: String
+    }
+
+    struct Removed: Codable, Equatable {
+        let actionIndex: Int
+        let temporaryName: String
+        let rootIdentity: Data
+        let entryIdentity: Data
+        let absoluteLinkTarget: String
+    }
+
+    let created: [Created]
+    let removed: [Removed]
+}
+
+private nonisolated enum DistributionOperationPayloadValidator {
+    static let maximumRoots = 5
+    static let maximumActions = 8
+
+    static func validate(
+        operationID: SSOTOperationID,
+        skillID: SkillID,
+        oldBindingsData: Data,
+        newBindingsData: Data,
+        planData: Data,
+        preflightData: Data,
+        runtimeData: Data,
+        phase: DistributionOperationPhase,
+        forwardCursor: Int64,
+        rollbackCursor: Int64,
+        cleanupCursor: Int64
+    ) throws {
+        let old = try decodeBindings(oldBindingsData)
+        let new = try decodeBindings(newBindingsData)
+        try validateBindings(old, skillID: skillID)
+        try validateBindings(new, skillID: skillID)
+        let plan = try decodePlan(planData)
+        try validatePlan(
+            plan,
+            skillID: skillID,
+            old: old,
+            new: new
+        )
+        let preflight = try decodePreflight(preflightData)
+        try validatePreflight(
+            preflight,
+            plan: plan,
+            skillID: skillID,
+            operationID: operationID
+        )
+        let runtime = try decodeRuntime(runtimeData)
+        try validateRuntime(
+            runtime,
+            preflight: preflight,
+            plan: plan,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor,
+            phase: phase
+        )
+    }
+
+    static func validateRuntime(
+        _ data: Data,
+        planData: Data,
+        preflightData: Data,
+        forwardCursor: Int64,
+        rollbackCursor: Int64,
+        cleanupCursor: Int64,
+        phase: DistributionOperationPhase
+    ) throws {
+        let plan = try decodePlan(planData)
+        let preflight = try decodePreflight(preflightData)
+        let runtime = try decodeRuntime(data)
+        try validateRuntime(
+            runtime,
+            preflight: preflight,
+            plan: plan,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor,
+            phase: phase
+        )
+    }
+
+    private static func decodeBindings(_ data: Data) throws -> [DistributionBindingWire] {
+        let value = try DistributionOperationPayloadCodec.decode(
+            [DistributionBindingWire].self,
+            from: data
+        )
+        guard let array = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              array.allSatisfy({
+                  Set($0.keys) == ["skillID", "scope", "adapter", "slug", "syncMode"]
+              }) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        return value
+    }
+
+    private static func decodePlan(_ data: Data) throws -> DistributionPlanWire {
+        let value = try DistributionOperationPayloadCodec.decode(
+            DistributionPlanWire.self,
+            from: data
+        )
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              Set(object.keys) == [
+                  "status", "filesystem_actions", "bindings_changed",
+                  "binding_replacement", "conflicts"
+              ],
+              let actions = object["filesystem_actions"] as? [[String: Any]],
+              actions.allSatisfy({
+                  Set($0.keys) == ["action", "target_scope_key", "target_locator", "ssot_locator"]
+              }),
+              let bindings = object["binding_replacement"] as? [[String: Any]],
+              bindings.allSatisfy({
+                  let keys = Set($0.keys)
+                  let complete = Set([
+                      "skill_id", "scope_kind", "adapter_code", "target_scope_key",
+                      "distribution_slug", "slug_key", "sync_mode"
+                  ])
+                  let globalWithoutAdapter = complete.subtracting(["adapter_code"])
+                  return keys == complete
+                      || (keys == globalWithoutAdapter && $0["scope_kind"] as? String == "global")
+              }),
+              let conflicts = object["conflicts"] as? [[String: Any]],
+              conflicts.allSatisfy({
+                  Set($0.keys) == ["reason", "target_scope_key", "slug_key", "target_locator"]
+              }) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        return value
+    }
+
+    private static func decodePreflight(_ data: Data) throws -> [DistributionPreflightWire] {
+        let value = try DistributionOperationPayloadCodec.decode(
+            [DistributionPreflightWire].self,
+            from: data
+        )
+        guard let array = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+              array.allSatisfy({
+                  let complete = Set([
+                      "kind", "targetScopeKey", "slug", "absoluteLinkTarget",
+                      "ssotIdentity", "rootIdentity", "entryIdentity", "temporaryName"
+                  ])
+                  let createWithoutEntry = complete.subtracting(["entryIdentity"])
+                  return Set($0.keys) == complete
+                      || (Set($0.keys) == createWithoutEntry
+                          && $0["kind"] as? String == "create_symlink")
+              }) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        return value
+    }
+
+    private static func decodeRuntime(_ data: Data) throws -> DistributionRuntimeWire {
+        let value = try DistributionOperationPayloadCodec.decode(
+            DistributionRuntimeWire.self,
+            from: data
+        )
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              Set(object.keys) == ["created", "removed"],
+              let created = object["created"] as? [[String: Any]],
+              created.allSatisfy({
+                  Set($0.keys) == [
+                      "actionIndex", "rootIdentity", "entryIdentity", "absoluteLinkTarget"
+                  ]
+              }),
+              let removed = object["removed"] as? [[String: Any]],
+              removed.allSatisfy({
+                  Set($0.keys) == [
+                      "actionIndex", "temporaryName", "rootIdentity", "entryIdentity",
+                      "absoluteLinkTarget"
+                  ]
+              }) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        return value
+    }
+
+    private static func validateBindings(
+        _ bindings: [DistributionBindingWire],
+        skillID: SkillID
+    ) throws {
+        guard bindings.count <= maximumRoots else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        var scopes = Set<String>()
+        for binding in bindings {
+            guard binding.skillID == skillID.directoryName,
+                  binding.syncMode == DistributionSyncMode.symlink.rawValue,
+                  let slug = try? DefaultDistributionSlug(validating: binding.slug),
+                  slug.collisionKey == SkillContentPath.collisionKey(for: slug.value)
+            else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            let scopeKey: String
+            switch binding.scope {
+            case "global":
+                guard binding.adapter == nil else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+                scopeKey = "global"
+            case "agent":
+                guard let adapter = binding.adapter,
+                      SkillPlatform.allCases.contains(where: { $0.storageKey == adapter }) else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+                scopeKey = "agent:\(adapter)"
+            default:
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            guard scopes.insert(scopeKey).inserted else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        }
+        guard !scopes.contains("global") || bindings.count == 1 else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    private static func validatePlan(
+        _ plan: DistributionPlanWire,
+        skillID: SkillID,
+        old: [DistributionBindingWire],
+        new: [DistributionBindingWire]
+    ) throws {
+        guard plan.status == DistributionPlanStatus.executable.rawValue,
+              plan.conflicts.isEmpty,
+              plan.filesystemActions.count <= maximumActions,
+              plan.bindingReplacement.count == new.count else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        let oldKeys = Set(old.map(bindingKey))
+        let newKeys = Set(new.map(bindingKey))
+        guard plan.bindingsChanged == (oldKeys != newKeys) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        let replacementKeys = try Set(
+            plan.bindingReplacement.map { try planBindingKey($0, skillID: skillID) }
+        )
+        guard replacementKeys == newKeys else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        var targets = Set<String>()
+        var roots = Set<String>()
+        var sawCreate = false
+        for action in plan.filesystemActions {
+            guard action.action == DistributionFilesystemActionKind.removeSymlink.rawValue
+                    || action.action == DistributionFilesystemActionKind.createSymlink.rawValue,
+                  let scope = scope(for: action.targetScopeKey),
+                  let slug = slug(for: action.targetLocator, scope: scope),
+                  action.ssotLocator == DistributionTargetCatalog.current.ssotLocator(for: skillID),
+                  targets.insert("\(action.targetScopeKey):\(slug)").inserted else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            if action.action == DistributionFilesystemActionKind.createSymlink.rawValue {
+                sawCreate = true
+                guard new.contains(where: {
+                    "\($0.scope == "global" ? "global" : "agent:\($0.adapter ?? "")"):\($0.slug)"
+                        == "\(action.targetScopeKey):\(slug)"
+                }), !old.contains(where: {
+                    "\($0.scope == "global" ? "global" : "agent:\($0.adapter ?? "")"):\($0.slug)"
+                        == "\(action.targetScopeKey):\(slug)"
+                }) else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+            } else if sawCreate {
+                throw DistributionOperationStoreError.invalidRecord
+            } else {
+                guard old.contains(where: {
+                    "\($0.scope == "global" ? "global" : "agent:\($0.adapter ?? "")"):\($0.slug)"
+                        == "\(action.targetScopeKey):\(slug)"
+                }), !new.contains(where: {
+                    "\($0.scope == "global" ? "global" : "agent:\($0.adapter ?? "")"):\($0.slug)"
+                        == "\(action.targetScopeKey):\(slug)"
+                }) else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+            }
+            roots.insert(action.targetScopeKey)
+        }
+        guard roots.count <= maximumRoots else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    private static func validatePreflight(
+        _ preflight: [DistributionPreflightWire],
+        plan: DistributionPlanWire,
+        skillID: SkillID,
+        operationID: SSOTOperationID
+    ) throws {
+        guard preflight.count == plan.filesystemActions.count else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        var ssotIdentity: Data?
+        var absoluteTarget: String?
+        for (index, value) in preflight.enumerated() {
+            let action = plan.filesystemActions[index]
+            guard value.kind == action.action,
+                  value.targetScopeKey == action.targetScopeKey,
+                  value.slug == slug(for: action.targetLocator, scope: scope(for: action.targetScopeKey)),
+                  value.absoluteLinkTarget.hasPrefix("/"),
+                  value.absoluteLinkTarget.hasSuffix("/.SkillsManager/skills/\(skillID.directoryName)"),
+                  value.temporaryName == temporaryName(operationID, index),
+                  value.ssotIdentity.count == ManagedItemIdentityCodec.encodedByteCount,
+                  (value.rootIdentity.isEmpty
+                      || value.rootIdentity.count == ManagedItemIdentityCodec.encodedByteCount),
+                  (value.entryIdentity == nil
+                      || value.entryIdentity?.count == ManagedItemIdentityCodec.encodedByteCount)
+            else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            try validateIdentity(value.ssotIdentity)
+            if !value.rootIdentity.isEmpty { try validateIdentity(value.rootIdentity) }
+            if let entry = value.entryIdentity { try validateIdentity(entry) }
+            if value.kind == DistributionFilesystemActionKind.removeSymlink.rawValue {
+                guard value.rootIdentity.count == ManagedItemIdentityCodec.encodedByteCount,
+                      value.entryIdentity?.count == ManagedItemIdentityCodec.encodedByteCount else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+            } else {
+                guard value.entryIdentity == nil else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+            }
+            if let ssotIdentity, ssotIdentity != value.ssotIdentity {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            ssotIdentity = value.ssotIdentity
+            if let absoluteTarget, absoluteTarget != value.absoluteLinkTarget {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            absoluteTarget = value.absoluteLinkTarget
+        }
+    }
+
+    private static func validateRuntime(
+        _ runtime: DistributionRuntimeWire,
+        preflight: [DistributionPreflightWire],
+        plan: DistributionPlanWire,
+        forwardCursor: Int64,
+        rollbackCursor: Int64,
+        cleanupCursor: Int64,
+        phase: DistributionOperationPhase
+    ) throws {
+        guard forwardCursor <= Int64(maximumActions),
+              rollbackCursor <= Int64(maximumActions),
+              cleanupCursor <= Int64(maximumActions),
+              forwardCursor <= Int64(plan.filesystemActions.count),
+              (phase == .filesystemApplied || phase == .databaseCommitted
+                  || phase == .cleaning || phase == .completed
+                  ? forwardCursor == Int64(plan.filesystemActions.count) : true)
+        else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        var indices = Set<Int>()
+        for value in runtime.created {
+            guard indices.insert(value.actionIndex).inserted,
+                  preflight.indices.contains(value.actionIndex),
+                  value.actionIndex < Int(forwardCursor),
+                  plan.filesystemActions[value.actionIndex].action
+                    == DistributionFilesystemActionKind.createSymlink.rawValue,
+                  value.rootIdentity.count == ManagedItemIdentityCodec.encodedByteCount,
+                  value.entryIdentity.count == ManagedItemIdentityCodec.encodedByteCount,
+                  value.absoluteLinkTarget == preflight[value.actionIndex].absoluteLinkTarget else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            try validateIdentity(value.rootIdentity)
+            try validateIdentity(value.entryIdentity)
+        }
+        for value in runtime.removed {
+            guard indices.insert(value.actionIndex).inserted,
+                  preflight.indices.contains(value.actionIndex),
+                  value.actionIndex < Int(forwardCursor),
+                  plan.filesystemActions[value.actionIndex].action
+                    == DistributionFilesystemActionKind.removeSymlink.rawValue,
+                  value.rootIdentity.count == ManagedItemIdentityCodec.encodedByteCount,
+                  value.entryIdentity.count == ManagedItemIdentityCodec.encodedByteCount,
+                  value.temporaryName == preflight[value.actionIndex].temporaryName,
+                  value.absoluteLinkTarget == preflight[value.actionIndex].absoluteLinkTarget else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            try validateIdentity(value.rootIdentity)
+            try validateIdentity(value.entryIdentity)
+        }
+        guard indices == Set(0..<Int(forwardCursor)) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    private static func bindingKey(_ value: DistributionBindingWire) -> String {
+        "\(value.scope):\(value.adapter ?? ""):\(value.slug):\(value.syncMode)"
+    }
+
+    private static func planBindingKey(
+        _ value: DistributionPlanBindingWire,
+        skillID: SkillID
+    ) throws -> String {
+        guard let slug = try? DefaultDistributionSlug(validating: value.distributionSlug),
+              slug.collisionKey == value.slugKey,
+              value.syncMode == DistributionSyncMode.symlink.rawValue,
+              value.skillID == skillID.directoryName else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        switch value.scopeKind {
+        case "global":
+            guard value.adapterCode == nil, value.targetScopeKey == "global" else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case "agent":
+            guard let adapter = value.adapterCode,
+                  SkillPlatform.allCases.contains(where: { $0.storageKey == adapter }),
+                  value.targetScopeKey == "agent:\(adapter)" else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        default:
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        return "\(value.scopeKind):\(value.adapterCode ?? ""):\(slug.value):\(value.syncMode)"
+    }
+
+    private static func validateIdentity(_ data: Data) throws {
+        do {
+            _ = try ManagedItemIdentityCodec.decode(data)
+        } catch {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    private static func scope(for key: String) -> DistributionBindingScope? {
+        if key == "global" { return .global }
+        guard let adapter = key.split(separator: ":", maxSplits: 1).last,
+              let value = SkillPlatform.allCases.first(where: { $0.storageKey == adapter }) else {
+            return nil
+        }
+        return .agent(value)
+    }
+
+    private static func slug(for locator: String, scope: DistributionBindingScope?) -> String? {
+        guard let scope, let target = DistributionTargetCatalog.current.target(for: scope),
+              locator.hasPrefix(target.rootLocator + "/") else { return nil }
+        return String(locator.dropFirst(target.rootLocator.count + 1))
+    }
+
+    private static func temporaryName(_ operationID: SSOTOperationID, _ index: Int) -> String {
+        ".skillsmanager-distribution-\(operationID.uuid.uuidString.lowercased())-\(index)"
+    }
+}
+
 nonisolated struct DistributionOperationDraft: Sendable, Equatable {
     let operationID: SSOTOperationID
     let skillID: SkillID
@@ -107,6 +671,19 @@ nonisolated struct DistributionOperationDraft: Sendable, Equatable {
             updatedAtMilliseconds: updated,
             phase: .prepared,
             outcome: nil
+        )
+        try DistributionOperationPayloadValidator.validate(
+            operationID: operationID,
+            skillID: skillID,
+            oldBindingsData: oldBindings,
+            newBindingsData: newBindings,
+            planData: planPayload,
+            preflightData: preflightPayload,
+            runtimeData: runtimePayload,
+            phase: .prepared,
+            forwardCursor: 0,
+            rollbackCursor: 0,
+            cleanupCursor: 0
         )
         self.operationID = operationID
         self.skillID = skillID
@@ -334,8 +911,29 @@ nonisolated final class DistributionOperationStore {
         let actionCount = try filesystemActionCount(in: current.planPayload)
         guard forwardCursor <= actionCount,
               rollbackCursor <= actionCount,
-              cleanupCursor <= actionCount else {
+              cleanupCursor <= actionCount,
+              forwardCursor >= current.forwardCursor,
+              rollbackCursor >= current.rollbackCursor,
+              cleanupCursor >= current.cleanupCursor,
+              attemptCount >= current.attemptCount,
+              updatedAtMilliseconds >= current.updatedAtMilliseconds else {
             throw DistributionOperationStoreError.invalidRecord
+        }
+        switch phase {
+        case .applying, .rollingBack:
+            guard cleanupCursor == 0 else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case .filesystemApplied, .databaseCommitted:
+            guard forwardCursor == actionCount, rollbackCursor == 0, cleanupCursor == 0 else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case .cleaning:
+            guard forwardCursor == actionCount, rollbackCursor == 0 else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case .prepared, .completed:
+            throw DistributionOperationStoreError.conflict
         }
         try DistributionOperationRecord.validate(
             oldBindings: Data("[]".utf8), newBindings: Data("[]".utf8), planPayload: Data("{}".utf8),
@@ -344,6 +942,15 @@ nonisolated final class DistributionOperationStore {
             cleanupCursor: cleanupCursor, attemptCount: attemptCount, lastError: lastError,
             createdAtMilliseconds: 0, updatedAtMilliseconds: updatedAtMilliseconds,
             phase: phase, outcome: nil
+        )
+        try DistributionOperationPayloadValidator.validateRuntime(
+            runtimePayload,
+            planData: current.planPayload,
+            preflightData: current.preflightPayload,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor,
+            phase: phase
         )
         let statement = try connection.prepare(
             """
@@ -425,16 +1032,28 @@ nonisolated final class DistributionOperationStore {
               updatedAtMilliseconds >= 0 else {
             throw DistributionOperationStoreError.invalidRecord
         }
+        let current = try loadOperation(operationID)
+        switch (outcome, current.phase) {
+        case (.applied, .cleaning):
+            break
+        case (.rolledBack, .rollingBack):
+            guard current.rollbackCursor >= current.forwardCursor else {
+                throw DistributionOperationStoreError.conflict
+            }
+        default:
+            throw DistributionOperationStoreError.conflict
+        }
         let statement = try connection.prepare(
             """
             UPDATE distribution_operations
             SET phase = 'completed', outcome = ?, updated_at_ms = MAX(updated_at_ms, ?)
-            WHERE operation_id = ? AND outcome IS NULL
+            WHERE operation_id = ? AND outcome IS NULL AND phase = ?
             """
         )
         try statement.bind(outcome.rawValue, at: 1)
         try statement.bind(updatedAtMilliseconds, at: 2)
         try statement.bind(operationID.bytes, at: 3)
+        try statement.bind(current.phase.rawValue, at: 4)
         try finishMutation(statement)
     }
 
@@ -482,6 +1101,19 @@ nonisolated final class DistributionOperationStore {
                 createdAtMilliseconds: record.createdAtMilliseconds,
                 updatedAtMilliseconds: record.updatedAtMilliseconds,
                 phase: record.phase, outcome: record.outcome
+            )
+            try DistributionOperationPayloadValidator.validate(
+                operationID: record.operationID,
+                skillID: record.skillID,
+                oldBindingsData: record.oldBindings,
+                newBindingsData: record.newBindings,
+                planData: record.planPayload,
+                preflightData: record.preflightPayload,
+                runtimeData: record.runtimePayload,
+                phase: record.phase,
+                forwardCursor: record.forwardCursor,
+                rollbackCursor: record.rollbackCursor,
+                cleanupCursor: record.cleanupCursor
             )
             return record
         } catch let error as DistributionOperationStoreError {

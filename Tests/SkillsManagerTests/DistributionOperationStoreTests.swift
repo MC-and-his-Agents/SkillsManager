@@ -12,9 +12,11 @@ struct DistributionOperationStoreTests {
                 skillID: skillID,
                 oldBindings: Data("[]".utf8),
                 newBindings: Data("[]".utf8),
-                planPayload: Data(#"{"filesystem_actions":[]}"#.utf8),
+                planPayload: Data(
+                    #"{"binding_replacement":[],"bindings_changed":false,"conflicts":[],"filesystem_actions":[],"status":"executable"}"#.utf8
+                ),
                 preflightPayload: Data("[]".utf8),
-                runtimePayload: Data("{}".utf8),
+                runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
                 createdAtMilliseconds: 10
             )
             let inserted = try operationStore.insertPrepared(draft)
@@ -26,7 +28,7 @@ struct DistributionOperationStoreTests {
                 forwardCursor: 0,
                 rollbackCursor: 0,
                 cleanupCursor: 0,
-                runtimePayload: Data("{}".utf8),
+                runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
                 attemptCount: 1,
                 lastError: nil,
                 updatedAtMilliseconds: 11
@@ -65,7 +67,105 @@ struct DistributionOperationStoreTests {
             )
         }
     }
+
+    @Test("typed payloads reject contradictions, unknown actions, and resource overflow")
+    func typedPayloadValidation() throws {
+        let skillID = SkillID(UUID(uuidString: "00112233-4455-4677-8899-aabbccddeeff")!)
+        let plan = TestPlan(
+            status: "executable",
+            filesystemActions: [],
+            bindingsChanged: false,
+            bindingReplacement: [],
+            conflicts: []
+        )
+        let common = try #require(try? DistributionOperationPayloadCodec.encode(plan))
+        let draft = {
+            try DistributionOperationDraft(
+                skillID: skillID,
+                oldBindings: Data("[]".utf8),
+                newBindings: Data("[]".utf8),
+                planPayload: common,
+                preflightPayload: Data("[]".utf8),
+                runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
+                createdAtMilliseconds: 1
+            )
+        }
+        _ = try draft()
+
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            _ = try DistributionOperationDraft(
+                skillID: skillID,
+                oldBindings: Data(
+                    #"[{"adapter":null,"skillID":"11112222333344445555666677778888","scope":"global","slug":"demo","syncMode":"symlink"}]"#.utf8
+                ),
+                newBindings: Data("[]".utf8),
+                planPayload: common,
+                preflightPayload: Data("[]".utf8),
+                runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
+                createdAtMilliseconds: 1
+            )
+        }
+
+        let overflow = TestPlan(
+            status: "executable",
+            filesystemActions: (0..<9).map {
+                TestPlanAction(
+                    action: "create_symlink",
+                    targetScopeKey: "global",
+                    targetLocator: "~/.agents/skills/skill-\($0)",
+                    ssotLocator: "~/.SkillsManager/skills/\(skillID.directoryName)"
+                )
+            },
+            bindingsChanged: false,
+            bindingReplacement: [],
+            conflicts: []
+        )
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            _ = try DistributionOperationDraft(
+                skillID: skillID,
+                oldBindings: Data("[]".utf8),
+                newBindings: Data("[]".utf8),
+                planPayload: try DistributionOperationPayloadCodec.encode(overflow),
+                preflightPayload: Data("[]".utf8),
+                runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
+                createdAtMilliseconds: 1
+            )
+        }
+    }
 }
+
+private struct TestPlan: Codable {
+    let status: String
+    let filesystemActions: [TestPlanAction]
+    let bindingsChanged: Bool
+    let bindingReplacement: [TestPlanBinding]
+    let conflicts: [TestPlanConflict]
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case filesystemActions = "filesystem_actions"
+        case bindingsChanged = "bindings_changed"
+        case bindingReplacement = "binding_replacement"
+        case conflicts
+    }
+}
+
+private struct TestPlanAction: Codable {
+    let action: String
+    let targetScopeKey: String
+    let targetLocator: String
+    let ssotLocator: String
+
+    enum CodingKeys: String, CodingKey {
+        case action
+        case targetScopeKey = "target_scope_key"
+        case targetLocator = "target_locator"
+        case ssotLocator = "ssot_locator"
+    }
+}
+
+private struct TestPlanBinding: Codable {}
+private struct TestPlanConflict: Codable {}
 
 private func withDistributionJournalFixture(
     _ body: (
