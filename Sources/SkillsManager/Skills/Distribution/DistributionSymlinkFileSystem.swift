@@ -190,7 +190,7 @@ nonisolated final class DistributionSymlinkFileSystem {
             expectedTarget: expected.absoluteTarget,
             in: handle.descriptor
         )
-        let temporaryName = temporaryName(operationID: operationID, actionIndex: actionIndex)
+        let temporaryName = Self.temporaryName(operationID: operationID, actionIndex: actionIndex)
         guard try identityIfPresent(temporaryName, in: handle.descriptor) == nil else {
             throw DistributionSymlinkFileSystemError.temporaryEntryExists
         }
@@ -606,7 +606,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         return String(decoding: bytes.prefix(Int(count)), as: UTF8.self)
     }
 
-    private func temporaryName(operationID: UUID, actionIndex: Int) -> String {
+    static func temporaryName(operationID: UUID, actionIndex: Int) -> String {
         ".skillsmanager-distribution-\(operationID.uuidString.lowercased())-\(actionIndex)"
     }
 

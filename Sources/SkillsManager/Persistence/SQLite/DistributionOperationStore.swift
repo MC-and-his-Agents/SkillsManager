@@ -217,14 +217,25 @@ private nonisolated struct DistributionRuntimeWire: Codable, Equatable {
         let absoluteLinkTarget: String
     }
 
+    struct Pending: Codable, Equatable {
+        let actionIndex: Int
+        let kind: String
+        let rootIdentity: Data
+        let entryIdentity: Data?
+        let absoluteLinkTarget: String
+        let temporaryName: String?
+    }
+
     let created: [Created]
     let removed: [Removed]
     let oldOwnership: [OldOwnership]
+    let pending: [Pending]
 
     private enum CodingKeys: String, CodingKey {
         case created
         case removed
         case oldOwnership
+        case pending
     }
 
     init(from decoder: Decoder) throws {
@@ -235,6 +246,7 @@ private nonisolated struct DistributionRuntimeWire: Codable, Equatable {
             [OldOwnership].self,
             forKey: .oldOwnership
         ) ?? []
+        pending = try container.decodeIfPresent([Pending].self, forKey: .pending) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -243,6 +255,9 @@ private nonisolated struct DistributionRuntimeWire: Codable, Equatable {
         try container.encode(removed, forKey: .removed)
         if !oldOwnership.isEmpty {
             try container.encode(oldOwnership, forKey: .oldOwnership)
+        }
+        if !pending.isEmpty {
+            try container.encode(pending, forKey: .pending)
         }
     }
 }
@@ -407,7 +422,9 @@ private nonisolated enum DistributionOperationPayloadValidator {
         )
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               (Set(object.keys) == ["created", "removed"]
-                  || Set(object.keys) == ["created", "removed", "oldOwnership"]),
+                  || Set(object.keys) == ["created", "removed", "pending"]
+                  || Set(object.keys) == ["created", "removed", "oldOwnership"]
+                  || Set(object.keys) == ["created", "removed", "oldOwnership", "pending"]),
               let created = object["created"] as? [[String: Any]],
               created.allSatisfy({
                   Set($0.keys) == [
@@ -450,6 +467,38 @@ private nonisolated enum DistributionOperationPayloadValidator {
         for ownership in value.oldOwnership {
             try validateIdentity(ownership.rootIdentity)
             try validateIdentity(ownership.entryIdentity)
+        }
+        let pending = (object["pending"] as? [[String: Any]]) ?? []
+        guard pending.allSatisfy({
+            let complete: Set<String> = [
+                "actionIndex", "kind", "rootIdentity", "entryIdentity",
+                "absoluteLinkTarget", "temporaryName"
+            ]
+            let createWithoutOptionals = complete.subtracting(["entryIdentity", "temporaryName"])
+            return Set($0.keys) == complete
+                || (Set($0.keys) == createWithoutOptionals
+                    && $0["kind"] as? String
+                        == DistributionFilesystemActionKind.createSymlink.rawValue)
+        }),
+        value.pending.count <= 1,
+        value.pending.allSatisfy({
+            $0.actionIndex >= 0
+                && ($0.kind == DistributionFilesystemActionKind.createSymlink.rawValue
+                    || $0.kind == DistributionFilesystemActionKind.removeSymlink.rawValue)
+                && $0.rootIdentity.count == ManagedItemIdentityCodec.encodedByteCount
+                && $0.absoluteLinkTarget.hasPrefix("/")
+                && URL(fileURLWithPath: $0.absoluteLinkTarget).standardizedFileURL.path
+                    == $0.absoluteLinkTarget
+                && ($0.kind == DistributionFilesystemActionKind.createSymlink.rawValue
+                    ? $0.entryIdentity == nil && $0.temporaryName == nil
+                    : $0.entryIdentity?.count == ManagedItemIdentityCodec.encodedByteCount
+                        && $0.temporaryName != nil)
+        }) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        for pending in value.pending {
+            try validateIdentity(pending.rootIdentity)
+            if let entry = pending.entryIdentity { try validateIdentity(entry) }
         }
         return value
     }
@@ -676,6 +725,28 @@ private nonisolated enum DistributionOperationPayloadValidator {
             }
             try validateIdentity(value.rootIdentity)
             try validateIdentity(value.entryIdentity)
+        }
+        guard runtime.pending.count <= 1,
+              runtime.pending.allSatisfy({
+                  $0.actionIndex == Int(forwardCursor)
+                      && preflight.indices.contains($0.actionIndex)
+                      && plan.filesystemActions[$0.actionIndex].action == $0.kind
+                      && $0.rootIdentity.count == ManagedItemIdentityCodec.encodedByteCount
+                      && $0.absoluteLinkTarget
+                          == preflight[$0.actionIndex].absoluteLinkTarget
+                      && ($0.kind == DistributionFilesystemActionKind.createSymlink.rawValue
+                          ? $0.entryIdentity == nil && $0.temporaryName == nil
+                          : $0.kind == DistributionFilesystemActionKind.removeSymlink.rawValue
+                              && $0.entryIdentity?.count
+                                  == ManagedItemIdentityCodec.encodedByteCount
+                              && $0.temporaryName
+                                  == preflight[$0.actionIndex].temporaryName)
+              }) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        for pending in runtime.pending {
+            try validateIdentity(pending.rootIdentity)
+            if let entry = pending.entryIdentity { try validateIdentity(entry) }
         }
         guard indices == Set(0..<Int(forwardCursor)) else {
             throw DistributionOperationStoreError.invalidRecord

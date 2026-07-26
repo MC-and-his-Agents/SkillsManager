@@ -145,6 +145,15 @@ private nonisolated struct DistributionPreflightAction: Codable {
 }
 
 private nonisolated struct DistributionRuntimeEvidence: Codable {
+    struct Pending: Codable {
+        let actionIndex: Int
+        let kind: String
+        let rootIdentity: Data
+        let entryIdentity: Data?
+        let absoluteLinkTarget: String
+        let temporaryName: String?
+    }
+
     struct OldOwnership: Codable {
         let targetScopeKey: String
         let appliedOperationID: Data
@@ -172,21 +181,25 @@ private nonisolated struct DistributionRuntimeEvidence: Codable {
     var created: [Created] = []
     var removed: [Removed] = []
     var oldOwnership: [OldOwnership] = []
+    var pending: [Pending] = []
 
     private enum CodingKeys: String, CodingKey {
         case created
         case removed
         case oldOwnership
+        case pending
     }
 
     init(
         created: [Created] = [],
         removed: [Removed] = [],
-        oldOwnership: [OldOwnership] = []
+        oldOwnership: [OldOwnership] = [],
+        pending: [Pending] = []
     ) {
         self.created = created
         self.removed = removed
         self.oldOwnership = oldOwnership
+        self.pending = pending
     }
 
     init(from decoder: Decoder) throws {
@@ -197,6 +210,7 @@ private nonisolated struct DistributionRuntimeEvidence: Codable {
             [OldOwnership].self,
             forKey: .oldOwnership
         ) ?? []
+        pending = try container.decodeIfPresent([Pending].self, forKey: .pending) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -205,6 +219,9 @@ private nonisolated struct DistributionRuntimeEvidence: Codable {
         try container.encode(removed, forKey: .removed)
         if !oldOwnership.isEmpty {
             try container.encode(oldOwnership, forKey: .oldOwnership)
+        }
+        if !pending.isEmpty {
+            try container.encode(pending, forKey: .pending)
         }
     }
 }
@@ -237,6 +254,11 @@ nonisolated final class DistributionSymlinkExecutor {
     }
 
     private enum RollbackItem {
+        case created(DistributionRuntimeEvidence.Created)
+        case removed(DistributionRuntimeEvidence.Removed)
+    }
+
+    private enum PendingResolution {
         case created(DistributionRuntimeEvidence.Created)
         case removed(DistributionRuntimeEvidence.Removed)
     }
@@ -345,6 +367,7 @@ nonisolated final class DistributionSymlinkExecutor {
         var record = try operationStore.load(operationID)
         var quarantined: [Int: DistributionQuarantinedSymlink] = [:]
         var created: [Int: DistributionSymlinkEvidence] = [:]
+        var pending: [Int: DistributionRuntimeEvidence.Pending] = [:]
         do {
             try operationStore.updateProgress(
                 operationID: operationID,
@@ -368,6 +391,33 @@ nonisolated final class DistributionSymlinkExecutor {
                         entryIdentity: ownership.entryIdentity,
                         absoluteTarget: ownership.absoluteLinkTarget
                     )
+                    pending[index] = DistributionRuntimeEvidence.Pending(
+                        actionIndex: index,
+                        kind: action.kind.rawValue,
+                        rootIdentity: try ManagedItemIdentityCodec.encode(ownership.rootIdentity),
+                        entryIdentity: try ManagedItemIdentityCodec.encode(ownership.entryIdentity),
+                        absoluteLinkTarget: ownership.absoluteLinkTarget,
+                        temporaryName: DistributionSymlinkFileSystem.temporaryName(
+                            operationID: operationID.uuid,
+                            actionIndex: index
+                        )
+                    )
+                    try operationStore.updateProgress(
+                        operationID: operationID,
+                        phase: .applying,
+                        forwardCursor: Int64(index),
+                        rollbackCursor: 0,
+                        cleanupCursor: 0,
+                        runtimePayload: try runtimePayload(
+                            created: created,
+                            quarantined: quarantined,
+                            pending: pending,
+                            oldOwnership: expectedOldOwnership
+                        ),
+                        attemptCount: record.attemptCount + 1,
+                        lastError: nil,
+                        updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
+                    )
                     quarantined[index] = try fileSystem.quarantine(
                         action.entry,
                         expected: evidence,
@@ -386,6 +436,30 @@ nonisolated final class DistributionSymlinkExecutor {
                         throw DistributionSymlinkExecutorError.needsRepair("SSOT identity changed")
                     }
                     let rootIdentity = try fileSystem.ensureRoot(for: action.entry.target.scope)
+                    pending[index] = DistributionRuntimeEvidence.Pending(
+                        actionIndex: index,
+                        kind: action.kind.rawValue,
+                        rootIdentity: try ManagedItemIdentityCodec.encode(rootIdentity),
+                        entryIdentity: nil,
+                        absoluteLinkTarget: preflightAction.absoluteLinkTarget,
+                        temporaryName: nil
+                    )
+                    try operationStore.updateProgress(
+                        operationID: operationID,
+                        phase: .applying,
+                        forwardCursor: Int64(index),
+                        rollbackCursor: 0,
+                        cleanupCursor: 0,
+                        runtimePayload: try runtimePayload(
+                            created: created,
+                            quarantined: quarantined,
+                            pending: pending,
+                            oldOwnership: expectedOldOwnership
+                        ),
+                        attemptCount: record.attemptCount + 1,
+                        lastError: nil,
+                        updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
+                    )
                     let evidence = try fileSystem.create(
                         action.entry,
                         absoluteTarget: preflightAction.absoluteLinkTarget,
@@ -393,6 +467,7 @@ nonisolated final class DistributionSymlinkExecutor {
                     )
                     created[index] = evidence
                 }
+                pending[index] = nil
                 try operationStore.updateProgress(
                     operationID: operationID,
                     phase: .applying,
@@ -402,6 +477,7 @@ nonisolated final class DistributionSymlinkExecutor {
                     runtimePayload: try runtimePayload(
                         created: created,
                         quarantined: quarantined,
+                        pending: pending,
                         oldOwnership: expectedOldOwnership
                     ),
                     attemptCount: Int64(index + 2),
@@ -435,6 +511,7 @@ nonisolated final class DistributionSymlinkExecutor {
                 runtimePayload: try runtimePayload(
                     created: created,
                     quarantined: quarantined,
+                    pending: pending,
                     oldOwnership: expectedOldOwnership
                 ),
                 attemptCount: record.attemptCount + 1,
@@ -461,6 +538,7 @@ nonisolated final class DistributionSymlinkExecutor {
                     runtimePayload: try runtimePayload(
                         created: created,
                         quarantined: quarantined,
+                        pending: pending,
                         oldOwnership: expectedOldOwnership
                     ),
                     attemptCount: record.attemptCount + 2,
@@ -478,6 +556,7 @@ nonisolated final class DistributionSymlinkExecutor {
                 runtimePayload: try runtimePayload(
                     created: created,
                     quarantined: quarantined,
+                    pending: pending,
                     oldOwnership: expectedOldOwnership
                 ),
                 attemptCount: record.attemptCount + 1,
@@ -496,6 +575,7 @@ nonisolated final class DistributionSymlinkExecutor {
                     runtimePayload: try runtimePayload(
                         created: created,
                         quarantined: quarantined,
+                        pending: pending,
                         oldOwnership: expectedOldOwnership
                     ),
                     attemptCount: record.attemptCount + Int64(cleanupIndex + 2),
@@ -531,6 +611,7 @@ nonisolated final class DistributionSymlinkExecutor {
                         runtimePayload: try runtimePayload(
                             created: created,
                             quarantined: quarantined,
+                            pending: pending,
                             oldOwnership: expectedOldOwnership
                         ),
                         attemptCount: current.attemptCount + 1,
@@ -546,6 +627,7 @@ nonisolated final class DistributionSymlinkExecutor {
                         plan: plan,
                         created: created,
                         quarantined: quarantined,
+                        pending: pending,
                         record: current,
                         expectedOldOwnership: expectedOldOwnership,
                         error: error,
@@ -778,28 +860,52 @@ nonisolated final class DistributionSymlinkExecutor {
             [DistributionPreflightAction].self,
             from: operation.preflightPayload
         )
-        let runtime = try DistributionOperationPayloadCodec.decode(
+        var runtime = try DistributionOperationPayloadCodec.decode(
             DistributionRuntimeEvidence.self,
             from: operation.runtimePayload
         )
-        let items = rollbackItems(runtime)
-        guard operation.rollbackCursor <= Int64(items.count) else {
-            throw DistributionSymlinkExecutorError.needsRepair("rollback cursor exceeds evidence")
-        }
-        if operation.phase == .applying {
+        for pending in runtime.pending.sorted(by: { $0.actionIndex > $1.actionIndex }) {
+            switch try reconcilePending(pending, preflight: preflight) {
+            case .created(let evidence):
+                runtime.created.append(evidence)
+            case .removed(let evidence):
+                runtime.removed.append(evidence)
+            }
+            runtime.pending.removeAll { $0.actionIndex == pending.actionIndex }
+            let current = try operationStore.load(operation.operationID)
             try operationStore.updateProgress(
                 operationID: operation.operationID,
                 phase: .rollingBack,
-                forwardCursor: operation.forwardCursor,
-                rollbackCursor: operation.rollbackCursor,
+                forwardCursor: max(current.forwardCursor, Int64(pending.actionIndex + 1)),
+                rollbackCursor: current.rollbackCursor,
+                cleanupCursor: current.cleanupCursor,
+                runtimePayload: try DistributionOperationPayloadCodec.encode(runtime),
+                attemptCount: current.attemptCount + 1,
+                lastError: current.lastError,
+                updatedAtMilliseconds: max(current.updatedAtMilliseconds, nowMilliseconds())
+            )
+        }
+        let items = rollbackItems(runtime)
+        let currentRollbackCursor = try operationStore.load(operation.operationID).rollbackCursor
+        guard currentRollbackCursor <= Int64(items.count) else {
+            throw DistributionSymlinkExecutorError.needsRepair("rollback cursor exceeds evidence")
+        }
+        if try operationStore.load(operation.operationID).phase == .applying {
+            let current = try operationStore.load(operation.operationID)
+            try operationStore.updateProgress(
+                operationID: operation.operationID,
+                phase: .rollingBack,
+                forwardCursor: current.forwardCursor,
+                rollbackCursor: current.rollbackCursor,
                 cleanupCursor: 0,
-                runtimePayload: operation.runtimePayload,
+                runtimePayload: try DistributionOperationPayloadCodec.encode(runtime),
                 attemptCount: operation.attemptCount + 1,
                 lastError: operation.lastError,
                 updatedAtMilliseconds: max(operation.updatedAtMilliseconds, nowMilliseconds())
             )
         }
-        for item in items.dropFirst(Int(operation.rollbackCursor)) {
+        var rollbackCursor = try operationStore.load(operation.operationID).rollbackCursor
+        for item in items.dropFirst(Int(rollbackCursor)) {
             switch item {
             case .created(let created):
             guard let action = preflight[safe: created.actionIndex],
@@ -832,13 +938,14 @@ nonisolated final class DistributionSymlinkExecutor {
             )
             }
             let current = try operationStore.load(operation.operationID)
+            rollbackCursor = current.rollbackCursor + 1
             try operationStore.updateProgress(
                 operationID: operation.operationID,
                 phase: .rollingBack,
                 forwardCursor: current.forwardCursor,
-                rollbackCursor: current.rollbackCursor + 1,
+                rollbackCursor: rollbackCursor,
                 cleanupCursor: 0,
-                runtimePayload: operation.runtimePayload,
+                runtimePayload: try DistributionOperationPayloadCodec.encode(runtime),
                 attemptCount: current.attemptCount + 1,
                 lastError: current.lastError,
                 updatedAtMilliseconds: max(current.updatedAtMilliseconds, nowMilliseconds())
@@ -889,6 +996,76 @@ nonisolated final class DistributionSymlinkExecutor {
                 lastError: current.lastError,
                 updatedAtMilliseconds: max(current.updatedAtMilliseconds, nowMilliseconds())
             )
+        }
+    }
+
+    private func reconcilePending(
+        _ pending: DistributionRuntimeEvidence.Pending,
+        preflight: [DistributionPreflightAction]
+    ) throws -> PendingResolution {
+        guard let action = preflight[safe: pending.actionIndex],
+              let entry = preflightEntry(action),
+              action.kind == pending.kind else {
+            throw DistributionSymlinkExecutorError.needsRepair("invalid pending action")
+        }
+        let rootIdentity = try ManagedItemIdentityCodec.decode(pending.rootIdentity)
+        switch action.kind {
+        case DistributionFilesystemActionKind.createSymlink.rawValue:
+            switch try fileSystem.observe(entry) {
+            case .missing:
+                throw DistributionSymlinkExecutorError.needsRepair(
+                    "pending create action was not materialized"
+                )
+            case .symlink(let root, let identity, let target)
+                where root == rootIdentity && target == pending.absoluteLinkTarget:
+                try fileSystem.removeCreated(
+                    entry,
+                    expected: DistributionSymlinkEvidence(
+                        rootIdentity: root,
+                        entryIdentity: identity,
+                        absoluteTarget: target
+                    )
+                )
+                return .created(
+                    DistributionRuntimeEvidence.Created(
+                        actionIndex: pending.actionIndex,
+                        rootIdentity: pending.rootIdentity,
+                        entryIdentity: try ManagedItemIdentityCodec.encode(identity),
+                        absoluteLinkTarget: target
+                    )
+                )
+            default:
+                throw DistributionSymlinkExecutorError.needsRepair(
+                    "pending create action changed on disk"
+                )
+            }
+        case DistributionFilesystemActionKind.removeSymlink.rawValue:
+            guard let entryIdentity = pending.entryIdentity,
+                  let temporaryName = pending.temporaryName else {
+                throw DistributionSymlinkExecutorError.needsRepair("invalid pending remove action")
+            }
+            try fileSystem.restore(
+                entry,
+                quarantined: DistributionQuarantinedSymlink(
+                    temporaryName: temporaryName,
+                    evidence: DistributionSymlinkEvidence(
+                        rootIdentity: rootIdentity,
+                        entryIdentity: try ManagedItemIdentityCodec.decode(entryIdentity),
+                        absoluteTarget: pending.absoluteLinkTarget
+                    )
+                )
+            )
+            return .removed(
+                DistributionRuntimeEvidence.Removed(
+                    actionIndex: pending.actionIndex,
+                    temporaryName: temporaryName,
+                    rootIdentity: pending.rootIdentity,
+                    entryIdentity: entryIdentity,
+                    absoluteLinkTarget: pending.absoluteLinkTarget
+                )
+            )
+        default:
+            throw DistributionSymlinkExecutorError.needsRepair("unsupported pending action")
         }
     }
 
@@ -1030,6 +1207,7 @@ nonisolated final class DistributionSymlinkExecutor {
         plan: DistributionPlan,
         created: [Int: DistributionSymlinkEvidence],
         quarantined: [Int: DistributionQuarantinedSymlink],
+        pending: [Int: DistributionRuntimeEvidence.Pending] = [:],
         record: DistributionOperationRecord,
         expectedOldOwnership: [DistributionLinkOwnership],
         error: Error,
@@ -1038,9 +1216,10 @@ nonisolated final class DistributionSymlinkExecutor {
         let runtime = try DistributionOperationPayloadCodec.decode(
             DistributionRuntimeEvidence.self,
             from: try runtimePayload(
-                created: created,
-                quarantined: quarantined,
-                oldOwnership: expectedOldOwnership
+                        created: created,
+                        quarantined: quarantined,
+                        pending: pending,
+                        oldOwnership: expectedOldOwnership
             )
         )
         let items = rollbackItems(runtime)
@@ -1056,9 +1235,10 @@ nonisolated final class DistributionSymlinkExecutor {
                 rollbackCursor: current.rollbackCursor,
                 cleanupCursor: 0,
                 runtimePayload: try runtimePayload(
-                    created: created,
-                    quarantined: quarantined,
-                    oldOwnership: expectedOldOwnership
+                        created: created,
+                        quarantined: quarantined,
+                        pending: pending,
+                        oldOwnership: expectedOldOwnership
                 ),
                 attemptCount: current.attemptCount + 1,
                 lastError: error.localizedDescription,
@@ -1093,6 +1273,7 @@ nonisolated final class DistributionSymlinkExecutor {
                 runtimePayload: try runtimePayload(
                     created: created,
                     quarantined: quarantined,
+                    pending: pending,
                     oldOwnership: expectedOldOwnership
                 ),
                 attemptCount: current.attemptCount + 1,
@@ -1423,6 +1604,7 @@ nonisolated final class DistributionSymlinkExecutor {
     private func runtimePayload(
         created: [Int: DistributionSymlinkEvidence],
         quarantined: [Int: DistributionQuarantinedSymlink],
+        pending: [Int: DistributionRuntimeEvidence.Pending] = [:],
         oldOwnership: [DistributionLinkOwnership] = []
     ) throws -> Data {
         let createdEvidence = try created.map {
@@ -1452,11 +1634,13 @@ nonisolated final class DistributionSymlinkExecutor {
                 verifiedAtMilliseconds: $0.verifiedAtMilliseconds
             )
         }.sorted { $0.targetScopeKey < $1.targetScopeKey }
+        let pendingEvidence = pending.values.sorted { $0.actionIndex < $1.actionIndex }
         return try DistributionOperationPayloadCodec.encode(
             DistributionRuntimeEvidence(
                 created: createdEvidence,
                 removed: removedEvidence,
-                oldOwnership: oldOwnershipEvidence
+                oldOwnership: oldOwnershipEvidence,
+                pending: pendingEvidence
             )
         )
     }

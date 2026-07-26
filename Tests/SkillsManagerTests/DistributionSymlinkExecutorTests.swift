@@ -114,6 +114,168 @@ struct DistributionSymlinkExecutorTests {
                 == transition.globalBindings)
         }
     }
+
+    @Test("recovers a create that reached disk before its cursor checkpoint")
+    func recoversPendingCreate() throws {
+        try withDistributionExecutorFixture { fixture in
+            let plan = try fixture.executor.dryRun(
+                skillID: fixture.skillID,
+                currentBindings: [],
+                desiredScope: .global(fixture.slug),
+                requiredAdapterCodes: Set(
+                    DistributionTargetCatalog.current.globalReaders.map(\.storageKey)
+                )
+            )
+            guard let action = plan.filesystemActions.first else {
+                Issue.record("create action is missing")
+                return
+            }
+            let operation = try fixture.executor.apply(
+                skillID: fixture.skillID,
+                plan: plan,
+                expectedOldBindings: [],
+                expectedOldOwnership: [],
+                nowMilliseconds: 10
+            )
+            let binding = try #require(try fixture.bindingStore.load(skillID: fixture.skillID).first)
+            let ownership = try #require(try fixture.ownershipStore.load(skillID: fixture.skillID).first)
+            try fixture.fileSystem.removeCreated(
+                action.entry,
+                expected: DistributionSymlinkEvidence(
+                    rootIdentity: ownership.rootIdentity,
+                    entryIdentity: ownership.entryIdentity,
+                    absoluteTarget: ownership.absoluteLinkTarget
+                )
+            )
+            _ = try fixture.ownershipStore.replace(
+                skillID: fixture.skillID,
+                expectedOld: [ownership],
+                desired: [],
+                appliedOperationID: operation.operationID,
+                nowMilliseconds: 20
+            )
+            _ = try fixture.bindingStore.replace(
+                skillID: fixture.skillID,
+                expectedOld: [binding],
+                desired: [],
+                nowMilliseconds: 20
+            )
+            let rootIdentity = try fixture.fileSystem.ensureRoot(for: action.entry.target.scope)
+            _ = try fixture.fileSystem.create(
+                action.entry,
+                absoluteTarget: fixture.ssot.path,
+                expectedRootIdentity: rootIdentity
+            )
+            try rewindOperation(
+                fixture.connection,
+                operationID: operation.operationID,
+                runtimePayload: try pendingRuntime(
+                    rootIdentity: rootIdentity,
+                    target: fixture.ssot.path,
+                    actionIndex: 0,
+                    kind: "create_symlink"
+                )
+            )
+            try fixture.executor.recoverAll()
+
+            let recovered = try fixture.operationStore.load(operation.operationID)
+            #expect(recovered.outcome == .rolledBack)
+            #expect(try fixture.fileSystem.observe(action.entry) == .missing(
+                rootIdentity: rootIdentity
+            ))
+        }
+    }
+
+    @Test("recovers a remove that reached quarantine before its cursor checkpoint")
+    func recoversPendingRemove() throws {
+        try withDistributionExecutorFixture { fixture in
+            let globalOperation = try applyGlobal(fixture)
+            let oldBinding = try #require(
+                try fixture.bindingStore.load(skillID: fixture.skillID).first
+            )
+            let oldOwnership = try #require(
+                try fixture.ownershipStore.load(skillID: fixture.skillID).first
+            )
+            let plan = try fixture.executor.dryRun(
+                skillID: fixture.skillID,
+                currentBindings: [oldBinding],
+                desiredScope: .disabled,
+                requiredAdapterCodes: []
+            )
+            let action = try #require(plan.filesystemActions.first)
+            let operation = try fixture.executor.apply(
+                skillID: fixture.skillID,
+                plan: plan,
+                expectedOldBindings: [oldBinding],
+                expectedOldOwnership: [oldOwnership],
+                nowMilliseconds: 20
+            )
+            let restoredRoot = try fixture.fileSystem.ensureRoot(for: action.entry.target.scope)
+            let recreated = try fixture.fileSystem.create(
+                action.entry,
+                absoluteTarget: oldOwnership.absoluteLinkTarget,
+                expectedRootIdentity: restoredRoot
+            )
+            let rewoundOwnership = try DistributionLinkOwnership(
+                skillID: fixture.skillID,
+                targetScopeKey: oldOwnership.targetScopeKey,
+                appliedOperationID: globalOperation.operationID,
+                rootIdentity: recreated.rootIdentity,
+                entryIdentity: recreated.entryIdentity,
+                absoluteLinkTarget: recreated.absoluteTarget,
+                verifiedAtMilliseconds: 30
+            )
+            _ = try fixture.bindingStore.replace(
+                skillID: fixture.skillID,
+                expectedOld: [],
+                desired: [oldBinding.intent],
+                nowMilliseconds: 30
+            )
+            _ = try fixture.ownershipStore.replace(
+                skillID: fixture.skillID,
+                expectedOld: [],
+                desired: [rewoundOwnership],
+                appliedOperationID: globalOperation.operationID,
+                nowMilliseconds: 30
+            )
+            _ = try fixture.fileSystem.quarantine(
+                action.entry,
+                expected: DistributionSymlinkEvidence(
+                    rootIdentity: rewoundOwnership.rootIdentity,
+                    entryIdentity: rewoundOwnership.entryIdentity,
+                    absoluteTarget: rewoundOwnership.absoluteLinkTarget
+                ),
+                operationID: operation.operationID.uuid,
+                actionIndex: 0
+            )
+            try rewindOperation(
+                fixture.connection,
+                operationID: operation.operationID,
+                runtimePayload: try pendingRuntime(
+                    oldOwnership: operation.runtimePayload,
+                    oldOwnershipOverride: [rewoundOwnership],
+                    rootIdentity: rewoundOwnership.rootIdentity,
+                    entryIdentity: rewoundOwnership.entryIdentity,
+                    target: rewoundOwnership.absoluteLinkTarget,
+                    actionIndex: 0,
+                    kind: "remove_symlink",
+                    temporaryName: DistributionSymlinkFileSystem.temporaryName(
+                        operationID: operation.operationID.uuid,
+                        actionIndex: 0
+                    )
+                )
+            )
+            try fixture.executor.recoverAll()
+
+            let recovered = try fixture.operationStore.load(operation.operationID)
+            #expect(recovered.outcome == .rolledBack)
+            #expect(try fixture.fileSystem.observe(action.entry) == .symlink(
+                rootIdentity: rewoundOwnership.rootIdentity,
+                entryIdentity: rewoundOwnership.entryIdentity,
+                target: rewoundOwnership.absoluteLinkTarget
+            ))
+        }
+    }
 }
 
 private struct DistributionExecutorFixture {
@@ -258,18 +420,85 @@ private func rewindDatabase(
 
 private func rewindOperation(
     _ connection: SQLiteConnection,
-    operationID: SSOTOperationID
+    operationID: SSOTOperationID,
+    runtimePayload: Data? = nil
 ) throws {
     let statement = try connection.prepare(
-        """
-        UPDATE distribution_operations
-        SET phase = 'filesystemApplied', outcome = NULL, cleanup_cursor = 0,
-            last_error = NULL
-        WHERE operation_id = ?
-        """
+        runtimePayload == nil
+            ? """
+              UPDATE distribution_operations
+              SET phase = 'filesystemApplied', outcome = NULL, cleanup_cursor = 0,
+                  last_error = NULL
+              WHERE operation_id = ?
+              """
+            : """
+              UPDATE distribution_operations
+              SET phase = 'applying', outcome = NULL, forward_cursor = 0,
+                  rollback_cursor = 0, cleanup_cursor = 0, runtime_payload = ?,
+                  last_error = NULL
+              WHERE operation_id = ?
+              """
     )
-    try statement.bind(operationID.bytes, at: 1)
+    if let runtimePayload {
+        try statement.bind(runtimePayload, at: 1)
+        try statement.bind(operationID.bytes, at: 2)
+    } else {
+        try statement.bind(operationID.bytes, at: 1)
+    }
     guard try !statement.step() else {
         throw DistributionOperationStoreError.invalidRecord
     }
+}
+
+private func pendingRuntime(
+    oldOwnership: Data? = nil,
+    oldOwnershipOverride: [DistributionLinkOwnership] = [],
+    rootIdentity: ManagedItemIdentity,
+    entryIdentity: ManagedItemIdentity? = nil,
+    target: String,
+    actionIndex: Int,
+    kind: String,
+    temporaryName: String? = nil
+) throws -> Data {
+    var object: [String: Any] = [
+        "created": [],
+        "removed": [],
+        "pending": [[
+            "actionIndex": actionIndex,
+            "kind": kind,
+            "rootIdentity": try ManagedItemIdentityCodec.encode(rootIdentity)
+                .base64EncodedString(),
+            "absoluteLinkTarget": target,
+        ]],
+    ]
+    if !oldOwnershipOverride.isEmpty {
+        object["oldOwnership"] = try oldOwnershipOverride.map {
+            [
+                "targetScopeKey": $0.targetScopeKey,
+                "appliedOperationID": $0.appliedOperationID.bytes.base64EncodedString(),
+                "rootIdentity": try ManagedItemIdentityCodec.encode($0.rootIdentity)
+                    .base64EncodedString(),
+                "entryIdentity": try ManagedItemIdentityCodec.encode($0.entryIdentity)
+                    .base64EncodedString(),
+                "absoluteLinkTarget": $0.absoluteLinkTarget,
+                "verifiedAtMilliseconds": $0.verifiedAtMilliseconds,
+            ]
+        }
+    } else if let oldOwnership {
+        let decoded = try JSONSerialization.jsonObject(with: oldOwnership)
+        object["oldOwnership"] = decoded
+    }
+    var pending = object["pending"] as! [[String: Any]]
+    if let entryIdentity {
+        pending[0]["entryIdentity"] = try ManagedItemIdentityCodec.encode(entryIdentity)
+            .base64EncodedString()
+    }
+    if let temporaryName {
+        pending[0]["temporaryName"] = temporaryName
+    }
+    object["pending"] = pending
+    return try JSONSerialization.data(
+        withJSONObject: object,
+        options: [.sortedKeys, .withoutEscapingSlashes]
+    )
 }
