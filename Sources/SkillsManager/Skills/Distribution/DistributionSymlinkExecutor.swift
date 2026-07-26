@@ -1012,6 +1012,18 @@ nonisolated final class DistributionSymlinkExecutor {
         switch action.kind {
         case DistributionFilesystemActionKind.createSymlink.rawValue:
             switch try fileSystem.observe(entry) {
+            case .missing(let observedRoot) where observedRoot == rootIdentity:
+                // A missing target with the same root proves the create syscall did not
+                // materialize. Record synthetic evidence so the journal can advance and
+                // rollback remains idempotent if the target appears before cleanup.
+                return .created(
+                    DistributionRuntimeEvidence.Created(
+                        actionIndex: pending.actionIndex,
+                        rootIdentity: pending.rootIdentity,
+                        entryIdentity: pending.rootIdentity,
+                        absoluteLinkTarget: pending.absoluteLinkTarget
+                    )
+                )
             case .missing:
                 throw DistributionSymlinkExecutorError.needsRepair(
                     "pending create action was not materialized"

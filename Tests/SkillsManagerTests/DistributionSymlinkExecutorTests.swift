@@ -186,6 +186,70 @@ struct DistributionSymlinkExecutorTests {
         }
     }
 
+    @Test("treats a pre-syscall create checkpoint as an idempotent no-op")
+    func recoversPendingCreateBeforeSyscall() throws {
+        try withDistributionExecutorFixture { fixture in
+            let plan = try fixture.executor.dryRun(
+                skillID: fixture.skillID,
+                currentBindings: [],
+                desiredScope: .global(fixture.slug),
+                requiredAdapterCodes: Set(
+                    DistributionTargetCatalog.current.globalReaders.map(\.storageKey)
+                )
+            )
+            let action = try #require(plan.filesystemActions.first)
+            let operation = try fixture.executor.apply(
+                skillID: fixture.skillID,
+                plan: plan,
+                expectedOldBindings: [],
+                expectedOldOwnership: [],
+                nowMilliseconds: 10
+            )
+            let binding = try #require(try fixture.bindingStore.load(skillID: fixture.skillID).first)
+            let ownership = try #require(try fixture.ownershipStore.load(skillID: fixture.skillID).first)
+            try fixture.fileSystem.removeCreated(
+                action.entry,
+                expected: DistributionSymlinkEvidence(
+                    rootIdentity: ownership.rootIdentity,
+                    entryIdentity: ownership.entryIdentity,
+                    absoluteTarget: ownership.absoluteLinkTarget
+                )
+            )
+            _ = try fixture.ownershipStore.replace(
+                skillID: fixture.skillID,
+                expectedOld: [ownership],
+                desired: [],
+                appliedOperationID: operation.operationID,
+                nowMilliseconds: 20
+            )
+            _ = try fixture.bindingStore.replace(
+                skillID: fixture.skillID,
+                expectedOld: [binding],
+                desired: [],
+                nowMilliseconds: 20
+            )
+            let rootIdentity = try fixture.fileSystem.ensureRoot(for: action.entry.target.scope)
+            try rewindOperation(
+                fixture.connection,
+                operationID: operation.operationID,
+                runtimePayload: try pendingRuntime(
+                    rootIdentity: rootIdentity,
+                    target: fixture.ssot.path,
+                    actionIndex: 0,
+                    kind: "create_symlink"
+                )
+            )
+
+            try fixture.executor.recoverAll()
+
+            let recovered = try fixture.operationStore.load(operation.operationID)
+            #expect(recovered.outcome == .rolledBack)
+            #expect(try fixture.fileSystem.observe(action.entry) == .missing(
+                rootIdentity: rootIdentity
+            ))
+        }
+    }
+
     @Test("recovers a remove that reached quarantine before its cursor checkpoint")
     func recoversPendingRemove() throws {
         try withDistributionExecutorFixture { fixture in
