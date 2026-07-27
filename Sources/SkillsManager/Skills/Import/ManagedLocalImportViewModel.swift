@@ -8,11 +8,12 @@ import Observation
     private(set) var problem: ManagedLocalImportProblem?
     private(set) var isPreparing = false
     private(set) var isExecuting = false
+    private(set) var isFinalizing = false
 
     private var service: ManagedLocalImportService?
     private var generation: UInt64 = 0
 
-    var isWorking: Bool { isPreparing || isExecuting }
+    var isWorking: Bool { isPreparing || isExecuting || isFinalizing }
     var isAvailable: Bool { service != nil }
 
     func activate(writer: JournaledSSOTWriter?) {
@@ -25,7 +26,11 @@ import Observation
             problem = .failed("The managed library session is unavailable.")
             return
         }
-        service = ManagedLocalImportService(dependencies: .live(writer: writer))
+        activate(dependencies: .live(writer: writer))
+    }
+
+    func activate(dependencies: ManagedLocalImportDependencies) {
+        service = ManagedLocalImportService(dependencies: dependencies)
     }
 
     func prepare(
@@ -67,18 +72,23 @@ import Observation
         }
     }
 
-    func confirm() async {
+    func confirm(finalize: @MainActor () async -> Void = {}) async {
         guard !isWorking, let preview, let service else { return }
         isExecuting = true
         problem = nil
-        defer { isExecuting = false }
         do {
             result = try await service.execute(preview.token)
             self.preview = nil
+            isFinalizing = true
+            isExecuting = false
+            await finalize()
+            isFinalizing = false
         } catch let problem as ManagedLocalImportProblem {
             self.problem = problem
+            isExecuting = false
         } catch {
             problem = .failed(error.localizedDescription)
+            isExecuting = false
         }
     }
 

@@ -69,6 +69,40 @@ struct ManagedLocalImportServiceTests {
         }
     }
 
+    @Test("committed result stays terminal while refresh is delayed")
+    func resultStaysTerminalDuringFinalization() async throws {
+        try await withImportCandidate { candidate in
+            await Task { @MainActor in
+                let probe = ManagedLocalImportProbe()
+                let gate = ManagedLocalImportFinalizationGate()
+                let model = ManagedLocalImportViewModel()
+                model.activate(dependencies: probe.dependencies())
+                await model.prepare(
+                    candidate: candidate,
+                    displayName: "Demo",
+                    scope: .global
+                )
+
+                let confirmation = Task { @MainActor in
+                    await model.confirm {
+                        await gate.wait()
+                    }
+                }
+                #expect(await gate.waitUntilWaiting())
+                #expect(model.result?.status == .distributed)
+                #expect(model.preview == nil)
+                #expect(model.isFinalizing)
+                #expect(model.isWorking)
+
+                model.reset()
+                #expect(model.result?.status == .distributed)
+                await gate.open()
+                await confirmation.value
+                #expect(!model.isWorking)
+            }.value
+        }
+    }
+
     @Test("ZIP candidate keeps one stable Skill identity through SSOT and distribution")
     func zipImport() async throws {
         try await withZipImportCandidate { candidate in
@@ -197,7 +231,7 @@ struct ManagedLocalImportServiceTests {
     func unknownCreateResult() async throws {
         try await withImportCandidate { candidate in
             let probe = ManagedLocalImportProbe(
-                createThrows: true,
+                createFailure: .generic,
                 readbackState: .init(
                     phase: .prepared,
                     outcome: .pending,
@@ -217,6 +251,102 @@ struct ManagedLocalImportServiceTests {
             #expect(first == repeated)
             #expect(await probe.createCount == 1)
             #expect(await probe.applyCount == 0)
+        }
+    }
+
+    @Test("terminal create rollback is a stable failure")
+    func createRollback() async throws {
+        try await withImportCandidate { candidate in
+            let probe = ManagedLocalImportProbe(readbackState: .init(
+                phase: .completed,
+                outcome: .rolledBack,
+                cleanupState: .notApplicable
+            ))
+            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let preview = try await service.prepare(
+                candidate: candidate,
+                displayName: "Demo",
+                scope: .global
+            )
+
+            await #expect(throws: ManagedLocalImportProblem.createRolledBack) {
+                _ = try await service.execute(preview.token)
+            }
+            await #expect(throws: ManagedLocalImportProblem.createRolledBack) {
+                _ = try await service.execute(preview.token)
+            }
+            #expect(await probe.createCount == 1)
+            #expect(await probe.applyCount == 0)
+        }
+    }
+
+    @Test("create repair state is a stable failure")
+    func createNeedsRepair() async throws {
+        try await withImportCandidate { candidate in
+            let probe = ManagedLocalImportProbe(readbackState: .init(
+                phase: .prepared,
+                outcome: .needsRepair,
+                cleanupState: .notApplicable
+            ))
+            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let preview = try await service.prepare(
+                candidate: candidate,
+                displayName: "Demo",
+                scope: .global
+            )
+
+            await #expect(throws: ManagedLocalImportProblem.needsRepair) {
+                _ = try await service.execute(preview.token)
+            }
+            #expect(await probe.createCount == 1)
+            #expect(await probe.applyCount == 0)
+        }
+    }
+
+    @Test("pre-journal permission failure stays retry-safe")
+    func preJournalPermissionFailure() async throws {
+        try await withImportCandidate { candidate in
+            let probe = ManagedLocalImportProbe(
+                createFailure: .permission,
+                operationReadbackFound: false
+            )
+            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let preview = try await service.prepare(
+                candidate: candidate,
+                displayName: "Demo",
+                scope: .global
+            )
+
+            await #expect(throws: ManagedLocalImportProblem.permissionDenied) {
+                _ = try await service.execute(preview.token)
+            }
+            await #expect(throws: ManagedLocalImportProblem.permissionDenied) {
+                _ = try await service.execute(preview.token)
+            }
+            #expect(await probe.createCount == 1)
+            #expect(await probe.applyCount == 0)
+        }
+    }
+
+    @Test("Skill readback proves a committed create without its operation row")
+    func skillReadbackProvesCommit() async throws {
+        try await withImportCandidate { candidate in
+            let probe = ManagedLocalImportProbe(
+                createFailure: .generic,
+                operationReadbackFound: false,
+                skillExistsOnReadback: true
+            )
+            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let preview = try await service.prepare(
+                candidate: candidate,
+                displayName: "Demo",
+                scope: .global
+            )
+
+            let result = try await service.execute(preview.token)
+            #expect(result.status == .distributed)
+            #expect(await probe.createCount == 1)
+            #expect(await probe.applyCount == 1)
         }
     }
 

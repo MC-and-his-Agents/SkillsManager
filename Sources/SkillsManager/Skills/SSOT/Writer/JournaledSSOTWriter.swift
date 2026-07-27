@@ -210,6 +210,11 @@ actor JournaledSSOTWriter {
         return try journal.loadOperation(operationID)
     }
 
+    func managedSkillReadback(_ skillID: SkillID) throws -> ManagedSkillRecord? {
+        try requireAuthority()
+        return try journal.managedSkillRecord(skillID)
+    }
+
     func importNew(
         payload: SSOTSkillWritePayload,
         sourceSnapshot: SkillContentSnapshot,

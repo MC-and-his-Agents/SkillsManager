@@ -36,7 +36,6 @@ struct ImportSkillView: View {
         case valid
         case invalid
         case preparing
-        case imported
     }
 
     var body: some View {
@@ -85,21 +84,23 @@ struct ImportSkillView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch status {
-        case .idle:
-            emptyState
-        case .validating:
-            ProgressView("Validating…")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .valid:
-            candidatePreview
-        case .invalid:
-            invalidState
-        case .preparing:
-            ProgressView("Preparing import preview…")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .imported:
+        if model.result != nil {
             resultState
+        } else {
+            switch status {
+            case .idle:
+                emptyState
+            case .validating:
+                ProgressView("Validating…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .valid:
+                candidatePreview
+            case .invalid:
+                invalidState
+            case .preparing:
+                ProgressView("Preparing import preview…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 
@@ -123,11 +124,16 @@ struct ImportSkillView: View {
 
     private var resultState: some View {
         let presentation = resultPresentation
-        return ContentUnavailableView(
-            presentation.title,
-            systemImage: presentation.systemImage,
-            description: Text(presentation.message)
-        )
+        return VStack {
+            ContentUnavailableView(
+                presentation.title,
+                systemImage: presentation.systemImage,
+                description: Text(presentation.message)
+            )
+            if model.isFinalizing {
+                ProgressView("Refreshing library…")
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -250,32 +256,43 @@ struct ImportSkillView: View {
         .accessibilityElement(children: .contain)
     }
 
+    @ViewBuilder
     private var actions: some View {
-        HStack {
-            Button("Cancel") {
-                cancelAndDismiss()
+        if model.result != nil {
+            HStack {
+                Spacer()
+                Button("Close") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(model.isWorking)
             }
-            .keyboardShortcut(.cancelAction)
-            .disabled(model.isWorking)
+        } else {
+            HStack {
+                Button("Cancel") {
+                    cancelAndDismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+                .disabled(model.isWorking)
 
-            Spacer()
+                Spacer()
 
-            Button("Choose…") {
-                showingPicker = true
+                Button("Choose…") {
+                    showingPicker = true
+                }
+                .disabled(model.isWorking)
+
+                Button("Review Import…") {
+                    prepareImport()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canPrepareImport)
+                .keyboardShortcut(.defaultAction)
             }
-            .disabled(model.isWorking)
-
-            Button("Review Import…") {
-                prepareImport()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!canPrepareImport)
-            .keyboardShortcut(.defaultAction)
         }
     }
 
     private var canPrepareImport: Bool {
         status == .valid
+            && model.result == nil
             && model.isAvailable
             && !model.isWorking
             && (distributionMode == .global || !selectedAgents.isEmpty)
@@ -371,17 +388,15 @@ struct ImportSkillView: View {
         let token = operationToken
         activeTask?.cancel()
         activeTask = Task {
-            await model.confirm()
+            await model.confirm {
+                await store.loadSkills()
+                await discoveryModel.refresh()
+                await cleanupCandidate()
+            }
             guard operationToken == token else { return }
             if let problem = model.problem {
                 errorMessage = problem.localizedDescription
-                return
             }
-            guard model.result != nil else { return }
-            await store.loadSkills()
-            await discoveryModel.refresh()
-            await cleanupCandidate()
-            status = .imported
         }
     }
 
@@ -389,10 +404,13 @@ struct ImportSkillView: View {
         let task = activeTask
         activeTask = nil
         operationToken = UUID()
-        task?.cancel()
+        let temporaryRoot = candidate?.payload.temporaryRoot
+        candidate = nil
         Task {
-            await task?.value
-            await cleanupCandidate()
+            await importWorker.cleanupTemporaryRoot(
+                temporaryRoot,
+                afterCancelling: task
+            )
             dismiss()
         }
     }
@@ -401,14 +419,13 @@ struct ImportSkillView: View {
         let task = activeTask
         activeTask = nil
         operationToken = UUID()
-        task?.cancel()
         let temporaryRoot = candidate?.payload.temporaryRoot
         candidate = nil
         Task {
-            await task?.value
-            if let temporaryRoot {
-                await importWorker.cleanupTemporaryRoot(temporaryRoot)
-            }
+            await importWorker.cleanupTemporaryRoot(
+                temporaryRoot,
+                afterCancelling: task
+            )
         }
     }
 

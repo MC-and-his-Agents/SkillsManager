@@ -152,6 +152,17 @@ actor SkillImportWorker {
         removeTemporaryRoot(lease)
     }
 
+    func cleanupTemporaryRoot(
+        _ lease: TemporaryItemLease?,
+        afterCancelling consumer: Task<Void, Never>?
+    ) async {
+        consumer?.cancel()
+        await consumer?.value
+        if let lease {
+            removeTemporaryRoot(lease)
+        }
+    }
+
     private func makePayload(
         rootURL: URL,
         temporaryRoot: TemporaryItemLease?,

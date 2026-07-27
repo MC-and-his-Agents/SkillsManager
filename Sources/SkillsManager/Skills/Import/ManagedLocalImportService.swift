@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 nonisolated enum ManagedLocalImportScope: Equatable, Sendable {
@@ -52,8 +53,11 @@ nonisolated enum ManagedLocalImportProblem: LocalizedError, Equatable, Sendable 
     case emptyAgentSelection
     case invalidCandidate
     case operationInProgress
+    case permissionDenied
     case previewBlocked
     case previewExpired
+    case createRolledBack
+    case needsRepair
     case sourceChanged
     case tokenExpired
     case failed(String)
@@ -66,10 +70,16 @@ nonisolated enum ManagedLocalImportProblem: LocalizedError, Equatable, Sendable 
             "The selected Skill is no longer valid."
         case .operationInProgress:
             "This import is already in progress."
+        case .permissionDenied:
+            "Skills Manager does not have permission to import this Skill."
         case .previewBlocked:
             "Resolve the distribution conflicts before importing."
         case .previewExpired:
             "The import preview changed. Review it again before importing."
+        case .createRolledBack:
+            "The Skill was not imported because the managed write was rolled back."
+        case .needsRepair:
+            "The managed library requires repair before another import can start."
         case .sourceChanged:
             "The selected Skill changed after validation. Choose it again."
         case .tokenExpired:
@@ -92,6 +102,7 @@ nonisolated struct ManagedLocalImportDependencies: Sendable {
         SSOTOperationID
     ) async throws -> SSOTJournalRecord
     let createReadback: @Sendable (SSOTOperationID) async throws -> SSOTJournalRecord
+    let skillReadback: @Sendable (SkillID) async throws -> ManagedSkillRecord?
     let apply: @Sendable (SkillID, DistributionPlan) async throws -> DistributionOperationRecord
     let reconcile: @Sendable (SkillID) async throws -> DistributionReconcileResult
     let nowMilliseconds: @Sendable () -> Int64
@@ -108,6 +119,7 @@ nonisolated struct ManagedLocalImportDependencies: Sendable {
                 )
             },
             createReadback: { try await writer.ssotOperationReadback($0) },
+            skillReadback: { try await writer.managedSkillReadback($0) },
             apply: distribution.apply,
             reconcile: distribution.reconcile,
             nowMilliseconds: { max(0, Int64(Date().timeIntervalSince1970 * 1_000)) }
@@ -229,7 +241,12 @@ actor ManagedLocalImportService {
             snapshot: pending.candidate.snapshot,
             operationID: pending.operationID
         )
-        guard createState == .committed else {
+        switch createState {
+        case .committed:
+            break
+        case .failed(let problem):
+            throw problem
+        case .indeterminate:
             return result(preview, status: .managementIndeterminate)
         }
 
@@ -242,6 +259,7 @@ actor ManagedLocalImportService {
 
     private enum CreateState: Equatable {
         case committed
+        case failed(ManagedLocalImportProblem)
         case indeterminate
     }
 
@@ -252,17 +270,90 @@ actor ManagedLocalImportService {
     ) async -> CreateState {
         do {
             let record = try await dependencies.create(payload, snapshot, operationID)
-            return isCommitted(record) ? .committed : .indeterminate
-        } catch {
-            guard let record = try? await dependencies.createReadback(operationID) else {
+            return createState(record)
+        } catch let createError {
+            do {
+                return createState(try await dependencies.createReadback(operationID))
+            } catch SSOTJournalStoreError.operationNotFound {
+                do {
+                    guard let skill = try await dependencies.skillReadback(payload.skill.skillID)
+                    else {
+                        return .failed(problem(for: createError))
+                    }
+                    guard skill == payload.skill else {
+                        return .failed(.needsRepair)
+                    }
+                    return .committed
+                } catch {
+                    return .indeterminate
+                }
+            } catch {
                 return .indeterminate
             }
-            return isCommitted(record) ? .committed : .indeterminate
         }
     }
 
-    private func isCommitted(_ record: SSOTJournalRecord) -> Bool {
-        record.state.phase == .completed && record.state.outcome == .applied
+    private func createState(_ record: SSOTJournalRecord) -> CreateState {
+        if record.state.outcome == .needsRepair || record.state.cleanupState == .needsRepair {
+            return .failed(.needsRepair)
+        }
+        guard record.state.phase == .completed else { return .indeterminate }
+        switch record.state.outcome {
+        case .applied:
+            return .committed
+        case .rolledBack:
+            return .failed(.createRolledBack)
+        case .needsRepair:
+            return .failed(.needsRepair)
+        case .pending:
+            return .indeterminate
+        }
+    }
+
+    private func problem(for error: Error) -> ManagedLocalImportProblem {
+        if error is CancellationError {
+            return .failed("Import was cancelled.")
+        }
+        if let error = error as? JournaledSSOTWriterError {
+            switch error {
+            case .operationNeedsRepair:
+                return .needsRepair
+            case .operationRolledBack:
+                return .createRolledBack
+            case .invalidInput, .recoveryDidNotConverge:
+                return .failed(error.localizedDescription)
+            }
+        }
+        if let error = error as? SSOTWriterOwnershipError {
+            switch error {
+            case .busy:
+                return .operationInProgress
+            case .posix(_, let code) where code == EACCES || code == EPERM:
+                return .permissionDenied
+            default:
+                return .failed(error.localizedDescription)
+            }
+        }
+        if let error = error as? SkillContentSnapshotError {
+            if case .fileSystemFailure(_, let code) = error,
+               code == EACCES || code == EPERM {
+                return .permissionDenied
+            }
+            return .sourceChanged
+        }
+        if let error = error as? ManagedPathError {
+            if case .posix(_, let code) = error,
+               code == EACCES || code == EPERM {
+                return .permissionDenied
+            }
+            return .failed(error.localizedDescription)
+        }
+        let nsError = error as NSError
+        if nsError.domain == NSPOSIXErrorDomain,
+           nsError.code == Int(EACCES) || nsError.code == Int(EPERM) {
+            return .permissionDenied
+        }
+        return .failed(error.localizedDescription)
     }
 
     private func distribute(

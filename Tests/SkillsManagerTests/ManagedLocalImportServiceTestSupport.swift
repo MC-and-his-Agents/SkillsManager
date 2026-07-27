@@ -5,10 +5,18 @@ import Testing
 @testable import SkillsManager
 
 actor ManagedLocalImportProbe {
+    enum CreateFailure {
+        case none
+        case generic
+        case permission
+    }
+
     private let planStatuses: [DistributionPlanStatus]
     private let createDelay: Duration?
-    private let createThrows: Bool
+    private let createFailure: CreateFailure
     private let readbackState: SSOTJournalState
+    private let operationReadbackFound: Bool
+    private let skillExistsOnReadback: Bool
     private let applyThrows: Bool
     private let reconcileStatus: DistributionReconcileStatus
     private var planIndex = 0
@@ -23,19 +31,23 @@ actor ManagedLocalImportProbe {
     init(
         planStatuses: [DistributionPlanStatus] = [.executable],
         createDelay: Duration? = nil,
-        createThrows: Bool = false,
+        createFailure: CreateFailure = .none,
         readbackState: SSOTJournalState = .init(
             phase: .completed,
             outcome: .applied,
             cleanupState: .notApplicable
         ),
+        operationReadbackFound: Bool = true,
+        skillExistsOnReadback: Bool = false,
         applyThrows: Bool = false,
         reconcileStatus: DistributionReconcileStatus = .inSync
     ) {
         self.planStatuses = planStatuses
         self.createDelay = createDelay
-        self.createThrows = createThrows
+        self.createFailure = createFailure
         self.readbackState = readbackState
+        self.operationReadbackFound = operationReadbackFound
+        self.skillExistsOnReadback = skillExistsOnReadback
         self.applyThrows = applyThrows
         self.reconcileStatus = reconcileStatus
     }
@@ -49,6 +61,7 @@ actor ManagedLocalImportProbe {
                 try await self.create(payload: payload, operationID: operationID)
             },
             createReadback: { try await self.readback(operationID: $0) },
+            skillReadback: { try await self.skillReadback(skillID: $0) },
             apply: { skillID, _ in try await self.apply(skillID: skillID) },
             reconcile: { _ in await self.reconcile() },
             nowMilliseconds: { 100 }
@@ -122,8 +135,13 @@ actor ManagedLocalImportProbe {
         if let createDelay {
             try await Task.sleep(for: createDelay)
         }
-        if createThrows {
+        switch createFailure {
+        case .none:
+            break
+        case .generic:
             throw ManagedLocalImportProblem.failed("injected create failure")
+        case .permission:
+            throw ManagedPathError.posix(operation: "create", code: EACCES)
         }
         return try importJournalRecord(
             payload: payload,
@@ -133,6 +151,9 @@ actor ManagedLocalImportProbe {
     }
 
     private func readback(operationID: SSOTOperationID) throws -> SSOTJournalRecord {
+        guard operationReadbackFound else {
+            throw SSOTJournalStoreError.operationNotFound
+        }
         guard operationID == lastOperationID, let lastPayload else {
             throw SSOTJournalStoreError.operationNotFound
         }
@@ -141,6 +162,15 @@ actor ManagedLocalImportProbe {
             operationID: operationID,
             state: readbackState
         )
+    }
+
+    private func skillReadback(skillID: SkillID) throws -> ManagedSkillRecord? {
+        guard skillExistsOnReadback,
+              let skill = lastPayload?.skill,
+              skill.skillID == skillID else {
+            return nil
+        }
+        return skill
     }
 
     private func apply(skillID: SkillID) throws -> DistributionOperationRecord {
@@ -189,4 +219,30 @@ private func importIdentity(inode: UInt64) -> ManagedItemIdentity {
         fileType: UInt32(S_IFDIR),
         generation: 0
     ))
+}
+
+actor ManagedLocalImportFinalizationGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var waiting = false
+
+    func wait() async {
+        await withCheckedContinuation {
+            continuation = $0
+            waiting = true
+        }
+    }
+
+    func waitUntilWaiting() async -> Bool {
+        for _ in 0..<10_000 {
+            if waiting { return true }
+            await Task.yield()
+        }
+        return false
+    }
+
+    func open() {
+        continuation?.resume()
+        continuation = nil
+        waiting = false
+    }
 }
