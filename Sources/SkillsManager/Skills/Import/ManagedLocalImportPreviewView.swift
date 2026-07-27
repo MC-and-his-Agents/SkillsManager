@@ -9,9 +9,11 @@ struct ManagedLocalImportPreviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Review Import")
+            Text(preview.disposition == .updateRequired ? "Review Update" : "Review Import")
                 .font(.title.bold())
-            Text("The Skill will be added to the managed library before distribution.")
+            Text(preview.disposition == .updateRequired
+                ? "The current managed content will be backed up before replacement."
+                : "The Skill will be added to the managed library before distribution.")
                 .foregroundStyle(.secondary)
 
             if preview.disposition == .alreadyManaged {
@@ -21,7 +23,7 @@ struct ManagedLocalImportPreviewView: View {
                 )
             } else if preview.disposition == .updateRequired {
                 Label(
-                    "A different version or content is already managed. Use Update when that workflow is available.",
+                    "Update the managed SSOT while keeping its Skill identity and current Agent access.",
                     systemImage: "arrow.triangle.2.circlepath"
                 )
             } else if preview.plan.status == .blocked {
@@ -118,8 +120,10 @@ struct ManagedLocalImportPreviewView: View {
 
     private var confirmTitle: String {
         switch preview.disposition {
-        case .alreadyManaged, .updateRequired:
+        case .alreadyManaged:
             "Done"
+        case .updateRequired:
+            "Update"
         case .createNew where preview.plan.status == .blocked:
             "Add without enabling"
         case .createNew:

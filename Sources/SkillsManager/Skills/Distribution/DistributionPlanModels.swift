@@ -27,6 +27,30 @@ nonisolated enum DistributionDesiredScope: Sendable {
 nonisolated struct DistributionSelectionReadback: Sendable {
     let bindings: [DistributionBinding]
     let isExplicitlyConfigured: Bool
+
+    func desiredScope(for skillID: SkillID) throws -> DistributionDesiredScope {
+        guard bindings.allSatisfy({
+            $0.skillID == skillID && $0.syncMode == .symlink
+        }) else {
+            throw DistributionSelectionError.invalidBindings
+        }
+        guard let slug = bindings.first?.distributionSlug else { return .disabled }
+        guard bindings.allSatisfy({ $0.distributionSlug == slug }) else {
+            throw DistributionSelectionError.invalidBindings
+        }
+        if bindings.count == 1, bindings[0].scope == .global {
+            return .global(slug)
+        }
+        let agents = Set(bindings.compactMap(\.scope.adapter))
+        guard agents.count == bindings.count else {
+            throw DistributionSelectionError.invalidBindings
+        }
+        return .agents(agents, slug)
+    }
+}
+
+nonisolated enum DistributionSelectionError: Error {
+    case invalidBindings
 }
 nonisolated enum DistributionTargetObservation: Hashable, Sendable {
     case missing

@@ -89,6 +89,20 @@ nonisolated final class SkillBackupStore {
         return records
     }
 
+    func independentPreparing() throws -> [SkillBackupRecord] {
+        let statement = try connection.prepare(
+            Self.selectSQL
+                + " AND state = 'preparing'"
+                + " AND NOT EXISTS ("
+                + "SELECT 1 FROM skill_deletion_operations AS deletion "
+                + "WHERE deletion.backup_id = skill_backups.backup_id"
+                + ") ORDER BY created_at_ms, backup_id"
+        )
+        var records: [SkillBackupRecord] = []
+        while try statement.step() { records.append(try decode(statement)) }
+        return records
+    }
+
     func replace(
         expected old: SkillBackupRecord,
         with replacement: SkillBackupRecord

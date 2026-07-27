@@ -102,6 +102,7 @@ actor JournaledSSOTWriter {
         )
         try await writer.recoverAll()
         try await writer.recoverDeletions()
+        try await writer.recoverIndependentUpdateBackups()
         return writer
     }
 

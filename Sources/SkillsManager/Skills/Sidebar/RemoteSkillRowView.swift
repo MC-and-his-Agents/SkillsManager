@@ -41,12 +41,17 @@ struct RemoteSkillRowView: View {
             Button {
                 onInstall()
             } label: {
-                Image(systemName: isInstalledEverywhere ? "checkmark.circle.fill" : "arrow.down.circle")
-                    .foregroundStyle(isInstalledEverywhere ? .green : .primary)
+                Image(systemName: isInstalled
+                    ? "arrow.triangle.2.circlepath.circle"
+                    : "arrow.down.circle")
             }
             .buttonStyle(.borderless)
-            .disabled(isInstalledEverywhere)
-            .help(isInstalledEverywhere ? "Installed" : "Install")
+            .help(isInstalled ? "Review or update" : "Install")
+            .accessibilityLabel(
+                isInstalled
+                    ? "Review or update \(skill.displayName)"
+                    : "Install \(skill.displayName)"
+            )
         }
     }
 
@@ -57,7 +62,5 @@ struct RemoteSkillRowView: View {
         return "⬇ \(downloads)  ⭐ \(stars)"
     }
 
-    private var isInstalledEverywhere: Bool {
-        installedTargets == Set(SkillPlatform.allCases)
-    }
+    private var isInstalled: Bool { !installedTargets.isEmpty }
 }

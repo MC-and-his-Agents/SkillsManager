@@ -11,23 +11,37 @@ actor ManagedLocalImportProbe {
         case permission
     }
 
+    enum ReplaceFailure: Equatable {
+        case none
+        case beforeJournal
+        case afterCommit
+    }
+
     private let planStatuses: [DistributionPlanStatus]
     private let createDelay: Duration?
     private let createFailure: CreateFailure
+    private let replaceDelay: Duration?
+    private let replaceFailure: ReplaceFailure
     private let readbackState: SSOTJournalState
     private let operationReadbackFound: Bool
     private let skillExistsOnReadback: Bool
     private let existingPayload: SSOTSkillWritePayload?
     private let existingProvenance: ProviderProvenanceRecord?
+    private let baselineNeedsRepair: Bool
     private let provenanceAppearsAfterCreate: Bool
     private let applyThrows: Bool
     private let reconcileStatus: DistributionReconcileStatus
+    private let reconcileThrows: Bool
+    private let existingBindings: [DistributionBinding]
     private var planIndex = 0
     private var lastPayload: SSOTSkillWritePayload?
     private var lastOperationID: SSOTOperationID?
+    private var replaceCommitted = false
     private(set) var requestedAdapterCodes: [Set<String>] = []
     private(set) var createCount = 0
+    private(set) var replaceCount = 0
     private(set) var applyCount = 0
+    private(set) var reconcileCount = 0
 
     var createdPayload: SSOTSkillWritePayload? { lastPayload }
 
@@ -35,6 +49,8 @@ actor ManagedLocalImportProbe {
         planStatuses: [DistributionPlanStatus] = [.executable],
         createDelay: Duration? = nil,
         createFailure: CreateFailure = .none,
+        replaceDelay: Duration? = nil,
+        replaceFailure: ReplaceFailure = .none,
         readbackState: SSOTJournalState = .init(
             phase: .completed,
             outcome: .applied,
@@ -44,21 +60,29 @@ actor ManagedLocalImportProbe {
         skillExistsOnReadback: Bool = false,
         existingPayload: SSOTSkillWritePayload? = nil,
         existingProvenance: ProviderProvenanceRecord? = nil,
+        baselineNeedsRepair: Bool = false,
         provenanceAppearsAfterCreate: Bool = false,
         applyThrows: Bool = false,
-        reconcileStatus: DistributionReconcileStatus = .inSync
+        reconcileStatus: DistributionReconcileStatus = .inSync,
+        reconcileThrows: Bool = false,
+        existingBindings: [DistributionBinding] = []
     ) {
         self.planStatuses = planStatuses
         self.createDelay = createDelay
         self.createFailure = createFailure
+        self.replaceDelay = replaceDelay
+        self.replaceFailure = replaceFailure
         self.readbackState = readbackState
         self.operationReadbackFound = operationReadbackFound
         self.skillExistsOnReadback = skillExistsOnReadback
         self.existingPayload = existingPayload
         self.existingProvenance = existingProvenance
+        self.baselineNeedsRepair = baselineNeedsRepair
         self.provenanceAppearsAfterCreate = provenanceAppearsAfterCreate
         self.applyThrows = applyThrows
         self.reconcileStatus = reconcileStatus
+        self.reconcileThrows = reconcileThrows
+        self.existingBindings = existingBindings
     }
 
     nonisolated func dependencies() -> ManagedInstallDependencies {
@@ -69,13 +93,22 @@ actor ManagedLocalImportProbe {
             create: { payload, _, operationID in
                 try await self.create(payload: payload, operationID: operationID)
             },
-            createReadback: { try await self.readback(operationID: $0) },
+            operationReadback: { try await self.readback(operationID: $0) },
             domainReadback: { try await self.domainReadback(skillID: $0) },
             provenanceReadback: { identity in
                 await self.provenanceReadback(identity: identity)
             },
+            updateBaseline: { try await self.updateBaseline(skillID: $0) },
+            replaceWithBackup: { baseline, payload, _, operationID, backupID in
+                try await self.replace(
+                    baseline: baseline,
+                    payload: payload,
+                    operationID: operationID,
+                    backupID: backupID
+                )
+            },
             apply: { skillID, _ in try await self.apply(skillID: skillID) },
-            reconcile: { _ in await self.reconcile() },
+            reconcile: { _ in try await self.reconcile() },
             nowMilliseconds: { 100 }
         )
     }
@@ -177,6 +210,9 @@ actor ManagedLocalImportProbe {
     }
 
     private func domainReadback(skillID: SkillID) throws -> SSOTSkillWritePayload? {
+        if replaceCommitted, lastPayload?.skill.skillID == skillID {
+            return lastPayload
+        }
         if existingPayload?.skill.skillID == skillID {
             return existingPayload
         }
@@ -196,6 +232,66 @@ actor ManagedLocalImportProbe {
         return existingProvenance
     }
 
+    private func updateBaseline(skillID: SkillID) throws -> ManagedSkillUpdateBaseline {
+        if baselineNeedsRepair {
+            throw ManagedSkillUpdateBackupError.backupNeedsRepair
+        }
+        guard let payload = existingPayload, payload.skill.skillID == skillID else {
+            throw ManagedLocalImportProblem.providerConflict
+        }
+        return ManagedSkillUpdateBaseline(
+            domain: StoredSkillDomainSnapshot(payload: payload, revision: 1),
+            finalIdentity: importIdentity(inode: 10),
+            distributionSelection: DistributionSelectionReadback(
+                bindings: existingBindings,
+                isExplicitlyConfigured: !existingBindings.isEmpty
+            )
+        )
+    }
+
+    private func replace(
+        baseline: ManagedSkillUpdateBaseline,
+        payload: SSOTSkillWritePayload,
+        operationID: SSOTOperationID,
+        backupID: SkillBackupID
+    ) async throws -> ManagedSkillUpdateWriteResult {
+        replaceCount += 1
+        lastOperationID = operationID
+        if let replaceDelay {
+            try await Task.sleep(for: replaceDelay)
+        }
+        if replaceFailure == .beforeJournal {
+            throw ManagedLocalImportProblem.updateFailed("injected backup failure")
+        }
+        lastPayload = payload
+        replaceCommitted = replaceFailure == .afterCommit
+            || (readbackState.phase == .completed && readbackState.outcome == .applied)
+        if replaceFailure == .afterCommit {
+            throw ManagedLocalImportProblem.updateFailed("injected readback failure")
+        }
+        let backup = try SkillBackupRecord(
+            backupID: backupID,
+            originalSkillID: payload.skill.skillID,
+            state: .available,
+            locator: "\(payload.skill.skillID.directoryName)/100-\(backupID.uuid.uuidString.lowercased())",
+            directoryIdentity: importIdentity(inode: 20),
+            manifestDigest: Data(repeating: 1, count: 32),
+            contentFingerprint: baseline.domain.payload.skill.contentFingerprint,
+            createdAtMilliseconds: 100,
+            updatedAtMilliseconds: 100
+        )
+        return ManagedSkillUpdateWriteResult(
+            backup: backup,
+            replacement: try importJournalRecord(
+                payload: payload,
+                operationID: operationID,
+                state: readbackState,
+                operationType: .replace,
+                oldFingerprint: baseline.domain.payload.skill.contentFingerprint
+            )
+        )
+    }
+
     private func apply(skillID: SkillID) throws -> DistributionOperationRecord {
         applyCount += 1
         if applyThrows {
@@ -204,25 +300,41 @@ actor ManagedLocalImportProbe {
         return distributionOperation(skillID: skillID)
     }
 
-    private func reconcile() -> DistributionReconcileResult {
-        DistributionReconcileResult(status: reconcileStatus, observations: [:])
+    private func reconcile() throws -> DistributionReconcileResult {
+        reconcileCount += 1
+        if reconcileThrows {
+            throw ManagedLocalImportProblem.failed("injected reconcile failure")
+        }
+        return DistributionReconcileResult(status: reconcileStatus, observations: [:])
+    }
+
+    func waitUntilReplaceStarts() async -> Bool {
+        for _ in 0..<10_000 {
+            if replaceCount > 0 { return true }
+            await Task.yield()
+        }
+        return false
     }
 }
 
 private func importJournalRecord(
     payload: SSOTSkillWritePayload,
     operationID: SSOTOperationID,
-    state: SSOTJournalState
+    state: SSOTJournalState,
+    operationType: SSOTOperationType = .create,
+    oldFingerprint: SkillContentFingerprint? = nil
 ) throws -> SSOTJournalRecord {
     try SSOTJournalRecord(
         operationID: operationID,
-        operationType: .create,
+        operationType: operationType,
         skillID: payload.skill.skillID,
         state: state,
         stagingLocator: ".skillsmanager-tmp-\(operationID.uuid.uuidString.lowercased())",
         finalLocator: payload.skill.skillID.directoryName,
-        recoveryLocator: nil,
-        oldFingerprint: nil,
+        recoveryLocator: operationType == .replace
+            ? ".skillsmanager-recovery-\(operationID.uuid.uuidString.lowercased())"
+            : nil,
+        oldFingerprint: oldFingerprint,
         newFingerprint: payload.skill.contentFingerprint,
         payload: payload,
         expectedStagedIdentity: importIdentity(inode: 1),

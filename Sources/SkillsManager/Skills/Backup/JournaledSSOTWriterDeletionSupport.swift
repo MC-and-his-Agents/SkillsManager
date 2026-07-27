@@ -417,7 +417,12 @@ extension JournaledSSOTWriter {
         let current = try loadDistributionSelection(skillID: operation.skillID)
         let currentOwnership = try DistributionLinkOwnershipStore(connection: connection)
             .load(skillID: operation.skillID)
-        let desired = try desiredScope(expected.selection.bindings)
+        let desired: DistributionDesiredScope
+        do {
+            desired = try expected.selection.desiredScope(for: operation.skillID)
+        } catch {
+            throw SkillDeletionError.needsRepair
+        }
         let plan = try distribution.dryRun(
             skillID: operation.skillID,
             currentBindings: current.bindings,
@@ -471,20 +476,6 @@ extension JournaledSSOTWriter {
         max(previous + 1, max(0, hooks.nowMilliseconds()))
     }
 
-    private func desiredScope(
-        _ bindings: [DistributionBinding]
-    ) throws -> DistributionDesiredScope {
-        guard let slug = bindings.first?.distributionSlug else { return .disabled }
-        guard bindings.allSatisfy({ $0.distributionSlug == slug }) else {
-            throw SkillDeletionError.needsRepair
-        }
-        if bindings.count == 1, bindings[0].scope == .global {
-            return .global(slug)
-        }
-        let agents = Set(bindings.compactMap(\.scope.adapter))
-        guard agents.count == bindings.count else { throw SkillDeletionError.needsRepair }
-        return .agents(agents, slug)
-    }
 }
 
 nonisolated func deletionTransition(

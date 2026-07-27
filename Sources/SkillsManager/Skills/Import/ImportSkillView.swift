@@ -177,6 +177,20 @@ struct ImportSkillView: View {
                 "arrow.triangle.2.circlepath",
                 "\(result.displayName) differs from the managed version."
             )
+        case .updated:
+            return ("Updated", "checkmark.seal", "\(result.displayName) was updated.")
+        case .updatedDistributionNeedsAttention:
+            return (
+                "Updated; distribution needs attention",
+                "exclamationmark.triangle",
+                "Refresh \(result.displayName)'s distribution from its details."
+            )
+        case .updateIndeterminate:
+            return (
+                "Update needs confirmation",
+                "wrench.and.screwdriver",
+                "Confirm or repair the managed library before retrying."
+            )
         }
     }
 

@@ -70,9 +70,9 @@ struct ManagedClawdhubInstallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Install Skill")
+            Text("Install or Update Skill")
                 .font(.title.bold())
-            Text("Add \(skill.displayName) to the managed library, then enable it.")
+            Text("Add \(skill.displayName) to the managed library or safely update it.")
                 .foregroundStyle(.secondary)
             Text(sourceSummary)
                 .font(.caption)
@@ -98,7 +98,7 @@ struct ManagedClawdhubInstallView: View {
 
             Spacer()
 
-            Button("Review Install…") {
+            Button("Review…") {
                 prepareInstall()
             }
             .buttonStyle(.borderedProminent)
@@ -245,6 +245,24 @@ struct ManagedClawdhubInstallView: View {
                 "Update required",
                 "arrow.triangle.2.circlepath",
                 "Clawdhub has different content or a different version. No files were changed."
+            )
+        case .updated:
+            (
+                "Updated",
+                "checkmark.seal",
+                "\(result.displayName) was backed up and updated. Current Agent access was preserved."
+            )
+        case .updatedDistributionNeedsAttention:
+            (
+                "Updated; Agent state needs attention",
+                "exclamationmark.triangle",
+                "\(result.displayName) was updated and backed up. Refresh its distribution from details."
+            )
+        case .updateIndeterminate:
+            (
+                "Update needs confirmation",
+                "wrench.and.screwdriver",
+                "Confirm or repair the managed library before retrying this update."
             )
         }
     }
