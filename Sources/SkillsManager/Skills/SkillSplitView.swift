@@ -416,13 +416,10 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
     }
 
     private func refreshManagedSelection() async {
-        let selection = managedSelection
-        await distributionModel.refresh(
-            skillID: selection?.skillID,
-            displayName: selection?.displayName
-        )
-        await lifecycleModel.refresh(
-            skillID: selection?.skillID
+        await refreshManagedSkillSelection(
+            managedSelection,
+            distributionModel: distributionModel,
+            lifecycleModel: lifecycleModel
         )
     }
 
@@ -486,4 +483,18 @@ struct ManagedSkillSelection: Equatable, Sendable {
             nil
         }
     }
+}
+
+@MainActor
+func refreshManagedSkillSelection(
+    _ selection: ManagedSkillSelection?,
+    distributionModel: SkillDistributionViewModel,
+    lifecycleModel: SkillLifecycleViewModel
+) async {
+    async let distribution: Void = distributionModel.refresh(
+        skillID: selection?.skillID,
+        displayName: selection?.displayName
+    )
+    async let lifecycle: Void = lifecycleModel.refresh(skillID: selection?.skillID)
+    _ = await (distribution, lifecycle)
 }

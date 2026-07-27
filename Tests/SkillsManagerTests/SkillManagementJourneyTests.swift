@@ -49,4 +49,65 @@ struct SkillManagementJourneyTests {
         #expect(model.pendingPreview == nil)
         #expect(model.currentTargets.isEmpty)
     }
+
+    @Test("a stale distribution refresh cannot retarget deletion")
+    func staleDistributionCannotRetargetDeletion() async throws {
+        let firstID = SkillID()
+        let secondID = SkillID()
+        let first = ManagedSkillSelection(skillID: firstID, displayName: "First")
+        let second = ManagedSkillSelection(skillID: secondID, displayName: "Second")
+        let secondPreview = try deletionPreview(
+            skillID: secondID,
+            displayName: "Second"
+        )
+        let distribution = SkillDistributionViewModel()
+        distribution.activate(dependencies: SkillDistributionDependencies(
+            loadSelection: { skillID in
+                if skillID == firstID {
+                    try await Task.sleep(for: .milliseconds(30))
+                }
+                return DistributionSelectionReadback(
+                    bindings: [],
+                    isExplicitlyConfigured: false
+                )
+            },
+            reconcile: { _ in
+                DistributionReconcileResult(status: .inSync, observations: [:])
+            },
+            plan: { _, _, _ in distributionPlan(status: .noOp) },
+            apply: { skillID, _ in distributionOperation(skillID: skillID) }
+        ))
+        let lifecycle = SkillLifecycleViewModel()
+        lifecycle.activate(dependencies: lifecycleDependencies(
+            deletionPreview: { skillID in
+                if skillID == secondID { return secondPreview }
+                return try deletionPreview(skillID: skillID, displayName: "First")
+            }
+        ))
+
+        let stale = Task {
+            await refreshManagedSkillSelection(
+                first,
+                distributionModel: distribution,
+                lifecycleModel: lifecycle
+            )
+        }
+        try await Task.sleep(for: .milliseconds(5))
+        await refreshManagedSkillSelection(
+            second,
+            distributionModel: distribution,
+            lifecycleModel: lifecycle
+        )
+        await stale.value
+
+        #expect(lifecycle.deletionState == .ready(secondPreview))
+
+        await refreshManagedSkillSelection(
+            nil,
+            distributionModel: distribution,
+            lifecycleModel: lifecycle
+        )
+        #expect(lifecycle.deletionState == .empty)
+        #expect(distribution.loadState == .empty)
+    }
 }
