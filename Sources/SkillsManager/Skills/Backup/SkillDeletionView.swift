@@ -165,9 +165,15 @@ private struct SkillDeletionConfirmationView: View {
                 impactContent
             }
 
-            if model.isDeleting {
-                ProgressView("Backing up and deleting…")
-                    .accessibilityLabel("Backing up and deleting the managed Skill")
+            if model.isDeleting || model.isRetryingDeletion {
+                ProgressView(
+                    model.isDeleting ? "Backing up and deleting…" : "Continuing deletion…"
+                )
+                .accessibilityLabel(
+                    model.isDeleting
+                        ? "Backing up and deleting the managed Skill"
+                        : "Continuing the managed Skill deletion"
+                )
             }
             if let problem = model.problem {
                 Label(problem.message, systemImage: "exclamationmark.triangle.fill")
@@ -185,7 +191,7 @@ private struct SkillDeletionConfirmationView: View {
         }
         .padding(20)
         .frame(minWidth: 620, minHeight: 470)
-        .interactiveDismissDisabled(model.isDeleting)
+        .interactiveDismissDisabled(model.isMutating)
     }
 
     private var impactContent: some View {

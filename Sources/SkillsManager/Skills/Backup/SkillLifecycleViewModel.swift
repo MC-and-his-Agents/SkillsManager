@@ -47,6 +47,7 @@ import Observation
     private(set) var isDeleting = false
     private(set) var isRetryingDeletion = false
     private(set) var isRestoring = false
+    private(set) var preparingRestoreBackupID: SkillBackupID?
     private(set) var pinningBackupID: SkillBackupID?
     private(set) var publishedMutationGeneration: UInt64 = 0
     var restoreDistribution = false
@@ -57,9 +58,14 @@ import Observation
     private var activeSkillID: SkillID?
     private var deletionGeneration: UInt64 = 0
     private var backupGeneration: UInt64 = 0
+    private var restorePreparationGeneration: UInt64 = 0
 
     var isMutating: Bool {
-        isDeleting || isRetryingDeletion || isRestoring || pinningBackupID != nil
+        isDeleting
+            || isRetryingDeletion
+            || isRestoring
+            || preparingRestoreBackupID != nil
+            || pinningBackupID != nil
     }
 
     var availableBackupCount: Int {
@@ -67,6 +73,7 @@ import Observation
     }
 
     func activate(dependencies: SkillLifecycleDependencies) {
+        restorePreparationGeneration &+= 1
         self.dependencies = dependencies
         runtimeReady = true
         if case .blocked = deletionState {
@@ -83,6 +90,7 @@ import Observation
         dependencies = nil
         deletionGeneration &+= 1
         backupGeneration &+= 1
+        restorePreparationGeneration &+= 1
         deletionState = .blocked(message)
         backupState = .blocked(message)
         isRefreshingDeletion = false
@@ -125,7 +133,7 @@ import Observation
     }
 
     func cancelDeletionPreview() {
-        guard !isDeleting else { return }
+        guard !isMutating else { return }
         pendingDeletion = nil
         deletionResult = nil
     }
@@ -211,11 +219,20 @@ import Observation
               let dependencies else {
             return
         }
+        restorePreparationGeneration &+= 1
+        let generation = restorePreparationGeneration
+        preparingRestoreBackupID = item.backupID
         problem = nil
         successMessage = nil
         restoreResult = nil
+        defer { preparingRestoreBackupID = nil }
         do {
             let preview = try await dependencies.restorePreview(item.backupID)
+            guard generation == restorePreparationGeneration,
+                  runtimeReady,
+                  preview.backupID == item.backupID else {
+                return
+            }
             pendingRestore = PendingRestore(preview: preview)
             restoreDistribution = false
         } catch {

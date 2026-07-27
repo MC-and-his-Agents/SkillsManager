@@ -84,6 +84,43 @@ struct SkillLifecycleViewModelTests {
         #expect(model.problem == .previewExpired)
     }
 
+    @Test("deletion retry keeps its confirmation context until completion")
+    @MainActor
+    func retryCannotDismissPendingDeletion() async throws {
+        let skillID = SkillID()
+        let preview = try deletionPreview(skillID: skillID)
+        let readback = SkillDeletionResult(
+            operationID: SSOTOperationID(),
+            skillID: skillID,
+            backupID: SkillBackupID(),
+            status: .cleanupPending
+        )
+        let model = SkillLifecycleViewModel()
+        model.activate(dependencies: lifecycleDependencies(
+            deletionPreview: { _ in preview },
+            retryDeletion: { operationID in
+                try await Task.sleep(for: .milliseconds(30))
+                return SkillDeletionResult(
+                    operationID: operationID,
+                    skillID: skillID,
+                    backupID: readback.backupID,
+                    status: .completed
+                )
+            }
+        ))
+        await model.refresh(skillID: skillID)
+        model.prepareDeletion()
+
+        let retry = Task { await model.retryDeletion(readback) }
+        try await Task.sleep(for: .milliseconds(5))
+        model.cancelDeletionPreview()
+
+        #expect(model.isRetryingDeletion)
+        #expect(model.pendingDeletion != nil)
+        await retry.value
+        #expect(model.deletionResult?.status == .completed)
+    }
+
     @Test("restore defaults to SSOT only and reports undistributed result")
     @MainActor
     func restoreDefaultsAndConflictResult() async throws {
@@ -119,6 +156,42 @@ struct SkillLifecycleViewModelTests {
         #expect(model.problem == .restoredUndistributed)
     }
 
+    @Test("restore preview preparation rejects duplicate and stale results")
+    @MainActor
+    func restorePreviewPreparationIsSingleFlight() async throws {
+        let first = try restorePreview()
+        let second = try restorePreview()
+        let firstItem = try backupItem(
+            backupID: first.backupID,
+            originalSkillID: first.originalSkillID,
+            summary: first.summary.content
+        )
+        let secondItem = try backupItem(
+            backupID: second.backupID,
+            originalSkillID: second.originalSkillID,
+            summary: second.summary.content
+        )
+        let probe = LifecycleCallProbe()
+        let model = SkillLifecycleViewModel()
+        model.activate(dependencies: lifecycleDependencies(
+            restorePreview: { backupID in
+                await probe.recordRestorePreview(backupID)
+                try await Task.sleep(for: .milliseconds(30))
+                return backupID == first.backupID ? first : second
+            }
+        ))
+
+        let preparation = Task { await model.prepareRestore(firstItem) }
+        try await Task.sleep(for: .milliseconds(5))
+        await model.prepareRestore(secondItem)
+        model.blockRuntime(message: "Unavailable")
+        await preparation.value
+
+        #expect(await probe.restorePreviewIDs == [first.backupID])
+        #expect(model.pendingRestore == nil)
+        #expect(model.preparingRestoreBackupID == nil)
+    }
+
     @Test("stale selection refresh cannot overwrite the current Skill")
     @MainActor
     func staleSelectionRefresh() async throws {
@@ -149,6 +222,7 @@ struct SkillLifecycleViewModelTests {
 private actor LifecycleCallProbe {
     private(set) var deleteCount = 0
     private(set) var restoreModes: [Bool] = []
+    private(set) var restorePreviewIDs: [SkillBackupID] = []
 
     func recordDelete() {
         deleteCount += 1
@@ -156,6 +230,10 @@ private actor LifecycleCallProbe {
 
     func recordRestore(_ restoreDistribution: Bool) {
         restoreModes.append(restoreDistribution)
+    }
+
+    func recordRestorePreview(_ backupID: SkillBackupID) {
+        restorePreviewIDs.append(backupID)
     }
 }
 

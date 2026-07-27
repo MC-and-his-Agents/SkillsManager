@@ -174,11 +174,17 @@ struct SkillBackupLibraryView: View {
                 .disabled(model.isMutating)
                 .accessibilityLabel(item.isPinned ? "Unpin backup" : "Pin backup")
 
-                Button("Restore…") {
-                    Task { await model.prepareRestore(item) }
+                if model.preparingRestoreBackupID == item.backupID {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Preparing restore preview")
+                } else {
+                    Button("Restore…") {
+                        Task { await model.prepareRestore(item) }
+                    }
+                    .disabled(model.isMutating)
+                    .accessibilityHint("Opens a verified restore preview.")
                 }
-                .disabled(model.isMutating)
-                .accessibilityHint("Opens a verified restore preview.")
             }
         }
         .padding(.vertical, 4)

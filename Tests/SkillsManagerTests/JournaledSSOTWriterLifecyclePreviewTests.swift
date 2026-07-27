@@ -136,7 +136,7 @@ struct JournaledSSOTWriterLifecyclePreviewTests {
         let readbacks = try await writer.recoverableDeletionReadbacks()
         #expect(readbacks.count == 1)
         #expect(readbacks[0].skillID == skillID)
-        #expect(readbacks[0].status == .operationInProgress)
+        #expect(readbacks[0].status == .cleanupPending)
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 0)
     }
 }

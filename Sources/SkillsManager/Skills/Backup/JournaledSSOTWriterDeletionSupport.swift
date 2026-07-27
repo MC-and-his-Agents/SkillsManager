@@ -244,6 +244,8 @@ extension JournaledSSOTWriter {
             status = .completed
         } else if operation.outcome == .applied {
             status = .cleanupPending
+        } else if operation.phase == .databaseCommitted {
+            status = .cleanupPending
         } else if operation.outcome == .rolledBack {
             status = .rolledBack
         } else {
