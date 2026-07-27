@@ -3,25 +3,29 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 private struct ImportCandidate {
-    let rootURL: URL
-    let skillFileURL: URL
-    let installName: String
     let displayName: String
-    let markdown: String
-    let temporaryRoot: TemporaryItemLease?
-    let snapshot: SkillContentSnapshot
-    let fingerprint: String
+    let payload: SkillImportWorker.ImportCandidatePayload
+}
+
+private enum ImportDistributionMode: String, CaseIterable, Identifiable {
+    case global = "Global"
+    case agents = "Agent-specific"
+
+    var id: Self { self }
 }
 
 struct ImportSkillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SkillStore.self) private var store
+    @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
+    @Environment(LibraryRuntimeState.self) private var libraryRuntime
+    @State private var model = ManagedLocalImportViewModel()
     @State private var showingPicker = false
     @State private var candidate: ImportCandidate?
     @State private var status: Status = .idle
-    @State private var errorMessage: String = ""
-    @State private var importWarningMessage: String?
-    @State private var installTargets: Set<SkillPlatform> = [.codex]
+    @State private var errorMessage = ""
+    @State private var distributionMode: ImportDistributionMode = .global
+    @State private var selectedAgents: Set<SkillPlatform> = [.codex]
     @State private var activeTask: Task<Void, Never>?
     @State private var operationToken = UUID()
     private let importWorker = SkillImportWorker()
@@ -31,8 +35,7 @@ struct ImportSkillView: View {
         case validating
         case valid
         case invalid
-        case importing
-        case imported
+        case preparing
     }
 
     var body: some View {
@@ -48,42 +51,56 @@ struct ImportSkillView: View {
             isPresented: $showingPicker,
             allowedContentTypes: [.folder, .zip],
             allowsMultipleSelection: false
-        ) { result in
-            handlePick(result)
+        ) { handlePick($0) }
+        .sheet(item: previewBinding) { preview in
+            ManagedLocalImportPreviewView(
+                preview: preview,
+                onConfirm: confirmImport
+            )
+            .environment(model)
+        }
+        .task {
+            model.activate(writer: store.persistence)
+        }
+        .onChange(of: libraryRuntime.readiness) { _, _ in
+            if !model.isWorking {
+                model.activate(writer: store.persistence)
+            }
         }
         .onDisappear {
-            activeTask?.cancel()
-            operationToken = UUID()
-            cleanupCandidate()
+            cancelAndCleanup()
         }
+        .interactiveDismissDisabled(model.isWorking)
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Import Skill")
                 .font(.title.bold())
-            Text("Choose a skill folder or zip file, then pick where to install it.")
+            Text("Choose a Skill folder or zip, then add it to the managed library.")
                 .foregroundStyle(.secondary)
         }
     }
 
     @ViewBuilder
     private var content: some View {
-        switch status {
-        case .idle:
-            emptyState
-        case .validating:
-            ProgressView("Validating…")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .valid:
-            preview
-        case .invalid:
-            invalidState
-        case .importing:
-            ProgressView("Importing…")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .imported:
-            successState
+        if model.result != nil {
+            resultState
+        } else {
+            switch status {
+            case .idle:
+                emptyState
+            case .validating:
+                ProgressView("Validating…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .valid:
+                candidatePreview
+            case .invalid:
+                invalidState
+            case .preparing:
+                ProgressView("Preparing import preview…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 
@@ -98,45 +115,84 @@ struct ImportSkillView: View {
 
     private var invalidState: some View {
         ContentUnavailableView(
-            "Not a valid skill",
+            "Unable to import",
             systemImage: "xmark.octagon",
             description: Text(errorMessage)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var successState: some View {
-        ContentUnavailableView(
-            "Imported",
-            systemImage: "checkmark.seal",
-            description: Text(
-                importWarningMessage
-                    ?? "The skill was added to your selected skills folders."
+    private var resultState: some View {
+        let presentation = resultPresentation
+        return VStack {
+            ContentUnavailableView(
+                presentation.title,
+                systemImage: presentation.systemImage,
+                description: Text(presentation.message)
             )
-        )
+            if model.isFinalizing {
+                ProgressView("Refreshing library…")
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var preview: some View {
-        guard let candidate else {
-            return AnyView(EmptyView())
+    private var resultPresentation: (title: String, systemImage: String, message: String) {
+        guard let result = model.result else {
+            return ("Import status unavailable", "exclamationmark.triangle", "Refresh the library.")
         }
+        switch result.status {
+        case .distributed:
+            return (
+                "Imported and enabled",
+                "checkmark.seal",
+                "\(result.displayName) is managed and available to the selected Agents."
+            )
+        case .noDistributionChanges:
+            return (
+                "Imported",
+                "checkmark.seal",
+                "\(result.displayName) is managed; no distribution changes were needed."
+            )
+        case .managedUndistributed:
+            return (
+                "Imported but not enabled",
+                "exclamationmark.triangle",
+                "\(result.displayName) is safe in the managed library, but distribution was not applied."
+            )
+        case .managedDistributionIndeterminate:
+            return (
+                "Distribution needs attention",
+                "wrench.and.screwdriver",
+                "\(result.displayName) is managed, but its distribution state must be confirmed or repaired."
+            )
+        case .managementIndeterminate:
+            return (
+                "Import needs attention",
+                "wrench.and.screwdriver",
+                "The import state for \(result.displayName) must be confirmed or repaired before retrying."
+            )
+        }
+    }
 
+    private var candidatePreview: some View {
+        guard let candidate else { return AnyView(EmptyView()) }
         return AnyView(
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(candidate.displayName)
                             .font(.title2.bold())
-                        Text(candidate.rootURL.path)
+                        Text(candidate.payload.rootURL.path)
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
-                    InstallTargetSelectionView(
-                        installedTargets: [],
-                        selection: $installTargets
-                    )
-                    Markdown(candidate.markdown)
+                    distributionSelection
+                    if let problem = model.problem {
+                        Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    }
+                    Markdown(candidate.payload.markdown)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
@@ -148,37 +204,110 @@ struct ImportSkillView: View {
         )
     }
 
-    private var actions: some View {
-        HStack {
-            Button("Cancel") {
-                activeTask?.cancel()
-                operationToken = UUID()
-                dismiss()
+    private var distributionSelection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Enable for")
+                .font(.headline)
+            Picker("Distribution scope", selection: $distributionMode) {
+                ForEach(ImportDistributionMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
             }
-            .keyboardShortcut(.cancelAction)
+            .pickerStyle(.segmented)
+            .disabled(model.isWorking)
 
-            Spacer()
-
-            Button("Choose…") {
-                showingPicker = true
+            if distributionMode == .global {
+                Text(
+                    "Compatible Agents share one managed link in "
+                        + DistributionTargetCatalog.current.globalTarget.rootLocator + "."
+                )
+                .foregroundStyle(.secondary)
+                Text(
+                    DistributionTargetCatalog.current.globalReaders
+                        .map(\.rawValue)
+                        .joined(separator: ", ")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            } else {
+                ForEach(SkillPlatform.allCases) { platform in
+                    Toggle(
+                        platform.rawValue,
+                        isOn: Binding(
+                            get: { selectedAgents.contains(platform) },
+                            set: { selected in
+                                if selected {
+                                    selectedAgents.insert(platform)
+                                } else {
+                                    selectedAgents.remove(platform)
+                                }
+                            }
+                        )
+                    )
+                    .toggleStyle(.checkbox)
+                    .disabled(model.isWorking)
+                }
+                if selectedAgents.isEmpty {
+                    Label("Select at least one Agent.", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                }
             }
-
-            Button("Import") {
-                let token = UUID()
-                activeTask?.cancel()
-                operationToken = token
-                activeTask = Task { await importCandidate(token: token) }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(status != .valid || installTargets.isEmpty)
-            .keyboardShortcut(.defaultAction)
         }
+        .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var actions: some View {
+        if model.result != nil {
+            HStack {
+                Spacer()
+                Button("Close") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(model.isWorking)
+            }
+        } else {
+            HStack {
+                Button("Cancel") {
+                    cancelAndDismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+                .disabled(model.isWorking)
+
+                Spacer()
+
+                Button("Choose…") {
+                    showingPicker = true
+                }
+                .disabled(model.isWorking)
+
+                Button("Review Import…") {
+                    prepareImport()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canPrepareImport)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+    }
+
+    private var canPrepareImport: Bool {
+        status == .valid
+            && model.result == nil
+            && model.isAvailable
+            && !model.isWorking
+            && (distributionMode == .global || !selectedAgents.isEmpty)
+    }
+
+    private var previewBinding: Binding<ManagedLocalImportPreview?> {
+        Binding(
+            get: { model.preview },
+            set: { if $0 == nil { model.cancelPreview() } }
+        )
     }
 
     private func handlePick(_ result: Result<[URL], Error>) {
         switch result {
         case .failure(let error):
-            activeTask?.cancel()
             operationToken = UUID()
             status = .invalid
             errorMessage = error.localizedDescription
@@ -198,68 +327,32 @@ struct ImportSkillView: View {
         guard operationToken == token else { return }
         status = .validating
         errorMessage = ""
-        cleanupCandidate()
+        await cleanupCandidate()
 
         let resolved = url.standardizedFileURL
         let fileValues = try? resolved.resourceValues(forKeys: [.isDirectoryKey])
         guard operationToken == token, !Task.isCancelled else { return }
 
-        if fileValues?.isDirectory == true {
-            await validateFolder(resolved, token: token)
-        } else if resolved.pathExtension.lowercased() == "zip" {
-            await validateZip(resolved, token: token)
-        } else {
-            guard operationToken == token else { return }
-            status = .invalid
-            errorMessage = "Select a folder or .zip file."
-        }
-    }
-
-    private func validateFolder(_ folderURL: URL, token: UUID) async {
         do {
-            let payload = try await importWorker.validateFolder(folderURL)
-            guard operationToken == token, !Task.isCancelled else { return }
-            let candidate = ImportCandidate(
-                rootURL: payload.rootURL,
-                skillFileURL: payload.skillFileURL,
-                installName: payload.skillName,
-                displayName: formatTitle(payload.skillName),
-                markdown: payload.markdown,
-                temporaryRoot: payload.temporaryRoot,
-                snapshot: payload.snapshot,
-                fingerprint: payload.fingerprint
-            )
-            self.candidate = candidate
-            status = .valid
-        } catch is CancellationError {
-            return
-        } catch {
-            guard operationToken == token else { return }
-            status = .invalid
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func validateZip(_ zipURL: URL, token: UUID) async {
-        do {
-            let payload = try await importWorker.validateZip(zipURL)
+            let payload: SkillImportWorker.ImportCandidatePayload
+            if fileValues?.isDirectory == true {
+                payload = try await importWorker.validateFolder(resolved)
+            } else if resolved.pathExtension.lowercased() == "zip" {
+                payload = try await importWorker.validateZip(resolved)
+            } else {
+                throw SkillImportValidationError.contentRejected("Select a folder or .zip file.")
+            }
             guard operationToken == token, !Task.isCancelled else {
                 if let temporaryRoot = payload.temporaryRoot {
                     await importWorker.cleanupTemporaryRoot(temporaryRoot)
                 }
                 return
             }
-            let candidate = ImportCandidate(
-                rootURL: payload.rootURL,
-                skillFileURL: payload.skillFileURL,
-                installName: payload.skillName,
+            candidate = ImportCandidate(
                 displayName: formatTitle(payload.skillName),
-                markdown: payload.markdown,
-                temporaryRoot: payload.temporaryRoot,
-                snapshot: payload.snapshot,
-                fingerprint: payload.fingerprint
+                payload: payload
             )
-            self.candidate = candidate
+            model.reset()
             status = .valid
         } catch is CancellationError {
             return
@@ -270,46 +363,77 @@ struct ImportSkillView: View {
         }
     }
 
-    private func importCandidate(token: UUID) async {
+    private func prepareImport() {
         guard let candidate else { return }
-        guard !installTargets.isEmpty else { return }
-        guard operationToken == token else { return }
-        status = .importing
-
-        do {
-            let destinations = installTargets.map {
-                SkillFileWorker.InstallDestination(rootURL: $0.rootURL, storageKey: $0.storageKey)
-            }
-            let payload = SkillImportWorker.ImportCandidatePayload(
-                rootURL: candidate.rootURL,
-                skillFileURL: candidate.skillFileURL,
-                skillName: candidate.installName,
-                markdown: candidate.markdown,
-                temporaryRoot: candidate.temporaryRoot,
-                snapshot: candidate.snapshot,
-                fingerprint: candidate.fingerprint
+        let token = operationToken
+        status = .preparing
+        activeTask?.cancel()
+        activeTask = Task {
+            await model.prepare(
+                candidate: candidate.payload,
+                displayName: candidate.displayName,
+                scope: distributionMode == .global ? .global : .agents(selectedAgents)
             )
-            let report = try await importWorker.importCandidate(payload, destinations: destinations)
-            await store.loadSkills()
             guard operationToken == token else { return }
-            importWarningMessage = report.warningMessage
-            status = .imported
-        } catch is CancellationError {
-            guard operationToken == token else { return }
-            status = .idle
-            errorMessage = ""
-        } catch {
-            await store.loadSkills()
-            guard operationToken == token else { return }
-            status = .invalid
-            errorMessage = "Import failed: \(error.localizedDescription)"
+            if let problem = model.problem {
+                errorMessage = problem.localizedDescription
+                status = .valid
+            } else {
+                status = .valid
+            }
         }
     }
 
-    private func cleanupCandidate() {
-        if let temp = candidate?.temporaryRoot {
-            Task { await importWorker.cleanupTemporaryRoot(temp) }
+    private func confirmImport() {
+        let token = operationToken
+        activeTask?.cancel()
+        activeTask = Task {
+            await model.confirm {
+                await store.loadSkills()
+                await discoveryModel.refresh()
+                await cleanupCandidate()
+            }
+            guard operationToken == token else { return }
+            if let problem = model.problem {
+                errorMessage = problem.localizedDescription
+            }
         }
+    }
+
+    private func cancelAndDismiss() {
+        let task = activeTask
+        activeTask = nil
+        operationToken = UUID()
+        let temporaryRoot = candidate?.payload.temporaryRoot
         candidate = nil
+        Task {
+            await importWorker.cleanupTemporaryRoot(
+                temporaryRoot,
+                afterCancelling: task
+            )
+            dismiss()
+        }
+    }
+
+    private func cancelAndCleanup() {
+        let task = activeTask
+        activeTask = nil
+        operationToken = UUID()
+        let temporaryRoot = candidate?.payload.temporaryRoot
+        candidate = nil
+        Task {
+            await importWorker.cleanupTemporaryRoot(
+                temporaryRoot,
+                afterCancelling: task
+            )
+        }
+    }
+
+    private func cleanupCandidate() async {
+        let temporaryRoot = candidate?.payload.temporaryRoot
+        candidate = nil
+        if let temporaryRoot {
+            await importWorker.cleanupTemporaryRoot(temporaryRoot)
+        }
     }
 }

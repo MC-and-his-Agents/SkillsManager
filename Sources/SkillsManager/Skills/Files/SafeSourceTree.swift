@@ -96,6 +96,16 @@ nonisolated final class SafeSourceTree: @unchecked Sendable {
         return descriptor
     }
 
+    func managedRootIdentity() throws -> ManagedItemIdentity {
+        let descriptor = try duplicateRoot()
+        defer { Darwin.close(descriptor) }
+        var metadata = stat()
+        guard Darwin.fstat(descriptor, &metadata) == 0 else {
+            throw SkillContentSnapshotError.fileSystemFailure(path: ".", code: errno)
+        }
+        return ManagedItemIdentity(metadata)
+    }
+
     func openFile(_ file: SkillContentFileEnumerator.DiscoveredFile) throws -> Int32 {
         let parentDescriptor = try openDirectoryPath(
             file.directorySteps,

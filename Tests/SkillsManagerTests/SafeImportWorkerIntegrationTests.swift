@@ -209,6 +209,42 @@ struct SafeImportWorkerIntegrationTests {
         }
     }
 
+    @Test("zip cleanup cancels and awaits the active snapshot consumer")
+    func zipCleanupAwaitsConsumer() async throws {
+        try await withTemporaryDirectory { root in
+            let archiveURL = root.appendingPathComponent("consumer.zip")
+            try writeArchive(at: archiveURL, entries: [
+                ("candidate/SKILL.md", Data("# Candidate".utf8)),
+            ])
+
+            let worker = SkillImportWorker()
+            let candidate = try await worker.validateZip(archiveURL)
+            let lease = try #require(candidate.temporaryRoot)
+            let gate = ImportConsumerGate()
+            let consumer = Task {
+                await withTaskCancellationHandler {
+                    await gate.waitForRelease()
+                } onCancel: {
+                    Task { await gate.recordCancellation() }
+                }
+            }
+            #expect(await gate.waitUntilStarted())
+
+            let cleanup = Task {
+                await worker.cleanupTemporaryRoot(
+                    lease,
+                    afterCancelling: consumer
+                )
+            }
+            #expect(await gate.waitUntilCancelled())
+            #expect(FileManager.default.fileExists(atPath: lease.url.path))
+
+            await gate.release()
+            await cleanup.value
+            #expect(!FileManager.default.fileExists(atPath: lease.url.path))
+        }
+    }
+
     @Test("zip validation remains anchored when the temporary root name is replaced")
     func zipValidationUsesAnchoredTemporaryRoot() async throws {
         try await withTemporaryDirectory { root in
@@ -247,6 +283,7 @@ struct SafeImportWorkerIntegrationTests {
 
             let original = displaced.appendingPathComponent("original-skill", isDirectory: true)
             let originalFingerprint = try SkillContentSnapshot.capture(at: original).fingerprint
+            try candidate.requireSourceUnchanged()
             #expect(candidate.skillName == "original-skill")
             #expect(candidate.markdown == "# Original")
             #expect(candidate.fingerprint == originalFingerprint)
@@ -423,5 +460,41 @@ struct SafeImportWorkerIntegrationTests {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         try await body(root)
+    }
+}
+
+private actor ImportConsumerGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var started = false
+    private var cancelled = false
+
+    func waitForRelease() async {
+        await withCheckedContinuation {
+            continuation = $0
+            started = true
+        }
+    }
+
+    func recordCancellation() { cancelled = true }
+
+    func waitUntilStarted() async -> Bool {
+        await waitUntil { started }
+    }
+
+    func waitUntilCancelled() async -> Bool {
+        await waitUntil { cancelled }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async -> Bool {
+        for _ in 0..<10_000 {
+            if condition() { return true }
+            await Task.yield()
+        }
+        return false
     }
 }

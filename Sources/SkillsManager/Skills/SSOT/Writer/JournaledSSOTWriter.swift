@@ -197,6 +197,24 @@ actor JournaledSSOTWriter {
         try journal.discoveryCatalog()
     }
 
+    func ssotOperationReadback(_ operationID: SSOTOperationID) throws -> SSOTJournalRecord {
+        try requireAuthority()
+        do {
+            try recoverAll()
+        } catch {
+            if let record = try? journal.loadOperation(operationID) {
+                return record
+            }
+            throw error
+        }
+        return try journal.loadOperation(operationID)
+    }
+
+    func managedSkillReadback(_ skillID: SkillID) throws -> ManagedSkillRecord? {
+        try requireAuthority()
+        return try journal.managedSkillRecord(skillID)
+    }
+
     func importNew(
         payload: SSOTSkillWritePayload,
         sourceSnapshot: SkillContentSnapshot,
