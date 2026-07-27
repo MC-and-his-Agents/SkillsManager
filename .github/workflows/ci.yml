@@ -43,7 +43,10 @@ jobs:
         if: needs.changes.outputs.swift == 'true'
       - name: Build
         if: needs.changes.outputs.swift == 'true'
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
         run: |
+          xcodebuild -version
           swift --version
           swift build
       - name: Skip Swift build
@@ -58,7 +61,10 @@ jobs:
         if: needs.changes.outputs.swift == 'true'
       - name: Test
         if: needs.changes.outputs.swift == 'true'
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
         run: |
+          xcodebuild -version
           swift --version
           swift test --no-parallel
       - name: Skip Swift tests
