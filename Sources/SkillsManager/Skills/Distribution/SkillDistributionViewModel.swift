@@ -413,8 +413,7 @@ import Observation
             plan.filesystemActions.map(\.entry.target.scope.targetScopeKey)
         )
         rows.append(contentsOf: plan.bindingReplacement.compactMap { intent in
-            guard !actionScopeKeys.contains(intent.scope.targetScopeKey),
-                  currentBindings.contains(where: { $0.intent == intent }) else {
+            guard !actionScopeKeys.contains(intent.scope.targetScopeKey) else {
                 return nil
             }
             return DistributionTargetCatalog.current.entry(
@@ -422,26 +421,14 @@ import Observation
                 slug: intent.distributionSlug
             ).map {
                 PreviewRow(
-                    kind: .noChange,
+                    kind: currentBindings.contains(where: { $0.intent == intent })
+                        ? .noChange
+                        : .binding,
                     scopeKey: intent.scope.targetScopeKey,
                     locator: $0.canonicalLocator
                 )
             }
         })
-        if plan.bindingsChanged, plan.filesystemActions.isEmpty, rows.isEmpty {
-            rows = plan.bindingReplacement.compactMap { binding in
-                DistributionTargetCatalog.current.entry(
-                    for: binding.scope,
-                    slug: binding.distributionSlug
-                ).map {
-                    PreviewRow(
-                        kind: .binding,
-                        scopeKey: binding.scope.targetScopeKey,
-                        locator: $0.canonicalLocator
-                    )
-                }
-            }
-        }
         return rows
     }
 

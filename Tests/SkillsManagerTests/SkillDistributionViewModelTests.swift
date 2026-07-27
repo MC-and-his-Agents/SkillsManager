@@ -152,6 +152,31 @@ struct SkillDistributionViewModelTests {
         ])
     }
 
+    @Test("partial scope preview includes binding-only additions")
+    @MainActor
+    func partialScopeBindingOnlyPreview() async throws {
+        let skillID = distributionSkillID()
+        let slug = try DefaultDistributionSlug(validating: "demo")
+        let current = try distributionBinding(skillID: skillID, scope: .agent(.codex), slug: slug)
+        let added = DistributionBindingIntent(
+            skillID: skillID, scope: .agent(.opencode), distributionSlug: slug
+        )
+        let plan = distributionPlan(status: .executable, replacement: [current.intent, added])
+        let model = distributionModel(bindings: [current], plan: plan)
+        await model.refresh(skillID: skillID, displayName: "demo")
+
+        model.chooseScope(.agents)
+        model.setAgent(.codex, selected: true)
+        model.setAgent(.opencode, selected: true)
+        await model.preparePreview()
+
+        #expect(model.pendingPreview?.rows.map(\.kind) == [.noChange, .binding])
+        #expect(model.pendingPreview?.rows.map(\.scopeKey) == [
+            "agent:codex",
+            "agent:opencode",
+        ])
+    }
+
     @Test("confirmation rejects a changed canonical plan without applying")
     @MainActor
     func stalePreview() async throws {
