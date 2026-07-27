@@ -42,13 +42,28 @@ nonisolated struct SkillInstallReport: Sendable {
 
 actor SkillImportWorker {
     struct ImportCandidatePayload: Sendable {
+        enum SourceAnchor: Sendable {
+            case registeredRoot(ManagedRootReference)
+            case snapshot
+        }
+
         let rootURL: URL
+        let sourceAnchor: SourceAnchor
         let skillFileURL: URL
         let skillName: String
         let markdown: String
         let temporaryRoot: TemporaryItemLease?
         let snapshot: SkillContentSnapshot
         let fingerprint: String
+
+        func requireSourceUnchanged() throws {
+            switch sourceAnchor {
+            case .registeredRoot(let rootReference):
+                try snapshot.requireUnchanged(at: rootReference)
+            case .snapshot:
+                try snapshot.requireUnchanged()
+            }
+        }
     }
 
     func validateFolder(_ folderURL: URL) throws -> ImportCandidatePayload {
@@ -148,6 +163,7 @@ actor SkillImportWorker {
                 rootURL: rootURL,
                 skillName: rootURL.lastPathComponent,
                 snapshot: snapshot,
+                sourceAnchor: .registeredRoot(try ManagedRootReference.capture(at: rootURL)),
                 temporaryRoot: temporaryRoot,
                 checkpoint: checkpoint
             )
@@ -171,6 +187,7 @@ actor SkillImportWorker {
                 rootURL: package.rootURL,
                 skillName: package.skillName,
                 snapshot: snapshot,
+                sourceAnchor: .snapshot,
                 temporaryRoot: temporaryRoot,
                 checkpoint: checkpoint
             )
@@ -183,12 +200,14 @@ actor SkillImportWorker {
         rootURL: URL,
         skillName: String,
         snapshot: SkillContentSnapshot,
+        sourceAnchor: ImportCandidatePayload.SourceAnchor,
         temporaryRoot: TemporaryItemLease?,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> ImportCandidatePayload {
         let skillFileURL = rootURL.appendingPathComponent("SKILL.md", isDirectory: false)
         return ImportCandidatePayload(
             rootURL: rootURL,
+            sourceAnchor: sourceAnchor,
             skillFileURL: skillFileURL,
             skillName: skillName,
             markdown: try snapshot.readUTF8File(

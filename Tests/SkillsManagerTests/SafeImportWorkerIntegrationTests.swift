@@ -247,6 +247,7 @@ struct SafeImportWorkerIntegrationTests {
 
             let original = displaced.appendingPathComponent("original-skill", isDirectory: true)
             let originalFingerprint = try SkillContentSnapshot.capture(at: original).fingerprint
+            try candidate.requireSourceUnchanged()
             #expect(candidate.skillName == "original-skill")
             #expect(candidate.markdown == "# Original")
             #expect(candidate.fingerprint == originalFingerprint)

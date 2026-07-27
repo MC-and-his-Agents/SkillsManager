@@ -214,6 +214,30 @@ nonisolated struct SkillContentSnapshot: Equatable, Sendable {
         return value
     }
 
+    nonisolated func requireUnchanged(
+        at rootReference: ManagedRootReference,
+        checkpoint: SkillCancellationCheckpoint = {}
+    ) throws {
+        let root = try rootReference.verifiedRoot()
+        guard try sourceTree.managedRootIdentity() == root.identity else {
+            throw SkillContentSnapshotError.fileChanged(path: ".")
+        }
+        try requireUnchanged(checkpoint: checkpoint)
+    }
+
+    nonisolated func requireUnchanged(
+        checkpoint: SkillCancellationCheckpoint = {}
+    ) throws {
+        let current = try Self.capture(
+            sourceTree: sourceTree,
+            limits: .default,
+            checkpoint: checkpoint
+        )
+        guard current == self else {
+            throw SkillContentSnapshotError.fileChanged(path: ".")
+        }
+    }
+
     nonisolated static func openValidatedSource(
         _ file: SkillContentFileEnumerator.DiscoveredFile,
         sourceTree: SafeSourceTree
