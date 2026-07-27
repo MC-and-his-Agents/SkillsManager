@@ -6,6 +6,20 @@ extension JournaledSSOTWriter {
         operationID: SSOTOperationID = SSOTOperationID(),
         backupID: SkillBackupID = SkillBackupID()
     ) throws -> SkillDeletionResult {
+        try withStableSkillLifecycleErrors(.mutation) {
+            try performDeleteManagedSkill(
+                skillID: skillID,
+                operationID: operationID,
+                backupID: backupID
+            )
+        }
+    }
+
+    private func performDeleteManagedSkill(
+        skillID: SkillID,
+        operationID: SSOTOperationID,
+        backupID: SkillBackupID
+    ) throws -> SkillDeletionResult {
         try requireAuthority()
         _ = try deletionPreview(skillID: skillID)
         guard let domain = try journal.storedDomain(skillID) else {
@@ -104,6 +118,7 @@ extension JournaledSSOTWriter {
         )
         let operationStore = try SkillDeletionOperationStore(connection: connection)
         let backupStore = try SkillBackupStore(connection: connection)
+        try requireAuthority()
         try operationStore.transaction {
             try backupStore.insertPreparing(backup)
             _ = try operationStore.insertPrepared(draft)
@@ -111,43 +126,50 @@ extension JournaledSSOTWriter {
     }
 
     func listBackups(originalSkillID: SkillID) throws -> [SkillBackupRecord] {
-        try requireAuthority()
-        return try SkillBackupStore(connection: connection).list(
-            originalSkillID: originalSkillID
-        )
+        try withStableSkillLifecycleErrors(.backupRead) {
+            try requireAuthority()
+            return try SkillBackupStore(connection: connection).list(
+                originalSkillID: originalSkillID
+            )
+        }
     }
 
     func validateBackup(_ backupID: SkillBackupID) throws -> SkillBackupRecord {
-        try requireAuthority()
-        let store = try SkillBackupStore(connection: connection)
-        guard let backup = try store.load(backupID), backup.state == .available else {
-            throw SkillDeletionError.backupCorrupt
+        try withStableSkillLifecycleErrors(.backupRead) {
+            try requireAuthority()
+            let store = try SkillBackupStore(connection: connection)
+            guard let backup = try store.load(backupID), backup.state == .available else {
+                throw SkillDeletionError.backupCorrupt
+            }
+            _ = try backupFileSystem.validate(
+                locator: backup.locator,
+                expectedIdentity: backup.directoryIdentity,
+                expectedManifestDigest: backup.manifestDigest,
+                expectedFingerprint: backup.contentFingerprint
+            )
+            return backup
         }
-        _ = try backupFileSystem.validate(
-            locator: backup.locator,
-            expectedIdentity: backup.directoryIdentity,
-            expectedManifestDigest: backup.manifestDigest,
-            expectedFingerprint: backup.contentFingerprint
-        )
-        return backup
     }
 
     func setBackupPinned(
         _ backupID: SkillBackupID,
         isPinned: Bool
     ) throws -> SkillBackupRecord {
-        try requireAuthority()
-        let store = try SkillBackupStore(connection: connection)
-        guard let current = try store.load(backupID), current.state == .available else {
-            throw SkillDeletionError.backupCorrupt
+        try withStableSkillLifecycleErrors(.backupRead) {
+            try requireAuthority()
+            let store = try SkillBackupStore(connection: connection)
+            guard let current = try store.load(backupID), current.state == .available else {
+                throw SkillDeletionError.backupCorrupt
+            }
+            let replacement = try backupReplacement(
+                current,
+                isPinned: isPinned,
+                updatedAtMilliseconds: deletionTimestamp(after: current.updatedAtMilliseconds)
+            )
+            try requireAuthority()
+            try store.replace(expected: current, with: replacement)
+            return replacement
         }
-        let replacement = try backupReplacement(
-            current,
-            isPinned: isPinned,
-            updatedAtMilliseconds: deletionTimestamp(after: current.updatedAtMilliseconds)
-        )
-        try store.replace(expected: current, with: replacement)
-        return replacement
     }
 
     func deletionResult(
@@ -212,6 +234,7 @@ extension JournaledSSOTWriter {
             expectedFingerprint: domain.payload.skill.contentFingerprint
         )
         if observation == .expected {
+            try requireAuthority()
             try fileSystem.removeExpectedOperationItem(
                 reference,
                 identity: identity,
@@ -226,6 +249,7 @@ extension JournaledSSOTWriter {
             outcome: .applied,
             cleanupState: .completed
         )
+        try requireAuthority()
         try store.transition(expected: operation, to: completed)
         operation = completed
         return deletionResult(operation)
@@ -269,6 +293,7 @@ extension JournaledSSOTWriter {
             cleanupState: .notApplicable
         )
         let store = try SkillDeletionOperationStore(connection: connection)
+        try requireAuthority()
         try store.transaction {
             try backupStore.deletePreparingInCurrentTransaction(expected: backup)
             try store.transitionInCurrentTransaction(expected: operation, to: rolledBack)
@@ -295,6 +320,7 @@ extension JournaledSSOTWriter {
             expectedFingerprint: quarantined.fingerprint
         )
         if quarantineObservation == .expected {
+            try requireAuthority()
             try fileSystem.restoreQuarantinedFinal(
                 quarantined,
                 skillID: operation.skillID
@@ -313,6 +339,7 @@ extension JournaledSSOTWriter {
             outcome: .rolledBack,
             cleanupState: .notApplicable
         )
+        try requireAuthority()
         try store.transition(expected: operation, to: rolledBack)
     }
 
@@ -329,12 +356,11 @@ extension JournaledSSOTWriter {
             currentBindings: current.bindings,
             desiredScope: desired,
             desiredConfigured: expected.selection.isExplicitlyConfigured,
-            requiredAdapterCodes: Set(
-                DistributionTargetCatalog.current.globalReaders.map(\.storageKey)
-            )
+            requiredAdapterCodes: desired.requiredAdapterCodes
         )
         guard plan.status != .blocked else { throw SkillDeletionError.needsRepair }
         if plan.status == .executable {
+            try requireAuthority()
             let result = try distribution.apply(
                 skillID: operation.skillID,
                 plan: plan,
@@ -370,6 +396,7 @@ extension JournaledSSOTWriter {
             attemptIncrement: 1,
             lastError: String(error.localizedDescription.prefix(4_096))
         )
+        try requireAuthority()
         try store.transition(expected: operation, to: replacement)
     }
 

@@ -120,7 +120,6 @@ nonisolated struct SkillBackupRecord: Equatable, Sendable {
               createdAtMilliseconds == old.createdAtMilliseconds,
               updatedAtMilliseconds >= old.updatedAtMilliseconds,
               old.restoredSkillID == nil || restoredSkillID == old.restoredSkillID,
-              old.restoreResultJSON == nil || restoreResultJSON == old.restoreResultJSON,
               Self.transitionAllowed(from: old.state, to: state) else {
             throw SkillBackupRecordError.invalidTransition
         }

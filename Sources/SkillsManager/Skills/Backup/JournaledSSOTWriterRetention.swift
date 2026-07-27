@@ -10,6 +10,18 @@ extension JournaledSSOTWriter {
         originalSkillID: SkillID,
         nowMilliseconds: Int64? = nil
     ) throws -> BackupRetentionResult {
+        try withStableSkillLifecycleErrors(.backupRead) {
+            try performBackupRetention(
+                originalSkillID: originalSkillID,
+                nowMilliseconds: nowMilliseconds
+            )
+        }
+    }
+
+    private func performBackupRetention(
+        originalSkillID: SkillID,
+        nowMilliseconds: Int64?
+    ) throws -> BackupRetentionResult {
         try requireAuthority()
         let now = nowMilliseconds ?? deletionTimestamp()
         guard now >= 0 else { throw SkillDeletionError.conflict }
@@ -43,6 +55,12 @@ extension JournaledSSOTWriter {
     }
 
     func recoverBackupPruning() throws {
+        try withStableSkillLifecycleErrors(.backupRead) {
+            try performBackupPruningRecovery()
+        }
+    }
+
+    private func performBackupPruningRecovery() throws {
         let store = try SkillBackupStore(connection: connection)
         for backup in try store.recoverable() where backup.state == .pruning {
             do {
@@ -69,6 +87,7 @@ extension JournaledSSOTWriter {
             pruneQuarantineIdentity: backup.directoryIdentity,
             updatedAtMilliseconds: deletionTimestamp(after: backup.updatedAtMilliseconds)
         )
+        try requireAuthority()
         try store.replace(expected: backup, with: pruning)
         try continuePruning(pruning)
     }
@@ -87,6 +106,7 @@ extension JournaledSSOTWriter {
             throw SkillDeletionError.needsRepair
         }
         if observation.finalIdentity != nil {
+            try requireAuthority()
             let actual = try backupFileSystem.quarantineForPruning(
                 locator: backup.locator,
                 expectedIdentity: quarantineIdentity,
@@ -100,6 +120,7 @@ extension JournaledSSOTWriter {
             expectedIdentity: quarantineIdentity
         )
         if readback.quarantineIdentity != nil {
+            try requireAuthority()
             try backupFileSystem.removePruningQuarantine(
                 locator: quarantineLocator,
                 expectedIdentity: quarantineIdentity
@@ -114,6 +135,7 @@ extension JournaledSSOTWriter {
               finalReadback.quarantineIdentity == nil else {
             throw SkillDeletionError.needsRepair
         }
+        try requireAuthority()
         try SkillBackupStore(connection: connection).deletePruned(expected: backup)
     }
 
@@ -130,6 +152,7 @@ extension JournaledSSOTWriter {
             lastError: String(error.localizedDescription.prefix(4_096)),
             updatedAtMilliseconds: deletionTimestamp(after: current.updatedAtMilliseconds)
         )
+        try requireAuthority()
         try store.replace(expected: current, with: replacement)
     }
 }

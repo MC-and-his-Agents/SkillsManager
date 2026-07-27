@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Synchronization
 import Testing
@@ -7,6 +8,30 @@ import Testing
 @Suite("Journaled SSOT Skill deletion", .serialized)
 struct JournaledSSOTWriterDeletionTests {
     private enum Stop: Error { case requested }
+
+    @Test("maps lifecycle failures to stable public errors")
+    func mapsStableErrors() {
+        #expect(throws: SkillDeletionError.permissionDenied) {
+            try withStableSkillLifecycleErrors(.mutation) {
+                throw SkillBackupFileSystemError.posix(operation: "test", code: EACCES)
+            }
+        }
+        #expect(throws: SkillDeletionError.unavailable) {
+            try withStableSkillLifecycleErrors(.mutation) {
+                throw DistributionSymlinkFileSystemError.unavailable
+            }
+        }
+        #expect(throws: SkillDeletionError.backupCorrupt) {
+            try withStableSkillLifecycleErrors(.backupRead) {
+                throw SkillBackupFileSystemError.manifestChanged
+            }
+        }
+        #expect(throws: SkillDeletionError.conflict) {
+            try withStableSkillLifecycleErrors(.mutation) {
+                throw ManagedPathError.itemChanged
+            }
+        }
+    }
 
     @Test("deletes only after a valid backup and restores idempotently")
     func deletesAndRestores() async throws {
@@ -39,6 +64,50 @@ struct JournaledSSOTWriterDeletionTests {
         #expect(repeated.restoredSkillID == restored.restoredSkillID)
         #expect(repeated.status == restored.status)
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
+    }
+
+    @Test("explicit distribution retry updates a stored undistributed result")
+    func retriesStoredDistributionResult() async throws {
+        let workspace = try WriterWorkspace()
+        let writer = try await workspace.openWriter()
+        let snapshot = try workspace.snapshot(content: "retry-distribution")
+        let skillID = SkillID()
+        _ = try await writer.create(
+            payload: workspace.payload(skillID: skillID, name: "Retry", snapshot: snapshot),
+            sourceSnapshot: snapshot
+        )
+        _ = try await writer.deleteManagedSkill(skillID: skillID)
+        let backup = try await writer.listBackups(originalSkillID: skillID)[0]
+        let restored = try await writer.restoreBackup(backup.backupID)
+
+        let connection = try SQLiteConnection(url: workspace.database)
+        let store = try SkillBackupStore(connection: connection)
+        let persisted = try #require(try store.load(backup.backupID))
+        let storedConflict = try JSONSerialization.data(
+            withJSONObject: [
+                "restored_skill_id": restored.restoredSkillID.directoryName,
+                "schema_version": 1,
+                "status": "restoredUndistributed",
+                "warnings": ["distribution_conflict"],
+            ],
+            options: [.sortedKeys, .withoutEscapingSlashes]
+        )
+        let conflict = try backupReplacement(
+            persisted,
+            restoreResultJSON: storedConflict,
+            updatedAtMilliseconds: persisted.updatedAtMilliseconds + 1
+        )
+        try store.replace(expected: persisted, with: conflict)
+
+        let retried = try await writer.restoreBackup(
+            backup.backupID,
+            restoreDistribution: true
+        )
+        #expect(retried.status == .completed)
+        #expect(retried.warnings.isEmpty)
+        let repeated = try await writer.restoreBackup(backup.backupID)
+        #expect(repeated.status == retried.status)
+        #expect(repeated.warnings == retried.warnings)
     }
 
     @Test(
@@ -125,6 +194,37 @@ struct JournaledSSOTWriterDeletionTests {
         #expect(operation.lastError == nil)
         #expect(operation.phase == .completed)
         #expect(operation.outcome == .rolledBack)
+    }
+
+    @Test("management lock drift blocks backup promotion")
+    func lockDriftBlocksBackupPromotion() async throws {
+        let workspace = try WriterWorkspace()
+        var hooks = JournaledSSOTWriterHooks()
+        hooks.deletionCheckpoint = { point in
+            guard point == .afterPreparedInsert else { return }
+            let lock = workspace.managementRoot
+                .appendingPathComponent(SSOTWriterOwnership.lockFileName)
+            try FileManager.default.removeItem(at: lock)
+            try Data("replacement\n".utf8).write(to: lock)
+            guard Darwin.chmod(lock.path, 0o600) == 0 else {
+                throw CocoaError(.fileWriteUnknown)
+            }
+        }
+        let writer = try await workspace.openWriter(hooks: hooks)
+        let snapshot = try workspace.snapshot(content: "lock-drift")
+        let skillID = SkillID()
+        _ = try await writer.create(
+            payload: workspace.payload(skillID: skillID, name: "Lock", snapshot: snapshot),
+            sourceSnapshot: snapshot
+        )
+
+        await #expect(throws: SkillDeletionError.unavailable) {
+            _ = try await writer.deleteManagedSkill(skillID: skillID)
+        }
+        #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
+        #expect(try workspace.scalar(
+            "SELECT phase FROM skill_deletion_operations"
+        ) == "prepared")
     }
 
     @Test("different active content restores to one stable fork identity")

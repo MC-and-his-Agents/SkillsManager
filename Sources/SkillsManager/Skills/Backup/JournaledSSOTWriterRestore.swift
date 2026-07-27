@@ -17,55 +17,71 @@ private nonisolated struct StoredRestoreResult: Codable {
 
 extension JournaledSSOTWriter {
     func restorePreview(_ backupID: SkillBackupID) throws -> SkillRestorePreview {
-        try requireAuthority()
-        let (backup, manifest, _) = try validatedManifest(backupID)
-        let targetID = try resolvedRestoreID(backup: backup, manifest: manifest, persist: false)
-        let existing = try journal.storedDomain(targetID)
-        let status: SkillRestoreStatus =
-            existing?.payload.skill.contentFingerprint == backup.contentFingerprint
-            ? .noOp : .ready
-        return SkillRestorePreview(
-            backupID: backupID,
-            originalSkillID: manifest.originalSkillID,
-            targetSkillID: targetID,
-            status: status
-        )
+        try withStableSkillLifecycleErrors(.backupRead) {
+            try requireAuthority()
+            let (backup, manifest, _) = try validatedManifest(backupID)
+            let targetID = try resolvedRestoreID(
+                backup: backup, manifest: manifest, persist: false
+            )
+            let existing = try journal.storedDomain(targetID)
+            let status: SkillRestoreStatus =
+                existing?.payload.skill.contentFingerprint == backup.contentFingerprint
+                ? .noOp : .ready
+            return SkillRestorePreview(
+                backupID: backupID,
+                originalSkillID: manifest.originalSkillID,
+                targetSkillID: targetID,
+                status: status
+            )
+        }
     }
 
     func restoreBackup(
         _ backupID: SkillBackupID,
         restoreDistribution: Bool = false
     ) throws -> SkillRestoreResult {
+        try withStableSkillLifecycleErrors(.backupRead) {
+            try performRestoreBackup(
+                backupID,
+                restoreDistribution: restoreDistribution
+            )
+        }
+    }
+
+    private func performRestoreBackup(
+        _ backupID: SkillBackupID,
+        restoreDistribution: Bool
+    ) throws -> SkillRestoreResult {
         try requireAuthority()
         let (initialBackup, manifest, validated) = try validatedManifest(backupID)
-        if let stored = try storedRestoreResult(
+        let stored = try storedRestoreResult(
             initialBackup,
             expectedFingerprint: manifest.contentFingerprint
-        ) {
-            return stored
-        }
-        let targetID = try resolvedRestoreID(
-            backup: initialBackup,
-            manifest: manifest,
-            persist: true
         )
-        var warnings: [String] = []
-        var status: SkillRestoreStatus = .completed
-        if let existing = try journal.storedDomain(targetID) {
-            guard existing.payload.skill.contentFingerprint == backupFingerprint(manifest) else {
-                throw SkillDeletionError.conflict
-            }
-            status = .noOp
-        } else {
+        if let stored, !restoreDistribution { return stored }
+        let targetID = try stored?.restoredSkillID ?? resolvedRestoreID(
+            backup: initialBackup, manifest: manifest, persist: true
+        )
+        var warnings = stored?.warnings.filter { $0 != "distribution_conflict" } ?? []
+        var status: SkillRestoreStatus =
+            stored?.status == .restoredUndistributed ? .completed : stored?.status ?? .completed
+        if stored == nil {
             let restored = try restorationPayload(
                 manifest.payload,
                 targetSkillID: targetID
             )
             warnings.append(contentsOf: restored.warnings)
-            _ = try create(
-                payload: restored.payload,
-                sourceSnapshot: validated.snapshot
-            )
+            if let existing = try journal.storedDomain(targetID) {
+                guard existing.payload.skill.contentFingerprint == backupFingerprint(manifest) else {
+                    throw SkillDeletionError.conflict
+                }
+                status = initialBackup.restoredSkillID == nil ? .noOp : .completed
+            } else {
+                _ = try create(
+                    payload: restored.payload,
+                    sourceSnapshot: validated.snapshot
+                )
+            }
         }
         if restoreDistribution {
             do {
@@ -85,7 +101,9 @@ extension JournaledSSOTWriter {
             status: status,
             warnings: warnings
         )
-        try persistRestoreResult(result)
+        if stored.map({ !sameRestoreResult($0, result) }) ?? true {
+            try persistRestoreResult(result)
+        }
         return result
     }
 
@@ -136,6 +154,7 @@ extension JournaledSSOTWriter {
             restoredSkillID: target,
             updatedAtMilliseconds: deletionTimestamp(after: backup.updatedAtMilliseconds)
         )
+        try requireAuthority()
         try store.replace(expected: backup, with: replacement)
         return target
     }
@@ -288,11 +307,10 @@ extension JournaledSSOTWriter {
             currentBindings: current.bindings,
             desiredScope: desired,
             desiredConfigured: selection.isExplicitlyConfigured,
-            requiredAdapterCodes: Set(
-                DistributionTargetCatalog.current.globalReaders.map(\.storageKey)
-            )
+            requiredAdapterCodes: desired.requiredAdapterCodes
         )
         guard plan.status != .blocked else { throw SkillDeletionError.conflict }
+        try requireAuthority()
         if plan.status == .executable {
             let operation = try distribution.apply(
                 skillID: skillID,
@@ -320,6 +338,7 @@ extension JournaledSSOTWriter {
     }
 
     private func persistRestoreResult(_ result: SkillRestoreResult) throws {
+        try requireAuthority()
         let store = try SkillBackupStore(connection: connection)
         guard let backup = try store.load(result.backupID),
               backup.restoredSkillID == result.restoredSkillID else {
@@ -336,7 +355,18 @@ extension JournaledSSOTWriter {
             restoreResultJSON: SkillBackupCanonicalJSON.encode(payload),
             updatedAtMilliseconds: deletionTimestamp(after: backup.updatedAtMilliseconds)
         )
+        try requireAuthority()
         try store.replace(expected: backup, with: replacement)
+    }
+
+    private func sameRestoreResult(
+        _ lhs: SkillRestoreResult,
+        _ rhs: SkillRestoreResult
+    ) -> Bool {
+        lhs.backupID == rhs.backupID
+            && lhs.restoredSkillID == rhs.restoredSkillID
+            && lhs.status == rhs.status
+            && lhs.warnings == rhs.warnings
     }
 
     private func storedRestoreResult(

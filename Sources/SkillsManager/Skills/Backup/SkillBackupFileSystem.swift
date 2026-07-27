@@ -127,6 +127,7 @@ nonisolated final class SkillBackupFileSystem {
             try beforePromotion(publication)
             preparationRecorded = true
             try afterPreparationRecorded()
+            try validateAuthority()
             try skillGuard.promoteStagedItemIfAbsent(
                 at: stagingURL,
                 to: finalURL,
@@ -179,6 +180,7 @@ nonisolated final class SkillBackupFileSystem {
         case (publication.identity, nil):
             break
         case (nil, publication.identity):
+            try validateAuthority()
             try skillGuard.promoteStagedItemIfAbsent(
                 at: stagingURL,
                 to: finalURL,

@@ -1,4 +1,6 @@
+import Darwin
 import Foundation
+import SQLite3
 
 nonisolated enum SkillDeletionStatus: String, Sendable {
     case ready
@@ -48,6 +50,7 @@ nonisolated enum SkillDeletionError: LocalizedError, Equatable {
     case operationInProgress
     case needsRepair
     case backupCorrupt
+    case permissionDenied
     case unavailable
 
     var errorDescription: String? {
@@ -57,8 +60,108 @@ nonisolated enum SkillDeletionError: LocalizedError, Equatable {
         case .operationInProgress: "A deletion operation is already in progress."
         case .needsRepair: "The deletion operation requires repair."
         case .backupCorrupt: "The Skill backup is missing or corrupt."
+        case .permissionDenied: "Skills Manager does not have permission for this operation."
         case .unavailable: "The deletion service is unavailable."
         }
+    }
+}
+
+nonisolated enum SkillLifecycleErrorContext {
+    case mutation
+    case backupRead
+}
+
+nonisolated func withStableSkillLifecycleErrors<T>(
+    _ context: SkillLifecycleErrorContext,
+    operation: () throws -> T
+) throws -> T {
+    do {
+        return try operation()
+    } catch is CancellationError {
+        throw CancellationError()
+    } catch let interruption as SSOTWriterCheckpointInterruption {
+        throw interruption
+    } catch {
+        throw stableSkillLifecycleError(error, context: context)
+    }
+}
+
+private nonisolated func stableSkillLifecycleError(
+    _ error: Error,
+    context: SkillLifecycleErrorContext
+) -> SkillDeletionError {
+    if let stable = error as? SkillDeletionError { return stable }
+    if let executor = error as? DistributionSymlinkExecutorError {
+        return switch executor {
+        case .needsRepair: .needsRepair
+        case .operationInProgress: .operationInProgress
+        case .conflict: .conflict
+        case .blocked(let conflicts):
+            conflicts.contains(where: {
+                $0.reason == .targetUnavailable
+                    || $0.reason == .dedicatedTargetUnavailable
+            }) ? .unavailable : .conflict
+        }
+    }
+    if let fileSystem = error as? DistributionSymlinkFileSystemError {
+        return switch fileSystem {
+        case .unavailable: .unavailable
+        case .posix(_, let code): stablePOSIXError(code)
+        default: .conflict
+        }
+    }
+    if let backup = error as? SkillBackupFileSystemError {
+        return switch backup {
+        case .posix(_, let code): stablePOSIXError(code)
+        case .contentChanged, .manifestChanged, .preparedContentMissing:
+            context == .backupRead ? .backupCorrupt : .conflict
+        case .invalidLocator, .itemChanged:
+            context == .backupRead ? .backupCorrupt : .conflict
+        case .destinationExists: .conflict
+        }
+    }
+    if let ownership = error as? SSOTWriterOwnershipError {
+        return switch ownership {
+        case .busy: .operationInProgress
+        case .posix(_, let code): stablePOSIXError(code)
+        case .invalidLockFile: .unavailable
+        }
+    }
+    if let managed = error as? ManagedPathError {
+        return switch managed {
+        case .posix(_, let code): stablePOSIXError(code)
+        case .cleanupFailed, .removalFailed: .needsRepair
+        default: .conflict
+        }
+    }
+    if let sqlite = error as? SQLiteStoreError {
+        return stableSQLiteError(sqlite)
+    }
+    let cocoa = error as NSError
+    if cocoa.domain == NSPOSIXErrorDomain {
+        return stablePOSIXError(Int32(cocoa.code))
+    }
+    if cocoa.domain == NSCocoaErrorDomain,
+       cocoa.code == NSFileReadNoPermissionError
+        || cocoa.code == NSFileWriteNoPermissionError {
+        return .permissionDenied
+    }
+    return .unavailable
+}
+
+private nonisolated func stablePOSIXError(_ code: Int32) -> SkillDeletionError {
+    code == EACCES || code == EPERM ? .permissionDenied : .unavailable
+}
+
+private nonisolated func stableSQLiteError(_ error: SQLiteStoreError) -> SkillDeletionError {
+    guard case .sqlite(_, let code, _) = error else { return .unavailable }
+    return switch code & 0xFF {
+    case SQLITE_PERM, SQLITE_AUTH, SQLITE_READONLY:
+        .permissionDenied
+    case SQLITE_BUSY, SQLITE_LOCKED:
+        .operationInProgress
+    default:
+        .unavailable
     }
 }
 

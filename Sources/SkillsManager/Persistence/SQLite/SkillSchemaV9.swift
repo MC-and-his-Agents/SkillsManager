@@ -144,8 +144,6 @@ nonisolated enum SkillSchemaV9 {
           OR NEW.created_at_ms IS NOT OLD.created_at_ms
           OR (OLD.restored_skill_id IS NOT NULL
             AND NEW.restored_skill_id IS NOT OLD.restored_skill_id)
-          OR (OLD.restore_result_json IS NOT NULL
-            AND NEW.restore_result_json IS NOT OLD.restore_result_json)
         BEGIN
           SELECT RAISE(ABORT, 'Skill backup immutable snapshot changed');
         END

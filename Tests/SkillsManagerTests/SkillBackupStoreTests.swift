@@ -34,16 +34,25 @@ struct SkillBackupStoreTests {
                 try store.replace(expected: preparing, with: available)
             }
 
+            let retried = try backupRecord(
+                identity: identity,
+                state: .available,
+                restoredSkillID: available.restoredSkillID,
+                restoreResult: Data("{\"status\":\"completed\"}".utf8),
+                updated: 3
+            )
+            try store.replace(expected: available, with: retried)
+
             let pruning = try backupRecord(
                 identity: identity,
                 state: .pruning,
-                restoredSkillID: available.restoredSkillID,
-                restoreResult: available.restoreResultJSON,
+                restoredSkillID: retried.restoredSkillID,
+                restoreResult: retried.restoreResultJSON,
                 pruneLocator: "00112233/prune",
                 pruneIdentity: identity,
-                updated: 3
+                updated: 4
             )
-            try store.replace(expected: available, with: pruning)
+            try store.replace(expected: retried, with: pruning)
             try store.deletePruned(expected: pruning)
             #expect(try store.load(preparing.backupID) == nil)
         }

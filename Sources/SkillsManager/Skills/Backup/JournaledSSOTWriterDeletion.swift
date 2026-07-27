@@ -2,74 +2,89 @@ import Foundation
 
 extension JournaledSSOTWriter {
     func deletionPreview(skillID: SkillID) throws -> SkillDeletionPreview {
-        try requireAuthority()
-        let operations = try SkillDeletionOperationStore(connection: connection).recoverable()
-            .filter { $0.skillID == skillID }
-        if let operation = operations.first {
+        try withStableSkillLifecycleErrors(.mutation) {
+            try requireAuthority()
+            let operations = try SkillDeletionOperationStore(connection: connection).recoverable()
+                .filter { $0.skillID == skillID }
+            if let operation = operations.first {
+                return SkillDeletionPreview(
+                    skillID: skillID,
+                    displayName: try journal.managedSkillRecord(skillID)?.displayName.value ?? "",
+                    distributedTargetCount: 0,
+                    status: operation.outcome == .needsRepair
+                        ? .needsRepair : .operationInProgress
+                )
+            }
+            guard let domain = try journal.storedDomain(skillID) else {
+                throw SkillDeletionError.skillNotFound
+            }
+            let selection = try loadDistributionSelection(skillID: skillID)
+            let reconcile = try distribution.reconcile(skillID: skillID)
+            guard reconcile.status == .inSync else {
+                if reconcile.status == .needsRepair { throw SkillDeletionError.needsRepair }
+                if reconcile.status == .operationInProgress {
+                    throw SkillDeletionError.operationInProgress
+                }
+                throw SkillDeletionError.conflict
+            }
             return SkillDeletionPreview(
                 skillID: skillID,
-                displayName: try journal.managedSkillRecord(skillID)?.displayName.value ?? "",
-                distributedTargetCount: 0,
-                status: operation.outcome == .needsRepair ? .needsRepair : .operationInProgress
+                displayName: domain.payload.skill.displayName.value,
+                distributedTargetCount: selection.bindings.count,
+                status: .ready
             )
         }
-        guard let domain = try journal.storedDomain(skillID) else {
-            throw SkillDeletionError.skillNotFound
-        }
-        let selection = try loadDistributionSelection(skillID: skillID)
-        let reconcile = try distribution.reconcile(skillID: skillID)
-        guard reconcile.status == .inSync else {
-            if reconcile.status == .needsRepair { throw SkillDeletionError.needsRepair }
-            if reconcile.status == .operationInProgress {
-                throw SkillDeletionError.operationInProgress
-            }
-            throw SkillDeletionError.conflict
-        }
-        return SkillDeletionPreview(
-            skillID: skillID,
-            displayName: domain.payload.skill.displayName.value,
-            distributedTargetCount: selection.bindings.count,
-            status: .ready
-        )
     }
 
     func deletionOperation(
         _ operationID: SSOTOperationID
     ) throws -> SkillDeletionOperationRecord {
-        try requireAuthority()
-        return try SkillDeletionOperationStore(connection: connection).load(operationID)
+        try withStableSkillLifecycleErrors(.mutation) {
+            try requireAuthority()
+            return try SkillDeletionOperationStore(connection: connection).load(operationID)
+        }
     }
 
     func retryDeletion(
         _ operationID: SSOTOperationID
     ) throws -> SkillDeletionResult {
-        try requireAuthority()
-        let store = try SkillDeletionOperationStore(connection: connection)
-        var operation = try store.load(operationID)
-        if operation.phase == .completed,
-           operation.outcome == .applied,
-           operation.cleanupState == .needsRepair {
-            operation = try deletionTransition(
-                operation,
-                cleanupState: .pending,
-                lastError: nil
-            )
-            try store.transition(expected: try store.load(operationID), to: operation)
-        } else if operation.outcome == .needsRepair {
-            let resumed = try deletionTransition(
-                operation,
-                outcome: .pending,
-                cleanupState: operation.cleanupState == .needsRepair ? .pending : nil,
-                attemptIncrement: 1,
-                lastError: nil
-            )
-            try store.transition(expected: operation, to: resumed)
-            operation = resumed
+        try withStableSkillLifecycleErrors(.mutation) {
+            try requireAuthority()
+            let store = try SkillDeletionOperationStore(connection: connection)
+            var operation = try store.load(operationID)
+            if operation.phase == .completed,
+               operation.outcome == .applied,
+               operation.cleanupState == .needsRepair {
+                operation = try deletionTransition(
+                    operation,
+                    cleanupState: .pending,
+                    lastError: nil
+                )
+                try requireAuthority()
+                try store.transition(expected: try store.load(operationID), to: operation)
+            } else if operation.outcome == .needsRepair {
+                let resumed = try deletionTransition(
+                    operation,
+                    outcome: .pending,
+                    cleanupState: operation.cleanupState == .needsRepair ? .pending : nil,
+                    attemptIncrement: 1,
+                    lastError: nil
+                )
+                try requireAuthority()
+                try store.transition(expected: operation, to: resumed)
+                operation = resumed
+            }
+            return try executeDeletion(operationID)
         }
-        return try executeDeletion(operationID)
     }
 
     func recoverDeletions() throws {
+        try withStableSkillLifecycleErrors(.mutation) {
+            try performDeletionRecovery()
+        }
+    }
+
+    private func performDeletionRecovery() throws {
         let store = try SkillDeletionOperationStore(connection: connection)
         for operation in try store.recoverable() {
             guard operation.outcome != .needsRepair,
@@ -195,6 +210,7 @@ extension JournaledSSOTWriter {
             updatedAtMilliseconds: timestamp
         )
         let operationStore = try SkillDeletionOperationStore(connection: connection)
+        try requireAuthority()
         try operationStore.transaction {
             try backupStore.replaceInCurrentTransaction(
                 expected: backup,
@@ -232,6 +248,7 @@ extension JournaledSSOTWriter {
               plan.status != .blocked else {
             throw SkillDeletionError.conflict
         }
+        try requireAuthority()
         if plan.status == .executable {
             let applied = try distribution.apply(
                 skillID: operation.skillID,
@@ -250,6 +267,7 @@ extension JournaledSSOTWriter {
             throw SkillDeletionError.needsRepair
         }
         let advanced = try deletionTransition(operation, phase: .distributionRemoved)
+        try requireAuthority()
         try SkillDeletionOperationStore(connection: connection)
             .transition(expected: operation, to: advanced)
         return advanced
@@ -259,6 +277,7 @@ extension JournaledSSOTWriter {
         _ operation: SkillDeletionOperationRecord
     ) throws -> SkillDeletionOperationRecord {
         let domain = try deletionDomain(operation)
+        try requireAuthority()
         let quarantined = try fileSystem.quarantineFinal(
             skillID: operation.skillID,
             operationID: operation.operationID.uuid,
@@ -271,6 +290,7 @@ extension JournaledSSOTWriter {
             cleanupState: .notStarted,
             quarantineIdentity: quarantined.identity
         )
+        try requireAuthority()
         try SkillDeletionOperationStore(connection: connection)
             .transition(expected: operation, to: advanced)
         return advanced
@@ -282,6 +302,7 @@ extension JournaledSSOTWriter {
         let domain = try deletionDomain(operation)
         let advanced = try deletionTransition(operation, phase: .databaseCommitted)
         let store = try SkillDeletionOperationStore(connection: connection)
+        try requireAuthority()
         try store.commitDomainDeletion(
             journal: journal,
             skillID: operation.skillID,
