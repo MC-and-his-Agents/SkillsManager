@@ -138,7 +138,7 @@ struct ManagedSkillImportRecoveryTests {
 
         let recovered = try await workspace.openWriter()
         _ = recovered
-        #expect(try workspace.integer("PRAGMA user_version") == 7)
+        #expect(try workspace.integer("PRAGMA user_version") == 8)
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
         #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 0)
         #expect(try workspace.scalar("SELECT outcome FROM skill_operations") == "applied")

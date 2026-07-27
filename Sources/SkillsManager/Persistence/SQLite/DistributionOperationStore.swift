@@ -170,6 +170,9 @@ private nonisolated struct DistributionPlanWire: Codable, Equatable {
     let filesystemActions: [DistributionPlanActionWire]
     let bindingsChanged: Bool
     let bindingReplacement: [DistributionPlanBindingWire]
+    let configurationChanged: Bool?
+    let expectedOldConfigured: Bool?
+    let desiredConfigured: Bool?
     let conflicts: [DistributionPlanConflictWire]
 
     enum CodingKeys: String, CodingKey {
@@ -177,6 +180,9 @@ private nonisolated struct DistributionPlanWire: Codable, Equatable {
         case filesystemActions = "filesystem_actions"
         case bindingsChanged = "bindings_changed"
         case bindingReplacement = "binding_replacement"
+        case configurationChanged = "configuration_changed"
+        case expectedOldConfigured = "expected_old_configured"
+        case desiredConfigured = "desired_configured"
         case conflicts
     }
 }
@@ -190,6 +196,14 @@ private nonisolated struct DistributionPreflightWire: Codable, Equatable {
     let rootIdentity: Data
     let entryIdentity: Data?
     let temporaryName: String
+}
+
+private nonisolated struct DistributionPreflightPayloadWire: Codable, Equatable {
+    let actions: [DistributionPreflightWire]
+    let ssotIdentity: Data
+    let absoluteLinkTarget: String
+    let expectedOldConfigured: Bool
+    let desiredConfigured: Bool
 }
 
 private nonisolated struct DistributionRuntimeWire: Codable, Equatable {
@@ -290,7 +304,7 @@ private nonisolated enum DistributionOperationPayloadValidator {
             old: old,
             new: new
         )
-        let preflight = try decodePreflight(preflightData)
+        let preflight = try decodePreflight(preflightData, plan: plan, old: old)
         try validatePreflight(
             preflight,
             plan: plan,
@@ -309,7 +323,7 @@ private nonisolated enum DistributionOperationPayloadValidator {
         }
         try validateRuntime(
             runtime,
-            preflight: preflight,
+            preflight: preflight.actions,
             plan: plan,
             forwardCursor: forwardCursor,
             rollbackCursor: rollbackCursor,
@@ -328,11 +342,11 @@ private nonisolated enum DistributionOperationPayloadValidator {
         phase: DistributionOperationPhase
     ) throws {
         let plan = try decodePlan(planData)
-        let preflight = try decodePreflight(preflightData)
+        let preflight = try decodePreflight(preflightData, plan: plan, old: nil)
         let runtime = try decodeRuntime(data)
         try validateRuntime(
             runtime,
-            preflight: preflight,
+            preflight: preflight.actions,
             plan: plan,
             forwardCursor: forwardCursor,
             rollbackCursor: rollbackCursor,
@@ -366,10 +380,17 @@ private nonisolated enum DistributionOperationPayloadValidator {
             from: data
         )
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              Set(object.keys) == [
-                  "status", "filesystem_actions", "bindings_changed",
-                  "binding_replacement", "conflicts"
-              ],
+              {
+                  let oldKeys: Set<String> = [
+                      "status", "filesystem_actions", "bindings_changed",
+                      "binding_replacement", "conflicts",
+                  ]
+                  let keys = Set(object.keys)
+                  return keys == oldKeys || keys == oldKeys.union([
+                      "configuration_changed", "expected_old_configured",
+                      "desired_configured",
+                  ])
+              }(),
               let actions = object["filesystem_actions"] as? [[String: Any]],
               actions.allSatisfy({
                   Set($0.keys) == ["action", "target_scope_key", "target_locator", "ssot_locator"]
@@ -394,7 +415,28 @@ private nonisolated enum DistributionOperationPayloadValidator {
         return value
     }
 
-    private static func decodePreflight(_ data: Data) throws -> [DistributionPreflightWire] {
+    private static func decodePreflight(
+        _ data: Data,
+        plan: DistributionPlanWire,
+        old: [DistributionBindingWire]?
+    ) throws -> DistributionPreflightPayloadWire {
+        if let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let value = try DistributionOperationPayloadCodec.decode(
+                DistributionPreflightPayloadWire.self,
+                from: data
+            )
+            guard Set(object.keys) == [
+                "actions", "ssotIdentity", "absoluteLinkTarget",
+                "expectedOldConfigured", "desiredConfigured",
+            ], plan.expectedOldConfigured == value.expectedOldConfigured,
+            plan.desiredConfigured == value.desiredConfigured,
+            !value.ssotIdentity.isEmpty,
+            !value.absoluteLinkTarget.isEmpty else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            return value
+        }
+
         let value = try DistributionOperationPayloadCodec.decode(
             [DistributionPreflightWire].self,
             from: data
@@ -412,7 +454,25 @@ private nonisolated enum DistributionOperationPayloadValidator {
               }) else {
             throw DistributionOperationStoreError.invalidRecord
         }
-        return value
+        guard let first = value.first else {
+            guard plan.filesystemActions.isEmpty else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            return DistributionPreflightPayloadWire(
+                actions: [],
+                ssotIdentity: Data(),
+                absoluteLinkTarget: "",
+                expectedOldConfigured: plan.expectedOldConfigured ?? !(old?.isEmpty ?? true),
+                desiredConfigured: plan.desiredConfigured ?? true
+            )
+        }
+        return DistributionPreflightPayloadWire(
+            actions: value,
+            ssotIdentity: first.ssotIdentity,
+            absoluteLinkTarget: first.absoluteLinkTarget,
+            expectedOldConfigured: plan.expectedOldConfigured ?? !(old?.isEmpty ?? true),
+            desiredConfigured: plan.desiredConfigured ?? true
+        )
     }
 
     private static func decodeRuntime(_ data: Data) throws -> DistributionRuntimeWire {
@@ -572,7 +632,21 @@ private nonisolated enum DistributionOperationPayloadValidator {
         }
         let oldKeys = Set(old.map(bindingKey))
         let newKeys = Set(new.map(bindingKey))
-        guard plan.bindingsChanged == (oldKeys != newKeys) else {
+        let configurationFields = [
+            plan.configurationChanged != nil,
+            plan.expectedOldConfigured != nil,
+            plan.desiredConfigured != nil,
+        ]
+        let hasConfigurationFields = configurationFields.contains(true)
+        let configurationChanged = (plan.expectedOldConfigured ?? !old.isEmpty)
+            != (plan.desiredConfigured ?? true)
+        guard configurationFields.allSatisfy({ $0 == hasConfigurationFields }),
+              plan.bindingsChanged == (oldKeys != newKeys),
+              plan.configurationChanged == nil
+                || plan.configurationChanged == configurationChanged,
+              !plan.filesystemActions.isEmpty
+                || plan.bindingsChanged
+                || (plan.configurationChanged ?? false) else {
             throw DistributionOperationStoreError.invalidRecord
         }
         let replacementKeys = try Set(
@@ -625,17 +699,33 @@ private nonisolated enum DistributionOperationPayloadValidator {
     }
 
     private static func validatePreflight(
-        _ preflight: [DistributionPreflightWire],
+        _ preflight: DistributionPreflightPayloadWire,
         plan: DistributionPlanWire,
         skillID: SkillID,
         operationID: SSOTOperationID
     ) throws {
-        guard preflight.count == plan.filesystemActions.count else {
+        if preflight.actions.isEmpty,
+           preflight.ssotIdentity.isEmpty,
+           preflight.absoluteLinkTarget.isEmpty {
+            guard plan.filesystemActions.isEmpty else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            return
+        }
+        guard preflight.actions.count == plan.filesystemActions.count,
+              preflight.ssotIdentity.count == ManagedItemIdentityCodec.encodedByteCount,
+              preflight.absoluteLinkTarget.hasPrefix("/"),
+              URL(fileURLWithPath: preflight.absoluteLinkTarget).standardizedFileURL.path
+                == preflight.absoluteLinkTarget,
+              preflight.absoluteLinkTarget.hasSuffix(
+                  "/.SkillsManager/skills/\(skillID.directoryName)"
+              ) else {
             throw DistributionOperationStoreError.invalidRecord
         }
+        try validateIdentity(preflight.ssotIdentity)
         var ssotIdentity: Data?
         var absoluteTarget: String?
-        for (index, value) in preflight.enumerated() {
+        for (index, value) in preflight.actions.enumerated() {
             let action = plan.filesystemActions[index]
             guard value.kind == action.action,
                   value.targetScopeKey == action.targetScopeKey,
@@ -674,6 +764,10 @@ private nonisolated enum DistributionOperationPayloadValidator {
                 throw DistributionOperationStoreError.invalidRecord
             }
             absoluteTarget = value.absoluteLinkTarget
+        }
+        guard ssotIdentity == nil || ssotIdentity == preflight.ssotIdentity,
+              absoluteTarget == nil || absoluteTarget == preflight.absoluteLinkTarget else {
+            throw DistributionOperationStoreError.invalidRecord
         }
     }
 

@@ -31,6 +31,114 @@ struct DistributionSymlinkExecutorTests {
         }
     }
 
+    @Test("persists an explicit disabled selection without filesystem changes")
+    func appliesMarkerOnlyDisabledPlan() throws {
+        try withDistributionExecutorFixture { fixture in
+            let plan = try markerOnlyDisabledPlan(fixture)
+            #expect(plan.status == .executable)
+            #expect(plan.filesystemActions.isEmpty)
+            #expect(plan.bindingReplacement.isEmpty)
+            #expect(plan.configurationChanged)
+
+            let record = try fixture.executor.apply(
+                skillID: fixture.skillID,
+                plan: plan,
+                expectedOldBindings: [],
+                expectedOldOwnership: [],
+                nowMilliseconds: 10
+            )
+
+            #expect(record.phase == .completed)
+            #expect(record.outcome == .applied)
+            #expect(try fixture.configurationStore.load(skillID: fixture.skillID))
+            #expect(try fixture.bindingStore.load(skillID: fixture.skillID).isEmpty)
+            #expect(try fixture.ownershipStore.load(skillID: fixture.skillID).isEmpty)
+            #expect(try fixture.executor.dryRun(
+                skillID: fixture.skillID,
+                currentBindings: [],
+                desiredScope: .disabled,
+                requiredAdapterCodes: []
+            ).status == .noOp)
+        }
+    }
+
+    @Test("rejects a stale explicit configuration marker before journaling")
+    func rejectsStaleConfigurationMarker() throws {
+        try withDistributionExecutorFixture { fixture in
+            let plan = try markerOnlyDisabledPlan(fixture)
+            try fixture.configurationStore.replaceInCurrentTransaction(
+                skillID: fixture.skillID,
+                expectedOld: false,
+                desired: true,
+                nowMilliseconds: 1
+            )
+
+            #expect(throws: DistributionSymlinkExecutorError.self) {
+                _ = try fixture.executor.apply(
+                    skillID: fixture.skillID,
+                    plan: plan,
+                    expectedOldBindings: [],
+                    expectedOldOwnership: [],
+                    nowMilliseconds: 10
+                )
+            }
+            #expect(try fixture.operationStore.recoverableOperations().isEmpty)
+        }
+    }
+
+    @Test("recovers marker-only prepared and applying operations to the old state")
+    func recoversMarkerOnlyRollbackPhases() throws {
+        for phase in [DistributionOperationPhase.prepared, .applying] {
+            try withDistributionExecutorFixture { fixture in
+                let operation = try applyMarkerOnlyDisabled(fixture)
+                try fixture.configurationStore.replaceInCurrentTransaction(
+                    skillID: fixture.skillID,
+                    expectedOld: true,
+                    desired: false,
+                    nowMilliseconds: 20
+                )
+                try rewindMarkerOnlyOperation(
+                    fixture.connection,
+                    operationID: operation.operationID,
+                    phase: phase
+                )
+
+                try fixture.executor.recoverAll()
+
+                let recovered = try fixture.operationStore.load(operation.operationID)
+                #expect(recovered.phase == .completed)
+                #expect(recovered.outcome == .rolledBack)
+                #expect(try !fixture.configurationStore.load(skillID: fixture.skillID))
+            }
+        }
+    }
+
+    @Test("recovers marker-only filesystemApplied exactly once")
+    func recoversMarkerOnlyFilesystemApplied() throws {
+        try withDistributionExecutorFixture { fixture in
+            let operation = try applyMarkerOnlyDisabled(fixture)
+            try fixture.configurationStore.replaceInCurrentTransaction(
+                skillID: fixture.skillID,
+                expectedOld: true,
+                desired: false,
+                nowMilliseconds: 20
+            )
+            try rewindMarkerOnlyOperation(
+                fixture.connection,
+                operationID: operation.operationID,
+                phase: .filesystemApplied
+            )
+
+            try fixture.executor.recoverAll()
+            try fixture.executor.recoverAll()
+
+            let recovered = try fixture.operationStore.load(operation.operationID)
+            #expect(recovered.phase == .completed)
+            #expect(recovered.outcome == .applied)
+            #expect(try fixture.configurationStore.load(skillID: fixture.skillID))
+        }
+    }
+
     @Test("recovers filesystemApplied using the journal old snapshot")
     func recoversFilesystemApplied() throws {
         try withCompletedTransition { fixture, transition in
@@ -160,6 +268,12 @@ struct DistributionSymlinkExecutorTests {
                 desired: [],
                 nowMilliseconds: 20
             )
+            try fixture.configurationStore.replaceInCurrentTransaction(
+                skillID: fixture.skillID,
+                expectedOld: true,
+                desired: false,
+                nowMilliseconds: 20
+            )
             let rootIdentity = try fixture.fileSystem.ensureRoot(for: action.entry.target.scope)
             _ = try fixture.fileSystem.create(
                 action.entry,
@@ -226,6 +340,12 @@ struct DistributionSymlinkExecutorTests {
                 skillID: fixture.skillID,
                 expectedOld: [binding],
                 desired: [],
+                nowMilliseconds: 20
+            )
+            try fixture.configurationStore.replaceInCurrentTransaction(
+                skillID: fixture.skillID,
+                expectedOld: true,
+                desired: false,
                 nowMilliseconds: 20
             )
             let rootIdentity = try fixture.fileSystem.ensureRoot(for: action.entry.target.scope)
@@ -350,6 +470,7 @@ private struct DistributionExecutorFixture {
     let fileSystem: DistributionSymlinkFileSystem
     let executor: DistributionSymlinkExecutor
     let bindingStore: DistributionBindingStore
+    let configurationStore: DistributionConfigurationStore
     let ownershipStore: DistributionLinkOwnershipStore
     let operationStore: DistributionOperationStore
     let slug: DefaultDistributionSlug
@@ -404,10 +525,34 @@ private func withDistributionExecutorFixture(
             nowMilliseconds: { 10 }
         ),
         bindingStore: DistributionBindingStore(connection: connection),
+        configurationStore: DistributionConfigurationStore(connection: connection),
         ownershipStore: DistributionLinkOwnershipStore(connection: connection),
         operationStore: try DistributionOperationStore(connection: connection),
         slug: try DefaultDistributionSlug(validating: "demo")
     ))
+}
+
+private func markerOnlyDisabledPlan(
+    _ fixture: DistributionExecutorFixture
+) throws -> DistributionPlan {
+    try fixture.executor.dryRun(
+        skillID: fixture.skillID,
+        currentBindings: [],
+        desiredScope: .disabled,
+        requiredAdapterCodes: []
+    )
+}
+
+private func applyMarkerOnlyDisabled(
+    _ fixture: DistributionExecutorFixture
+) throws -> DistributionOperationRecord {
+    try fixture.executor.apply(
+        skillID: fixture.skillID,
+        plan: markerOnlyDisabledPlan(fixture),
+        expectedOldBindings: [],
+        expectedOldOwnership: [],
+        nowMilliseconds: 10
+    )
 }
 
 private func applyGlobal(
@@ -509,6 +654,26 @@ private func rewindOperation(
     } else {
         try statement.bind(operationID.bytes, at: 1)
     }
+    guard try !statement.step() else {
+        throw DistributionOperationStoreError.invalidRecord
+    }
+}
+
+private func rewindMarkerOnlyOperation(
+    _ connection: SQLiteConnection,
+    operationID: SSOTOperationID,
+    phase: DistributionOperationPhase
+) throws {
+    let statement = try connection.prepare(
+        """
+        UPDATE distribution_operations
+        SET phase = ?, outcome = NULL, forward_cursor = 0, rollback_cursor = 0,
+            cleanup_cursor = 0, last_error = NULL
+        WHERE operation_id = ?
+        """
+    )
+    try statement.bind(phase.rawValue, at: 1)
+    try statement.bind(operationID.bytes, at: 2)
     guard try !statement.step() else {
         throw DistributionOperationStoreError.invalidRecord
     }

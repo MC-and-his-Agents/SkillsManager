@@ -151,9 +151,15 @@ actor JournaledSSOTWriter {
         )
     }
 
-    func loadDistributionBindings(skillID: SkillID) throws -> [DistributionBinding] {
+    func loadDistributionSelection(
+        skillID: SkillID
+    ) throws -> DistributionSelectionReadback {
         try requireAuthority()
-        return try DistributionBindingStore(connection: connection).load(skillID: skillID)
+        return DistributionSelectionReadback(
+            bindings: try DistributionBindingStore(connection: connection).load(skillID: skillID),
+            isExplicitlyConfigured: try DistributionConfigurationStore(connection: connection)
+                .load(skillID: skillID)
+        )
     }
 
     func applyDistribution(

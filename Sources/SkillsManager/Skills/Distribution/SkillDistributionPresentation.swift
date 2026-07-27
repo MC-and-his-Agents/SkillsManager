@@ -8,7 +8,6 @@ nonisolated enum SkillDistributionStateError: Error {
 extension SkillDistributionViewModel {
     enum Problem: Equatable {
         case invalidPersistedBindings
-        case invalidSelection
         case previewExpired
         case permissionDenied
         case targetUnavailable
@@ -21,8 +20,6 @@ extension SkillDistributionViewModel {
             switch self {
             case .invalidPersistedBindings:
                 "The saved distribution state is invalid and cannot be edited safely."
-            case .invalidSelection:
-                "Select at least one Agent before previewing an Agent-specific distribution."
             case .previewExpired:
                 "The preview expired because the distribution state changed. Review the refreshed state."
             case .permissionDenied:
@@ -48,11 +45,22 @@ extension SkillDistributionViewModel {
         var id: String { "\(scopeKey)\u{0}\(locator)" }
     }
 
+    struct AgentRow: Identifiable, Equatable, Sendable {
+        let platform: SkillPlatform
+        let locator: String
+        let readsGlobalTarget: Bool
+        let isCurrentlyEnabled: Bool
+        let isSelected: Bool
+
+        var id: SkillPlatform { platform }
+    }
+
     struct PreviewRow: Identifiable, Equatable, Sendable {
         enum Kind: String, Sendable {
             case remove
             case create
             case binding
+            case configuration
             case noChange
         }
 
@@ -119,6 +127,7 @@ extension SkillDistributionViewModel.PreviewRow.Kind {
         case .remove: "Remove link"
         case .create: "Create link"
         case .binding: "Update saved target"
+        case .configuration: "Save Agent selection"
         case .noChange: "No change"
         }
     }
@@ -128,6 +137,7 @@ extension SkillDistributionViewModel.PreviewRow.Kind {
         case .remove: "minus.circle"
         case .create: "plus.circle"
         case .binding: "link"
+        case .configuration: "checklist"
         case .noChange: "checkmark.circle"
         }
     }

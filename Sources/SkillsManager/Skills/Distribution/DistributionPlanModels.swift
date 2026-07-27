@@ -12,6 +12,11 @@ nonisolated enum DistributionDesiredScope: Sendable {
         }
     }
 }
+
+nonisolated struct DistributionSelectionReadback: Sendable {
+    let bindings: [DistributionBinding]
+    let isExplicitlyConfigured: Bool
+}
 nonisolated enum DistributionTargetObservation: Hashable, Sendable {
     case missing
     case managed(skillID: SkillID, ssotDirectoryName: String)
@@ -72,6 +77,9 @@ nonisolated struct DistributionPlan: Sendable {
     let filesystemActions: [DistributionFilesystemAction]
     let bindingsChanged: Bool
     let bindingReplacement: [DistributionBindingIntent]
+    let configurationChanged: Bool
+    let expectedOldConfigured: Bool
+    let desiredConfigured: Bool
     let conflicts: [DistributionPlanConflict]
 
     func canonicalJSONData() throws -> Data {
@@ -125,6 +133,9 @@ private nonisolated struct CanonicalDistributionPlan: Encodable {
     let filesystemActions: [CanonicalDistributionAction]
     let bindingsChanged: Bool
     let bindingReplacement: [CanonicalDistributionBinding]
+    let configurationChanged: Bool
+    let expectedOldConfigured: Bool
+    let desiredConfigured: Bool
     let conflicts: [CanonicalDistributionConflict]
 
     enum CodingKeys: String, CodingKey {
@@ -132,6 +143,9 @@ private nonisolated struct CanonicalDistributionPlan: Encodable {
         case filesystemActions = "filesystem_actions"
         case bindingsChanged = "bindings_changed"
         case bindingReplacement = "binding_replacement"
+        case configurationChanged = "configuration_changed"
+        case expectedOldConfigured = "expected_old_configured"
+        case desiredConfigured = "desired_configured"
         case conflicts
     }
 
@@ -144,6 +158,9 @@ private nonisolated struct CanonicalDistributionPlan: Encodable {
         bindingReplacement = plan.bindingReplacement
             .sorted(by: distributionBindingIntentPrecedes)
             .map(CanonicalDistributionBinding.init)
+        configurationChanged = plan.configurationChanged
+        expectedOldConfigured = plan.expectedOldConfigured
+        desiredConfigured = plan.desiredConfigured
         conflicts = plan.conflicts
             .sorted(by: distributionConflictPrecedes)
             .map(CanonicalDistributionConflict.init)

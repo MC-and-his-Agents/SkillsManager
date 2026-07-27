@@ -144,6 +144,14 @@ private nonisolated struct DistributionPreflightAction: Codable {
     let temporaryName: String
 }
 
+private nonisolated struct DistributionPreflightPayload: Codable {
+    let actions: [DistributionPreflightAction]
+    let ssotIdentity: Data
+    let absoluteLinkTarget: String
+    let expectedOldConfigured: Bool
+    let desiredConfigured: Bool
+}
+
 private nonisolated struct DistributionRuntimeEvidence: Codable {
     struct Pending: Codable {
         let actionIndex: Int
@@ -263,6 +271,7 @@ nonisolated final class DistributionSymlinkExecutor {
         case removed(DistributionRuntimeEvidence.Removed)
     }
     private let bindingStore: DistributionBindingStore
+    private let configurationStore: DistributionConfigurationStore
     private let ownershipStore: DistributionLinkOwnershipStore
     private let operationStore: DistributionOperationStore
     private let fileSystem: DistributionSymlinkFileSystem
@@ -276,6 +285,7 @@ nonisolated final class DistributionSymlinkExecutor {
         }
     ) throws {
         bindingStore = DistributionBindingStore(connection: connection)
+        configurationStore = DistributionConfigurationStore(connection: connection)
         ownershipStore = DistributionLinkOwnershipStore(connection: connection)
         operationStore = try DistributionOperationStore(connection: connection)
         self.fileSystem = fileSystem
@@ -286,6 +296,7 @@ nonisolated final class DistributionSymlinkExecutor {
         skillID: SkillID,
         currentBindings: [DistributionBinding],
         desiredScope: DistributionDesiredScope,
+        desiredConfigured: Bool = true,
         requiredAdapterCodes: Set<String>,
         catalog: DistributionTargetCatalog = .current
     ) throws -> DistributionPlan {
@@ -305,7 +316,9 @@ nonisolated final class DistributionSymlinkExecutor {
         return DistributionPlanner().plan(
             skillID: skillID,
             currentBindings: currentBindings,
+            currentConfigured: try configurationStore.load(skillID: skillID),
             desiredScope: desiredScope,
+            desiredConfigured: desiredConfigured,
             requiredAdapterCodes: requiredAdapterCodes,
             observations: observations,
             catalog: catalog
@@ -425,7 +438,7 @@ nonisolated final class DistributionSymlinkExecutor {
                         actionIndex: index
                     )
                 case .createSymlink:
-                    guard let preflightAction = preflight[safe: index],
+                    guard let preflightAction = preflight.actions[safe: index],
                           let expectedSSOTIdentity = try? ManagedItemIdentityCodec.decode(
                               preflightAction.ssotIdentity
                           ),
@@ -526,6 +539,8 @@ nonisolated final class DistributionSymlinkExecutor {
                     expectedOldOwnership: expectedOldOwnership,
                     desiredBindings: plan.bindingReplacement,
                     desiredOwnership: desiredOwnership,
+                    expectedOldConfigured: plan.expectedOldConfigured,
+                    desiredConfigured: plan.desiredConfigured,
                     operationID: operationID,
                     nowMilliseconds: timestamp
                 )
@@ -856,10 +871,7 @@ nonisolated final class DistributionSymlinkExecutor {
         guard try currentSSOTMatches(operation) else {
             throw DistributionSymlinkExecutorError.needsRepair("SSOT identity changed")
         }
-        let preflight = try DistributionOperationPayloadCodec.decode(
-            [DistributionPreflightAction].self,
-            from: operation.preflightPayload
-        )
+        let preflight = try decodePreflight(operation).actions
         var runtime = try DistributionOperationPayloadCodec.decode(
             DistributionRuntimeEvidence.self,
             from: operation.runtimePayload
@@ -957,10 +969,7 @@ nonisolated final class DistributionSymlinkExecutor {
         guard try currentSSOTMatches(operation) else {
             throw DistributionSymlinkExecutorError.needsRepair("SSOT identity changed")
         }
-        let preflight = try DistributionOperationPayloadCodec.decode(
-            [DistributionPreflightAction].self,
-            from: operation.preflightPayload
-        )
+        let preflight = try decodePreflight(operation).actions
         let runtime = try DistributionOperationPayloadCodec.decode(
             DistributionRuntimeEvidence.self,
             from: operation.runtimePayload
@@ -1089,10 +1098,7 @@ nonisolated final class DistributionSymlinkExecutor {
                 "filesystemApplied operation has a non-old database snapshot"
             )
         }
-        let preflight = try DistributionOperationPayloadCodec.decode(
-            [DistributionPreflightAction].self,
-            from: operation.preflightPayload
-        )
+        let preflight = try decodePreflight(operation)
         let runtime = try decodeRuntime(operation)
         let newBindings = try decodeBindingIntents(operation.newBindings, skillID: operation.skillID)
         let plan = try recoveryPlan(
@@ -1142,6 +1148,8 @@ nonisolated final class DistributionSymlinkExecutor {
                 expectedOldOwnership: oldOwnership,
                 desiredBindings: newBindings,
                 desiredOwnership: desiredOwnership,
+                expectedOldConfigured: preflight.expectedOldConfigured,
+                desiredConfigured: preflight.desiredConfigured,
                 operationID: operation.operationID,
                 nowMilliseconds: operation.createdAtMilliseconds
             )
@@ -1169,6 +1177,8 @@ nonisolated final class DistributionSymlinkExecutor {
         expectedOldOwnership: [DistributionLinkOwnership],
         desiredBindings: [DistributionBindingIntent],
         desiredOwnership: [DistributionLinkOwnership],
+        expectedOldConfigured: Bool,
+        desiredConfigured: Bool,
         operationID: SSOTOperationID,
         nowMilliseconds: Int64
     ) throws {
@@ -1183,6 +1193,12 @@ nonisolated final class DistributionSymlinkExecutor {
             skillID: skillID,
             expectedOld: expectedOldBindings,
             desired: desiredBindings,
+            nowMilliseconds: nowMilliseconds
+        )
+        try configurationStore.replaceInCurrentTransaction(
+            skillID: skillID,
+            expectedOld: expectedOldConfigured,
+            desired: desiredConfigured,
             nowMilliseconds: nowMilliseconds
         )
         _ = try ownershipStore.replaceInCurrentTransaction(
@@ -1200,6 +1216,43 @@ nonisolated final class DistributionSymlinkExecutor {
         try DistributionOperationPayloadCodec.decode(
             DistributionRuntimeEvidence.self,
             from: operation.runtimePayload
+        )
+    }
+
+    private func decodePreflight(
+        _ operation: DistributionOperationRecord
+    ) throws -> DistributionPreflightPayload {
+        if let payload = try? DistributionOperationPayloadCodec.decode(
+            DistributionPreflightPayload.self,
+            from: operation.preflightPayload
+        ) {
+            return payload
+        }
+        let actions = try DistributionOperationPayloadCodec.decode(
+            [DistributionPreflightAction].self,
+            from: operation.preflightPayload
+        )
+        guard let first = actions.first else {
+            return DistributionPreflightPayload(
+                actions: [],
+                ssotIdentity: Data(),
+                absoluteLinkTarget: "",
+                expectedOldConfigured: try !decodeBindings(
+                    operation.oldBindings,
+                    skillID: operation.skillID
+                ).isEmpty,
+                desiredConfigured: true
+            )
+        }
+        return DistributionPreflightPayload(
+            actions: actions,
+            ssotIdentity: first.ssotIdentity,
+            absoluteLinkTarget: first.absoluteLinkTarget,
+            expectedOldConfigured: try !decodeBindings(
+                operation.oldBindings,
+                skillID: operation.skillID
+            ).isEmpty,
+            desiredConfigured: true
         )
     }
 
@@ -1350,9 +1403,9 @@ nonisolated final class DistributionSymlinkExecutor {
     private func recoveryPlan(
         skillID: SkillID,
         bindings: [DistributionBindingIntent],
-        preflight: [DistributionPreflightAction]
+        preflight: DistributionPreflightPayload
     ) throws -> DistributionPlan {
-        let actions = try preflight.map { action in
+        let actions = try preflight.actions.map { action in
             guard let entry = preflightEntry(action),
                   let kind = DistributionFilesystemActionKind(rawValue: action.kind) else {
                 throw DistributionSymlinkExecutorError.needsRepair("invalid persisted plan")
@@ -1362,8 +1415,12 @@ nonisolated final class DistributionSymlinkExecutor {
         return DistributionPlan(
             status: .executable,
             filesystemActions: actions,
-            bindingsChanged: true,
+            bindingsChanged: !actions.isEmpty || !bindings.isEmpty,
             bindingReplacement: bindings,
+            configurationChanged: preflight.expectedOldConfigured
+                != preflight.desiredConfigured,
+            expectedOldConfigured: preflight.expectedOldConfigured,
+            desiredConfigured: preflight.desiredConfigured,
             conflicts: []
         )
     }
@@ -1372,6 +1429,14 @@ nonisolated final class DistributionSymlinkExecutor {
         operation: DistributionOperationRecord,
         expected: RecoveryExpectation
     ) throws -> Bool {
+        let preflight = try decodePreflight(operation)
+        let expectedConfigured = expected == .old
+            ? preflight.expectedOldConfigured
+            : preflight.desiredConfigured
+        guard try configurationStore.load(skillID: operation.skillID)
+                == expectedConfigured else {
+            return false
+        }
         let bindingPayload = expected == .old ? operation.oldBindings : operation.newBindings
         let expectedBindings = try decodeBindingIntents(bindingPayload, skillID: operation.skillID)
         let actualBindings = try bindingStore.load(skillID: operation.skillID).map(\.intent)
@@ -1418,10 +1483,7 @@ nonisolated final class DistributionSymlinkExecutor {
             }
         }
 
-        let preflight = try DistributionOperationPayloadCodec.decode(
-            [DistributionPreflightAction].self,
-            from: operation.preflightPayload
-        )
+        let preflight = try decodePreflight(operation).actions
         let oldOwnership = try expectedOwnership(
             operation: operation,
             bindings: try decodeBindingIntents(operation.oldBindings, skillID: operation.skillID),
@@ -1467,10 +1529,8 @@ nonisolated final class DistributionSymlinkExecutor {
         operation: DistributionOperationRecord,
         expected: RecoveryExpectation
     ) throws -> Bool {
-        let preflight = try DistributionOperationPayloadCodec.decode(
-            [DistributionPreflightAction].self,
-            from: operation.preflightPayload
-        )
+        let preflight = try decodePreflight(operation)
+        guard !preflight.ssotIdentity.isEmpty else { return false }
         let bindings = try decodeBindingIntents(
             expected == .old ? operation.oldBindings : operation.newBindings,
             skillID: operation.skillID
@@ -1485,24 +1545,19 @@ nonisolated final class DistributionSymlinkExecutor {
     }
 
     private func expectedSSOTIdentity(
-        from preflight: [DistributionPreflightAction]
+        from preflight: DistributionPreflightPayload
     ) throws -> ManagedItemIdentity {
-        guard let first = preflight.first else {
-            throw DistributionSymlinkExecutorError.needsRepair("missing SSOT identity")
-        }
-        return try ManagedItemIdentityCodec.decode(first.ssotIdentity)
+        try ManagedItemIdentityCodec.decode(preflight.ssotIdentity)
     }
 
     private func currentSSOTMatches(
         _ operation: DistributionOperationRecord
     ) throws -> Bool {
-        let preflight = try DistributionOperationPayloadCodec.decode(
-            [DistributionPreflightAction].self,
-            from: operation.preflightPayload
-        )
+        let preflight = try decodePreflight(operation)
+        guard !preflight.ssotIdentity.isEmpty else { return false }
         let evidence = try fileSystem.ssotEvidence(for: operation.skillID)
         return evidence.identity == (try expectedSSOTIdentity(from: preflight))
-            && preflight.allSatisfy { $0.absoluteLinkTarget == evidence.absoluteTarget }
+            && preflight.absoluteLinkTarget == evidence.absoluteTarget
     }
 
     private func preflightEntry(
@@ -1529,11 +1584,15 @@ nonisolated final class DistributionSymlinkExecutor {
         expectedOldBindings: [DistributionBinding],
         expectedOldOwnership: [DistributionLinkOwnership],
         operationID: SSOTOperationID
-    ) throws -> [DistributionPreflightAction] {
+    ) throws -> DistributionPreflightPayload {
+        guard try configurationStore.load(skillID: skillID)
+                == plan.expectedOldConfigured else {
+            throw DistributionSymlinkExecutorError.conflict
+        }
         let ssotEvidence = try fileSystem.ssotEvidence(for: skillID)
         let target = ssotEvidence.absoluteTarget
         let ssotIdentity = try ManagedItemIdentityCodec.encode(ssotEvidence.identity)
-        return try plan.filesystemActions.enumerated().map { index, action in
+        let actions = try plan.filesystemActions.enumerated().map { index, action in
             let observation = try observe(
                 entry: action.entry,
                 skillID: skillID,
@@ -1570,6 +1629,13 @@ nonisolated final class DistributionSymlinkExecutor {
                 )
             }
         }
+        return DistributionPreflightPayload(
+            actions: actions,
+            ssotIdentity: ssotIdentity,
+            absoluteLinkTarget: target,
+            expectedOldConfigured: plan.expectedOldConfigured,
+            desiredConfigured: plan.desiredConfigured
+        )
     }
 
     private func observe(

@@ -8,14 +8,22 @@ struct DistributionOperationStoreTests {
     @Test("insert, progress, repair and complete are durable")
     func journalLifecycle() throws {
         try withDistributionJournalFixture { connection, operationStore, ownershipStore, skillID in
+            let plan = TestPlan(
+                status: "executable",
+                filesystemActions: [],
+                bindingsChanged: false,
+                bindingReplacement: [],
+                configurationChanged: true,
+                expectedOldConfigured: false,
+                desiredConfigured: true,
+                conflicts: []
+            )
             let draft = try DistributionOperationDraft(
                 skillID: skillID,
                 oldBindings: Data("[]".utf8),
                 newBindings: Data("[]".utf8),
-                planPayload: Data(
-                    #"{"binding_replacement":[],"bindings_changed":false,"conflicts":[],"filesystem_actions":[],"status":"executable"}"#.utf8
-                ),
-                preflightPayload: Data("[]".utf8),
+                planPayload: try DistributionOperationPayloadCodec.encode(plan),
+                preflightPayload: try markerPreflightPayload(skillID: skillID),
                 runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
                 createdAtMilliseconds: 10
             )
@@ -76,6 +84,9 @@ struct DistributionOperationStoreTests {
             filesystemActions: [],
             bindingsChanged: false,
             bindingReplacement: [],
+            configurationChanged: true,
+            expectedOldConfigured: false,
+            desiredConfigured: true,
             conflicts: []
         )
         let common = try #require(try? DistributionOperationPayloadCodec.encode(plan))
@@ -85,7 +96,7 @@ struct DistributionOperationStoreTests {
                 oldBindings: Data("[]".utf8),
                 newBindings: Data("[]".utf8),
                 planPayload: common,
-                preflightPayload: Data("[]".utf8),
+                preflightPayload: try markerPreflightPayload(skillID: skillID),
                 runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
                 createdAtMilliseconds: 1
             )
@@ -100,11 +111,43 @@ struct DistributionOperationStoreTests {
                 ),
                 newBindings: Data("[]".utf8),
                 planPayload: common,
-                preflightPayload: Data("[]".utf8),
+                preflightPayload: try markerPreflightPayload(skillID: skillID),
                 runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
                 createdAtMilliseconds: 1
             )
         }
+
+        let legacyNewBindings = Data(
+            ("[{\"adapter\":null,\"scope\":\"global\",\"skillID\":\""
+                + skillID.directoryName
+                + "\",\"slug\":\"demo\",\"syncMode\":\"symlink\"}]").utf8
+        )
+        let legacyBindingOnlyPlan = TestPlan(
+            status: "executable",
+            filesystemActions: [],
+            bindingsChanged: true,
+            bindingReplacement: [TestPlanBinding(
+                skillID: skillID.directoryName,
+                scopeKind: "global",
+                adapterCode: nil,
+                targetScopeKey: "global",
+                distributionSlug: "demo",
+                slugKey: "demo",
+                syncMode: "symlink"
+            )],
+            conflicts: []
+        )
+        _ = try DistributionOperationDraft(
+            skillID: skillID,
+            oldBindings: Data("[]".utf8),
+            newBindings: legacyNewBindings,
+            planPayload: try DistributionOperationPayloadCodec.encode(
+                legacyBindingOnlyPlan
+            ),
+            preflightPayload: Data("[]".utf8),
+            runtimePayload: Data(#"{"created":[],"removed":[]}"#.utf8),
+            createdAtMilliseconds: 1
+        )
 
         let overflow = TestPlan(
             status: "executable",
@@ -192,13 +235,39 @@ private struct TestPlan: Codable {
     let filesystemActions: [TestPlanAction]
     let bindingsChanged: Bool
     let bindingReplacement: [TestPlanBinding]
+    let configurationChanged: Bool?
+    let expectedOldConfigured: Bool?
+    let desiredConfigured: Bool?
     let conflicts: [TestPlanConflict]
+
+    init(
+        status: String,
+        filesystemActions: [TestPlanAction],
+        bindingsChanged: Bool,
+        bindingReplacement: [TestPlanBinding],
+        configurationChanged: Bool? = nil,
+        expectedOldConfigured: Bool? = nil,
+        desiredConfigured: Bool? = nil,
+        conflicts: [TestPlanConflict]
+    ) {
+        self.status = status
+        self.filesystemActions = filesystemActions
+        self.bindingsChanged = bindingsChanged
+        self.bindingReplacement = bindingReplacement
+        self.configurationChanged = configurationChanged
+        self.expectedOldConfigured = expectedOldConfigured
+        self.desiredConfigured = desiredConfigured
+        self.conflicts = conflicts
+    }
 
     enum CodingKeys: String, CodingKey {
         case status
         case filesystemActions = "filesystem_actions"
         case bindingsChanged = "bindings_changed"
         case bindingReplacement = "binding_replacement"
+        case configurationChanged = "configuration_changed"
+        case expectedOldConfigured = "expected_old_configured"
+        case desiredConfigured = "desired_configured"
         case conflicts
     }
 }
@@ -247,6 +316,26 @@ private struct TestPreflight: Codable {
     let rootIdentity: Data
     let entryIdentity: Data?
     let temporaryName: String
+}
+
+private struct TestPreflightPayload: Codable {
+    let actions: [TestPreflight]
+    let ssotIdentity: Data
+    let absoluteLinkTarget: String
+    let expectedOldConfigured: Bool
+    let desiredConfigured: Bool
+}
+
+private func markerPreflightPayload(skillID: SkillID) throws -> Data {
+    var metadata = stat()
+    metadata.st_mode = mode_t(S_IFDIR)
+    return try DistributionOperationPayloadCodec.encode(TestPreflightPayload(
+        actions: [],
+        ssotIdentity: try ManagedItemIdentityCodec.encode(ManagedItemIdentity(metadata)),
+        absoluteLinkTarget: "/tmp/.SkillsManager/skills/\(skillID.directoryName)",
+        expectedOldConfigured: false,
+        desiredConfigured: true
+    ))
 }
 
 private func withDistributionJournalFixture(

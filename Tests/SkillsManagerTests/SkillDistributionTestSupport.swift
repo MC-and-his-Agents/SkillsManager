@@ -11,6 +11,21 @@ actor DistributionLoadProbe {
     }
 }
 
+actor DistributionSelectionProbe {
+    private let selections: [DistributionSelectionReadback]
+    private var index = 0
+
+    init(_ selections: [DistributionSelectionReadback]) {
+        self.selections = selections
+    }
+
+    func load() -> DistributionSelectionReadback {
+        let selection = selections[min(index, selections.count - 1)]
+        index += 1
+        return selection
+    }
+}
+
 actor DistributionPlanProbe {
     private let plans: [DistributionPlan]
     private let applyRecord: DistributionOperationRecord
@@ -21,6 +36,8 @@ actor DistributionPlanProbe {
     private var planIndex = 0
     private(set) var planCallCount = 0
     private(set) var applyCount = 0
+    private(set) var requestedScopes: [DistributionDesiredScope] = []
+    private(set) var requestedAdapterCodes: [Set<String>] = []
 
     init(
         plans: [DistributionPlan],
@@ -38,10 +55,15 @@ actor DistributionPlanProbe {
         self.planError = planError
     }
 
-    func nextPlan() async throws -> DistributionPlan {
+    func nextPlan(
+        desiredScope: DistributionDesiredScope,
+        requiredAdapterCodes: Set<String>
+    ) async throws -> DistributionPlan {
         let index = planIndex
         planIndex += 1
         planCallCount += 1
+        requestedScopes.append(desiredScope)
+        requestedAdapterCodes.append(requiredAdapterCodes)
         if let delay = index == 0 ? initialPlanDelay : replanDelay {
             try await Task.sleep(for: delay)
         }
@@ -61,6 +83,7 @@ actor DistributionPlanProbe {
 @MainActor
 func distributionModel(
     bindings: [DistributionBinding] = [],
+    isExplicitlyConfigured: Bool = false,
     reconcileStatus: DistributionReconcileStatus = .inSync,
     plan: DistributionPlan = distributionPlan(status: .noOp),
     loadError: DistributionSymlinkFileSystemError? = nil,
@@ -71,9 +94,12 @@ func distributionModel(
 ) -> SkillDistributionViewModel {
     let model = SkillDistributionViewModel()
     model.activate(dependencies: SkillDistributionDependencies(
-        loadBindings: { _ in
+        loadSelection: { _ in
             if let loadError { throw loadError }
-            return bindings
+            return DistributionSelectionReadback(
+                bindings: bindings,
+                isExplicitlyConfigured: isExplicitlyConfigured
+            )
         },
         reconcile: { _ in
             DistributionReconcileResult(status: reconcileStatus, observations: [:])
@@ -88,9 +114,17 @@ func distributionModel(
 func distributionModel(probe: DistributionPlanProbe) -> SkillDistributionViewModel {
     let model = SkillDistributionViewModel()
     model.activate(dependencies: SkillDistributionDependencies(
-        loadBindings: { _ in [] },
+        loadSelection: { _ in DistributionSelectionReadback(
+            bindings: [],
+            isExplicitlyConfigured: false
+        ) },
         reconcile: { _ in DistributionReconcileResult(status: .inSync, observations: [:]) },
-        plan: { _, _, _ in try await probe.nextPlan() },
+        plan: { _, scope, codes in
+            try await probe.nextPlan(
+                desiredScope: scope,
+                requiredAdapterCodes: codes
+            )
+        },
         apply: { _, _ in try await probe.apply() }
     ))
     return model
@@ -118,6 +152,9 @@ func distributionPlan(
     status: DistributionPlanStatus,
     actions: [DistributionFilesystemAction] = [],
     replacement: [DistributionBindingIntent] = [],
+    configurationChanged: Bool = false,
+    expectedOldConfigured: Bool = true,
+    desiredConfigured: Bool = true,
     conflicts: [DistributionPlanConflict] = []
 ) -> DistributionPlan {
     DistributionPlan(
@@ -125,6 +162,9 @@ func distributionPlan(
         filesystemActions: actions,
         bindingsChanged: !replacement.isEmpty,
         bindingReplacement: replacement,
+        configurationChanged: configurationChanged,
+        expectedOldConfigured: expectedOldConfigured,
+        desiredConfigured: desiredConfigured,
         conflicts: conflicts
     )
 }

@@ -1,5 +1,5 @@
 nonisolated struct SkillDistributionDependencies: Sendable {
-    let loadBindings: @Sendable (SkillID) async throws -> [DistributionBinding]
+    let loadSelection: @Sendable (SkillID) async throws -> DistributionSelectionReadback
     let reconcile: @Sendable (SkillID) async throws -> DistributionReconcileResult
     let plan: @Sendable (
         SkillID,
@@ -11,7 +11,7 @@ nonisolated struct SkillDistributionDependencies: Sendable {
     static func live(writer: JournaledSSOTWriter) -> Self {
         let session = SkillDistributionSession(writer: writer)
         return Self(
-            loadBindings: { try await session.loadBindings(skillID: $0) },
+            loadSelection: { try await session.loadSelection(skillID: $0) },
             reconcile: { try await session.reconcile(skillID: $0) },
             plan: { try await session.plan(skillID: $0, desiredScope: $1, requiredAdapterCodes: $2) },
             apply: { try await session.apply(skillID: $0, plan: $1) }
@@ -26,8 +26,8 @@ private actor SkillDistributionSession {
         self.writer = writer
     }
 
-    func loadBindings(skillID: SkillID) async throws -> [DistributionBinding] {
-        try await writer.loadDistributionBindings(skillID: skillID)
+    func loadSelection(skillID: SkillID) async throws -> DistributionSelectionReadback {
+        try await writer.loadDistributionSelection(skillID: skillID)
     }
 
     func reconcile(skillID: SkillID) async throws -> DistributionReconcileResult {

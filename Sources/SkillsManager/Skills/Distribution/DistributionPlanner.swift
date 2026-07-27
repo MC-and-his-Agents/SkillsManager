@@ -4,7 +4,9 @@ nonisolated struct DistributionPlanner {
     func plan(
         skillID: SkillID,
         currentBindings: [DistributionBinding],
+        currentConfigured: Bool = true,
         desiredScope: DistributionDesiredScope,
+        desiredConfigured: Bool = true,
         requiredAdapterCodes: Set<String>,
         observations: [DistributionTargetEntry: DistributionTargetObservation],
         catalog: DistributionTargetCatalog = .current
@@ -42,18 +44,25 @@ nonisolated struct DistributionPlanner {
                 filesystemActions: [],
                 bindingsChanged: false,
                 bindingReplacement: [],
+                configurationChanged: currentConfigured != desiredConfigured,
+                expectedOldConfigured: currentConfigured,
+                desiredConfigured: desiredConfigured,
                 conflicts: Array(Set(conflicts)).sorted(by: distributionConflictPrecedes)
             )
         }
 
         actions.sort(by: distributionActionPrecedes)
         let bindingsChanged = current != desired
-        guard !actions.isEmpty || bindingsChanged else {
+        let configurationChanged = currentConfigured != desiredConfigured
+        guard !actions.isEmpty || bindingsChanged || configurationChanged else {
             return DistributionPlan(
                 status: .noOp,
                 filesystemActions: [],
                 bindingsChanged: false,
                 bindingReplacement: [],
+                configurationChanged: false,
+                expectedOldConfigured: currentConfigured,
+                desiredConfigured: desiredConfigured,
                 conflicts: []
             )
         }
@@ -62,6 +71,9 @@ nonisolated struct DistributionPlanner {
             filesystemActions: actions,
             bindingsChanged: bindingsChanged,
             bindingReplacement: bindingsChanged ? desired : [],
+            configurationChanged: configurationChanged,
+            expectedOldConfigured: currentConfigured,
+            desiredConfigured: desiredConfigured,
             conflicts: []
         )
     }
