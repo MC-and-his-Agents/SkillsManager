@@ -32,6 +32,12 @@ struct SSOTJournalStoreTests {
             #expect(try connection.querySingleText(
                 "SELECT provider_identifier FROM provider_aliases"
             ) == "original")
+            #expect(try connection.querySingleText(
+                "SELECT provider_identifier FROM provider_provenance"
+            ) == "original")
+            #expect(try store.providerProvenance(
+                ProviderAliasIdentity(provider: "clawdhub", identifier: "ORIGINAL")
+            )?.skillID == payload.skill.skillID)
             #expect(try connection.querySingleInt(
                 "SELECT db_revision FROM skills"
             ) == 0)
@@ -68,6 +74,9 @@ struct SSOTJournalStoreTests {
             #expect(try connection.querySingleInt("SELECT db_revision FROM skills") == 1)
             #expect(try connection.querySingleText(
                 "SELECT provider_identifier FROM provider_aliases"
+            ) == "replacement")
+            #expect(try connection.querySingleText(
+                "SELECT provider_identifier FROM provider_provenance"
             ) == "replacement")
         }
     }
@@ -113,7 +122,7 @@ struct SSOTJournalStoreTests {
             #expect(try store.databaseObservation(for: operation) == .expectedNew)
 
             try connection.execute(
-                "UPDATE provider_aliases SET provider_identifier = 'externally-modified'"
+                "UPDATE provider_provenance SET provider_version = 'externally-modified'"
             )
             #expect(try store.databaseObservation(for: operation) == .unknown)
         }
@@ -357,6 +366,7 @@ private func makePayload(
     alias: String
 ) throws -> SSOTSkillWritePayload {
     let sourceID = SourceID(UUID(uuidString: "bbbbbbbb-2222-4333-8444-cccccccccccc")!)
+    let provenanceSlug = try DefaultDistributionSlug(validating: alias)
     return try SSOTSkillWritePayload(
         skill: ManagedSkillRecord(
             skillID: skillID,
@@ -380,6 +390,17 @@ private func makePayload(
             ProviderAliasRecord(
                 sourceID: sourceID,
                 identity: try ProviderAliasIdentity(provider: "skills.sh", identifier: alias)
+            ),
+        ],
+        providerProvenance: [
+            try ProviderProvenanceRecord(
+                skillID: skillID,
+                identity: ProviderAliasIdentity(
+                    provider: "clawdhub",
+                    identifier: provenanceSlug.value
+                ),
+                identifierKey: provenanceSlug.collisionKey,
+                version: try SourceVersion("1.0.0")
             ),
         ]
     )

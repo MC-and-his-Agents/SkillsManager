@@ -10,7 +10,7 @@ import Observation
     private(set) var isExecuting = false
     private(set) var isFinalizing = false
 
-    private var service: ManagedLocalImportService?
+    private var service: ManagedInstallService?
     private var generation: UInt64 = 0
 
     var isWorking: Bool { isPreparing || isExecuting || isFinalizing }
@@ -29,14 +29,40 @@ import Observation
         activate(dependencies: .live(writer: writer))
     }
 
-    func activate(dependencies: ManagedLocalImportDependencies) {
-        service = ManagedLocalImportService(dependencies: dependencies)
+    func activate(dependencies: ManagedInstallDependencies) {
+        service = ManagedInstallService(dependencies: dependencies)
     }
 
     func prepare(
         candidate: SkillImportWorker.ImportCandidatePayload,
         displayName: String,
         scope: ManagedLocalImportScope
+    ) async {
+        await prepare { service in
+            try await service.prepare(
+                candidate: candidate,
+                displayName: displayName,
+                scope: scope
+            )
+        }
+    }
+
+    func prepareClawdhub(
+        candidate: SkillImportWorker.ImportCandidatePayload,
+        skill: RemoteSkill,
+        scope: ManagedLocalImportScope
+    ) async {
+        await prepare { service in
+            try await service.prepareClawdhub(
+                candidate: candidate,
+                skill: skill,
+                scope: scope
+            )
+        }
+    }
+
+    private func prepare(
+        operation: (ManagedInstallService) async throws -> ManagedLocalImportPreview
     ) async {
         guard !isWorking, let service else {
             if service == nil {
@@ -56,11 +82,7 @@ import Observation
             }
         }
         do {
-            let prepared = try await service.prepare(
-                candidate: candidate,
-                displayName: displayName,
-                scope: scope
-            )
+            let prepared = try await operation(service)
             guard generation == currentGeneration else { return }
             preview = prepared
         } catch let problem as ManagedLocalImportProblem {

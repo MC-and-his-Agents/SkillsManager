@@ -215,6 +215,20 @@ actor JournaledSSOTWriter {
         return try journal.managedSkillRecord(skillID)
     }
 
+    func providerProvenance(
+        _ identity: ProviderAliasIdentity
+    ) throws -> ProviderProvenanceRecord? {
+        try requireAuthority()
+        return try journal.providerProvenance(identity)
+    }
+
+    func storedDomainReadback(
+        _ skillID: SkillID
+    ) throws -> StoredSkillDomainSnapshot? {
+        try requireAuthority()
+        return try journal.storedDomain(skillID)
+    }
+
     func importNew(
         payload: SSOTSkillWritePayload,
         sourceSnapshot: SkillContentSnapshot,

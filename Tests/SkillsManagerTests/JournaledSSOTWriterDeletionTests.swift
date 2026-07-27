@@ -346,6 +346,53 @@ struct JournaledSSOTWriterDeletionTests {
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 2)
     }
 
+    @Test("restore keeps an occupied provider locator with its current Skill")
+    func restoreOmitsConflictingProviderProvenance() async throws {
+        let workspace = try WriterWorkspace()
+        let writer = try await workspace.openWriter()
+        let identity = try ProviderAliasIdentity(provider: "clawdhub", identifier: "demo")
+
+        let originalSnapshot = try workspace.snapshot(content: "original provenance")
+        let originalID = SkillID()
+        _ = try await writer.create(
+            payload: try payloadWithProvenance(
+                workspace.payload(
+                    skillID: originalID,
+                    name: "Original",
+                    snapshot: originalSnapshot
+                ),
+                identity: identity
+            ),
+            sourceSnapshot: originalSnapshot
+        )
+        _ = try await deleteManagedSkill(writer, skillID: originalID)
+        let backup = try await writer.listBackups(originalSkillID: originalID)[0]
+
+        let currentSnapshot = try workspace.snapshot(content: "current provenance")
+        let currentID = SkillID()
+        _ = try await writer.create(
+            payload: try payloadWithProvenance(
+                workspace.payload(
+                    skillID: currentID,
+                    name: "Current",
+                    snapshot: currentSnapshot
+                ),
+                identity: identity
+            ),
+            sourceSnapshot: currentSnapshot
+        )
+
+        let result = try await restoreBackup(writer, backupID: backup.backupID)
+
+        #expect(result.restoredSkillID == originalID)
+        #expect(result.warnings == [
+            "provider_provenance_conflict:clawdhub:demo",
+        ])
+        #expect(try await writer.providerProvenance(identity)?.skillID == currentID)
+        #expect(try await writer.storedDomainReadback(originalID)?
+            .payload.providerProvenance.isEmpty == true)
+    }
+
     @Test("tampered backup fails closed")
     func rejectsTamperedBackup() async throws {
         let workspace = try WriterWorkspace()
@@ -421,5 +468,27 @@ private func restoreBackup(
     return try await writer.restoreBackup(
         preview: preview,
         restoreDistribution: restoreDistribution
+    )
+}
+
+private func payloadWithProvenance(
+    _ payload: SSOTSkillWritePayload,
+    identity: ProviderAliasIdentity
+) throws -> SSOTSkillWritePayload {
+    let slug = try DefaultDistributionSlug(validating: identity.identifier)
+    return try SSOTSkillWritePayload(
+        skill: payload.skill,
+        source: payload.source,
+        providerAliases: payload.providerAliases,
+        providerProvenance: [
+            try ProviderProvenanceRecord(
+                skillID: payload.skill.skillID,
+                identity: identity,
+                identifierKey: slug.collisionKey,
+                version: try SourceVersion("1.0.0")
+            ),
+        ],
+        localOrigins: payload.localOrigins,
+        restoredFromSkillID: payload.restoredFromSkillID
     )
 }

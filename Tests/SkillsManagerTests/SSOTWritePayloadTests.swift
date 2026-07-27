@@ -17,6 +17,7 @@ struct SSOTWritePayloadTests {
         #expect(decoded.skill == payload.skill)
         #expect(decoded.source == payload.source)
         #expect(decoded.providerAliases == payload.providerAliases)
+        #expect(decoded.providerProvenance == payload.providerProvenance)
         #expect(decoded.localOrigins == payload.localOrigins)
     }
 
@@ -30,6 +31,7 @@ struct SSOTWritePayloadTests {
         )
         legacyEnvelope["version"] = 1
         legacyEnvelope.removeValue(forKey: "localOrigins")
+        legacyEnvelope.removeValue(forKey: "providerProvenance")
 
         let decoded = try SSOTWritePayloadCodec.decode(
             JSONSerialization.data(withJSONObject: legacyEnvelope)
@@ -38,7 +40,30 @@ struct SSOTWritePayloadTests {
         #expect(decoded.skill == payload.skill)
         #expect(decoded.source == payload.source)
         #expect(decoded.providerAliases == payload.providerAliases)
+        #expect(decoded.providerProvenance.isEmpty)
         #expect(decoded.localOrigins.isEmpty)
+    }
+
+    @Test("decodes legacy v2 and v3 payloads without provider provenance")
+    func decodesLegacyV2AndV3() throws {
+        let payload = try makePayload()
+        for version in 2...3 {
+            var envelope = try #require(
+                JSONSerialization.jsonObject(
+                    with: SSOTWritePayloadCodec.encode(payload)
+                ) as? [String: Any]
+            )
+            envelope["version"] = version
+            envelope.removeValue(forKey: "providerProvenance")
+
+            let decoded = try SSOTWritePayloadCodec.decode(
+                JSONSerialization.data(withJSONObject: envelope)
+            )
+
+            #expect(decoded.skill == payload.skill)
+            #expect(decoded.providerProvenance.isEmpty)
+            #expect(decoded.localOrigins == payload.localOrigins)
+        }
     }
 
     @Test("rejects source and Provider aliases outside the Skill domain")
@@ -108,8 +133,8 @@ struct SSOTWritePayloadTests {
                 with: SSOTWritePayloadCodec.encode(payload)
             ) as? [String: Any]
         )
-        futureEnvelope["version"] = 4
-        #expect(throws: SSOTWritePayloadError.unsupportedVersion(4)) {
+        futureEnvelope["version"] = 5
+        #expect(throws: SSOTWritePayloadError.unsupportedVersion(5)) {
             _ = try SSOTWritePayloadCodec.decode(
                 JSONSerialization.data(withJSONObject: futureEnvelope)
             )
@@ -156,6 +181,18 @@ private func makePayload(includeLocalOrigins: Bool = true) throws -> SSOTSkillWr
             identity: try ProviderAliasIdentity(provider: "clawdhub", identifier: "sample")
         ),
     ]
+    let provenanceSlug = try DefaultDistributionSlug(validating: "sample")
+    let provenance = [
+        try ProviderProvenanceRecord(
+            skillID: skillID,
+            identity: ProviderAliasIdentity(
+                provider: "clawdhub",
+                identifier: provenanceSlug.value
+            ),
+            identifierKey: provenanceSlug.collisionKey,
+            version: try SourceVersion("1.0.0")
+        ),
+    ]
     let localOrigins: [LocalSkillOriginRecord] = if includeLocalOrigins {
         try [
             LocalSkillOriginRecord(
@@ -197,6 +234,7 @@ private func makePayload(includeLocalOrigins: Bool = true) throws -> SSOTSkillWr
         skill: skill,
         source: source,
         providerAliases: aliases,
+        providerProvenance: provenance,
         localOrigins: localOrigins
     )
 }

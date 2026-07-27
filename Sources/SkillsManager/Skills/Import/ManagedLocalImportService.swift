@@ -1,137 +1,13 @@
 import Darwin
 import Foundation
 
-nonisolated enum ManagedLocalImportScope: Equatable, Sendable {
-    case global
-    case agents(Set<SkillPlatform>)
-
-    func desiredScope(slug: DefaultDistributionSlug) throws -> DistributionDesiredScope {
-        switch self {
-        case .global:
-            return .global(slug)
-        case .agents(let agents):
-            guard !agents.isEmpty else { throw ManagedLocalImportProblem.emptyAgentSelection }
-            return .agents(agents, slug)
-        }
-    }
-}
-
-nonisolated struct ManagedLocalImportToken: Hashable, Sendable {
-    let uuid: UUID
-
-    init(_ uuid: UUID = UUID()) {
-        self.uuid = uuid
-    }
-}
-
-nonisolated struct ManagedLocalImportPreview: Identifiable, Sendable {
-    let token: ManagedLocalImportToken
-    let skillID: SkillID
-    let displayName: SkillDisplayName
-    let distributionSlug: DefaultDistributionSlug
-    let desiredScope: DistributionDesiredScope
-    let plan: DistributionPlan
-
-    var id: ManagedLocalImportToken { token }
-}
-
-nonisolated enum ManagedLocalImportResultStatus: Equatable, Sendable {
-    case distributed
-    case noDistributionChanges
-    case managedUndistributed
-    case managedDistributionIndeterminate
-    case managementIndeterminate
-}
-
-nonisolated struct ManagedLocalImportResult: Equatable, Sendable {
-    let skillID: SkillID
-    let displayName: String
-    let status: ManagedLocalImportResultStatus
-}
-
-nonisolated enum ManagedLocalImportProblem: LocalizedError, Equatable, Sendable {
-    case emptyAgentSelection
-    case invalidCandidate
-    case operationInProgress
-    case permissionDenied
-    case previewBlocked
-    case previewExpired
-    case createRolledBack
-    case needsRepair
-    case sourceChanged
-    case tokenExpired
-    case failed(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .emptyAgentSelection:
-            "Select at least one Agent."
-        case .invalidCandidate:
-            "The selected Skill is no longer valid."
-        case .operationInProgress:
-            "This import is already in progress."
-        case .permissionDenied:
-            "Skills Manager does not have permission to import this Skill."
-        case .previewBlocked:
-            "Resolve the distribution conflicts before importing."
-        case .previewExpired:
-            "The import preview changed. Review it again before importing."
-        case .createRolledBack:
-            "The Skill was not imported because the managed write was rolled back."
-        case .needsRepair:
-            "The managed library requires repair before another import can start."
-        case .sourceChanged:
-            "The selected Skill changed after validation. Choose it again."
-        case .tokenExpired:
-            "The import preview expired. Prepare a new preview."
-        case .failed(let detail):
-            "Import failed: \(detail)"
-        }
-    }
-}
-
-nonisolated struct ManagedLocalImportDependencies: Sendable {
-    let plan: @Sendable (
-        SkillID,
-        DistributionDesiredScope,
-        Set<String>
-    ) async throws -> DistributionPlan
-    let create: @Sendable (
-        SSOTSkillWritePayload,
-        SkillContentSnapshot,
-        SSOTOperationID
-    ) async throws -> SSOTJournalRecord
-    let createReadback: @Sendable (SSOTOperationID) async throws -> SSOTJournalRecord
-    let skillReadback: @Sendable (SkillID) async throws -> ManagedSkillRecord?
-    let apply: @Sendable (SkillID, DistributionPlan) async throws -> DistributionOperationRecord
-    let reconcile: @Sendable (SkillID) async throws -> DistributionReconcileResult
-    let nowMilliseconds: @Sendable () -> Int64
-
-    static func live(writer: JournaledSSOTWriter) -> Self {
-        let distribution = SkillDistributionDependencies.live(writer: writer)
-        return Self(
-            plan: distribution.plan,
-            create: { payload, snapshot, operationID in
-                try await writer.create(
-                    payload: payload,
-                    sourceSnapshot: snapshot,
-                    operationID: operationID
-                )
-            },
-            createReadback: { try await writer.ssotOperationReadback($0) },
-            skillReadback: { try await writer.managedSkillReadback($0) },
-            apply: distribution.apply,
-            reconcile: distribution.reconcile,
-            nowMilliseconds: { max(0, Int64(Date().timeIntervalSince1970 * 1_000)) }
-        )
-    }
-}
-
-actor ManagedLocalImportService {
+actor ManagedInstallService {
     private struct Pending: Sendable {
         let preview: ManagedLocalImportPreview
         let operationID: SSOTOperationID
         let candidate: SkillImportWorker.ImportCandidatePayload
+        let providerInput: ManagedInstallProviderInput?
+        let expectedPayload: SSOTSkillWritePayload?
         let canonicalPlan: Data
     }
 
@@ -142,10 +18,10 @@ actor ManagedLocalImportService {
         case failed(ManagedLocalImportProblem)
     }
 
-    private let dependencies: ManagedLocalImportDependencies
+    private let dependencies: ManagedInstallDependencies
     private var states: [ManagedLocalImportToken: State] = [:]
 
-    init(dependencies: ManagedLocalImportDependencies) {
+    init(dependencies: ManagedInstallDependencies) {
         self.dependencies = dependencies
     }
 
@@ -154,30 +30,89 @@ actor ManagedLocalImportService {
         displayName rawDisplayName: String,
         scope: ManagedLocalImportScope
     ) async throws -> ManagedLocalImportPreview {
+        try await prepare(
+            candidate: candidate,
+            displayName: rawDisplayName,
+            distributionSlug: nil,
+            scope: scope,
+            providerInput: nil,
+            allowsBlockedCreate: false
+        )
+    }
+
+    func prepareClawdhub(
+        candidate: SkillImportWorker.ImportCandidatePayload,
+        skill: RemoteSkill,
+        scope: ManagedLocalImportScope
+    ) async throws -> ManagedLocalImportPreview {
+        let slug = try DefaultDistributionSlug(validating: skill.slug)
+        return try await prepare(
+            candidate: candidate,
+            displayName: skill.displayName,
+            distributionSlug: slug,
+            scope: scope,
+            providerInput: try ManagedInstallProviderInput(
+                slug: slug,
+                version: skill.latestVersion
+            ),
+            allowsBlockedCreate: true
+        )
+    }
+
+    private func prepare(
+        candidate: SkillImportWorker.ImportCandidatePayload,
+        displayName rawDisplayName: String,
+        distributionSlug: DefaultDistributionSlug?,
+        scope: ManagedLocalImportScope,
+        providerInput: ManagedInstallProviderInput?,
+        allowsBlockedCreate: Bool
+    ) async throws -> ManagedLocalImportPreview {
         guard candidate.snapshot.fingerprint == candidate.fingerprint else {
             throw ManagedLocalImportProblem.invalidCandidate
         }
-        let displayName = try SkillDisplayName(rawDisplayName)
-        let slug = try DefaultDistributionSlug(candidateFrom: displayName)
-        let desiredScope = try scope.desiredScope(slug: slug)
-        let skillID = SkillID()
+        var displayName = try SkillDisplayName(rawDisplayName)
+        var slug = try distributionSlug ?? DefaultDistributionSlug(candidateFrom: displayName)
+        var skillID = SkillID()
+        var disposition: ManagedLocalImportPreview.Disposition = .createNew
+        var expectedPayload: SSOTSkillWritePayload?
+        if let providerInput,
+           let existing = try await dependencies.provenanceReadback(providerInput.identity) {
+            guard let payload = try await dependencies.domainReadback(existing.skillID) else {
+                throw ManagedLocalImportProblem.providerConflict
+            }
+            expectedPayload = payload
+            skillID = payload.skill.skillID
+            displayName = payload.skill.displayName
+            slug = payload.skill.defaultDistributionSlug
+            disposition = try remoteDisposition(
+                existing: existing,
+                payload: payload,
+                input: providerInput,
+                candidate: candidate
+            )
+        }
+        let resolvedScope = try scope.desiredScope(slug: slug)
         let plan = try await dependencies.plan(
             skillID,
-            desiredScope,
-            desiredScope.requiredAdapterCodes
+            resolvedScope,
+            resolvedScope.requiredAdapterCodes
         )
         let preview = ManagedLocalImportPreview(
             token: ManagedLocalImportToken(),
             skillID: skillID,
             displayName: displayName,
             distributionSlug: slug,
-            desiredScope: desiredScope,
-            plan: plan
+            desiredScope: resolvedScope,
+            plan: plan,
+            disposition: disposition,
+            allowsBlockedCreate: allowsBlockedCreate
         )
         states[preview.token] = .pending(Pending(
             preview: preview,
             operationID: SSOTOperationID(),
             candidate: candidate,
+            providerInput: providerInput,
+            expectedPayload: expectedPayload,
             canonicalPlan: try plan.canonicalJSONData()
         ))
         return preview
@@ -193,7 +128,8 @@ actor ManagedLocalImportService {
         case .executing:
             throw ManagedLocalImportProblem.operationInProgress
         case .pending(let pending):
-            guard pending.preview.plan.status != .blocked else {
+            guard pending.preview.plan.status != .blocked
+                    || pending.preview.allowsBlockedCreate else {
                 throw ManagedLocalImportProblem.previewBlocked
             }
             states[token] = .executing
@@ -219,6 +155,20 @@ actor ManagedLocalImportService {
             throw ManagedLocalImportProblem.sourceChanged
         }
         let preview = pending.preview
+        switch preview.disposition {
+        case .alreadyManaged:
+            guard try await unchangedExistingPayload(pending) else {
+                throw ManagedLocalImportProblem.providerConflict
+            }
+            return result(preview, status: .alreadyManaged)
+        case .updateRequired:
+            guard try await unchangedExistingPayload(pending) else {
+                throw ManagedLocalImportProblem.providerConflict
+            }
+            return result(preview, status: .updateRequired)
+        case .createNew:
+            break
+        }
         let currentPlan = try await plan(for: preview)
         guard try currentPlan.canonicalJSONData() == pending.canonicalPlan else {
             throw ManagedLocalImportProblem.previewExpired
@@ -235,7 +185,11 @@ actor ManagedLocalImportService {
             createdAtMilliseconds: timestamp,
             updatedAtMilliseconds: timestamp
         )
-        let payload = try SSOTSkillWritePayload(skill: skill)
+        let provenance = try pending.providerInput.map { try $0.record(skillID: preview.skillID) }
+        let payload = try SSOTSkillWritePayload(
+            skill: skill,
+            providerProvenance: provenance.map { [$0] } ?? []
+        )
         let createState = await create(
             payload: payload,
             snapshot: pending.candidate.snapshot,
@@ -245,11 +199,20 @@ actor ManagedLocalImportService {
         case .committed:
             break
         case .failed(let problem):
+            if let duplicate = try await duplicateResult(pending) {
+                return duplicate
+            }
             throw problem
         case .indeterminate:
+            if let duplicate = try await duplicateResult(pending) {
+                return duplicate
+            }
             return result(preview, status: .managementIndeterminate)
         }
 
+        if currentPlan.status == .blocked {
+            return result(preview, status: .managedUndistributed)
+        }
         let postCreatePlan = try await plan(for: preview)
         guard try postCreatePlan.canonicalJSONData() == pending.canonicalPlan else {
             return result(preview, status: .managedUndistributed)
@@ -276,11 +239,12 @@ actor ManagedLocalImportService {
                 return createState(try await dependencies.createReadback(operationID))
             } catch SSOTJournalStoreError.operationNotFound {
                 do {
-                    guard let skill = try await dependencies.skillReadback(payload.skill.skillID)
-                    else {
+                    guard let stored = try await dependencies.domainReadback(
+                        payload.skill.skillID
+                    ) else {
                         return .failed(problem(for: createError))
                     }
-                    guard skill == payload.skill else {
+                    guard try canonicalPayload(stored) == canonicalPayload(payload) else {
                         return .failed(.needsRepair)
                     }
                     return .committed
@@ -404,6 +368,64 @@ actor ManagedLocalImportService {
             preview.desiredScope,
             preview.desiredScope.requiredAdapterCodes
         )
+    }
+
+    private func unchangedExistingPayload(_ pending: Pending) async throws -> Bool {
+        guard let expectedPayload = pending.expectedPayload,
+              let current = try await dependencies.domainReadback(
+                pending.preview.skillID
+              ) else {
+            return false
+        }
+        return try canonicalPayload(current) == canonicalPayload(expectedPayload)
+    }
+
+    private func duplicateResult(
+        _ pending: Pending
+    ) async throws -> ManagedLocalImportResult? {
+        guard let input = pending.providerInput,
+              let existing = try await dependencies.provenanceReadback(input.identity)
+        else {
+            return nil
+        }
+        guard let payload = try await dependencies.domainReadback(existing.skillID) else {
+            throw ManagedLocalImportProblem.providerConflict
+        }
+        let disposition = try remoteDisposition(
+            existing: existing,
+            payload: payload,
+            input: input,
+            candidate: pending.candidate
+        )
+        let status: ManagedLocalImportResultStatus =
+            disposition == .alreadyManaged ? .alreadyManaged : .updateRequired
+        return ManagedLocalImportResult(
+            skillID: existing.skillID,
+            displayName: payload.skill.displayName.value,
+            status: status
+        )
+    }
+
+    private func remoteDisposition(
+        existing: ProviderProvenanceRecord,
+        payload: SSOTSkillWritePayload,
+        input: ManagedInstallProviderInput,
+        candidate: SkillImportWorker.ImportCandidatePayload
+    ) throws -> ManagedLocalImportPreview.Disposition {
+        guard existing.identifierKey == input.identifierKey,
+              payload.providerProvenance.contains(existing) else {
+            throw ManagedLocalImportProblem.providerConflict
+        }
+        let candidateFingerprint = try SkillContentFingerprint(
+            currentDigest: candidate.snapshot.fingerprintDigest
+        )
+        return existing.version == input.version
+            && payload.skill.contentFingerprint == candidateFingerprint
+            ? .alreadyManaged : .updateRequired
+    }
+
+    private func canonicalPayload(_ payload: SSOTSkillWritePayload) throws -> Data {
+        try SSOTWritePayloadCodec.encode(payload)
     }
 
     private func result(
