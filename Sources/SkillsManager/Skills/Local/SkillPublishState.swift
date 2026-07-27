@@ -1,5 +1,14 @@
 import Foundation
 
+nonisolated enum SkillPublishError: LocalizedError, Equatable {
+    case publishedButStateNotRecorded
+
+    var errorDescription: String? {
+        "Clawdhub published the Skill, but Skills Manager could not save its local publish state. "
+            + "Refresh before publishing again."
+    }
+}
+
 extension SkillStore {
     nonisolated struct PublishState: Codable, Equatable {
         static let currentHashAlgorithmVersion = 1
@@ -78,6 +87,14 @@ extension SkillStore {
     func savePublishState(_ state: PublishState, for skillID: SkillID) async throws {
         guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
         try await persistence.saveManagedPublishState(try state.sqliteState(), skillID: skillID)
+    }
+
+    func recordPublishedState(for skillID: SkillID, hash: String) async throws {
+        do {
+            try await savePublishState(for: skillID, hash: hash)
+        } catch {
+            throw SkillPublishError.publishedButStateNotRecorded
+        }
     }
 }
 

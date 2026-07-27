@@ -44,6 +44,15 @@ struct SkillSchemaV11Tests {
                 "SELECT binding_status FROM legacy_publish_states"
             ) == "bound")
 
+            try deleteV11Skill(skillID, connection: connection)
+            #expect(try ManagedPublishStateStore(connection: connection).load(skillID: skillID) == nil)
+            #expect(try connection.querySingleText(
+                "SELECT binding_status FROM legacy_publish_states"
+            ) == "unresolved")
+            #expect(try connection.querySingleInt(
+                "SELECT count(*) FROM legacy_publish_states WHERE bound_skill_id IS NOT NULL"
+            ) == 0)
+
             let reader = try SkillSchemaMigrator.open(at: databaseURL, accessMode: .readOnly)
             #expect(reader.accessMode == .readOnly)
         }
@@ -206,6 +215,22 @@ private func withV10Database(
     }
     try connection.execute("PRAGMA user_version = 10")
     try body(connection, databaseURL)
+}
+
+private func deleteV11Skill(
+    _ skillID: SkillID,
+    connection: SQLiteConnection
+) throws {
+    let journal = try SSOTJournalStore(connection: connection)
+    guard let expected = try journal.storedDomain(skillID) else {
+        throw SQLiteStoreError.invalidState("missing v11 deletion fixture")
+    }
+    try connection.withImmediateTransaction {
+        try journal.deleteDomainInCurrentTransaction(
+            skillID: skillID,
+            expected: expected
+        )
+    }
 }
 
 private func withV11Database(_ body: (SQLiteConnection) throws -> Void) throws {

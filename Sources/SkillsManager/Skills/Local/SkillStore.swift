@@ -328,7 +328,7 @@ import Observation
             changelog: changelog,
             tags: tags
         )
-        try await savePublishState(for: skillID, hash: snapshot.fingerprint)
+        try await recordPublishedState(for: skillID, hash: snapshot.fingerprint)
     }
 
     func fetchClawdhubStatus() async -> CliStatus {

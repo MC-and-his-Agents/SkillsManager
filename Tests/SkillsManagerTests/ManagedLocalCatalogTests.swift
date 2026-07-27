@@ -107,3 +107,20 @@ struct ManagedLocalCatalogTests {
         }
     }
 }
+
+@Suite("SkillStore publish")
+struct SkillStorePublishTests {
+    @MainActor
+    @Test("state persistence failure reports a partial publish success")
+    func reportsPartialSuccess() async {
+        let store = SkillStore()
+
+        await #expect(throws: SkillPublishError.publishedButStateNotRecorded) {
+            try await store.recordPublishedState(for: SkillID(), hash: "published")
+        }
+        #expect(
+            SkillPublishError.publishedButStateNotRecorded.localizedDescription
+                .contains("Clawdhub published")
+        )
+    }
+}

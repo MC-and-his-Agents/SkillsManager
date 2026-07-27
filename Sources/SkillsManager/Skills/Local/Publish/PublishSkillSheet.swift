@@ -66,7 +66,7 @@ struct PublishSkillSheet: View {
         }
         .padding(24)
         .frame(minWidth: 420, minHeight: 360)
-        .alert("Publish failed", isPresented: errorBinding) {
+        .alert("Publish result", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "Unable to publish this skill.")

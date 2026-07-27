@@ -189,7 +189,8 @@ nonisolated extension SSOTJournalStore {
             "DELETE FROM distribution_configurations WHERE skill_id = ?",
             "DELETE FROM distribution_operations WHERE skill_id = ?",
             "DELETE FROM local_skill_origins WHERE skill_id = ?",
-            "UPDATE legacy_publish_states SET bound_skill_id = NULL, bound_at_ms = NULL "
+            "UPDATE legacy_publish_states SET binding_status = 'unresolved', "
+                + "bound_skill_id = NULL, bound_at_ms = NULL "
                 + "WHERE bound_skill_id = ?",
         ] {
             let statement = try connection.prepare(sql)
