@@ -28,7 +28,7 @@ struct ManagedLocalImportServiceTests {
     func globalImport() async throws {
         try await withImportCandidate { candidate in
             let probe = ManagedLocalImportProbe()
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo Skill",
@@ -56,7 +56,7 @@ struct ManagedLocalImportServiceTests {
     @Test("Agent-specific import requires at least one Agent")
     func agentSelectionRequired() async throws {
         try await withImportCandidate { candidate in
-            let service = ManagedLocalImportService(
+            let service = ManagedInstallService(
                 dependencies: ManagedLocalImportProbe().dependencies()
             )
             await #expect(throws: ManagedLocalImportProblem.emptyAgentSelection) {
@@ -107,7 +107,7 @@ struct ManagedLocalImportServiceTests {
     func zipImport() async throws {
         try await withZipImportCandidate { candidate in
             let probe = ManagedLocalImportProbe()
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "ZIP Demo",
@@ -125,7 +125,7 @@ struct ManagedLocalImportServiceTests {
     func zipSourceDrift() async throws {
         try await withZipImportCandidate { candidate in
             let probe = ManagedLocalImportProbe()
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "ZIP Demo",
@@ -144,7 +144,7 @@ struct ManagedLocalImportServiceTests {
     func sourceDrift() async throws {
         try await withImportCandidate { candidate in
             let probe = ManagedLocalImportProbe()
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -163,7 +163,7 @@ struct ManagedLocalImportServiceTests {
     func rootIdentityDrift() async throws {
         try await withImportCandidate { candidate in
             let probe = ManagedLocalImportProbe()
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -186,7 +186,7 @@ struct ManagedLocalImportServiceTests {
     func planDrift() async throws {
         try await withImportCandidate { candidate in
             let probe = ManagedLocalImportProbe(planStatuses: [.executable, .noOp])
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -204,7 +204,7 @@ struct ManagedLocalImportServiceTests {
     func confirmationIsSingleFlight() async throws {
         try await withImportCandidate { candidate in
             let probe = ManagedLocalImportProbe(createDelay: .milliseconds(50))
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -238,7 +238,7 @@ struct ManagedLocalImportServiceTests {
                     cleanupState: .notApplicable
                 )
             )
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -262,7 +262,7 @@ struct ManagedLocalImportServiceTests {
                 outcome: .rolledBack,
                 cleanupState: .notApplicable
             ))
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -288,7 +288,7 @@ struct ManagedLocalImportServiceTests {
                 outcome: .needsRepair,
                 cleanupState: .notApplicable
             ))
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -310,7 +310,7 @@ struct ManagedLocalImportServiceTests {
                 createFailure: .permission,
                 operationReadbackFound: false
             )
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -328,15 +328,15 @@ struct ManagedLocalImportServiceTests {
         }
     }
 
-    @Test("Skill readback proves a committed create without its operation row")
-    func skillReadbackProvesCommit() async throws {
+    @Test("Full domain readback proves a committed create without its operation row")
+    func domainReadbackProvesCommit() async throws {
         try await withImportCandidate { candidate in
             let probe = ManagedLocalImportProbe(
                 createFailure: .generic,
                 operationReadbackFound: false,
                 skillExistsOnReadback: true
             )
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -357,7 +357,7 @@ struct ManagedLocalImportServiceTests {
                 applyThrows: true,
                 reconcileStatus: .needsRepair
             )
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -378,7 +378,7 @@ struct ManagedLocalImportServiceTests {
                 applyThrows: true,
                 reconcileStatus: .inSync
             )
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -394,7 +394,7 @@ struct ManagedLocalImportServiceTests {
     func blockedPreview() async throws {
         try await withImportCandidate { candidate in
             let probe = ManagedLocalImportProbe(planStatuses: [.blocked])
-            let service = ManagedLocalImportService(dependencies: probe.dependencies())
+            let service = ManagedInstallService(dependencies: probe.dependencies())
             let preview = try await service.prepare(
                 candidate: candidate,
                 displayName: "Demo",
@@ -409,7 +409,7 @@ struct ManagedLocalImportServiceTests {
     }
 }
 
-private func withImportCandidate(
+func withImportCandidate(
     _ body: (SkillImportWorker.ImportCandidatePayload) async throws -> Void
 ) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(

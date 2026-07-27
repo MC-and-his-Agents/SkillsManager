@@ -11,6 +11,7 @@ nonisolated extension SkillBackupManifestV1 {
         let skill: SkillWire
         let source: SourceWire?
         let aliases: [AliasWire]
+        let providerProvenance: [ProvenanceWire]
         let localOrigins: [OriginWire]
         let distributionSelection: SelectionWire
         let content: ContentWire
@@ -24,6 +25,7 @@ nonisolated extension SkillBackupManifestV1 {
             case distributionSelection = "distribution_selection"
             case localOrigins = "local_origins"
             case originalSkillID = "original_skill_id"
+            case providerProvenance = "provider_provenance"
             case restoredFromSkillID = "restored_from_skill_id"
             case schemaVersion = "schema_version"
             case skill
@@ -43,6 +45,9 @@ nonisolated extension SkillBackupManifestV1 {
             aliases = manifest.payload.providerAliases.map(AliasWire.init).sorted {
                 ($0.provider, $0.identifier) < ($1.provider, $1.identifier)
             }
+            providerProvenance = manifest.payload.providerProvenance
+                .map(ProvenanceWire.init)
+                .sorted { $0.sortKey < $1.sortKey }
             localOrigins = manifest.payload.localOrigins.map(OriginWire.init).sorted {
                 $0.sortKey < $1.sortKey
             }
@@ -70,6 +75,10 @@ nonisolated extension SkillBackupManifestV1 {
             skill = try container.decode(SkillWire.self, forKey: .skill)
             source = try container.decodeIfPresent(SourceWire.self, forKey: .source)
             aliases = try container.decode([AliasWire].self, forKey: .aliases)
+            providerProvenance = try container.decodeIfPresent(
+                [ProvenanceWire].self,
+                forKey: .providerProvenance
+            ) ?? []
             localOrigins = try container.decode([OriginWire].self, forKey: .localOrigins)
             distributionSelection = try container.decode(
                 SelectionWire.self,
@@ -93,6 +102,9 @@ nonisolated extension SkillBackupManifestV1 {
                 try container.encodeNil(forKey: .source)
             }
             try container.encode(aliases, forKey: .aliases)
+            if !providerProvenance.isEmpty {
+                try container.encode(providerProvenance, forKey: .providerProvenance)
+            }
             try container.encode(localOrigins, forKey: .localOrigins)
             try container.encode(distributionSelection, forKey: .distributionSelection)
             try container.encode(content, forKey: .content)
@@ -108,11 +120,15 @@ nonisolated extension SkillBackupManifestV1 {
             }
             let source = try source?.record(skillID: skill.skillID)
             let aliasRecords = try aliases.map { try $0.record(source: source) }
+            let provenanceRecords = try providerProvenance.map {
+                try $0.record(skillID: skill.skillID)
+            }
             let originRecords = try localOrigins.map { try $0.record(skill: skill) }
             let payload = try SSOTSkillWritePayload(
                 skill: skill,
                 source: source,
                 providerAliases: aliasRecords,
+                providerProvenance: provenanceRecords,
                 localOrigins: originRecords,
                 restoredFromSkillID: try restoredFromSkillID.map {
                     SkillID(try lowerUUID($0))
@@ -120,6 +136,7 @@ nonisolated extension SkillBackupManifestV1 {
             )
             let selection = try distributionSelection.selection(skillID: skill.skillID)
             guard Set(aliases.map(\.sortKey)).count == aliases.count,
+                  Set(providerProvenance.map(\.sortKey)).count == providerProvenance.count,
                   Set(localOrigins.map(\.positionKey)).count == localOrigins.count else {
                 throw SkillBackupManifestError.invalidManifest
             }
@@ -429,42 +446,6 @@ nonisolated extension SkillBackupManifestV1 {
         }
     }
 
-    struct ContentWire: Codable {
-        let fingerprintAlgorithmVersion: Int
-        let contentFingerprint: String
-        let fileCount: Int
-        let totalByteCount: UInt64
-
-        enum CodingKeys: String, CodingKey {
-            case contentFingerprint = "content_fingerprint"
-            case fileCount = "file_count"
-            case fingerprintAlgorithmVersion = "fingerprint_algorithm_version"
-            case totalByteCount = "total_byte_count"
-        }
-
-        init(
-            fingerprint: SkillContentFingerprint,
-            statistics: SkillContentSnapshot.Statistics
-        ) {
-            fingerprintAlgorithmVersion = fingerprint.algorithmVersion
-            contentFingerprint = lowerHex(fingerprint.digest)
-            fileCount = statistics.fileCount
-            totalByteCount = statistics.totalByteCount
-        }
-
-        var fingerprint: SkillContentFingerprint {
-            get throws {
-                try SkillContentFingerprint(
-                    algorithmVersion: fingerprintAlgorithmVersion,
-                    digest: try lowerHexData(contentFingerprint)
-                )
-            }
-        }
-
-        var statistics: SkillContentSnapshot.Statistics {
-            .init(fileCount: fileCount, totalByteCount: totalByteCount)
-        }
-    }
 }
 
 private nonisolated func lowerUUID(_ raw: String) throws -> UUID {
@@ -476,11 +457,11 @@ private nonisolated func lowerUUID(_ raw: String) throws -> UUID {
     return value
 }
 
-private nonisolated func lowerHex(_ data: Data) -> String {
+nonisolated func lowerHex(_ data: Data) -> String {
     data.map { String(format: "%02x", $0) }.joined()
 }
 
-private nonisolated func lowerHexData(_ raw: String) throws -> Data {
+nonisolated func lowerHexData(_ raw: String) throws -> Data {
     guard raw == raw.lowercased(), raw.count.isMultiple(of: 2) else {
         throw SkillBackupManifestError.invalidManifest
     }

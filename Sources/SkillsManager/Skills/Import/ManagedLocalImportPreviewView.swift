@@ -14,7 +14,17 @@ struct ManagedLocalImportPreviewView: View {
             Text("The Skill will be added to the managed library before distribution.")
                 .foregroundStyle(.secondary)
 
-            if preview.plan.status == .blocked {
+            if preview.disposition == .alreadyManaged {
+                Label(
+                    "This Clawdhub Skill is already managed. Change its Agent access from the Skill details.",
+                    systemImage: "checkmark.circle"
+                )
+            } else if preview.disposition == .updateRequired {
+                Label(
+                    "A different version or content is already managed. Use Update when that workflow is available.",
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
+            } else if preview.plan.status == .blocked {
                 conflictList
             } else if preview.plan.filesystemActions.isEmpty {
                 Label("No distribution file changes are needed.", systemImage: "checkmark.circle")
@@ -55,7 +65,7 @@ struct ManagedLocalImportPreviewView: View {
 
     private var actions: some View {
         HStack {
-            Button(preview.plan.status == .blocked ? "Close" : "Cancel") {
+            Button(canConfirm ? "Cancel" : "Close") {
                 model.cancelPreview()
                 dismiss()
             }
@@ -64,21 +74,21 @@ struct ManagedLocalImportPreviewView: View {
 
             Spacer()
 
-            if preview.plan.status != .blocked {
+            if canConfirm {
                 Button {
                     onConfirm()
                 } label: {
                     if model.isExecuting {
                         ProgressView()
                     } else {
-                        Text("Import")
+                        Text(confirmTitle)
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(model.isExecuting)
                 .keyboardShortcut(.defaultAction)
                 .accessibilityLabel(
-                    model.isExecuting ? "Importing Skill" : "Import Skill"
+                    model.isExecuting ? "Updating managed Skill state" : confirmTitle
                 )
             }
         }
@@ -87,7 +97,9 @@ struct ManagedLocalImportPreviewView: View {
     private var conflictList: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(
-                "Distribution is blocked. No Skill will be imported until this is resolved.",
+                preview.allowsBlockedCreate
+                    ? "Distribution is blocked. The Skill can still be added to the managed library."
+                    : "Distribution is blocked. No Skill will be imported until this is resolved.",
                 systemImage: "exclamationmark.triangle"
             )
             ForEach(Array(preview.plan.conflicts.enumerated()), id: \.offset) { _, conflict in
@@ -95,6 +107,23 @@ struct ManagedLocalImportPreviewView: View {
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
             }
+        }
+    }
+
+    private var canConfirm: Bool {
+        preview.disposition != .createNew
+            || preview.plan.status != .blocked
+            || preview.allowsBlockedCreate
+    }
+
+    private var confirmTitle: String {
+        switch preview.disposition {
+        case .alreadyManaged, .updateRequired:
+            "Done"
+        case .createNew where preview.plan.status == .blocked:
+            "Add without enabling"
+        case .createNew:
+            "Import"
         }
     }
 

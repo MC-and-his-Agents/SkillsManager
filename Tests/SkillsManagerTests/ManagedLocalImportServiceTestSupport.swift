@@ -17,6 +17,9 @@ actor ManagedLocalImportProbe {
     private let readbackState: SSOTJournalState
     private let operationReadbackFound: Bool
     private let skillExistsOnReadback: Bool
+    private let existingPayload: SSOTSkillWritePayload?
+    private let existingProvenance: ProviderProvenanceRecord?
+    private let provenanceAppearsAfterCreate: Bool
     private let applyThrows: Bool
     private let reconcileStatus: DistributionReconcileStatus
     private var planIndex = 0
@@ -39,6 +42,9 @@ actor ManagedLocalImportProbe {
         ),
         operationReadbackFound: Bool = true,
         skillExistsOnReadback: Bool = false,
+        existingPayload: SSOTSkillWritePayload? = nil,
+        existingProvenance: ProviderProvenanceRecord? = nil,
+        provenanceAppearsAfterCreate: Bool = false,
         applyThrows: Bool = false,
         reconcileStatus: DistributionReconcileStatus = .inSync
     ) {
@@ -48,12 +54,15 @@ actor ManagedLocalImportProbe {
         self.readbackState = readbackState
         self.operationReadbackFound = operationReadbackFound
         self.skillExistsOnReadback = skillExistsOnReadback
+        self.existingPayload = existingPayload
+        self.existingProvenance = existingProvenance
+        self.provenanceAppearsAfterCreate = provenanceAppearsAfterCreate
         self.applyThrows = applyThrows
         self.reconcileStatus = reconcileStatus
     }
 
-    nonisolated func dependencies() -> ManagedLocalImportDependencies {
-        ManagedLocalImportDependencies(
+    nonisolated func dependencies() -> ManagedInstallDependencies {
+        ManagedInstallDependencies(
             plan: { skillID, scope, codes in
                 try await self.plan(skillID: skillID, scope: scope, codes: codes)
             },
@@ -61,7 +70,10 @@ actor ManagedLocalImportProbe {
                 try await self.create(payload: payload, operationID: operationID)
             },
             createReadback: { try await self.readback(operationID: $0) },
-            skillReadback: { try await self.skillReadback(skillID: $0) },
+            domainReadback: { try await self.domainReadback(skillID: $0) },
+            provenanceReadback: { identity in
+                await self.provenanceReadback(identity: identity)
+            },
             apply: { skillID, _ in try await self.apply(skillID: skillID) },
             reconcile: { _ in await self.reconcile() },
             nowMilliseconds: { 100 }
@@ -164,13 +176,24 @@ actor ManagedLocalImportProbe {
         )
     }
 
-    private func skillReadback(skillID: SkillID) throws -> ManagedSkillRecord? {
+    private func domainReadback(skillID: SkillID) throws -> SSOTSkillWritePayload? {
+        if existingPayload?.skill.skillID == skillID {
+            return existingPayload
+        }
         guard skillExistsOnReadback,
-              let skill = lastPayload?.skill,
-              skill.skillID == skillID else {
+              let payload = lastPayload,
+              payload.skill.skillID == skillID else {
             return nil
         }
-        return skill
+        return payload
+    }
+
+    private func provenanceReadback(
+        identity: ProviderAliasIdentity
+    ) -> ProviderProvenanceRecord? {
+        guard !provenanceAppearsAfterCreate || createCount > 0 else { return nil }
+        guard existingProvenance?.identity == identity else { return nil }
+        return existingProvenance
     }
 
     private func apply(skillID: SkillID) throws -> DistributionOperationRecord {

@@ -30,11 +30,13 @@ nonisolated struct SSOTCleanupDebtID: Hashable, Sendable {
 
 nonisolated struct SSOTSkillWritePayload: Sendable {
     static let maximumProviderAliasCount = 64
+    static let maximumProviderProvenanceCount = 64
     static let maximumLocalOriginCount = 64
 
     let skill: ManagedSkillRecord
     let source: SkillSourceRecord?
     let providerAliases: [ProviderAliasRecord]
+    let providerProvenance: [ProviderProvenanceRecord]
     let localOrigins: [LocalSkillOriginRecord]
     let restoredFromSkillID: SkillID?
 
@@ -42,6 +44,7 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
         skill: ManagedSkillRecord,
         source: SkillSourceRecord? = nil,
         providerAliases: [ProviderAliasRecord] = [],
+        providerProvenance: [ProviderProvenanceRecord] = [],
         localOrigins: [LocalSkillOriginRecord] = [],
         restoredFromSkillID: SkillID? = nil
     ) throws {
@@ -58,6 +61,20 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
         let identities = providerAliases.map(\.identity)
         guard Set(identities).count == identities.count else {
             throw SSOTWritePayloadError.duplicateProviderAlias
+        }
+        guard providerProvenance.count <= Self.maximumProviderProvenanceCount else {
+            throw SSOTWritePayloadError.tooManyProviderProvenance
+        }
+        guard providerProvenance.allSatisfy({ $0.skillID == skill.skillID }) else {
+            throw SSOTWritePayloadError.providerProvenanceSkillMismatch
+        }
+        let provenanceLocators = providerProvenance.map {
+            $0.identity.provider + "\0" + $0.identifierKey
+        }
+        let provenanceProviders = providerProvenance.map(\.identity.provider)
+        guard Set(provenanceLocators).count == provenanceLocators.count,
+              Set(provenanceProviders).count == provenanceProviders.count else {
+            throw SSOTWritePayloadError.duplicateProviderProvenance
         }
         guard localOrigins.count <= Self.maximumLocalOriginCount else {
             throw SSOTWritePayloadError.tooManyLocalOrigins
@@ -77,6 +94,10 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
             ($0.identity.provider, $0.identity.identifier)
                 < ($1.identity.provider, $1.identity.identifier)
         }
+        self.providerProvenance = providerProvenance.sorted {
+            ($0.identity.provider, $0.identifierKey, $0.identity.identifier)
+                < ($1.identity.provider, $1.identifierKey, $1.identity.identifier)
+        }
         self.localOrigins = localOrigins.sorted {
             ($0.scope.sortKey, $0.collisionKey, $0.rawLocator)
                 < ($1.scope.sortKey, $1.collisionKey, $1.rawLocator)
@@ -93,6 +114,9 @@ nonisolated enum SSOTWritePayloadError: LocalizedError, Equatable {
     case aliasSourceMismatch
     case duplicateProviderAlias
     case tooManyProviderAliases
+    case providerProvenanceSkillMismatch
+    case duplicateProviderProvenance
+    case tooManyProviderProvenance
     case localOriginSkillMismatch
     case duplicateLocalOrigin
     case tooManyLocalOrigins
@@ -107,6 +131,12 @@ nonisolated enum SSOTWritePayloadError: LocalizedError, Equatable {
         case .aliasSourceMismatch: "A provider alias belongs to another source."
         case .duplicateProviderAlias: "The Skill write payload contains a duplicate provider alias."
         case .tooManyProviderAliases: "The Skill write payload contains too many provider aliases."
+        case .providerProvenanceSkillMismatch:
+            "A provider provenance record belongs to another Skill."
+        case .duplicateProviderProvenance:
+            "The Skill write payload contains duplicate provider provenance."
+        case .tooManyProviderProvenance:
+            "The Skill write payload contains too many provider provenance records."
         case .localOriginSkillMismatch:
             "A local Skill origin belongs to another Skill or content fingerprint."
         case .duplicateLocalOrigin: "The Skill write payload contains a duplicate local origin."
@@ -117,7 +147,7 @@ nonisolated enum SSOTWritePayloadError: LocalizedError, Equatable {
 
 nonisolated enum SSOTWritePayloadCodec {
     static let maximumEncodedByteCount = 128 * 1_024
-    private static let currentVersion = 3
+    private static let currentVersion = 4
 
     static func encode(_ payload: SSOTSkillWritePayload) throws -> Data {
         let data = try JSONEncoder.skillsManager.encode(Envelope(payload))
@@ -143,6 +173,11 @@ nonisolated enum SSOTWritePayloadCodec {
         guard envelope.version != 1 || envelope.localOrigins?.isEmpty != false else {
             throw SSOTWritePayloadError.invalidPayload
         }
+        guard envelope.version >= 4
+                ? envelope.providerProvenance != nil
+                : envelope.providerProvenance?.isEmpty != false else {
+            throw SSOTWritePayloadError.invalidPayload
+        }
         do {
             return try envelope.payload()
         } catch let error as SSOTWritePayloadError {
@@ -166,6 +201,13 @@ nonisolated enum SSOTWritePayloadCodec {
             let sourceID: UUID
             let provider: String
             let identifier: String
+        }
+
+        struct Provenance: Codable {
+            let provider: String
+            let identifier: String
+            let identifierKey: String
+            let sourceVersion: String?
         }
 
         struct LocalOrigin: Codable {
@@ -219,6 +261,7 @@ nonisolated enum SSOTWritePayloadCodec {
         let updatedAtMilliseconds: Int64
         let source: Source?
         let aliases: [Alias]
+        let providerProvenance: [Provenance]?
         let localOrigins: [LocalOrigin]?
         let restoredFromSkillID: UUID?
 
@@ -247,6 +290,14 @@ nonisolated enum SSOTWritePayloadCodec {
                     sourceID: $0.sourceID.uuid,
                     provider: $0.identity.provider,
                     identifier: $0.identity.identifier
+                )
+            }
+            providerProvenance = payload.providerProvenance.map {
+                Provenance(
+                    provider: $0.identity.provider,
+                    identifier: $0.identity.identifier,
+                    identifierKey: $0.identifierKey,
+                    sourceVersion: $0.version?.value
                 )
             }
             localOrigins = payload.localOrigins.map {
@@ -303,6 +354,17 @@ nonisolated enum SSOTWritePayloadCodec {
                     )
                 )
             }
+            let provenanceRecords = try (providerProvenance ?? []).map { provenance in
+                try ProviderProvenanceRecord(
+                    skillID: skillID,
+                    identity: ProviderAliasIdentity(
+                        provider: provenance.provider,
+                        identifier: provenance.identifier
+                    ),
+                    identifierKey: provenance.identifierKey,
+                    version: try provenance.sourceVersion.map(SourceVersion.init)
+                )
+            }
             let localOriginRecords = try (localOrigins ?? []).map { origin in
                 try LocalSkillOriginRecord(
                     skillID: skillID,
@@ -321,6 +383,7 @@ nonisolated enum SSOTWritePayloadCodec {
                 skill: skill,
                 source: sourceRecord,
                 providerAliases: aliasRecords,
+                providerProvenance: provenanceRecords,
                 localOrigins: localOriginRecords,
                 restoredFromSkillID: restoredFromSkillID.map(SkillID.init)
             )

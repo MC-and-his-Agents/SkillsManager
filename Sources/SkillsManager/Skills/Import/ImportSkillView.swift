@@ -7,13 +7,6 @@ private struct ImportCandidate {
     let payload: SkillImportWorker.ImportCandidatePayload
 }
 
-private enum ImportDistributionMode: String, CaseIterable, Identifiable {
-    case global = "Global"
-    case agents = "Agent-specific"
-
-    var id: Self { self }
-}
-
 struct ImportSkillView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SkillStore.self) private var store
@@ -24,7 +17,7 @@ struct ImportSkillView: View {
     @State private var candidate: ImportCandidate?
     @State private var status: Status = .idle
     @State private var errorMessage = ""
-    @State private var distributionMode: ImportDistributionMode = .global
+    @State private var distributionMode: ManagedInstallDistributionMode = .global
     @State private var selectedAgents: Set<SkillPlatform> = [.codex]
     @State private var activeTask: Task<Void, Never>?
     @State private var operationToken = UUID()
@@ -172,6 +165,18 @@ struct ImportSkillView: View {
                 "wrench.and.screwdriver",
                 "The import state for \(result.displayName) must be confirmed or repaired before retrying."
             )
+        case .alreadyManaged:
+            return (
+                "Already managed",
+                "checkmark.circle",
+                "\(result.displayName) is already in the managed library."
+            )
+        case .updateRequired:
+            return (
+                "Update required",
+                "arrow.triangle.2.circlepath",
+                "\(result.displayName) differs from the managed version."
+            )
         }
     }
 
@@ -205,55 +210,11 @@ struct ImportSkillView: View {
     }
 
     private var distributionSelection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Enable for")
-                .font(.headline)
-            Picker("Distribution scope", selection: $distributionMode) {
-                ForEach(ImportDistributionMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .disabled(model.isWorking)
-
-            if distributionMode == .global {
-                Text(
-                    "Compatible Agents share one managed link in "
-                        + DistributionTargetCatalog.current.globalTarget.rootLocator + "."
-                )
-                .foregroundStyle(.secondary)
-                Text(
-                    DistributionTargetCatalog.current.globalReaders
-                        .map(\.rawValue)
-                        .joined(separator: ", ")
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            } else {
-                ForEach(SkillPlatform.allCases) { platform in
-                    Toggle(
-                        platform.rawValue,
-                        isOn: Binding(
-                            get: { selectedAgents.contains(platform) },
-                            set: { selected in
-                                if selected {
-                                    selectedAgents.insert(platform)
-                                } else {
-                                    selectedAgents.remove(platform)
-                                }
-                            }
-                        )
-                    )
-                    .toggleStyle(.checkbox)
-                    .disabled(model.isWorking)
-                }
-                if selectedAgents.isEmpty {
-                    Label("Select at least one Agent.", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                }
-            }
-        }
-        .accessibilityElement(children: .contain)
+        ManagedInstallScopePicker(
+            mode: $distributionMode,
+            selectedAgents: $selectedAgents,
+            isDisabled: model.isWorking
+        )
     }
 
     @ViewBuilder

@@ -52,6 +52,10 @@ nonisolated extension SSOTJournalStore {
             }
             try insertSkill(operation.payload, revision: 0)
             try replaceSourceAndAliases(operation.payload)
+            try ProviderProvenanceStore(connection: connection).replace(
+                skillID: operation.skillID,
+                records: operation.payload.providerProvenance
+            )
             try insertLocalOrigins(operation.payload.localOrigins)
             try recordDatabaseCommitted(
                 operationID: operationID,
@@ -82,6 +86,10 @@ nonisolated extension SSOTJournalStore {
                 expectedOldFingerprint: operation.oldFingerprint
             )
             try replaceSourceAndAliases(operation.payload)
+            try ProviderProvenanceStore(connection: connection).replace(
+                skillID: operation.skillID,
+                records: operation.payload.providerProvenance
+            )
             try recordDatabaseCommitted(
                 operationID: operationID,
                 updatedAtMilliseconds: updatedAtMilliseconds
@@ -133,6 +141,8 @@ nonisolated extension SSOTJournalStore {
                 skill: skill,
                 source: source,
                 providerAliases: aliases,
+                providerProvenance: try ProviderProvenanceStore(connection: connection)
+                    .load(skillID: skillID),
                 localOrigins: try localOrigins().filter { $0.skillID == skillID },
                 restoredFromSkillID: restoredFromSkillID
             ),
@@ -142,6 +152,12 @@ nonisolated extension SSOTJournalStore {
 
     func storedDomain(_ skillID: SkillID) throws -> StoredSkillDomainSnapshot? {
         try loadStoredDomain(skillID: skillID)
+    }
+
+    func providerProvenance(
+        _ identity: ProviderAliasIdentity
+    ) throws -> ProviderProvenanceRecord? {
+        try ProviderProvenanceStore(connection: connection).load(identity: identity)
     }
 
     func deleteDomainInCurrentTransaction(
@@ -420,6 +436,7 @@ private nonisolated func canonicalDomainPayload(
         skill: payload.skill,
         source: payload.source,
         providerAliases: payload.providerAliases,
+        providerProvenance: payload.providerProvenance,
         localOrigins: payload.localOrigins,
         restoredFromSkillID: payload.restoredFromSkillID
     ))

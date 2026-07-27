@@ -225,6 +225,11 @@ extension JournaledSSOTWriter {
             source: source,
             warnings: &warnings
         )
+        let provenance = try restoredProviderProvenance(
+            original.providerProvenance,
+            targetSkillID: targetSkillID,
+            warnings: &warnings
+        )
         let origins = try restoredOrigins(
             original.localOrigins,
             skill: skill,
@@ -235,6 +240,7 @@ extension JournaledSSOTWriter {
                 skill: skill,
                 source: source,
                 providerAliases: aliases,
+                providerProvenance: provenance,
                 localOrigins: origins,
                 restoredFromSkillID: targetSkillID == original.skill.skillID
                     ? original.restoredFromSkillID : original.skill.skillID
@@ -337,6 +343,31 @@ extension JournaledSSOTWriter {
                 continue
             }
             result.append(restored)
+        }
+        return result
+    }
+
+    private func restoredProviderProvenance(
+        _ records: [ProviderProvenanceRecord],
+        targetSkillID: SkillID,
+        warnings: inout [String]
+    ) throws -> [ProviderProvenanceRecord] {
+        var result: [ProviderProvenanceRecord] = []
+        for record in records {
+            if let existing = try journal.providerProvenance(record.identity),
+               existing.skillID != targetSkillID {
+                warnings.append(
+                    "provider_provenance_conflict:"
+                        + "\(record.identity.provider):\(record.identifierKey)"
+                )
+                continue
+            }
+            result.append(try ProviderProvenanceRecord(
+                skillID: targetSkillID,
+                identity: record.identity,
+                identifierKey: record.identifierKey,
+                version: record.version
+            ))
         }
         return result
     }

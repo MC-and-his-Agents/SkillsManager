@@ -34,6 +34,7 @@ struct SkillBackupManifestTests {
 
         #expect(decoded.payload.source == manifest.payload.source)
         #expect(decoded.payload.providerAliases == manifest.payload.providerAliases)
+        #expect(decoded.payload.providerProvenance == manifest.payload.providerProvenance)
         #expect(decoded.payload.localOrigins == manifest.payload.localOrigins)
         #expect(decoded.payload.restoredFromSkillID == manifest.payload.restoredFromSkillID)
         #expect(
@@ -148,6 +149,17 @@ private func makeManifest(
         origins = []
     }
     let slug = try DefaultDistributionSlug(validating: "demo")
+    let provenance = includeDomainState ? [
+        try ProviderProvenanceRecord(
+            skillID: fixedSkillID,
+            identity: ProviderAliasIdentity(
+                provider: "clawdhub",
+                identifier: slug.value
+            ),
+            identifierKey: slug.collisionKey,
+            version: try SourceVersion("1.0.0")
+        ),
+    ] : []
     let bindings = includeDomainState ? [
         DistributionBindingIntent(
             skillID: fixedSkillID,
@@ -164,6 +176,7 @@ private func makeManifest(
         skill: skill,
         source: source,
         providerAliases: aliases,
+        providerProvenance: provenance,
         localOrigins: origins,
         restoredFromSkillID: includeDomainState
             ? SkillID(UUID(uuidString: "9999aaaa-bbbb-4ccc-8ddd-eeeeffff0000")!)
