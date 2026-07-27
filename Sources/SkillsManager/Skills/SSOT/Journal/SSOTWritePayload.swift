@@ -36,12 +36,14 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
     let source: SkillSourceRecord?
     let providerAliases: [ProviderAliasRecord]
     let localOrigins: [LocalSkillOriginRecord]
+    let restoredFromSkillID: SkillID?
 
     init(
         skill: ManagedSkillRecord,
         source: SkillSourceRecord? = nil,
         providerAliases: [ProviderAliasRecord] = [],
-        localOrigins: [LocalSkillOriginRecord] = []
+        localOrigins: [LocalSkillOriginRecord] = [],
+        restoredFromSkillID: SkillID? = nil
     ) throws {
         guard source?.skillID == nil || source?.skillID == skill.skillID else {
             throw SSOTWritePayloadError.sourceSkillMismatch
@@ -79,6 +81,7 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
             ($0.scope.sortKey, $0.collisionKey, $0.rawLocator)
                 < ($1.scope.sortKey, $1.collisionKey, $1.rawLocator)
         }
+        self.restoredFromSkillID = restoredFromSkillID
     }
 }
 
@@ -114,7 +117,7 @@ nonisolated enum SSOTWritePayloadError: LocalizedError, Equatable {
 
 nonisolated enum SSOTWritePayloadCodec {
     static let maximumEncodedByteCount = 128 * 1_024
-    private static let currentVersion = 2
+    private static let currentVersion = 3
 
     static func encode(_ payload: SSOTSkillWritePayload) throws -> Data {
         let data = try JSONEncoder.skillsManager.encode(Envelope(payload))
@@ -217,6 +220,7 @@ nonisolated enum SSOTWritePayloadCodec {
         let source: Source?
         let aliases: [Alias]
         let localOrigins: [LocalOrigin]?
+        let restoredFromSkillID: UUID?
 
         init(_ payload: SSOTSkillWritePayload) {
             version = currentVersion
@@ -259,6 +263,7 @@ nonisolated enum SSOTWritePayloadCodec {
                     confirmedAtMilliseconds: $0.confirmedAtMilliseconds
                 )
             }
+            restoredFromSkillID = payload.restoredFromSkillID?.uuid
         }
 
         func payload() throws -> SSOTSkillWritePayload {
@@ -316,7 +321,8 @@ nonisolated enum SSOTWritePayloadCodec {
                 skill: skill,
                 source: sourceRecord,
                 providerAliases: aliasRecords,
-                localOrigins: localOriginRecords
+                localOrigins: localOriginRecords,
+                restoredFromSkillID: restoredFromSkillID.map(SkillID.init)
             )
         }
     }

@@ -108,8 +108,8 @@ struct SSOTWritePayloadTests {
                 with: SSOTWritePayloadCodec.encode(payload)
             ) as? [String: Any]
         )
-        futureEnvelope["version"] = 3
-        #expect(throws: SSOTWritePayloadError.unsupportedVersion(3)) {
+        futureEnvelope["version"] = 4
+        #expect(throws: SSOTWritePayloadError.unsupportedVersion(4)) {
             _ = try SSOTWritePayloadCodec.decode(
                 JSONSerialization.data(withJSONObject: futureEnvelope)
             )
