@@ -2,7 +2,7 @@ import Foundation
 
 nonisolated extension SSOTJournalStore {
     func databaseObservation(for operation: SSOTJournalRecord) throws -> SSOTDatabaseObservation {
-        let stored: StoredDomain
+        let stored: StoredSkillDomainSnapshot
         do {
             guard let loaded = try loadStoredDomain(skillID: operation.skillID) else {
                 return .absent
@@ -50,7 +50,7 @@ nonisolated extension SSOTJournalStore {
                   try databaseObservation(for: operation) == .absent else {
                 throw SSOTJournalStoreError.databaseConflict
             }
-            try insertSkill(operation.payload.skill, revision: 0)
+            try insertSkill(operation.payload, revision: 0)
             try replaceSourceAndAliases(operation.payload)
             try insertLocalOrigins(operation.payload.localOrigins)
             try recordDatabaseCommitted(
@@ -77,7 +77,7 @@ nonisolated extension SSOTJournalStore {
                 throw SSOTJournalStoreError.databaseConflict
             }
             try updateSkill(
-                operation.payload.skill,
+                operation.payload,
                 expectedRevision: operation.expectedDatabaseRevision,
                 expectedOldFingerprint: operation.oldFingerprint
             )
@@ -89,12 +89,12 @@ nonisolated extension SSOTJournalStore {
         }
     }
 
-    private func loadStoredDomain(skillID: SkillID) throws -> StoredDomain? {
+    private func loadStoredDomain(skillID: SkillID) throws -> StoredSkillDomainSnapshot? {
         let statement = try connection.prepare(
             """
             SELECT display_name, default_distribution_slug, default_slug_key,
                    fingerprint_algorithm_version, content_fingerprint, status,
-                   created_at_ms, updated_at_ms, db_revision
+                   created_at_ms, updated_at_ms, db_revision, restored_from_skill_id
             FROM skills WHERE skill_id = ?
             """
         )
@@ -117,6 +117,7 @@ nonisolated extension SSOTJournalStore {
             updatedAtMilliseconds: statement.int64(at: 7)
         )
         let revision = statement.int64(at: 8)
+        let restoredFromSkillID = try statement.blob(at: 9).map(SkillID.init(bytes:))
         guard try !statement.step() else {
             throw SSOTJournalStoreError.corruptRecord("duplicate managed Skill UUID")
         }
@@ -127,14 +128,78 @@ nonisolated extension SSOTJournalStore {
         } else {
             aliases = []
         }
-        return StoredDomain(
+        return StoredSkillDomainSnapshot(
             payload: try SSOTSkillWritePayload(
                 skill: skill,
                 source: source,
-                providerAliases: aliases
+                providerAliases: aliases,
+                localOrigins: try localOrigins().filter { $0.skillID == skillID },
+                restoredFromSkillID: restoredFromSkillID
             ),
             revision: revision
         )
+    }
+
+    func storedDomain(_ skillID: SkillID) throws -> StoredSkillDomainSnapshot? {
+        try loadStoredDomain(skillID: skillID)
+    }
+
+    func deleteDomainInCurrentTransaction(
+        skillID: SkillID,
+        expected: StoredSkillDomainSnapshot
+    ) throws {
+        let activeDistribution = try connection.prepare(
+            """
+            SELECT count(*) FROM distribution_operations
+            WHERE skill_id = ? AND (outcome IS NULL OR outcome = 'needsRepair')
+            """
+        )
+        try activeDistribution.bind(skillID.bytes, at: 1)
+        guard try activeDistribution.step() else {
+            throw SSOTJournalStoreError.databaseConflict
+        }
+        let activeDistributionCount = activeDistribution.int64(at: 0)
+        guard let actual = try loadStoredDomain(skillID: skillID),
+              actual.revision == expected.revision,
+              try canonicalDomainPayload(actual.payload)
+                == canonicalDomainPayload(expected.payload),
+              try DistributionBindingStore(connection: connection).load(skillID: skillID).isEmpty,
+              try DistributionLinkOwnershipStore(connection: connection).load(skillID: skillID)
+                .isEmpty,
+              activeDistributionCount == 0 else {
+            throw SSOTJournalStoreError.databaseConflict
+        }
+        for sql in [
+            "DELETE FROM distribution_configurations WHERE skill_id = ?",
+            "DELETE FROM distribution_operations WHERE skill_id = ?",
+            "DELETE FROM local_skill_origins WHERE skill_id = ?",
+            "UPDATE legacy_publish_states SET bound_skill_id = NULL, bound_at_ms = NULL "
+                + "WHERE bound_skill_id = ?",
+        ] {
+            let statement = try connection.prepare(sql)
+            try statement.bind(skillID.bytes, at: 1)
+            guard try !statement.step() else {
+                throw SSOTJournalStoreError.databaseConflict
+            }
+        }
+        let delete = try connection.prepare(
+            """
+            DELETE FROM skills
+            WHERE skill_id = ? AND db_revision = ?
+              AND fingerprint_algorithm_version = ? AND content_fingerprint = ?
+            """
+        )
+        try delete.bind(skillID.bytes, at: 1)
+        try delete.bind(expected.revision, at: 2)
+        try delete.bind(
+            Int64(expected.payload.skill.contentFingerprint.algorithmVersion),
+            at: 3
+        )
+        try delete.bind(expected.payload.skill.contentFingerprint.digest, at: 4)
+        guard try !delete.step(),
+              try connection.querySingleInt("SELECT changes()") == 1 else {
+            throw SSOTJournalStoreError.databaseConflict
+        }
     }
 
     func managedSkillRecord(_ skillID: SkillID) throws -> ManagedSkillRecord? {
@@ -218,25 +283,26 @@ nonisolated extension SSOTJournalStore {
         return aliases
     }
 
-    private func insertSkill(_ skill: ManagedSkillRecord, revision: Int64) throws {
+    private func insertSkill(_ payload: SSOTSkillWritePayload, revision: Int64) throws {
         let statement = try connection.prepare(Self.skillInsertSQL)
-        try statement.bind(skill.skillID.bytes, at: 1)
-        try bindSkillValues(skill, revision: revision, to: statement, startingAt: 2)
+        try statement.bind(payload.skill.skillID.bytes, at: 1)
+        try bindSkillValues(payload, revision: revision, to: statement, startingAt: 2)
         try finishMutation(statement)
     }
 
     private func updateSkill(
-        _ skill: ManagedSkillRecord,
+        _ payload: SSOTSkillWritePayload,
         expectedRevision: Int64,
         expectedOldFingerprint: SkillContentFingerprint?
     ) throws {
         guard let expectedOldFingerprint else { throw SSOTJournalStoreError.invalidRecord }
+        let skill = payload.skill
         let statement = try connection.prepare(Self.skillUpdateSQL)
-        try bindSkillValues(skill, revision: expectedRevision + 1, to: statement, startingAt: 1)
-        try statement.bind(skill.skillID.bytes, at: 10)
-        try statement.bind(expectedRevision, at: 11)
-        try statement.bind(Int64(expectedOldFingerprint.algorithmVersion), at: 12)
-        try statement.bind(expectedOldFingerprint.digest, at: 13)
+        try bindSkillValues(payload, revision: expectedRevision + 1, to: statement, startingAt: 1)
+        try statement.bind(skill.skillID.bytes, at: 11)
+        try statement.bind(expectedRevision, at: 12)
+        try statement.bind(Int64(expectedOldFingerprint.algorithmVersion), at: 13)
+        try statement.bind(expectedOldFingerprint.digest, at: 14)
         do {
             try finishMutation(statement)
         } catch SSOTJournalStoreError.stateConflict {
@@ -245,11 +311,12 @@ nonisolated extension SSOTJournalStore {
     }
 
     private func bindSkillValues(
-        _ skill: ManagedSkillRecord,
+        _ payload: SSOTSkillWritePayload,
         revision: Int64,
         to statement: SQLiteStatement,
         startingAt firstIndex: Int32
     ) throws {
+        let skill = payload.skill
         try statement.bind(skill.displayName.value, at: firstIndex)
         try statement.bind(skill.defaultDistributionSlug.value, at: firstIndex + 1)
         try statement.bind(skill.defaultDistributionSlug.collisionKey, at: firstIndex + 2)
@@ -259,6 +326,11 @@ nonisolated extension SSOTJournalStore {
         try statement.bind(skill.createdAtMilliseconds, at: firstIndex + 6)
         try statement.bind(skill.updatedAtMilliseconds, at: firstIndex + 7)
         try statement.bind(revision, at: firstIndex + 8)
+        if let restoredFromSkillID = payload.restoredFromSkillID {
+            try statement.bind(restoredFromSkillID.bytes, at: firstIndex + 9)
+        } else {
+            try statement.bindNull(at: firstIndex + 9)
+        }
     }
 
     private func replaceSourceAndAliases(_ payload: SSOTSkillWritePayload) throws {
@@ -315,14 +387,15 @@ nonisolated extension SSOTJournalStore {
     INSERT INTO skills(
       skill_id, display_name, default_distribution_slug, default_slug_key,
       fingerprint_algorithm_version, content_fingerprint, status,
-      created_at_ms, updated_at_ms, db_revision
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      created_at_ms, updated_at_ms, db_revision, restored_from_skill_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     private static let skillUpdateSQL = """
     UPDATE skills SET display_name = ?, default_distribution_slug = ?,
       default_slug_key = ?, fingerprint_algorithm_version = ?, content_fingerprint = ?,
-      status = ?, created_at_ms = ?, updated_at_ms = ?, db_revision = ?
+      status = ?, created_at_ms = ?, updated_at_ms = ?, db_revision = ?,
+      restored_from_skill_id = ?
     WHERE skill_id = ? AND db_revision = ?
       AND fingerprint_algorithm_version = ? AND content_fingerprint = ?
     """
@@ -335,7 +408,7 @@ nonisolated extension SSOTJournalStore {
     """
 }
 
-private nonisolated struct StoredDomain {
+nonisolated struct StoredSkillDomainSnapshot: Sendable {
     let payload: SSOTSkillWritePayload
     let revision: Int64
 }
@@ -346,7 +419,9 @@ private nonisolated func canonicalDomainPayload(
     try SSOTWritePayloadCodec.encode(SSOTSkillWritePayload(
         skill: payload.skill,
         source: payload.source,
-        providerAliases: payload.providerAliases
+        providerAliases: payload.providerAliases,
+        localOrigins: payload.localOrigins,
+        restoredFromSkillID: payload.restoredFromSkillID
     ))
 }
 

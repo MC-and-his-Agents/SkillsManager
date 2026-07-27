@@ -8,6 +8,7 @@ actor JournaledSSOTWriter {
     let fileSystem: SSOTOperationFileSystem
     let journal: SSOTJournalStore
     let distribution: DistributionSymlinkExecutor
+    let backupFileSystem: SkillBackupFileSystem
     let hooks: JournaledSSOTWriterHooks
 
     private init(
@@ -15,12 +16,14 @@ actor JournaledSSOTWriter {
         ownership: SSOTWriterOwnership,
         fileSystem: SSOTOperationFileSystem,
         distribution: DistributionSymlinkExecutor,
+        backupFileSystem: SkillBackupFileSystem,
         hooks: JournaledSSOTWriterHooks
     ) throws {
         self.connection = connection
         self.ownership = ownership
         self.fileSystem = fileSystem
         self.distribution = distribution
+        self.backupFileSystem = backupFileSystem
         journal = try SSOTJournalStore(connection: connection)
         self.hooks = hooks
     }
@@ -84,15 +87,21 @@ actor JournaledSSOTWriter {
             connection: connection,
             fileSystem: distributionFileSystem
         )
+        let backupFileSystem = try SkillBackupFileSystem(
+            managementRoot: managementRoot,
+            ownership: ownership
+        )
         try distribution.recoverAll()
         let writer = try JournaledSSOTWriter(
             connection: connection,
             ownership: ownership,
             fileSystem: fileSystem,
             distribution: distribution,
+            backupFileSystem: backupFileSystem,
             hooks: hooks
         )
         try await writer.recoverAll()
+        try await writer.recoverDeletions()
         return writer
     }
 

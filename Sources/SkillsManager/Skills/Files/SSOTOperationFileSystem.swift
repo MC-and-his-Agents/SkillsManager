@@ -258,6 +258,139 @@ nonisolated final class SSOTOperationFileSystem {
         )
     }
 
+    func captureExpectedFinal(
+        skillID: SkillID,
+        expectedIdentity: ManagedItemIdentity,
+        expectedFingerprint: SkillContentFingerprint,
+        checkpoint: SkillCancellationCheckpoint = {}
+    ) throws -> SkillContentSnapshot {
+        let snapshot = try snapshot(
+            at: finalURL(skillID: skillID),
+            expectedIdentity: expectedIdentity,
+            checkpoint: checkpoint
+        )
+        guard try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest)
+            == expectedFingerprint else {
+            throw SSOTOperationFileSystemError.itemChanged
+        }
+        return snapshot
+    }
+
+    func quarantineFinal(
+        skillID: SkillID,
+        operationID: UUID,
+        expectedIdentity: ManagedItemIdentity,
+        expectedFingerprint: SkillContentFingerprint
+    ) throws -> SSOTQuarantinedSkill {
+        let reference = SSOTOperationItemReference.recovery(operationID: operationID)
+        let finalURL = finalURL(skillID: skillID)
+        let quarantineURL = operationItemURL(for: reference)
+        try requireExpectedFinal(
+            skillID: skillID,
+            identity: expectedIdentity,
+            fingerprint: expectedFingerprint
+        )
+        guard try guardValue.itemIdentity(at: quarantineURL) == nil else {
+            throw SSOTOperationFileSystemError.destinationAlreadyExists
+        }
+        let finalName = try guardValue.managedName(for: finalURL).value
+        let quarantineName = try guardValue.managedName(for: quarantineURL).value
+        try hooks.reach(.beforeDeletionQuarantine)
+        try requireExpectedFinal(
+            skillID: skillID,
+            identity: expectedIdentity,
+            fingerprint: expectedFingerprint
+        )
+        try validateAuthority()
+        guard Darwin.renameatx_np(
+            guardValue.rootDescriptor,
+            finalName,
+            guardValue.rootDescriptor,
+            quarantineName,
+            UInt32(RENAME_EXCL)
+        ) == 0 else {
+            if errno == EEXIST {
+                throw SSOTOperationFileSystemError.destinationAlreadyExists
+            }
+            throw SSOTOperationFileSystemError.posix(
+                operation: "quarantine SSOT Skill for deletion",
+                code: errno
+            )
+        }
+        try hooks.reach(.afterDeletionQuarantineBeforeParentSync)
+        try SSOTDurability.syncDirectory(guardValue.rootDescriptor)
+        try hooks.reach(.afterDeletionQuarantineParentSyncBeforeValidation)
+        try validateAuthority()
+        try requireExpectedOperationItem(
+            reference,
+            identity: expectedIdentity,
+            fingerprint: expectedFingerprint
+        )
+        guard try guardValue.itemIdentity(at: finalURL) == nil else {
+            throw SSOTOperationFileSystemError.itemChanged
+        }
+        return SSOTQuarantinedSkill(
+            reference: reference,
+            identity: expectedIdentity,
+            fingerprint: expectedFingerprint
+        )
+    }
+
+    func restoreQuarantinedFinal(
+        _ quarantined: SSOTQuarantinedSkill,
+        skillID: SkillID
+    ) throws {
+        guard quarantined.reference.role == .recovery else {
+            throw SSOTOperationFileSystemError.invalidOperationItemRole
+        }
+        let quarantineURL = operationItemURL(for: quarantined.reference)
+        let finalURL = finalURL(skillID: skillID)
+        try requireExpectedOperationItem(
+            quarantined.reference,
+            identity: quarantined.identity,
+            fingerprint: quarantined.fingerprint
+        )
+        guard try guardValue.itemIdentity(at: finalURL) == nil else {
+            throw SSOTOperationFileSystemError.destinationAlreadyExists
+        }
+        let quarantineName = try guardValue.managedName(for: quarantineURL).value
+        let finalName = try guardValue.managedName(for: finalURL).value
+        try hooks.reach(.beforeDeletionRestore)
+        try requireExpectedOperationItem(
+            quarantined.reference,
+            identity: quarantined.identity,
+            fingerprint: quarantined.fingerprint
+        )
+        try validateAuthority()
+        guard Darwin.renameatx_np(
+            guardValue.rootDescriptor,
+            quarantineName,
+            guardValue.rootDescriptor,
+            finalName,
+            UInt32(RENAME_EXCL)
+        ) == 0 else {
+            if errno == EEXIST {
+                throw SSOTOperationFileSystemError.destinationAlreadyExists
+            }
+            throw SSOTOperationFileSystemError.posix(
+                operation: "restore quarantined SSOT Skill",
+                code: errno
+            )
+        }
+        try hooks.reach(.afterDeletionRestoreBeforeParentSync)
+        try SSOTDurability.syncDirectory(guardValue.rootDescriptor)
+        try hooks.reach(.afterDeletionRestoreParentSyncBeforeValidation)
+        try validateAuthority()
+        try requireExpectedFinal(
+            skillID: skillID,
+            identity: quarantined.identity,
+            fingerprint: quarantined.fingerprint
+        )
+        guard try guardValue.itemIdentity(at: quarantineURL) == nil else {
+            throw SSOTOperationFileSystemError.itemChanged
+        }
+    }
+
     func removeExpectedOperationItem(
         _ reference: SSOTOperationItemReference,
         identity: ManagedItemIdentity,

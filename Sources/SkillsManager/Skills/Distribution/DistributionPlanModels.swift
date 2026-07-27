@@ -11,6 +11,17 @@ nonisolated enum DistributionDesiredScope: Sendable {
         case .global(let slug), .agents(_, let slug): slug
         }
     }
+
+    var requiredAdapterCodes: Set<String> {
+        switch self {
+        case .disabled:
+            []
+        case .global:
+            Set(DistributionTargetCatalog.current.globalReaders.map(\.storageKey))
+        case .agents(let adapters, _):
+            Set(adapters.map(\.storageKey))
+        }
+    }
 }
 
 nonisolated struct DistributionSelectionReadback: Sendable {

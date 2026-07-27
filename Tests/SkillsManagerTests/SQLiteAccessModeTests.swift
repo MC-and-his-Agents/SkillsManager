@@ -17,7 +17,7 @@ struct SQLiteAccessModeTests {
         let reader = try SkillSchemaMigrator.open(at: location.database, accessMode: .readOnly)
         #expect(reader.accessMode == .readOnly)
         #expect(try reader.querySingleInt("PRAGMA query_only") == 1)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == Int64(SkillSchemaV8.version))
+        #expect(try reader.querySingleInt("PRAGMA user_version") == Int64(SkillSchemaV9.version))
         #expect(throws: SQLiteStoreError.self) {
             try reader.execute("DELETE FROM schema_metadata")
         }
@@ -74,7 +74,7 @@ struct SQLiteAccessModeTests {
             let redirected = try SQLiteConnection(
                 url: second.appendingPathComponent("manager.sqlite")
             )
-            try redirected.execute("PRAGMA user_version = 99")
+            try redirected.execute("PRAGMA user_version = 109")
         }
         try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: first)
 
@@ -88,7 +88,7 @@ struct SQLiteAccessModeTests {
         )
         #expect(
             try connection.querySingleInt("PRAGMA user_version")
-                == Int64(SkillSchemaV8.version)
+                == Int64(SkillSchemaV9.version)
         )
     }
 
@@ -155,7 +155,7 @@ struct SQLiteAccessModeTests {
             let connection = try SQLiteConnection(url: location.database)
             let mode = try connection.querySingleText("PRAGMA journal_mode")
             originalMode = try #require(mode)
-            try connection.execute("PRAGMA user_version = 9")
+            try connection.execute("PRAGMA user_version = 10")
         }
 
         #expect(throws: SQLiteStoreError.self) {

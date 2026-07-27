@@ -19,9 +19,20 @@ nonisolated enum SSOTWriterCheckpoint: String, CaseIterable, Sendable {
     case afterTerminalCompletion
 }
 
+nonisolated enum SkillDeletionCheckpoint: String, CaseIterable, Sendable {
+    case afterPreparedInsert
+    case afterBackupPromotion
+    case afterBackupPublished
+    case afterDistributionRemoved
+    case afterSSOTQuarantined
+    case afterDatabaseCommitted
+    case beforeCleanup
+}
+
 nonisolated struct JournaledSSOTWriterHooks: Sendable {
     var checkpoint: @Sendable (SSOTWriterCheckpoint, SSOTOperationID) throws -> Void = { _, _ in }
     var fileSystemCheckpoint: @Sendable (SSOTOperationFileSystemCheckpoint) throws -> Void = { _ in }
+    var deletionCheckpoint: @Sendable (SkillDeletionCheckpoint) throws -> Void = { _ in }
     var shouldFailCleanup: @Sendable (SSOTCleanupItemRole) -> Bool = { _ in false }
     var nowMilliseconds: @Sendable () -> Int64 = {
         max(0, Int64(Date().timeIntervalSince1970 * 1_000))

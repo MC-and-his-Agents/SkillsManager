@@ -33,6 +33,12 @@ nonisolated struct SSOTStagedItem: Sendable {
     let fingerprint: SkillContentFingerprint
 }
 
+nonisolated struct SSOTQuarantinedSkill: Sendable {
+    let reference: SSOTOperationItemReference
+    let identity: ManagedItemIdentity
+    let fingerprint: SkillContentFingerprint
+}
+
 nonisolated enum SSOTOperationFileSystemError: LocalizedError, Equatable {
     case invalidOperationItemRole
     case stagingAlreadyExists
@@ -75,6 +81,12 @@ nonisolated enum SSOTOperationFileSystemCheckpoint: CaseIterable, Equatable, Sen
     case beforeReplacementSwap
     case afterReplacementSwapBeforeParentSync
     case afterReplacementParentSyncBeforeValidation
+    case beforeDeletionQuarantine
+    case afterDeletionQuarantineBeforeParentSync
+    case afterDeletionQuarantineParentSyncBeforeValidation
+    case beforeDeletionRestore
+    case afterDeletionRestoreBeforeParentSync
+    case afterDeletionRestoreParentSyncBeforeValidation
     case beforeCleanupRemoval
     case afterCleanupRemovalBeforeParentSync
     case afterCleanupParentSyncBeforeValidation
