@@ -14,32 +14,6 @@ nonisolated enum SkillImportValidationError: LocalizedError {
     }
 }
 
-nonisolated struct PartialSkillInstallError: LocalizedError, Sendable {
-    let installedStorageKeys: [String]
-    let failedStorageKey: String
-    let reason: String
-    let cleanupDebts: [SafeSkillCleanupDebt]
-
-    var errorDescription: String? {
-        let completed = installedStorageKeys.joined(separator: ", ")
-        let cleanup = cleanupDebts.isEmpty
-            ? ""
-            : " Cleanup is still needed at \(cleanupDebts.map(\.url.path).joined(separator: ", "))."
-        return "Installed in \(completed), but failed in \(failedStorageKey): \(reason).\(cleanup)"
-    }
-}
-
-nonisolated struct SkillInstallReport: Sendable {
-    let installedStorageKeys: [String]
-    let cleanupDebts: [SafeSkillCleanupDebt]
-
-    var warningMessage: String? {
-        guard !cleanupDebts.isEmpty else { return nil }
-        let paths = cleanupDebts.map(\.url.path).joined(separator: ", ")
-        return "The Skill was installed, but old temporary content still needs cleanup: \(paths)"
-    }
-}
-
 actor SkillImportWorker {
     struct ImportCandidatePayload: Sendable {
         enum SourceAnchor: Sendable {
@@ -110,42 +84,6 @@ actor SkillImportWorker {
             removeTemporaryRoot(temporary.lease)
             throw error
         }
-    }
-
-    func importCandidate(
-        _ candidate: ImportCandidatePayload,
-        destinations: [SkillFileWorker.InstallDestination]
-    ) throws -> SkillInstallReport {
-        let stager = SafeSkillStager()
-        var installedStorageKeys: [String] = []
-        var cleanupDebts: [SafeSkillCleanupDebt] = []
-        for destination in destinations {
-            do {
-                let result = try stager.install(
-                    sourceSnapshot: candidate.snapshot,
-                    expectedFingerprint: candidate.fingerprint,
-                    destinationRoot: destination.rootURL,
-                    preferredName: candidate.skillName,
-                    conflictPolicy: .chooseUniqueName,
-                    managedRoot: destination.managedRoot,
-                    checkpoint: { try Task.checkCancellation() }
-                )
-                installedStorageKeys.append(destination.storageKey)
-                cleanupDebts.append(contentsOf: result.cleanupDebts)
-            } catch {
-                guard !installedStorageKeys.isEmpty else { throw error }
-                throw PartialSkillInstallError(
-                    installedStorageKeys: installedStorageKeys,
-                    failedStorageKey: destination.storageKey,
-                    reason: error.localizedDescription,
-                    cleanupDebts: cleanupDebts
-                )
-            }
-        }
-        return SkillInstallReport(
-            installedStorageKeys: installedStorageKeys,
-            cleanupDebts: cleanupDebts
-        )
     }
 
     func cleanupTemporaryRoot(_ lease: TemporaryItemLease) {

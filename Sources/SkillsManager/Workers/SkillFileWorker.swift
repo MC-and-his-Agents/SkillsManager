@@ -3,27 +3,6 @@ import Darwin
 import Foundation
 
 actor SkillFileWorker {
-    struct RemoteInstallResult: Sendable {
-        let selectedID: String?
-        let report: SkillInstallReport
-    }
-
-    struct InstallDestination: Sendable {
-        let rootURL: URL
-        let storageKey: String
-        let managedRoot: ManagedRootReference?
-
-        init(
-            rootURL: URL,
-            storageKey: String,
-            managedRoot: ManagedRootReference? = nil
-        ) {
-            self.rootURL = rootURL
-            self.storageKey = storageKey
-            self.managedRoot = managedRoot
-        }
-    }
-
     struct ScannedSkillData: Sendable {
         let id: String
         let name: String
@@ -34,11 +13,6 @@ actor SkillFileWorker {
         let skillMarkdownURL: URL
         let references: [SkillReference]
         let stats: SkillStats
-    }
-
-    struct ClawdhubOrigin: Sendable {
-        let slug: String
-        let version: String?
     }
 
     func loadMarkdown(at url: URL) throws -> String {
@@ -93,13 +67,6 @@ actor SkillFileWorker {
         }
     }
 
-    func computeSkillHash(for rootURL: URL) throws -> String {
-        try SkillContentSnapshot.capture(
-            at: rootURL,
-            checkpoint: { try Task.checkCancellation() }
-        ).fingerprint
-    }
-
     func computeLegacyPublishHash(for rootURL: URL) throws -> String {
         let fileManager = FileManager.default
         guard let enumerator = fileManager.enumerator(
@@ -142,20 +109,6 @@ actor SkillFileWorker {
         }
 
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
-    }
-
-    func readClawdhubOrigin(from skillRoot: URL) -> ClawdhubOrigin? {
-        let originURL = skillRoot
-            .appendingPathComponent(".clawdhub", isDirectory: true)
-            .appendingPathComponent("origin.json")
-        guard let data = try? Data(contentsOf: originURL),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let slug = json["slug"] as? String else {
-            return nil
-        }
-
-        let version = json["version"] as? String
-        return ClawdhubOrigin(slug: slug, version: version)
     }
 
     private func parseMetadata(from markdown: String) -> SkillMetadata {

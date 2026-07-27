@@ -84,30 +84,6 @@ nonisolated enum SkillPlatform: String, CaseIterable, Identifiable, Hashable, Se
         }
     }
 
-    var rootURL: URL {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        return home.appendingPathComponent(relativePath)
-    }
-
-    var rootURLs: [URL] {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        return relativePaths.map { home.appendingPathComponent($0) }
-    }
-
-    /// Returns the skills URL for this platform within a given base directory
-    func skillsURL(in baseURL: URL) -> URL {
-        baseURL.appendingPathComponent(relativePath)
-    }
-
-    /// Returns all skills URLs for this platform within a given base directory
-    func skillsURLs(in baseURL: URL) -> [URL] {
-        relativePaths.map { baseURL.appendingPathComponent($0) }
-    }
-
-    var description: String {
-        "Install in \(rootURL.path)"
-    }
-
     var badgeTint: Color {
         switch self {
         case .codex:

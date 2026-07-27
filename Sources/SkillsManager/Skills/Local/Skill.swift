@@ -15,13 +15,11 @@ struct SkillReference: Identifiable, Hashable, Sendable {
 
 struct Skill: Identifiable, Hashable, Sendable {
     let id: String
-    let managedSkillID: SkillID?
+    let managedSkillID: SkillID
     let name: String
     let displayName: String
     let description: String
-    let platform: SkillPlatform?
-    let customPath: CustomSkillPath?
-    let managedStatus: ManagedSkillStatus?
+    let managedStatus: ManagedSkillStatus
     let clawdhubSlug: String?
     let clawdhubVersion: String?
     let enabledPlatforms: Set<SkillPlatform>

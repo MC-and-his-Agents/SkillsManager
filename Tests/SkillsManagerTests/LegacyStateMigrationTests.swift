@@ -101,7 +101,7 @@ struct LegacyStateMigrationTests {
         #expect(result.diagnostics == [
             LegacyMigrationDiagnostic(code: .legacyArchiveChanged, locator: nil),
         ])
-        _ = try SQLitePublishStatePersistence(connection: connection)
+        _ = try LegacyMigrationLedgerAdmission.requireCompleted(connection)
     }
 
     @Test("completed ledger ignores later diagnostic capture limits")
@@ -144,7 +144,7 @@ struct LegacyStateMigrationTests {
             ownership: fixture.ownership
         )
         #expect(result.archiveChanged)
-        _ = try SQLitePublishStatePersistence(connection: connection)
+        _ = try LegacyMigrationLedgerAdmission.requireCompleted(connection)
     }
 
     @Test("completed ledger still fails closed when writer ownership drifts")
