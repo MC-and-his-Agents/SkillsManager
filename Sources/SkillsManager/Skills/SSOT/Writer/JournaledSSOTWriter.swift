@@ -272,6 +272,10 @@ actor JournaledSSOTWriter {
         guard payload.skill.contentFingerprint.digest == sourceSnapshot.fingerprintDigest else {
             throw JournaledSSOTWriterError.invalidInput
         }
+        try requireProviderProvenanceAvailable(
+            payload.providerProvenance,
+            existingOwner: nil
+        )
         let staged = try stage(
             snapshot: sourceSnapshot,
             fingerprint: payload.skill.contentFingerprint,
@@ -311,6 +315,10 @@ actor JournaledSSOTWriter {
               payload.skill.contentFingerprint.digest == sourceSnapshot.fingerprintDigest else {
             throw JournaledSSOTWriterError.invalidInput
         }
+        try requireProviderProvenanceAvailable(
+            payload.providerProvenance,
+            existingOwner: payload.skill.skillID
+        )
         let staged = try stage(
             snapshot: sourceSnapshot,
             fingerprint: payload.skill.contentFingerprint,
@@ -386,6 +394,19 @@ actor JournaledSSOTWriter {
         )
         try checkpoint(.afterStaging, operationID)
         return staged
+    }
+
+    private func requireProviderProvenanceAvailable(
+        _ records: [ProviderProvenanceRecord],
+        existingOwner: SkillID?
+    ) throws {
+        try requireAuthority()
+        for record in records {
+            if let existing = try journal.providerProvenance(record.identity),
+               existing.skillID != existingOwner {
+                throw SSOTJournalStoreError.databaseConflict
+            }
+        }
     }
 
     private func insertAndExecute(_ record: SSOTJournalRecord) throws {

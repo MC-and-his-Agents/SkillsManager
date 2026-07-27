@@ -175,6 +175,7 @@ struct SkillSplitView: View {
                 }
                 .labelStyle(.iconOnly)
                 .disabled(isDownloadingRemote || !canDownloadRemoteSkill)
+                .accessibilityLabel(remoteInstallAccessibilityLabel)
             }
 
             if #available(macOS 26.0, *) {
@@ -244,6 +245,16 @@ struct SkillSplitView: View {
         } else {
             Image(systemName: "arrow.down.circle")
         }
+    }
+
+    private var remoteInstallAccessibilityLabel: String {
+        if isDownloadingRemote {
+            return "Installing Clawdhub Skill"
+        }
+        if managedRemoteSkillID != nil {
+            return "Clawdhub Skill is managed; review installation"
+        }
+        return "Install Clawdhub Skill"
     }
 
     @ViewBuilder

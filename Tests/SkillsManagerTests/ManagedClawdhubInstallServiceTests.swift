@@ -173,6 +173,72 @@ struct ManagedClawdhubInstallServiceTests {
             #expect(await probe.applyCount == 0)
         }
     }
+
+    @Test("concurrent real writer installs leave one managed Skill and no repair debt")
+    func concurrentRealWriterInstallIsClean() async throws {
+        try await withImportCandidate { candidate in
+            let workspace = try WriterWorkspace()
+            let writer = try await workspace.openWriter()
+            let secondCandidate = try await SkillImportWorker().validateFolder(
+                candidate.rootURL
+            )
+            let planProbe = ManagedLocalImportProbe(planStatuses: [.blocked])
+            let dependencies = writerDependencies(writer, planProbe: planProbe)
+            let first = ManagedInstallService(dependencies: dependencies)
+            let second = ManagedInstallService(dependencies: dependencies)
+            let skill = remoteSkill(version: "1.0.0")
+            let firstPreview = try await first.prepareClawdhub(
+                candidate: candidate,
+                skill: skill,
+                scope: .global
+            )
+            let secondPreview = try await second.prepareClawdhub(
+                candidate: secondCandidate,
+                skill: skill,
+                scope: .global
+            )
+
+            let firstTask = Task { try await first.execute(firstPreview.token) }
+            let secondTask = Task { try await second.execute(secondPreview.token) }
+            let results = try await [firstTask.value, secondTask.value]
+
+            #expect(Set(results.map(\.status)) == [.managedUndistributed, .alreadyManaged])
+            #expect(Set(results.map(\.skillID)).count == 1)
+            #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
+            #expect(try workspace.integer("SELECT count(*) FROM provider_provenance") == 1)
+            #expect(try workspace.integer(
+                "SELECT count(*) FROM skill_operations WHERE outcome = 'needsRepair'"
+            ) == 0)
+            #expect(try workspace.integer("SELECT count(*) FROM skill_operations") == 1)
+            #expect(try workspace.internalItemCount() == 0)
+            #expect(try FileManager.default.contentsOfDirectory(
+                atPath: workspace.root.path
+            ).count == 1)
+        }
+    }
+}
+
+private func writerDependencies(
+    _ writer: JournaledSSOTWriter,
+    planProbe: ManagedLocalImportProbe
+) -> ManagedInstallDependencies {
+    let probe = planProbe.dependencies()
+    return ManagedInstallDependencies(
+        plan: probe.plan,
+        create: { payload, snapshot, operationID in
+            try await writer.create(
+                payload: payload,
+                sourceSnapshot: snapshot,
+                operationID: operationID
+            )
+        },
+        createReadback: { try await writer.ssotOperationReadback($0) },
+        domainReadback: { try await writer.storedDomainReadback($0)?.payload },
+        provenanceReadback: { try await writer.providerProvenance($0) },
+        apply: probe.apply,
+        reconcile: probe.reconcile,
+        nowMilliseconds: probe.nowMilliseconds
+    )
 }
 
 private func remoteSkill(
