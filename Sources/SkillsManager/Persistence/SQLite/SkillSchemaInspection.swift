@@ -151,6 +151,25 @@ nonisolated enum SkillSchemaInspection {
         )
     }
 
+    static func expectedV11SchemaFingerprint() throws -> Data {
+        try expectedSchemaFingerprint(
+            objectNames: SkillSchemaV11.fingerprintedObjectNames,
+            statements: SkillSchemaV1.statements
+                + SkillSchemaV2.statements
+                + SkillSchemaV3.statements
+                + SkillSchemaV4.statements
+                + SkillSchemaV5.statements
+                + SkillSchemaV6.statements
+                + SkillSchemaV7.statements
+                + SkillSchemaV8.statements
+                + SkillSchemaV9.statements
+                + SkillSchemaV10.statements
+                + SkillSchemaV11.statements
+                + [SkillSchemaV9.expectedSkillsTableSQL],
+            version: 11
+        )
+    }
+
     static func columnNames(
         _ connection: SQLiteConnection,
         table: String

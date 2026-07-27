@@ -222,11 +222,16 @@ struct SkillStoreRemoteIdentityTests {
         }
         return Skill(
             id: "\(platform.storageKey)-\(name)",
+            managedSkillID: nil,
             name: name,
             displayName: name,
             description: "",
             platform: platform,
             customPath: nil,
+            managedStatus: nil,
+            clawdhubSlug: name,
+            clawdhubVersion: nil,
+            enabledPlatforms: [platform],
             managedRoot: managedRoot,
             folderURL: skillRoot,
             skillMarkdownURL: skillFile,

@@ -9,7 +9,7 @@ struct SkillSchemaV10Tests {
         case stop
     }
 
-    @Test("migrates v9 atomically and accepts read-only v10")
+    @Test("migrates v9 through v10 atomically to latest")
     func migratesV9Atomically() throws {
         try withV9Database { connection, databaseURL in
             #expect(throws: InjectedFailure.stop) {
@@ -27,8 +27,8 @@ struct SkillSchemaV10Tests {
 
             try SkillSchemaMigrator.migrateIfNeeded(connection)
 
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 10)
-            #expect(try connection.userTableNames() == SkillSchemaV10.tableNames)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 11)
+            #expect(try connection.userTableNames() == SkillSchemaV11.tableNames)
             let reader = try SkillSchemaMigrator.open(at: databaseURL, accessMode: .readOnly)
             #expect(reader.accessMode == .readOnly)
         }

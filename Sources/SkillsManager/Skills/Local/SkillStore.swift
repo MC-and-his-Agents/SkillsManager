@@ -32,7 +32,16 @@ import Observation
         let errorMessage: String?
     }
 
-    var skills: [Skill] = []
+    var skills: [Skill] = [] {
+        didSet {
+            installedSkillPlatformIndex = InstalledSkillPlatformIndex(entries: skills.flatMap {
+                guard let slug = $0.clawdhubSlug else {
+                    return [(slug: String, platform: SkillPlatform)]()
+                }
+                return $0.enabledPlatforms.map { (slug: slug, platform: $0) }
+            })
+        }
+    }
     var listState: ListState = .idle
     var detailState: DetailState = .idle
     var referenceState: DetailState = .idle
@@ -40,6 +49,7 @@ import Observation
     var selectedMarkdown: String = ""
     var selectedReferenceID: SkillReference.ID?
     var selectedReferenceMarkdown: String = ""
+    private(set) var installedSkillPlatformIndex = InstalledSkillPlatformIndex(entries: [])
 
     private let fileWorker = SkillFileWorker()
     private let importWorker = SkillImportWorker()
@@ -81,61 +91,47 @@ import Observation
         detailState = .idle
         referenceState = .idle
         do {
-            let platforms = SkillPlatform.allCases.flatMap { platform in
-                zip(platform.relativePaths, platform.rootURLs).map { relativePath, rootURL in
-                    (platform, rootURL, platform.storageKey(forRelativePath: relativePath))
+            guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
+            let catalog = try await persistence.managedLocalCatalogReadback()
+            let scanned = try await fileWorker.scanSkills(
+                at: catalog.root.registeredURL,
+                storageKey: "managed"
+            )
+            let scannedByDirectory = Dictionary(grouping: scanned, by: \.name)
+            let expectedDirectories = Set(catalog.skills.map(\.skill.skillID.directoryName))
+            guard scannedByDirectory.values.allSatisfy({ $0.count == 1 }),
+                  Set(scannedByDirectory.keys) == expectedDirectories else {
+                throw ManagedLocalCatalogError.inconsistentCatalog
+            }
+
+            let skills = try catalog.skills.map { item in
+                let directoryName = item.skill.skillID.directoryName
+                guard let scannedSkill = scannedByDirectory[directoryName]?.first else {
+                    throw ManagedLocalCatalogError.inconsistentCatalog
                 }
-            }
-            var skills: [Skill] = []
-
-            // Scan platform paths
-            for (platform, rootURL, storageKey) in platforms {
-                let scanned = try await fileWorker.scanSkills(at: rootURL, storageKey: storageKey)
-                skills.append(contentsOf: scanned.map { scannedSkill in
-                    Skill(
-                        id: scannedSkill.id,
-                        name: scannedSkill.name,
-                        displayName: scannedSkill.displayName,
-                        description: scannedSkill.description,
-                        platform: platform,
-                        customPath: nil,
-                        managedRoot: scannedSkill.managedRoot,
-                        folderURL: scannedSkill.folderURL,
-                        skillMarkdownURL: scannedSkill.skillMarkdownURL,
-                        references: scannedSkill.references,
-                        stats: scannedSkill.stats
-                    )
-                })
-            }
-
-            // Scan custom paths - auto-discover platform subpaths
-            let fileManager = FileManager.default
-            for customPath in customPathStore.customPaths {
-                for platform in SkillPlatform.allCases {
-                    for (relativePath, platformURL) in zip(platform.relativePaths, platform.skillsURLs(in: customPath.url)) {
-                        guard fileManager.fileExists(atPath: platformURL.path) else { continue }
-
-                        let storageKey = "\(customPath.storageKey)-\(platform.storageKey(forRelativePath: relativePath))"
-                        let scanned = try await fileWorker.scanSkills(at: platformURL, storageKey: storageKey)
-                        skills.append(contentsOf: scanned.map { scannedSkill in
-                            Skill(
-                                id: scannedSkill.id,
-                                name: scannedSkill.name,
-                                displayName: scannedSkill.displayName,
-                                description: scannedSkill.description,
-                                platform: platform,
-                                customPath: customPath,
-                                managedRoot: scannedSkill.managedRoot,
-                                folderURL: scannedSkill.folderURL,
-                                skillMarkdownURL: scannedSkill.skillMarkdownURL,
-                                references: scannedSkill.references,
-                                stats: scannedSkill.stats
-                            )
-                        })
-                    }
+                let clawdhub = item.providerProvenance.first {
+                    $0.identity.provider == "clawdhub"
                 }
+                let enabledPlatforms = Self.enabledPlatforms(for: item.bindings)
+                return Skill(
+                    id: item.skill.skillID.directoryName,
+                    managedSkillID: item.skill.skillID,
+                    name: item.skill.defaultDistributionSlug.value,
+                    displayName: item.skill.displayName.value,
+                    description: scannedSkill.description,
+                    platform: nil,
+                    customPath: nil,
+                    managedStatus: item.skill.status,
+                    clawdhubSlug: clawdhub?.identity.identifier,
+                    clawdhubVersion: clawdhub?.version?.value,
+                    enabledPlatforms: enabledPlatforms,
+                    managedRoot: scannedSkill.managedRoot,
+                    folderURL: scannedSkill.folderURL,
+                    skillMarkdownURL: scannedSkill.skillMarkdownURL,
+                    references: scannedSkill.references,
+                    stats: scannedSkill.stats
+                )
             }
-
             self.skills = skills.sorted {
                 $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
             }
@@ -148,9 +144,9 @@ import Observation
                 selectedSkillID = self.skills.first?.id
             }
 
-            normalizeSelectionToPreferredPlatform()
             await loadSelectedSkill()
         } catch {
+            skills = []
             listState = .failed(error.localizedDescription)
         }
     }
@@ -207,34 +203,22 @@ import Observation
     }
 
     func isOwnedSkill(_ skill: Skill) -> Bool {
-        // Skills from custom paths are always considered "owned"
-        if skill.customPath != nil {
-            return true
-        }
-        let originURL = skill.folderURL
-            .appendingPathComponent(".clawdhub")
-            .appendingPathComponent("origin.json")
-        return !FileManager.default.fileExists(atPath: originURL.path)
+        skill.managedSkillID != nil && skill.clawdhubSlug == nil
     }
 
     func clawdhubOrigin(for skill: Skill) async -> SkillFileWorker.ClawdhubOrigin? {
-        await fileWorker.readClawdhubOrigin(from: skill.folderURL)
+        guard let slug = skill.clawdhubSlug else { return nil }
+        return SkillFileWorker.ClawdhubOrigin(slug: slug, version: skill.clawdhubVersion)
     }
 
     func isInstalled(slug: String) -> Bool {
-        skills.contains { SkillContentPath.namesAreEquivalent($0.name, slug) }
-    }
-
-    func isInstalled(slug: String, in platform: SkillPlatform) -> Bool {
         skills.contains {
-            SkillContentPath.namesAreEquivalent($0.name, slug) && $0.platform == platform
+            $0.clawdhubSlug.map { SkillContentPath.namesAreEquivalent($0, slug) } == true
         }
     }
 
-    var installedSkillPlatformIndex: InstalledSkillPlatformIndex {
-        InstalledSkillPlatformIndex(entries: skills.compactMap { skill in
-            skill.platform.map { (slug: skill.name, platform: $0) }
-        })
+    func isInstalled(slug: String, in platform: SkillPlatform) -> Bool {
+        installedSkillPlatformIndex.platforms(forSlug: slug).contains(platform)
     }
 
     func installedPlatforms(for slug: String) -> Set<SkillPlatform> {
@@ -243,7 +227,7 @@ import Observation
 
     func groupedLocalSkills(from filteredSkills: [Skill]) -> [LocalSkillGroup] {
         let grouped = Dictionary(grouping: filteredSkills) {
-            SkillContentPath.collisionKey(for: $0.name)
+            $0.managedSkillID?.directoryName ?? SkillContentPath.collisionKey(for: $0.name)
         }
         let preferredPlatformOrder: [SkillPlatform] = [.codex, .claude, .opencode, .copilot]
 
@@ -259,7 +243,10 @@ import Observation
                 .first ?? preferredSelection
 
             // Limit platforms to the filtered scope (e.g. custom path sections).
-            let installedPlatforms = Set(filteredSkills.compactMap(\.platform))
+            let installedPlatforms = filteredSkills.reduce(into: Set<SkillPlatform>()) {
+                $0.formUnion($1.enabledPlatforms)
+                if let platform = $1.platform { $0.insert(platform) }
+            }
 
             return LocalSkillGroup(
                 id: preferredSelection.id,
@@ -285,21 +272,24 @@ import Observation
     }
 
     func skillNeedsPublish(_ skill: Skill) async -> Bool {
+        guard let skillID = skill.managedSkillID else { return true }
         do {
-            let hash = try await fileWorker.computeSkillHash(for: skill.folderURL)
-            guard let state = try await loadPublishState(for: skill.name) else { return true }
+            guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
+            let snapshot = try await persistence.managedSkillPublicationSnapshot(skillID)
+            guard let state = try await loadPublishState(for: skillID) else { return true }
             let legacyHash: String? = if state.hashAlgorithmVersion == nil {
                 try await fileWorker.computeLegacyPublishHash(for: skill.folderURL)
             } else {
                 nil
             }
-            switch state.resolve(currentHash: hash, legacyHash: legacyHash) {
+            try snapshot.requireUnchanged()
+            switch state.resolve(currentHash: snapshot.fingerprint, legacyHash: legacyHash) {
             case .unchanged:
                 return false
             case .changed:
                 return true
             case .migrate(let migratedState):
-                try await savePublishState(migratedState, for: skill.name)
+                try await savePublishState(migratedState, for: skillID)
                 return false
             }
         } catch {
@@ -308,23 +298,37 @@ import Observation
     }
 
     func publishSkill(
-        _ skill: Skill,
+        _ skillID: SkillID,
         bump: PublishBump,
         changelog: String,
         tags: [String],
         publishedVersion: String?
     ) async throws {
-        guard persistence != nil else { throw LibraryPersistenceError.runtimeNotReady }
+        guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
+        let snapshot = try await persistence.managedSkillPublicationSnapshot(skillID)
+        let temporary = try TemporaryItemLease.createDirectory(
+            in: FileManager.default.temporaryDirectory,
+            prefix: "skillsmanager-publish-"
+        )
+        defer {
+            do {
+                try temporary.lease.removeIfCurrent()
+            } catch {
+                NSLog("Unable to remove frozen publish snapshot: %@", error.localizedDescription)
+            }
+        }
+        try snapshot.copyFiles(
+            toDirectoryDescriptor: temporary.handle.descriptor,
+            checkpoint: { try Task.checkCancellation() }
+        )
         try await cliWorker.publishSkill(
-            skillURL: skill.folderURL,
+            skillURL: temporary.handle.url,
             publishedVersion: publishedVersion,
             bump: bump,
             changelog: changelog,
             tags: tags
         )
-
-        let hash = try await fileWorker.computeSkillHash(for: skill.folderURL)
-        try await savePublishState(for: skill.name, hash: hash)
+        try await recordPublishedState(for: skillID, hash: snapshot.fingerprint)
     }
 
     func fetchClawdhubStatus() async -> CliStatus {
@@ -340,7 +344,8 @@ import Observation
 
     func normalizeSelectionToPreferredPlatform() {
         guard let selectedSkillID,
-              let selected = skills.first(where: { $0.id == selectedSkillID }) else {
+              let selected = skills.first(where: { $0.id == selectedSkillID }),
+              selected.managedSkillID == nil else {
             return
         }
 
@@ -470,6 +475,19 @@ import Observation
             }
         }
         return false
+    }
+
+    private static func enabledPlatforms(
+        for bindings: [DistributionBinding]
+    ) -> Set<SkillPlatform> {
+        bindings.reduce(into: Set<SkillPlatform>()) { platforms, binding in
+            switch binding.scope {
+            case .global:
+                platforms.formUnion(DistributionTargetCatalog.current.globalReaders)
+            case .agent(let platform):
+                platforms.insert(platform)
+            }
+        }
     }
 
 }

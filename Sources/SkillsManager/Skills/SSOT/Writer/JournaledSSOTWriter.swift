@@ -197,6 +197,59 @@ actor JournaledSSOTWriter {
         try journal.discoveryCatalog()
     }
 
+    func managedLocalCatalogReadback() throws -> ManagedLocalCatalogReadback {
+        try requireAuthority()
+        let root = try ManagedRootReference.capture(at: fileSystem.verifiedRoot.url)
+        guard try root.verifiedRoot().identity == fileSystem.verifiedRoot.identity else {
+            throw ManagedLocalCatalogError.inconsistentCatalog
+        }
+        let bindingStore = DistributionBindingStore(connection: connection)
+        let skillIDs = try journal.discoveryCatalog().managedSkills.map(\.skillID)
+        let skills = try skillIDs.map { skillID in
+            guard let domain = try journal.storedDomain(skillID) else {
+                throw ManagedLocalCatalogError.inconsistentCatalog
+            }
+            return ManagedLocalSkillReadback(
+                skill: domain.payload.skill,
+                providerProvenance: domain.payload.providerProvenance,
+                bindings: try bindingStore.load(skillID: skillID)
+            )
+        }
+        return ManagedLocalCatalogReadback(root: root, skills: skills)
+    }
+
+    func managedSkillPublicationSnapshot(_ skillID: SkillID) throws -> SkillContentSnapshot {
+        try requireAuthority()
+        guard let record = try journal.managedSkillRecord(skillID) else {
+            throw ManagedLocalCatalogError.skillUnavailable
+        }
+        guard record.status == .managed else {
+            throw ManagedLocalCatalogError.skillNeedsRepair
+        }
+        let url = fileSystem.finalURL(skillID: skillID)
+        guard let identity = try fileSystem.managedRootGuard.itemIdentity(at: url) else {
+            throw ManagedLocalCatalogError.skillUnavailable
+        }
+        return try fileSystem.captureExpectedFinal(
+            skillID: skillID,
+            expectedIdentity: identity,
+            expectedFingerprint: record.contentFingerprint
+        )
+    }
+
+    func loadManagedPublishState(_ skillID: SkillID) throws -> SQLitePublishState? {
+        try requireAuthority()
+        return try ManagedPublishStateStore(connection: connection).load(skillID: skillID)
+    }
+
+    func saveManagedPublishState(
+        _ state: SQLitePublishState,
+        skillID: SkillID
+    ) throws {
+        try requireAuthority()
+        try ManagedPublishStateStore(connection: connection).save(state, skillID: skillID)
+    }
+
     func ssotOperationReadback(_ operationID: SSOTOperationID) throws -> SSOTJournalRecord {
         try requireAuthority()
         do {

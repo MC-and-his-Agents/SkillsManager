@@ -35,8 +35,8 @@ struct SkillSchemaV2Tests {
         #expect(try rolledBackAtV3.userTableNames() == SkillSchemaV1.tableNames)
 
         let migrated = try SkillSchemaMigrator.open(at: location.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 10)
-        #expect(try migrated.userTableNames() == SkillSchemaV10.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 11)
+        #expect(try migrated.userTableNames() == SkillSchemaV11.tableNames)
         #expect(try migrated.querySingleInt(
             "SELECT count(*) FROM pragma_table_list WHERE name IN "
                 + "('skill_operations', 'cleanup_debts') AND strict = 1"
@@ -49,7 +49,7 @@ struct SkillSchemaV2Tests {
         defer { try? FileManager.default.removeItem(at: future.root) }
         let futureConnection = try SkillSchemaMigrator.open(at: future.database)
         try futureConnection.execute(
-            "PRAGMA user_version = \(SkillSchemaV10.version + 1)"
+            "PRAGMA user_version = \(SkillSchemaV11.version + 1)"
         )
         #expect(throws: SQLiteStoreError.self) {
             _ = try SkillSchemaMigrator.open(at: future.database)

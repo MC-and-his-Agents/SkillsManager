@@ -142,7 +142,7 @@ struct SkillListView: View {
         let mine = platformSkills.filter { store.isOwnedSkill($0.skill) }
         let clawdhub = platformSkills.filter { !store.isOwnedSkill($0.skill) }
 
-        let hasAnySkills = !mine.isEmpty || !clawdhub.isEmpty || !store.customPaths.isEmpty
+        let hasAnySkills = !mine.isEmpty || !clawdhub.isEmpty
 
         if !hasAnySkills {
             Text("No skills yet.")
@@ -155,24 +155,6 @@ struct SkillListView: View {
             }
             Section("Clawdhub") {
                 localRows(for: clawdhub)
-            }
-
-            // Custom path sections
-            ForEach(store.customPaths) { customPath in
-                let pathSkills = localSkills.filter { $0.customPath?.id == customPath.id }
-                let grouped = store.groupedLocalSkills(from: pathSkills)
-
-                Section {
-                    if grouped.isEmpty {
-                        Text("No skills in this folder.")
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 4)
-                    } else {
-                        localRows(for: grouped)
-                    }
-                } header: {
-                    CustomPathSectionHeader(customPath: customPath)
-                }
             }
         }
     }
