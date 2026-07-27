@@ -237,7 +237,7 @@ private actor LifecycleCallProbe {
     }
 }
 
-private func lifecycleDependencies(
+func lifecycleDependencies(
     deletionPreview: @escaping @Sendable (SkillID) async throws -> SkillDeletionPreview = { _ in
         throw SkillDeletionError.skillNotFound
     },
@@ -291,7 +291,7 @@ private func lifecycleDependencies(
     )
 }
 
-private func deletionPreview(
+func deletionPreview(
     skillID: SkillID,
     displayName: String = "Managed"
 ) throws -> SkillDeletionPreview {

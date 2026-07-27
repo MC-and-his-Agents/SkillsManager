@@ -147,7 +147,7 @@ struct SkillSplitView: View {
 
     @ToolbarContentBuilder
     private func toolbarContent() -> some CustomizableToolbarContent {
-        if source == .discovery {
+        if source != .clawdhub {
             ToolbarItem(id: "backups") {
                 Button {
                     showingBackups = true
@@ -358,6 +358,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 Task {
                     await store.loadSkills()
                     await discoveryModel.refresh()
+                    await refreshManagedSelection()
                 }
             }
             .onChange(of: scenePhase) { oldValue, newValue in
@@ -415,24 +416,85 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
     }
 
     private func refreshManagedSelection() async {
-        let observation = discoveryModel.selectedItem?.observation
-        let isManaged = observation?.status == .managed
-        await distributionModel.refresh(
-            skillID: isManaged ? observation?.matchedSkillID : nil,
-            displayName: isManaged ? observation?.relativeLocator : nil
-        )
-        await lifecycleModel.refresh(
-            skillID: isManaged ? observation?.matchedSkillID : nil
+        let selection = managedSelection
+        await refreshManagedSkillSelection(
+            selection,
+            distributionModel: distributionModel,
+            lifecycleModel: lifecycleModel,
+            isCurrent: { selection == managedSelection }
         )
     }
 
     private var distributionSelectionKey: String {
-        let observation = discoveryModel.selectedItem?.observation
+        let selection = managedSelection
         return [
-            observation?.status.rawValue ?? "",
-            observation?.matchedSkillID?.directoryName ?? "",
-            observation?.relativeLocator ?? "",
+            source.rawValue,
+            store.selectedSkillID ?? "",
+            selection?.skillID.directoryName ?? "",
+            selection?.displayName ?? "",
             String(discoveryModel.publishedRefreshGeneration),
         ].joined(separator: "\u{0}")
     }
+
+    private var managedSelection: ManagedSkillSelection? {
+        let local: ManagedSkillSelection?
+        if let skill = store.selectedSkill, skill.id == store.selectedSkillID {
+            local = ManagedSkillSelection(
+                skillID: skill.managedSkillID,
+                displayName: skill.displayName
+            )
+        } else {
+            local = nil
+        }
+
+        let discovery: ManagedSkillSelection?
+        if let observation = discoveryModel.selectedItem?.observation,
+           observation.status == .managed,
+           let skillID = observation.matchedSkillID {
+            discovery = ManagedSkillSelection(
+                skillID: skillID,
+                displayName: observation.relativeLocator
+            )
+        } else {
+            discovery = nil
+        }
+
+        return ManagedSkillSelection.resolve(
+            source: source,
+            local: local,
+            discovery: discovery
+        )
+    }
+}
+
+struct ManagedSkillSelection: Equatable, Sendable {
+    let skillID: SkillID
+    let displayName: String
+
+    static func resolve(
+        source: SkillSource,
+        local: Self?,
+        discovery: Self?
+    ) -> Self? {
+        switch source {
+        case .local: local
+        case .discovery: discovery
+        case .clawdhub: nil
+        }
+    }
+}
+
+@MainActor
+func refreshManagedSkillSelection(
+    _ selection: ManagedSkillSelection?,
+    distributionModel: SkillDistributionViewModel,
+    lifecycleModel: SkillLifecycleViewModel,
+    isCurrent: @MainActor () -> Bool
+) async {
+    await distributionModel.refresh(
+        skillID: selection?.skillID,
+        displayName: selection?.displayName
+    )
+    guard isCurrent() else { return }
+    await lifecycleModel.refresh(skillID: selection?.skillID)
 }
