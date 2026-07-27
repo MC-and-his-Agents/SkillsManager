@@ -123,6 +123,10 @@ struct SkillDiscoveryDetailView: View {
                     .padding(.top, 4)
                 }
 
+                if observation.status == .managed, observation.matchedSkillID != nil {
+                    SkillDistributionView()
+                }
+
                 actionSection(for: item)
                 scanScopeDisclosure
             }

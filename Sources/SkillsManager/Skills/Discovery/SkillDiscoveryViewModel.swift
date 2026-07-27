@@ -156,6 +156,10 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
         items.first { $0.id == selectedItemID }
     }
 
+    var publishedRefreshGeneration: UInt64 {
+        publishedGeneration
+    }
+
     var isImporting: Bool {
         importTask != nil
     }
