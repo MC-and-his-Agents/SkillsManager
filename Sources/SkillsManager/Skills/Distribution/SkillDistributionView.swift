@@ -64,17 +64,23 @@ struct SkillDistributionView: View {
                 )
             }
 
-            Picker("Scope", selection: scopeBinding) {
-                Text("Global").tag(SkillDistributionViewModel.ScopeChoice.global)
-                Text("Specific Agents").tag(SkillDistributionViewModel.ScopeChoice.agents)
-            }
-            .pickerStyle(.segmented)
-            .disabled(model.isApplying)
+            agentSelection
 
-            if model.scopeChoice == .global {
-                globalScopeDescription
-            } else {
-                agentSelection
+            if model.willConvertGlobalToDedicated {
+                Label(
+                    "Applying this selection will replace the global link with Agent-specific links.",
+                    systemImage: "arrow.triangle.branch"
+                )
+                .foregroundStyle(.secondary)
+            } else if model.draftUsesGlobalTarget {
+                Text("The compatible Agent set uses one link in ~/.agents/skills.")
+                    .foregroundStyle(.secondary)
+            }
+
+            if model.hasUnappliedDraft {
+                Label("Agent selection has unapplied changes.", systemImage: "pencil.circle")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Agent selection has unapplied changes")
             }
 
             if !model.currentTargets.isEmpty {
@@ -111,18 +117,18 @@ struct SkillDistributionView: View {
                 model.isPreparingPreview ? "Preparing distribution preview" : "Preview changes"
             )
             .accessibilityHint("Shows planned link changes before anything is written.")
-        }
-    }
 
-    private var globalScopeDescription: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Creates one link in ~/.agents/skills.")
-                .foregroundStyle(.secondary)
-            Text("Used by \(platformNames(model.globalReaders)).")
-            if !model.globalNonReaders.isEmpty {
-                Text("\(platformNames(model.globalNonReaders)) requires an Agent-specific target.")
-                    .foregroundStyle(.secondary)
+            Button("Remove from all Agents…") {
+                model.removeFromAllAgents()
+                Task { await model.preparePreview() }
             }
+            .disabled(model.selectedAgents.isEmpty || !model.canPreparePreview)
+            .accessibilityHint(
+                "Previews removal of managed distribution links. The managed Skill is retained."
+            )
+            Text("This removes only managed distribution links. The Skill remains in the managed library.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -130,28 +136,41 @@ struct SkillDistributionView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Agents")
                 .font(.headline)
-            ForEach(SkillPlatform.allCases) { platform in
+            ForEach(model.agentRows) { row in
                 Toggle(
-                    platform.rawValue,
                     isOn: Binding(
-                        get: { model.selectedAgents.contains(platform) },
-                        set: { model.setAgent(platform, selected: $0) }
+                        get: { model.selectedAgents.contains(row.platform) },
+                        set: { model.setAgent(row.platform, selected: $0) }
                     )
+                ) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(row.platform.rawValue)
+                            Text(row.isCurrentlyEnabled ? "Enabled now" : "Disabled now")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(row.locator)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                        if !row.readsGlobalTarget {
+                            Text("Uses an Agent-specific target")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .accessibilityLabel("\(row.platform.rawValue) distribution")
+                .accessibilityValue(
+                    row.isSelected
+                        ? "Selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")"
+                        : "Not selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")"
                 )
+                .accessibilityHint("Target: \(row.locator)")
                 .disabled(model.isApplying)
             }
-            if model.selectedAgents.isEmpty {
-                Text("Select at least one Agent.")
-                    .foregroundStyle(.secondary)
-            }
         }
-    }
-
-    private var scopeBinding: Binding<SkillDistributionViewModel.ScopeChoice> {
-        Binding(
-            get: { model.scopeChoice },
-            set: { model.chooseScope($0) }
-        )
     }
 
     private var previewBinding: Binding<SkillDistributionViewModel.PendingPreview?> {
@@ -159,10 +178,6 @@ struct SkillDistributionView: View {
             get: { model.pendingPreview },
             set: { if $0 == nil { model.cancelPreview() } }
         )
-    }
-
-    private func platformNames(_ platforms: [SkillPlatform]) -> String {
-        platforms.map(\.rawValue).joined(separator: ", ")
     }
 
     private func statusMessage(_ message: String, systemImage: String) -> some View {

@@ -135,7 +135,7 @@ struct DistributionPlannerTests {
         #expect(plan.bindingReplacement.isEmpty)
         #expect(plan.conflicts.isEmpty)
         #expect(try plan.canonicalJSONString()
-            == #"{"binding_replacement":[],"bindings_changed":false,"conflicts":[],"filesystem_actions":[],"status":"no_op"}"#)
+            == #"{"binding_replacement":[],"bindings_changed":false,"configuration_changed":false,"conflicts":[],"desired_configured":true,"expected_old_configured":true,"filesystem_actions":[],"status":"no_op"}"#)
 
         let disabled = planner.plan(
             skillID: skillID,
@@ -145,6 +145,27 @@ struct DistributionPlannerTests {
             observations: [:]
         )
         #expect(try disabled.canonicalJSONData() == planForDisabledJSON)
+    }
+
+    @Test("explicitly disabling an unconfigured Skill is a marker-only operation")
+    func markerOnlyDisable() {
+        let plan = planner.plan(
+            skillID: skillID,
+            currentBindings: [],
+            currentConfigured: false,
+            desiredScope: .disabled,
+            desiredConfigured: true,
+            requiredAdapterCodes: [],
+            observations: [:]
+        )
+
+        #expect(plan.status == .executable)
+        #expect(plan.filesystemActions.isEmpty)
+        #expect(!plan.bindingsChanged)
+        #expect(plan.bindingReplacement.isEmpty)
+        #expect(plan.configurationChanged)
+        #expect(!plan.expectedOldConfigured)
+        #expect(plan.desiredConfigured)
     }
 
     @Test("blocks missing and drifted retained bindings")
@@ -297,7 +318,7 @@ struct DistributionPlannerTests {
     }
 
     private var planForDisabledJSON: Data {
-        Data(#"{"binding_replacement":[],"bindings_changed":false,"conflicts":[],"filesystem_actions":[],"status":"no_op"}"#.utf8)
+        Data(#"{"binding_replacement":[],"bindings_changed":false,"configuration_changed":false,"conflicts":[],"desired_configured":true,"expected_old_configured":true,"filesystem_actions":[],"status":"no_op"}"#.utf8)
     }
 
     private func binding(

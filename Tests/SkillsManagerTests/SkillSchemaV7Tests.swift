@@ -3,21 +3,42 @@ import Testing
 
 @testable import SkillsManager
 
-@Suite("Skill database schema v7", .serialized)
+@Suite("Skill database schema v7 and v8", .serialized)
 struct SkillSchemaV7Tests {
-    @Test("migrates every supported schema version to v7")
+    @Test("migrates every supported schema version to v8")
     func migratesEverySupportedVersion() throws {
-        for version in 0...6 {
+        for version in 0...7 {
             let location = try v7DatabaseLocation("migrate-\(version)")
             defer { try? FileManager.default.removeItem(at: location.root) }
             try createV7MigrationFixture(version: version, at: location.database)
 
             let migrated = try SkillSchemaMigrator.open(at: location.database)
-            #expect(try migrated.querySingleInt("PRAGMA user_version") == 7)
+            #expect(try migrated.querySingleInt("PRAGMA user_version") == 8)
             #expect(try migrated.querySingleInt(
                 "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-            ) == 7)
-            #expect(try migrated.userTableNames() == SkillSchemaV7.tableNames)
+            ) == 8)
+            #expect(try migrated.userTableNames() == SkillSchemaV8.tableNames)
+        }
+    }
+
+    @Test("v8 checkpoint failure rolls back the full migration")
+    func v8CheckpointRollsBack() throws {
+        enum InjectedFailure: Error { case stop }
+
+        for version in 0...7 {
+            let location = try v7DatabaseLocation("v8-rollback-\(version)")
+            defer { try? FileManager.default.removeItem(at: location.root) }
+            try createV7MigrationFixture(version: version, at: location.database)
+
+            #expect(throws: InjectedFailure.self) {
+                _ = try SkillSchemaMigrator.open(
+                    at: location.database,
+                    beforeV8Commit: { throw InjectedFailure.stop }
+                )
+            }
+
+            let rolledBack = try SQLiteConnection(url: location.database)
+            #expect(try rolledBack.querySingleInt("PRAGMA user_version") == Int64(version))
         }
     }
 
@@ -53,7 +74,7 @@ struct SkillSchemaV7Tests {
         }
     }
 
-    @Test("v7 validates on read-only reopen")
+    @Test("v8 validates on read-only reopen")
     func readOnlyReopen() throws {
         let location = try v7DatabaseLocation("read-only")
         defer { try? FileManager.default.removeItem(at: location.root) }
@@ -64,8 +85,30 @@ struct SkillSchemaV7Tests {
             accessMode: .readOnly
         )
         #expect(reader.accessMode == .readOnly)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == 7)
-        #expect(try reader.userTableNames() == SkillSchemaV7.tableNames)
+        #expect(try reader.querySingleInt("PRAGMA user_version") == 8)
+        #expect(try reader.userTableNames() == SkillSchemaV8.tableNames)
+    }
+
+    @Test("v8 backfills explicit configuration for existing bindings")
+    func backfillsExistingBindings() throws {
+        let location = try v7DatabaseLocation("configuration-backfill")
+        defer { try? FileManager.default.removeItem(at: location.root) }
+        try createV7MigrationFixture(version: 7, at: location.database)
+        do {
+            let legacy = try SQLiteConnection(url: location.database)
+            try legacy.execute(v7SkillInsert())
+            try legacy.execute(v7SkillInsert(id: v7SkillB, slug: "other"))
+            try legacy.execute(v7BindingInsert())
+        }
+
+        let migrated = try SkillSchemaMigrator.open(at: location.database)
+        let store = DistributionConfigurationStore(connection: migrated)
+        #expect(try store.load(skillID: SkillID(
+            UUID(uuidString: "00112233-4455-6677-8899-aabbccddeeff")!
+        )))
+        #expect(try !store.load(skillID: SkillID(
+            UUID(uuidString: "11112222-3333-4444-5555-666677778888")!
+        )))
     }
 
     @Test("v7 operation and ownership constraints fail closed")
@@ -77,6 +120,14 @@ struct SkillSchemaV7Tests {
         try connection.execute(v7SkillInsert())
         try connection.execute(v7SkillInsert(id: v7SkillB, slug: "other"))
         try connection.execute(v7BindingInsert())
+        try connection.execute(v8ConfigurationInsert())
+        #expect(v7SQLIsRejected(connection, v8ConfigurationInsert()))
+        #expect(v7SQLIsRejected(connection, v8ConfigurationInsert(
+            skillID: v7UnknownSkill
+        )))
+        #expect(v7SQLIsRejected(connection, v8ConfigurationInsert(
+            configuredAt: -1
+        )))
 
         #expect(v7SQLIsRejected(connection, v7OperationInsert(skillID: v7UnknownSkill)))
         #expect(v7SQLIsRejected(connection, v7OperationInsert(formatVersion: 2)))
@@ -177,6 +228,11 @@ private func createV7MigrationFixture(version: Int, at url: URL) throws {
                 try connection.execute(statement)
             }
         }
+        if version >= 7 {
+            for statement in SkillSchemaV7.statements {
+                try connection.execute(statement)
+            }
+        }
         try connection.execute(
             "UPDATE schema_metadata SET schema_version = \(version) WHERE singleton = 1"
         )
@@ -186,6 +242,16 @@ private func createV7MigrationFixture(version: Int, at url: URL) throws {
         try? connection.execute("ROLLBACK")
         throw error
     }
+}
+
+private func v8ConfigurationInsert(
+    skillID: String = v7SkillA,
+    configuredAt: Int = 1
+) -> String {
+    """
+    INSERT INTO distribution_configurations(skill_id, configured_at_ms)
+    VALUES (X'\(skillID)', \(configuredAt))
+    """
 }
 
 private func v7SkillInsert(

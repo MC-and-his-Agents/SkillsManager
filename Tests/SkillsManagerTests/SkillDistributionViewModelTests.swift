@@ -21,10 +21,43 @@ struct SkillDistributionViewModelTests {
         let model = distributionModel()
         await model.refresh(skillID: distributionSkillID(), displayName: "Demo")
         #expect(model.loadState == .ready(.notConfigured))
-        #expect(model.scopeChoice == .global)
-        #expect(model.selectedAgents.isEmpty)
+        #expect(model.currentEnabledAgents.isEmpty)
+        #expect(model.selectedAgents == Set(model.globalReaders))
+        #expect(!model.isExplicitlyConfigured)
         #expect(model.distributionSlug?.value == "Demo")
         #expect(model.currentTargets.isEmpty)
+    }
+
+    @Test("explicit disabled state stays disabled after readback")
+    @MainActor
+    func explicitDisabledReadback() async {
+        let model = distributionModel(isExplicitlyConfigured: true)
+        await model.refresh(skillID: distributionSkillID(), displayName: "Demo")
+
+        #expect(model.loadState == .ready(.inSync))
+        #expect(model.currentEnabledAgents.isEmpty)
+        #expect(model.selectedAgents.isEmpty)
+        #expect(model.isExplicitlyConfigured)
+        #expect(!model.hasUnappliedDraft)
+    }
+
+    @Test("global binding enables exactly the compatible Agent set")
+    @MainActor
+    func globalBindingReadback() async throws {
+        let skillID = distributionSkillID()
+        let slug = try DefaultDistributionSlug(validating: "demo")
+        let model = distributionModel(
+            bindings: [
+                try distributionBinding(skillID: skillID, scope: .global, slug: slug),
+            ],
+            isExplicitlyConfigured: true
+        )
+
+        await model.refresh(skillID: skillID, displayName: "Demo")
+
+        #expect(model.currentEnabledAgents == Set(model.globalReaders))
+        #expect(model.selectedAgents == Set(model.globalReaders))
+        #expect(!model.currentEnabledAgents.contains(.claude))
     }
 
     @Test("persisted Agent bindings restore scope and reject inconsistent slugs")
@@ -40,7 +73,6 @@ struct SkillDistributionViewModelTests {
         await model.refresh(skillID: skillID, displayName: "Demo")
 
         #expect(model.loadState == .ready(.inSync))
-        #expect(model.scopeChoice == .agents)
         #expect(model.selectedAgents == [.codex, .claude])
         #expect(model.currentTargets.count == 2)
 
@@ -54,16 +86,53 @@ struct SkillDistributionViewModelTests {
         #expect(!invalid.canPreparePreview)
     }
 
-    @Test("Agent-specific scope requires at least one Agent")
+    @Test("empty Agent selection prepares an explicit disabled preview")
     @MainActor
     func requiresAgentSelection() async {
         let model = distributionModel()
         await model.refresh(skillID: distributionSkillID(), displayName: "Demo")
 
-        model.chooseScope(.agents)
+        model.removeFromAllAgents()
         await model.preparePreview()
-        #expect(model.problem == .invalidSelection)
-        #expect(model.pendingPreview == nil)
+        #expect(model.problem == nil)
+        #expect(model.pendingPreview != nil)
+        if case .disabled = model.pendingPreview?.desiredScope {
+            #expect(model.pendingPreview?.requiredAdapterCodes.isEmpty == true)
+        } else {
+            Issue.record("Expected disabled distribution scope")
+        }
+    }
+
+    @Test("Agent selections normalize to disabled, global, or dedicated scopes")
+    @MainActor
+    func selectionNormalization() async {
+        let probe = DistributionPlanProbe(plans: [distributionPlan(status: .noOp)])
+        let model = distributionModel(probe: probe)
+        await model.refresh(skillID: distributionSkillID(), displayName: "Demo")
+
+        await model.preparePreview()
+        model.cancelPreview()
+        model.removeFromAllAgents()
+        await model.preparePreview()
+        model.cancelPreview()
+        model.setAgent(.claude, selected: true)
+        await model.preparePreview()
+
+        let scopes = await probe.requestedScopes
+        let requestedCodes = await probe.requestedAdapterCodes
+        #expect(scopes.count == 3)
+        if case .global = scopes[0] {} else {
+            Issue.record("Expected compatible defaults to use the global target")
+        }
+        if case .disabled = scopes[1] {} else {
+            Issue.record("Expected an empty selection to be disabled")
+        }
+        if case .agents(let agents, _) = scopes[2] {
+            #expect(agents == [.claude])
+            #expect(requestedCodes[2] == [SkillPlatform.claude.storageKey])
+        } else {
+            Issue.record("Expected a partial selection to use dedicated targets")
+        }
     }
 
     @Test("preview distinguishes executable, no-op, and blocked plans")
@@ -106,6 +175,16 @@ struct SkillDistributionViewModelTests {
         await blockedModel.preparePreview()
         #expect(blockedModel.pendingPreview?.plan.status == .blocked)
         #expect(blockedModel.pendingPreview?.plan.conflicts.map(\.reason) == [.targetUnavailable])
+
+        let markerOnly = distributionModel(plan: distributionPlan(
+            status: .executable,
+            configurationChanged: true,
+            expectedOldConfigured: false
+        ))
+        await markerOnly.refresh(skillID: skillID, displayName: "demo")
+        markerOnly.removeFromAllAgents()
+        await markerOnly.preparePreview()
+        #expect(markerOnly.pendingPreview?.rows.map(\.kind) == [.configuration])
     }
 
     @Test("partial scope preview includes retained targets")
@@ -140,7 +219,6 @@ struct SkillDistributionViewModelTests {
         let model = distributionModel(bindings: [current], plan: plan)
         await model.refresh(skillID: skillID, displayName: "demo")
 
-        model.chooseScope(.agents)
         model.setAgent(.codex, selected: true)
         model.setAgent(.opencode, selected: true)
         await model.preparePreview()
@@ -165,7 +243,6 @@ struct SkillDistributionViewModelTests {
         let model = distributionModel(bindings: [current], plan: plan)
         await model.refresh(skillID: skillID, displayName: "demo")
 
-        model.chooseScope(.agents)
         model.setAgent(.codex, selected: true)
         model.setAgent(.opencode, selected: true)
         await model.preparePreview()
@@ -320,6 +397,87 @@ struct SkillDistributionViewModelTests {
         #expect(model.problem == nil)
     }
 
+    @Test("apply failure refreshes current state while preserving the pending draft")
+    @MainActor
+    func applyFailurePreservesDraft() async throws {
+        let skillID = distributionSkillID()
+        let slug = try DefaultDistributionSlug(validating: "demo")
+        let codex = try distributionBinding(
+            skillID: skillID,
+            scope: .agent(.codex),
+            slug: slug
+        )
+        let opencode = try distributionBinding(
+            skillID: skillID,
+            scope: .agent(.opencode),
+            slug: slug
+        )
+        let selections = DistributionSelectionProbe([
+            DistributionSelectionReadback(bindings: [codex], isExplicitlyConfigured: true),
+            DistributionSelectionReadback(bindings: [opencode], isExplicitlyConfigured: true),
+        ])
+        let plan = distributionPlan(
+            status: .executable,
+            replacement: [
+                DistributionBindingIntent(
+                    skillID: skillID,
+                    scope: .agent(.claude),
+                    distributionSlug: slug
+                ),
+            ]
+        )
+        let model = SkillDistributionViewModel()
+        model.activate(dependencies: SkillDistributionDependencies(
+            loadSelection: { _ in await selections.load() },
+            reconcile: { _ in DistributionReconcileResult(status: .inSync, observations: [:]) },
+            plan: { _, _, _ in plan },
+            apply: { _, _ in throw DistributionSymlinkExecutorError.conflict }
+        ))
+        await model.refresh(skillID: skillID, displayName: "demo")
+        model.setAgent(.codex, selected: false)
+        model.setAgent(.claude, selected: true)
+        await model.preparePreview()
+        await model.confirmPreview()
+
+        #expect(model.currentEnabledAgents == [.opencode])
+        #expect(model.selectedAgents == [.claude])
+        #expect(model.hasUnappliedDraft)
+        #expect(model.problem == .previewExpired)
+    }
+
+    @Test("successful apply refreshes current state to the applied draft")
+    @MainActor
+    func successfulApplyConsumesDraft() async throws {
+        let skillID = distributionSkillID()
+        let slug = try DefaultDistributionSlug(validating: "demo")
+        let global = try distributionBinding(skillID: skillID, scope: .global, slug: slug)
+        let selections = DistributionSelectionProbe([
+            DistributionSelectionReadback(bindings: [], isExplicitlyConfigured: false),
+            DistributionSelectionReadback(bindings: [global], isExplicitlyConfigured: true),
+        ])
+        let plan = distributionPlan(
+            status: .executable,
+            replacement: [global.intent],
+            configurationChanged: true,
+            expectedOldConfigured: false
+        )
+        let model = SkillDistributionViewModel()
+        model.activate(dependencies: SkillDistributionDependencies(
+            loadSelection: { _ in await selections.load() },
+            reconcile: { _ in DistributionReconcileResult(status: .inSync, observations: [:]) },
+            plan: { _, _, _ in plan },
+            apply: { _, _ in distributionOperation(skillID: skillID) }
+        ))
+        await model.refresh(skillID: skillID, displayName: "demo")
+        await model.preparePreview()
+        await model.confirmPreview()
+
+        #expect(model.currentEnabledAgents == Set(model.globalReaders))
+        #expect(model.selectedAgents == Set(model.globalReaders))
+        #expect(!model.hasUnappliedDraft)
+        #expect(model.problem == nil)
+    }
+
     @Test("non-applied terminal records and recovery states fail closed")
     @MainActor
     func terminalAndRecoveryStates() async throws {
@@ -368,7 +526,10 @@ struct SkillDistributionViewModelTests {
     func invalidatedPreparationEnds() async {
         let model = SkillDistributionViewModel()
         model.activate(dependencies: SkillDistributionDependencies(
-            loadBindings: { _ in [] },
+            loadSelection: { _ in DistributionSelectionReadback(
+                bindings: [],
+                isExplicitlyConfigured: false
+            ) },
             reconcile: { _ in DistributionReconcileResult(status: .inSync, observations: [:]) },
             plan: { _, _, _ in
                 try await Task.sleep(for: .milliseconds(30))
@@ -452,12 +613,30 @@ struct SkillDistributionViewModelTests {
         let firstSlug = try DefaultDistributionSlug(validating: "first")
         let secondSlug = try DefaultDistributionSlug(validating: "second")
         let dependencies = SkillDistributionDependencies(
-            loadBindings: { skillID in
+            loadSelection: { skillID in
                 if skillID == firstID {
                     try await Task.sleep(for: .milliseconds(60))
-                    return [try distributionBinding(skillID: firstID, scope: .global, slug: firstSlug)]
+                    return DistributionSelectionReadback(
+                        bindings: [
+                            try distributionBinding(
+                                skillID: firstID,
+                                scope: .global,
+                                slug: firstSlug
+                            ),
+                        ],
+                        isExplicitlyConfigured: true
+                    )
                 }
-                return [try distributionBinding(skillID: secondID, scope: .global, slug: secondSlug)]
+                return DistributionSelectionReadback(
+                    bindings: [
+                        try distributionBinding(
+                            skillID: secondID,
+                            scope: .global,
+                            slug: secondSlug
+                        ),
+                    ],
+                    isExplicitlyConfigured: true
+                )
             },
             reconcile: { _ in
                 DistributionReconcileResult(status: .inSync, observations: [:])
@@ -484,7 +663,10 @@ struct SkillDistributionViewModelTests {
         let probe = DistributionLoadProbe()
         let model = SkillDistributionViewModel()
         model.activate(dependencies: SkillDistributionDependencies(
-            loadBindings: { _ in await probe.load() },
+            loadSelection: { _ in DistributionSelectionReadback(
+                bindings: await probe.load(),
+                isExplicitlyConfigured: false
+            ) },
             reconcile: { _ in DistributionReconcileResult(status: .inSync, observations: [:]) },
             plan: { _, _, _ in distributionPlan(status: .noOp) },
             apply: { skillID, _ in distributionOperation(skillID: skillID) }

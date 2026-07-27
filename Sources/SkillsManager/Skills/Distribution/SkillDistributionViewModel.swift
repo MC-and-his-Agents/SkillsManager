@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-
 @MainActor
 @Observable final class SkillDistributionViewModel {
     enum LoadState: Equatable {
@@ -19,20 +18,14 @@ import Observation
         case operationInProgress
     }
 
-    enum ScopeChoice: String, CaseIterable, Identifiable {
-        case global
-        case agents
-
-        var id: Self { self }
-    }
-
     private(set) var loadState: LoadState = .blocked("Preparing the managed library…")
     private(set) var activeSkillID: SkillID?
     private(set) var activeDisplayName = ""
     private(set) var currentBindings: [DistributionBinding] = []
     private(set) var currentTargets: [TargetRow] = []
-    private(set) var scopeChoice: ScopeChoice = .global
+    private(set) var currentEnabledAgents: Set<SkillPlatform> = []
     private(set) var selectedAgents: Set<SkillPlatform> = []
+    private(set) var isExplicitlyConfigured = false
     private(set) var distributionSlug: DefaultDistributionSlug?
     private(set) var pendingPreview: PendingPreview?
     private(set) var problem: Problem?
@@ -56,15 +49,46 @@ import Observation
               status != .operationInProgress else {
             return false
         }
-        return scopeChoice == .global || !selectedAgents.isEmpty
+        return true
     }
-
     var globalReaders: [SkillPlatform] {
         DistributionTargetCatalog.current.globalReaders
     }
 
-    var globalNonReaders: [SkillPlatform] {
-        SkillPlatform.allCases.filter { !$0.readsGlobalDistributionTarget }
+    var hasUnappliedDraft: Bool {
+        selectedAgents != currentEnabledAgents
+    }
+
+    var willConvertGlobalToDedicated: Bool {
+        currentBindings.contains { $0.scope == .global }
+            && !selectedAgents.isEmpty
+            && selectedAgents != Set(globalReaders)
+    }
+
+    var draftUsesGlobalTarget: Bool {
+        selectedAgents == Set(globalReaders)
+    }
+
+    var agentRows: [AgentRow] {
+        guard let distributionSlug else { return [] }
+        let usesGlobal = selectedAgents == Set(globalReaders)
+        return SkillPlatform.allCases.compactMap { platform in
+            let scope: DistributionBindingScope = usesGlobal && platform.readsGlobalDistributionTarget
+                ? .global
+                : .agent(platform)
+            return DistributionTargetCatalog.current.entry(
+                for: scope,
+                slug: distributionSlug
+            ).map {
+                AgentRow(
+                    platform: platform,
+                    locator: $0.canonicalLocator,
+                    readsGlobalTarget: platform.readsGlobalDistributionTarget,
+                    isCurrentlyEnabled: currentEnabledAgents.contains(platform),
+                    isSelected: selectedAgents.contains(platform)
+                )
+            }
+        }
     }
 
     @discardableResult
@@ -129,8 +153,9 @@ import Observation
         if selectionChanged {
             currentBindings = []
             currentTargets = []
-            scopeChoice = .global
+            currentEnabledAgents = []
             selectedAgents = []
+            isExplicitlyConfigured = false
             distributionSlug = nil
             loadState = runtimeReady ? .loading : .blocked(runtimeBlockMessage)
         }
@@ -145,11 +170,11 @@ import Observation
             loadState = .loading
         }
         do {
-            let bindings = try await dependencies.loadBindings(skillID)
+            let selection = try await dependencies.loadSelection(skillID)
             let reconcile = try await dependencies.reconcile(skillID)
             guard generation == refreshGeneration, activeSkillID == skillID else { return }
             try publish(
-                bindings: bindings,
+                selection: selection,
                 reconcile: reconcile,
                 skillID: skillID,
                 displayName: displayName
@@ -161,14 +186,6 @@ import Observation
         if generation == refreshGeneration {
             isRefreshing = false
         }
-    }
-
-    func chooseScope(_ choice: ScopeChoice) {
-        guard !isApplying else { return }
-        scopeChoice = choice
-        pendingPreview = nil
-        problem = nil
-        successMessage = nil
     }
 
     func setAgent(_ platform: SkillPlatform, selected: Bool) {
@@ -183,11 +200,15 @@ import Observation
         successMessage = nil
     }
 
+    func removeFromAllAgents() {
+        guard !isApplying else { return }
+        selectedAgents = []
+        pendingPreview = nil
+        problem = nil
+        successMessage = nil
+    }
+
     func preparePreview() async {
-        guard scopeChoice == .global || !selectedAgents.isEmpty else {
-            problem = .invalidSelection
-            return
-        }
         guard canPreparePreview,
               let dependencies,
               let skillID = activeSkillID,
@@ -200,15 +221,13 @@ import Observation
         problem = nil
         successMessage = nil
         let generation = refreshGeneration
-        let choice = scopeChoice
         let agents = selectedAgents
-        let requiredAdapterCodes = requiredCodes(for: choice, agents: agents)
+        let requiredAdapterCodes = requiredCodes(agents)
         do {
             let plan = try await dependencies.plan(skillID, desiredScope, requiredAdapterCodes)
             let canonicalPlan = try plan.canonicalJSONData()
             guard generation == refreshGeneration,
                   activeSkillID == skillID,
-                  scopeChoice == choice,
                   selectedAgents == agents,
                   self.distributionSlug == distributionSlug else {
                 return
@@ -225,7 +244,6 @@ import Observation
         } catch {
             guard generation == refreshGeneration,
                   activeSkillID == skillID,
-                  scopeChoice == choice,
                   selectedAgents == agents,
                   self.distributionSlug == distributionSlug else {
                 return
@@ -310,11 +328,12 @@ import Observation
     }
 
     private func publish(
-        bindings: [DistributionBinding],
+        selection: DistributionSelectionReadback,
         reconcile: DistributionReconcileResult,
         skillID: SkillID,
         displayName: String
     ) throws {
+        let bindings = selection.bindings
         guard bindings.allSatisfy({ $0.skillID == skillID && $0.syncMode == .symlink }) else {
             throw SkillDistributionStateError.invalidPersistedBindings
         }
@@ -334,6 +353,7 @@ import Observation
             candidateFrom: SkillDisplayName(displayName)
         )
         currentBindings = bindings
+        isExplicitlyConfigured = selection.isExplicitlyConfigured
         distributionSlug = slug
         currentTargets = bindings.compactMap { binding in
             DistributionTargetCatalog.current.entry(
@@ -344,20 +364,15 @@ import Observation
             }
         }
 
-        if hasGlobal {
-            scopeChoice = .global
-            selectedAgents = []
-        } else if !agents.isEmpty {
-            scopeChoice = .agents
-            selectedAgents = agents
-        } else {
-            scopeChoice = .global
-            selectedAgents = []
-        }
+        currentEnabledAgents = hasGlobal ? Set(globalReaders) : agents
+        selectedAgents = bindings.isEmpty && !selection.isExplicitlyConfigured
+            ? Set(globalReaders)
+            : currentEnabledAgents
 
         let reconciledStatus = Self.status(for: reconcile.status)
         loadState = .ready(
-            bindings.isEmpty && reconciledStatus == .inSync
+            bindings.isEmpty && !selection.isExplicitlyConfigured
+                && reconciledStatus == .inSync
                 ? .notConfigured
                 : reconciledStatus
         )
@@ -365,25 +380,13 @@ import Observation
 
     private func desiredScope() -> DistributionDesiredScope? {
         guard let distributionSlug else { return nil }
-        switch scopeChoice {
-        case .global:
-            return .global(distributionSlug)
-        case .agents:
-            guard !selectedAgents.isEmpty else { return nil }
-            return .agents(selectedAgents, distributionSlug)
-        }
+        if selectedAgents.isEmpty { return .disabled }
+        if selectedAgents == Set(globalReaders) { return .global(distributionSlug) }
+        return .agents(selectedAgents, distributionSlug)
     }
 
-    private func requiredCodes(
-        for choice: ScopeChoice,
-        agents: Set<SkillPlatform>
-    ) -> Set<String> {
-        switch choice {
-        case .global:
-            Set(globalReaders.map(\.storageKey))
-        case .agents:
-            Set(agents.map(\.storageKey))
-        }
+    private func requiredCodes(_ agents: Set<SkillPlatform>) -> Set<String> {
+        Set(agents.map(\.storageKey))
     }
 
     private func previewRows(
@@ -429,23 +432,33 @@ import Observation
                 )
             }
         })
+        if rows.isEmpty, plan.configurationChanged {
+            rows.append(PreviewRow(
+                kind: .configuration,
+                scopeKey: "configuration",
+                locator: "Skills Manager database"
+            ))
+        }
         return rows
     }
 
     private func refreshPreservingFeedback(skillID: SkillID) async {
+        let draft = selectedAgents
         await refresh(
             skillID: skillID,
             displayName: activeDisplayName,
             clearFeedback: false
         )
+        if activeSkillID == skillID, case .ready = loadState {
+            selectedAgents = draft
+        }
     }
 
     private func previewIsCurrent(_ preview: PendingPreview) -> Bool {
         preview.generation == refreshGeneration
             && activeSkillID == preview.skillID
             && desiredScopeMatches(preview.desiredScope)
-            && requiredCodes(for: scopeChoice, agents: selectedAgents)
-                == preview.requiredAdapterCodes
+            && requiredCodes(selectedAgents) == preview.requiredAdapterCodes
     }
 
     private func desiredScopeMatches(_ expected: DistributionDesiredScope) -> Bool {
@@ -467,7 +480,9 @@ import Observation
         activeDisplayName = ""
         currentBindings = []
         currentTargets = []
+        currentEnabledAgents = []
         selectedAgents = []
+        isExplicitlyConfigured = false
         distributionSlug = nil
         pendingPreview = nil
         isRefreshing = false
@@ -481,5 +496,4 @@ import Observation
         case .operationInProgress: .operationInProgress
         }
     }
-
 }
