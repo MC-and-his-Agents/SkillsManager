@@ -1,5 +1,11 @@
 import Foundation
 
+nonisolated struct SQLitePublishState: Equatable, Sendable {
+    let lastPublishedHash: String
+    let lastPublishedAtMilliseconds: Int64
+    let hashAlgorithmVersion: Int?
+}
+
 nonisolated struct ManagedPublishStateStore {
     let connection: SQLiteConnection
 

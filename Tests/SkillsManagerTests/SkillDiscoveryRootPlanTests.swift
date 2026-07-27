@@ -33,5 +33,12 @@ struct SkillDiscoveryRootPlanTests {
         let customRoots = roots.filter { $0.scope.kind == .custom }
         #expect(customRoots.count == 5)
         #expect(customRoots.allSatisfy { $0.scope.customPathID == custom.id })
+        #expect(Set(customRoots.map(\.url.path)) == Set([
+            "/Projects/demo/.codex/skills",
+            "/Projects/demo/.codex/skills/public",
+            "/Projects/demo/.claude/skills",
+            "/Projects/demo/.config/opencode/skill",
+            "/Projects/demo/.copilot/skills",
+        ]))
     }
 }

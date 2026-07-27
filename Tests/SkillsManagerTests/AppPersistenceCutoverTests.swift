@@ -44,10 +44,6 @@ struct AppPersistenceCutoverTests {
         #expect(try Data(contentsOf: legacy.0) == legacy.1)
         #expect(try await session.loadCustomPaths().count == 2)
 
-        let skillStore = SkillStore(customPathStore: paths)
-        skillStore.activatePersistence(session)
-        try await skillStore.savePublishState(for: "demo", hash: "abc")
-        #expect(try await skillStore.loadPublishState(for: "demo")?.lastPublishedHash == "abc")
         #expect(try Data(contentsOf: legacy.0) == legacy.1)
     }
 

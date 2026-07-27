@@ -66,8 +66,6 @@ struct ManagedLocalCatalogTests {
         #expect(skill.clawdhubSlug == "published-skill")
         #expect(skill.clawdhubVersion == "1.2.3")
         #expect(skill.enabledPlatforms.isEmpty)
-        #expect(store.isInstalled(slug: "PUBLISHED-SKILL"))
-        #expect(store.installedPlatforms(for: "published-skill").isEmpty)
     }
 
     @Test("publication snapshot rejects SSOT drift and freezes copied content")

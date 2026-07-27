@@ -10,13 +10,16 @@ struct AddCustomPathView: View {
     @State private var errorMessage: String?
     @State private var isValidating = false
     @State private var discoveredSkills: [SkillPlatform: [DiscoveredSkill]] = [:]
-
-    private let fileWorker = SkillFileWorker()
+    @State private var rootDiagnostics: [SkillDiscoveryRootDiagnostic] = []
+    @State private var validSkillCount = 0
 
     private struct DiscoveredSkill: Identifiable {
         let id: String
-        let name: String
         let displayName: String
+        let location: String
+        let status: SkillDiscoveryStatus
+        let reason: SkillDiscoveryReason?
+        let isValid: Bool
     }
 
     private var totalSkillCount: Int {
@@ -70,6 +73,9 @@ struct AddCustomPathView: View {
                     if !discoveredSkills.isEmpty {
                         discoveredSkillsView
                     }
+                    if !rootDiagnostics.isEmpty {
+                        diagnosticsView
+                    }
                 }
             }
         } else {
@@ -111,9 +117,9 @@ struct AddCustomPathView: View {
                 Text("Discovered Skills")
                     .font(.headline)
                 Spacer()
-                Text("\(totalSkillCount) total")
+                Text("\(validSkillCount) valid · \(totalSkillCount) observed")
                     .font(.subheadline)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(validSkillCount > 0 ? .green : .secondary)
             }
 
             Text("All skills will be added automatically.")
@@ -143,20 +149,51 @@ struct AddCustomPathView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(skills) { skill in
-                    HStack(spacing: 6) {
-                        Image(systemName: "doc.text")
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: skill.status.systemImage)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(skill.displayName)
-                            .font(.callout)
+                            .foregroundStyle(skill.status.tint)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(skill.displayName)
+                                .font(.callout)
+                            Text(skill.location)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            if let reason = skill.reason {
+                                Text(reason.displayName)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            } else if !skill.isValid {
+                                Text(skill.status.displayName)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                         Spacer()
                     }
                     .padding(.leading, 8)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityValue([
+                        skill.status.displayName,
+                        skill.reason?.displayName,
+                    ].compactMap { $0 }.joined(separator: ". "))
                 }
             }
             .padding(.vertical, 4)
             .padding(.horizontal, 8)
             .background(RoundedRectangle(cornerRadius: 6).fill(.secondary.opacity(0.08)))
+        }
+    }
+
+    private var diagnosticsView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Scan Issues")
+                .font(.headline)
+            ForEach(rootDiagnostics, id: \.self) { diagnostic in
+                Label(diagnostic.accessibilitySummary, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -171,7 +208,7 @@ struct AddCustomPathView: View {
 
             Button("Add") { addPath() }
                 .buttonStyle(.borderedProminent)
-                .disabled(selectedURL == nil || totalSkillCount == 0 || isValidating)
+                .disabled(selectedURL == nil || validSkillCount == 0 || isValidating)
                 .keyboardShortcut(.defaultAction)
         }
     }
@@ -191,36 +228,60 @@ struct AddCustomPathView: View {
         isValidating = true
         selectedURL = url
         discoveredSkills = [:]
+        rootDiagnostics = []
+        validSkillCount = 0
 
         Task {
-            let fileManager = FileManager.default
-            var discovered: [SkillPlatform: [DiscoveredSkill]] = [:]
-
-            for platform in SkillPlatform.allCases {
-                let platformURL = platform.skillsURL(in: url)
-                guard fileManager.fileExists(atPath: platformURL.path) else { continue }
-
-                do {
-                    let scanned = try await fileWorker.scanSkills(at: platformURL, storageKey: "preview")
-                    if !scanned.isEmpty {
-                        discovered[platform] = scanned.map { skill in
-                            DiscoveredSkill(
-                                id: skill.id,
-                                name: skill.name,
-                                displayName: skill.displayName
-                            )
-                        }.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+            do {
+                let customPath = CustomSkillPath(url: url)
+                let roots = SkillDiscoveryRootPlan.make(
+                    homeURL: url,
+                    customPaths: [customPath]
+                ).filter { $0.scope.customPathID == customPath.id }
+                let result = try await Task.detached(priority: .userInitiated) {
+                    try SkillDiscoveryScanner().scan(
+                        roots: roots,
+                        checkpoint: { try Task.checkCancellation() }
+                    )
+                }.value
+                var discovered: [SkillPlatform: [DiscoveredSkill]] = [:]
+                for observation in result.observations {
+                    let scopesByPlatform = Dictionary(grouping: observation.scopes) {
+                        $0.adapterCode
                     }
-                } catch {
-                    // Skip platforms that fail to scan
+                    for (adapterCode, scopes) in scopesByPlatform {
+                        guard let adapterCode,
+                              let platform = SkillPlatform.allCases.first(where: {
+                                  $0.storageKey == adapterCode
+                              }) else {
+                            continue
+                        }
+                        let locations = scopes.compactMap(\.pathVariant).sorted()
+                        discovered[platform, default: []].append(DiscoveredSkill(
+                            id: ([adapterCode, observation.relativeLocatorKey] + locations)
+                                .joined(separator: "\u{0}"),
+                            displayName: observation.relativeLocator,
+                            location: locations.joined(separator: ", "),
+                            status: observation.status,
+                            reason: observation.reason,
+                            isValid: observation.fingerprint != nil
+                        ))
+                    }
                 }
-            }
-
-            discoveredSkills = discovered
-            if discovered.isEmpty {
-                errorMessage = "No skills found. Make sure the folder contains platform directories like .claude/skills or .codex/skills (including .codex/skills/public) with SKILL.md files."
-            } else {
-                errorMessage = nil
+                for platform in discovered.keys {
+                    discovered[platform]?.sort {
+                        $0.displayName.localizedCaseInsensitiveCompare($1.displayName)
+                            == .orderedAscending
+                    }
+                }
+                discoveredSkills = discovered
+                rootDiagnostics = result.rootDiagnostics
+                validSkillCount = result.observations.filter { $0.fingerprint != nil }.count
+                errorMessage = validSkillCount == 0
+                    ? "No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md."
+                    : nil
+            } catch {
+                errorMessage = error.localizedDescription
             }
             isValidating = false
         }

@@ -19,17 +19,16 @@ import Observation
         case failed(String)
     }
 
-    struct LocalSkillGroup: Identifiable {
-        let id: Skill.ID
-        let skill: Skill
-        let installedPlatforms: Set<SkillPlatform>
-    }
-
     struct CliStatus {
         let isInstalled: Bool
         let isLoggedIn: Bool
         let username: String?
         let errorMessage: String?
+    }
+
+    struct ClawdhubOrigin: Sendable {
+        let slug: String
+        let version: String?
     }
 
     var skills: [Skill] = [] {
@@ -52,7 +51,6 @@ import Observation
     private(set) var installedSkillPlatformIndex = InstalledSkillPlatformIndex(entries: [])
 
     private let fileWorker = SkillFileWorker()
-    private let importWorker = SkillImportWorker()
     private let cliWorker = ClawdhubCLIWorker()
     private let customPathStore: CustomPathStore
     var persistence: JournaledSSOTWriter?
@@ -119,8 +117,6 @@ import Observation
                     name: item.skill.defaultDistributionSlug.value,
                     displayName: item.skill.displayName.value,
                     description: scannedSkill.description,
-                    platform: nil,
-                    customPath: nil,
                     managedStatus: item.skill.status,
                     clawdhubSlug: clawdhub?.identity.identifier,
                     clawdhubVersion: clawdhub?.version?.value,
@@ -203,80 +199,19 @@ import Observation
     }
 
     func isOwnedSkill(_ skill: Skill) -> Bool {
-        skill.managedSkillID != nil && skill.clawdhubSlug == nil
+        skill.clawdhubSlug == nil
     }
 
-    func clawdhubOrigin(for skill: Skill) async -> SkillFileWorker.ClawdhubOrigin? {
+    func clawdhubOrigin(for skill: Skill) async -> ClawdhubOrigin? {
         guard let slug = skill.clawdhubSlug else { return nil }
-        return SkillFileWorker.ClawdhubOrigin(slug: slug, version: skill.clawdhubVersion)
-    }
-
-    func isInstalled(slug: String) -> Bool {
-        skills.contains {
-            $0.clawdhubSlug.map { SkillContentPath.namesAreEquivalent($0, slug) } == true
-        }
-    }
-
-    func isInstalled(slug: String, in platform: SkillPlatform) -> Bool {
-        installedSkillPlatformIndex.platforms(forSlug: slug).contains(platform)
-    }
-
-    func installedPlatforms(for slug: String) -> Set<SkillPlatform> {
-        installedSkillPlatformIndex.platforms(forSlug: slug)
-    }
-
-    func groupedLocalSkills(from filteredSkills: [Skill]) -> [LocalSkillGroup] {
-        let grouped = Dictionary(grouping: filteredSkills) {
-            $0.managedSkillID?.directoryName ?? SkillContentPath.collisionKey(for: $0.name)
-        }
-        let preferredPlatformOrder: [SkillPlatform] = [.codex, .claude, .opencode, .copilot]
-
-        return grouped.compactMap { _, filteredSkills in
-            guard let preferredSelection = preferredPlatformOrder
-                .compactMap({ platform in filteredSkills.first(where: { $0.platform == platform }) })
-                .first ?? filteredSkills.first else {
-                return nil
-            }
-
-            let preferredContent = preferredPlatformOrder
-                .compactMap({ platform in filteredSkills.first(where: { $0.platform == platform }) })
-                .first ?? preferredSelection
-
-            // Limit platforms to the filtered scope (e.g. custom path sections).
-            let installedPlatforms = filteredSkills.reduce(into: Set<SkillPlatform>()) {
-                $0.formUnion($1.enabledPlatforms)
-                if let platform = $1.platform { $0.insert(platform) }
-            }
-
-            return LocalSkillGroup(
-                id: preferredSelection.id,
-                skill: preferredContent,
-                installedPlatforms: installedPlatforms
-            )
-        }
-        .sorted { lhs, rhs in
-            lhs.skill.displayName.localizedCaseInsensitiveCompare(rhs.skill.displayName) == .orderedAscending
-        }
-    }
-
-    func groupedPlatformSkills(from skills: [Skill]) -> [LocalSkillGroup] {
-        groupedLocalSkills(from: skills.filter { $0.customPath == nil })
-    }
-
-    func skillsForCustomPath(_ path: CustomSkillPath) -> [Skill] {
-        skills.filter { $0.customPath?.id == path.id }
-    }
-
-    func platformSkills() -> [Skill] {
-        skills.filter { $0.platform != nil }
+        return ClawdhubOrigin(slug: slug, version: skill.clawdhubVersion)
     }
 
     func skillNeedsPublish(_ skill: Skill) async -> Bool {
-        guard let skillID = skill.managedSkillID else { return true }
         do {
             guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
-            let snapshot = try await persistence.managedSkillPublicationSnapshot(skillID)
-            guard let state = try await loadPublishState(for: skillID) else { return true }
+            let snapshot = try await persistence.managedSkillPublicationSnapshot(skill.managedSkillID)
+            guard let state = try await loadPublishState(for: skill.managedSkillID) else { return true }
             let legacyHash: String? = if state.hashAlgorithmVersion == nil {
                 try await fileWorker.computeLegacyPublishHash(for: skill.folderURL)
             } else {
@@ -289,7 +224,7 @@ import Observation
             case .changed:
                 return true
             case .migrate(let migratedState):
-                try await savePublishState(migratedState, for: skillID)
+                try await savePublishState(migratedState, for: skill.managedSkillID)
                 return false
             }
         } catch {
@@ -341,125 +276,6 @@ import Observation
         )
     }
 
-
-    func normalizeSelectionToPreferredPlatform() {
-        guard let selectedSkillID,
-              let selected = skills.first(where: { $0.id == selectedSkillID }),
-              selected.managedSkillID == nil else {
-            return
-        }
-
-        let slug = selected.name
-        let candidates = skills.filter {
-            SkillContentPath.namesAreEquivalent($0.name, slug)
-        }
-        guard candidates.count > 1 else { return }
-
-        let preferredOrder: [SkillPlatform] = [.codex, .claude, .opencode, .copilot]
-        let preferred = preferredOrder
-            .compactMap { platform in candidates.first(where: { $0.platform == platform }) }
-            .first ?? candidates.first
-        if let preferred, preferred.id != selectedSkillID {
-            self.selectedSkillID = preferred.id
-        }
-    }
-
-    func installRemoteSkill(
-        _ skill: RemoteSkill,
-        client: RemoteSkillClient,
-        destinations: Set<SkillPlatform>
-    ) async throws -> String? {
-        guard !destinations.isEmpty else {
-            throw NSError(domain: "RemoteSkill", code: 3)
-        }
-
-        let archive = try await client.download(skill.slug, skill.latestVersion)
-        let destinationList = destinations.map { platform in
-            if let existing = skills.first(where: {
-                SkillContentPath.namesAreEquivalent($0.name, skill.slug)
-                    && $0.platform == platform
-                    && $0.customPath == nil
-            }) {
-                return SkillFileWorker.InstallDestination(
-                    rootURL: existing.managedRoot.registeredURL,
-                    storageKey: storageKey(for: existing),
-                    managedRoot: existing.managedRoot
-                )
-            }
-            return SkillFileWorker.InstallDestination(
-                rootURL: platform.rootURL,
-                storageKey: platform.storageKey
-            )
-        }
-        let result: SkillFileWorker.RemoteInstallResult
-        do {
-            result = try await fileWorker.installRemoteSkill(
-                archive: archive,
-                slug: skill.slug,
-                version: skill.latestVersion,
-                destinations: destinationList
-            )
-        } catch {
-            await loadSkills()
-            throw error
-        }
-
-        await loadSkills()
-        if let selectedID = result.selectedID {
-            self.selectedSkillID = selectedID
-        }
-        return result.report.warningMessage
-    }
-
-    func updateInstalledSkill(
-        slug: String,
-        version: String?,
-        client: RemoteSkillClient
-    ) async throws -> String? {
-        let installedSkills = skills.filter {
-            SkillContentPath.namesAreEquivalent($0.name, slug)
-                && $0.platform != nil
-                && $0.customPath == nil
-        }
-        guard !installedSkills.isEmpty else { return nil }
-
-        var seenRootIdentities: Set<ManagedItemIdentity> = []
-        var destinationList: [SkillFileWorker.InstallDestination] = []
-        for installed in installedSkills {
-            let rootIdentity = try installed.managedRoot.verifiedRoot().identity
-            guard seenRootIdentities.insert(rootIdentity).inserted else { continue }
-            destinationList.append(SkillFileWorker.InstallDestination(
-                rootURL: installed.managedRoot.registeredURL,
-                storageKey: storageKey(for: installed),
-                managedRoot: installed.managedRoot
-            ))
-        }
-        let archive = try await client.download(slug, version)
-        let result: SkillFileWorker.RemoteInstallResult
-        do {
-            result = try await fileWorker.installRemoteSkill(
-                archive: archive,
-                slug: slug,
-                version: version,
-                destinations: destinationList
-            )
-        } catch {
-            await loadSkills()
-            throw error
-        }
-
-        await loadSkills()
-        if let selectedID = result.selectedID {
-            self.selectedSkillID = selectedID
-        }
-        return result.report.warningMessage
-    }
-
-    private func storageKey(for skill: Skill) -> String {
-        let suffix = "-\(skill.name)"
-        guard skill.id.hasSuffix(suffix) else { return skill.platform?.storageKey ?? skill.id }
-        return String(skill.id.dropLast(suffix.count))
-    }
 
     func nextVersion(from current: String, bump: PublishBump) -> String? {
         ClawdhubCLIWorker.bumpVersion(current, bump: bump)

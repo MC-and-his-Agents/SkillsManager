@@ -120,15 +120,6 @@ actor JournaledSSOTWriter {
         try SQLiteCustomPathPersistence(connection: connection).remove(id: id)
     }
 
-    func loadPublishState(forSlug slug: String) throws -> SQLitePublishState? {
-        try SQLitePublishStatePersistence(connection: connection).load(forSlug: slug)
-    }
-
-    func savePublishState(_ state: SQLitePublishState, forSlug slug: String) throws {
-        try requireAuthority()
-        try SQLitePublishStatePersistence(connection: connection).save(state, forSlug: slug)
-    }
-
     func migrateLegacy(homeURL: URL) throws -> LegacyMigrationResult {
         try LegacyStateMigrationGate.migrateIfNeeded(
             homeURL: homeURL,

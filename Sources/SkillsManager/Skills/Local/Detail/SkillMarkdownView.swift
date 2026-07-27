@@ -10,7 +10,7 @@ struct SkillMarkdownView: View {
 
     @State private var needsPublish = false
     @State private var isOwned = false
-    @State private var clawdhubOrigin: SkillFileWorker.ClawdhubOrigin?
+    @State private var clawdhubOrigin: SkillStore.ClawdhubOrigin?
     @State private var installedVersion: String?
     @State private var latestVersion: String?
     @State private var updateAvailable = false
@@ -71,18 +71,16 @@ struct SkillMarkdownView: View {
         .sheet(item: $publishSheetSkill, onDismiss: {
             Task { await refreshPublishState() }
         }) {
-            if let skillID = $0.managedSkillID {
-                PublishSkillSheet(
-                    skillID: skillID,
-                    displayName: $0.displayName,
-                    nextVersion: nextPublishVersion,
-                    publishedVersion: publishedVersion,
-                    bump: $bump,
-                    changelog: $changelog,
-                    tags: $tags
-                )
-                .environment(store)
-            }
+            PublishSkillSheet(
+                skillID: $0.managedSkillID,
+                displayName: $0.displayName,
+                nextVersion: nextPublishVersion,
+                publishedVersion: publishedVersion,
+                bump: $bump,
+                changelog: $changelog,
+                tags: $tags
+            )
+            .environment(store)
         }
     }
 

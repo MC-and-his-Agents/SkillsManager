@@ -17,15 +17,11 @@ struct SkillListView: View {
     @Binding var localSelection: Skill.ID?
     @Binding var remoteSelection: RemoteSkill.ID?
 
-    private var groupedLocalSkills: [SkillStore.LocalSkillGroup] {
-        store.groupedLocalSkills(from: localSkills)
-    }
-
     var body: some View {
         List(selection: source == .local ? $localSelection : $remoteSelection) {
             if source == .local {
                 SidebarHeaderView(
-                    skillCount: groupedLocalSkills.count,
+                    skillCount: localSkills.count,
                     source: $source
                 )
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
@@ -137,10 +133,8 @@ struct SkillListView: View {
 
     @ViewBuilder
     private func localSectionContent() -> some View {
-        // Group user directory skills separately to avoid custom-path slugs hiding them.
-        let platformSkills = store.groupedPlatformSkills(from: localSkills)
-        let mine = platformSkills.filter { store.isOwnedSkill($0.skill) }
-        let clawdhub = platformSkills.filter { !store.isOwnedSkill($0.skill) }
+        let mine = localSkills.filter(store.isOwnedSkill)
+        let clawdhub = localSkills.filter { !store.isOwnedSkill($0) }
 
         let hasAnySkills = !mine.isEmpty || !clawdhub.isEmpty
 
@@ -160,11 +154,11 @@ struct SkillListView: View {
     }
 
     @ViewBuilder
-    private func localRows(for skills: [SkillStore.LocalSkillGroup]) -> some View {
+    private func localRows(for skills: [Skill]) -> some View {
         ForEach(skills) { skill in
             SkillRowView(
-                skill: skill.skill,
-                installedPlatforms: skill.installedPlatforms
+                skill: skill,
+                installedPlatforms: skill.enabledPlatforms
             )
         }
     }

@@ -49,29 +49,6 @@ extension SkillStore {
         }
     }
 
-    func loadPublishState(for slug: String) async throws -> PublishState? {
-        guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
-        guard let state = try await persistence.loadPublishState(forSlug: slug) else {
-            return nil
-        }
-        return PublishState(state)
-    }
-
-    func savePublishState(for slug: String, hash: String) async throws {
-        try await savePublishState(PublishState(
-            lastPublishedHash: hash,
-            lastPublishedAt: Date()
-        ), for: slug)
-    }
-
-    func savePublishState(_ state: PublishState, for slug: String) async throws {
-        guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
-        try await persistence.savePublishState(
-            try state.sqliteState(),
-            forSlug: slug
-        )
-    }
-
     func loadPublishState(for skillID: SkillID) async throws -> PublishState? {
         guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
         return try await persistence.loadManagedPublishState(skillID).map(PublishState.init)
