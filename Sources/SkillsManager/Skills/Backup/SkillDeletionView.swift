@@ -109,7 +109,7 @@ struct SkillDeletionView: View {
                     Task { await model.retryDeletion(operation) }
                 }
                 .disabled(model.isMutating)
-                .accessibilityHint("Continues the existing journaled deletion operation.")
+                .accessibilityHint("Continues the interrupted deletion safely.")
             }
 
             Text(
@@ -203,14 +203,16 @@ private struct SkillDeletionConfirmationView: View {
                         + (pending.preview.targets.count == 1 ? "" : "s"),
                     systemImage: "link.badge.minus"
                 )
-                impactRow("Delete the managed SSOT content and active record", systemImage: "trash")
+                ForEach(pending.preview.targets) { target in
+                    Text(target.canonicalLocator)
+                        .font(.callout.monospaced())
+                        .textSelection(.enabled)
+                        .accessibilityLabel("Managed Agent target \(target.canonicalLocator)")
+                }
+                impactRow("Delete the managed Skill and its library record", systemImage: "trash")
                 impactRow("Keep the backup in the backup library", systemImage: "checkmark.shield")
                 if let content = pending.preview.content {
                     Divider()
-                    LabeledContent(
-                        "Content fingerprint",
-                        value: content.contentFingerprint.shortDisplayName
-                    )
                     LabeledContent("Files", value: "\(content.statistics.fileCount)")
                     LabeledContent("Size", value: content.statistics.byteCountDescription)
                 }
@@ -226,12 +228,8 @@ private struct SkillDeletionConfirmationView: View {
                 Label(result.status.displayName, systemImage: result.status.systemImage)
                     .font(.headline)
                 LabeledContent(
-                    "Backup ID",
-                    value: result.backupID.uuid.uuidString.lowercased()
-                )
-                LabeledContent(
-                    "Operation ID",
-                    value: result.operationID.uuid.uuidString.lowercased()
+                    "Backup",
+                    value: "Saved in Skill Backups"
                 )
             }
             .padding(.top, 4)
@@ -269,7 +267,6 @@ private struct SkillDeletionConfirmationView: View {
                 Button("Delete", role: .destructive) {
                     Task { await model.confirmDeletion() }
                 }
-                .keyboardShortcut(.defaultAction)
                 .disabled(model.isDeleting)
                 .accessibilityLabel(
                     model.isDeleting ? "Deletion in progress" : "Delete from Skills Manager"

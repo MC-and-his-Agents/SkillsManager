@@ -47,6 +47,16 @@ struct SkillMarkdownView: View {
                     }
                     .padding(.top, 8)
                 }
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                Text("Manage Skill")
+                    .font(.title2.bold())
+                    .accessibilityAddTraits(.isHeader)
+
+                SkillDistributionView()
+                SkillDeletionView()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
