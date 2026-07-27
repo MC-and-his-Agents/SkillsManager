@@ -16,6 +16,7 @@ nonisolated enum SkillSchemaMigrator {
         beforeV8Commit: () throws -> Void = {},
         beforeV9Commit: () throws -> Void = {},
         beforeV10Commit: () throws -> Void = {},
+        beforeV11Commit: () throws -> Void = {},
         initializeV4: (SQLiteConnection) throws -> Void = { _ in }
     ) throws -> SQLiteConnection {
         let connection = try SQLiteConnection(
@@ -40,10 +41,11 @@ nonisolated enum SkillSchemaMigrator {
                 beforeV8Commit: beforeV8Commit,
                 beforeV9Commit: beforeV9Commit,
                 beforeV10Commit: beforeV10Commit,
+                beforeV11Commit: beforeV11Commit,
                 initializeV4: initializeV4
             )
         case .readOnly:
-            try validateV10(connection)
+            try validateV11(connection)
         }
         return connection
     }
@@ -61,6 +63,7 @@ nonisolated enum SkillSchemaMigrator {
         beforeV8Commit: () throws -> Void = {},
         beforeV9Commit: () throws -> Void = {},
         beforeV10Commit: () throws -> Void = {},
+        beforeV11Commit: () throws -> Void = {},
         initializeV4: (SQLiteConnection) throws -> Void = { _ in }
     ) throws {
         guard connection.accessMode != .readOnly else {
@@ -71,7 +74,7 @@ nonisolated enum SkillSchemaMigrator {
         if rawVersion == 0 {
             try afterInitialV0Read()
         }
-        try migrateToV10(
+        try migrateToV11(
             connection,
             beforeV1Commit: beforeCommit,
             beforeV2Commit: beforeV2Commit,
@@ -83,6 +86,7 @@ nonisolated enum SkillSchemaMigrator {
             beforeV8Commit: beforeV8Commit,
             beforeV9Commit: beforeV9Commit,
             beforeV10Commit: beforeV10Commit,
+            beforeV11Commit: beforeV11Commit,
             initializeV4: initializeV4
         )
     }
@@ -178,7 +182,7 @@ nonisolated enum SkillSchemaMigrator {
         }
     }
 
-    private static func migrateToV10(
+    private static func migrateToV11(
         _ connection: SQLiteConnection,
         beforeV1Commit: () throws -> Void,
         beforeV2Commit: () throws -> Void,
@@ -190,6 +194,7 @@ nonisolated enum SkillSchemaMigrator {
         beforeV8Commit: () throws -> Void,
         beforeV9Commit: () throws -> Void,
         beforeV10Commit: () throws -> Void,
+        beforeV11Commit: () throws -> Void,
         initializeV4: (SQLiteConnection) throws -> Void
     ) throws {
         try connection.execute("BEGIN IMMEDIATE")
@@ -197,12 +202,14 @@ nonisolated enum SkillSchemaMigrator {
             guard let lockedVersion = try connection.querySingleInt("PRAGMA user_version") else {
                 throw SQLiteStoreError.invalidState("PRAGMA user_version returned no row")
             }
-            guard (0...SkillSchemaV10.version).contains(Int(lockedVersion)) else {
+            guard (0...SkillSchemaV11.version).contains(Int(lockedVersion)) else {
                 throw SQLiteStoreError.invalidState(
                     "schema version changed to unsupported value \(lockedVersion)"
                 )
             }
             switch lockedVersion {
+            case Int64(SkillSchemaV11.version):
+                try validateV11(connection)
             case Int64(SkillSchemaV10.version):
                 try validateV10(connection)
             case Int64(SkillSchemaV9.version):
@@ -295,6 +302,10 @@ nonisolated enum SkillSchemaMigrator {
                 throw SQLiteStoreError.invalidState(
                     "schema version changed to unsupported value \(lockedVersion)"
                 )
+            }
+            if try connection.querySingleInt("PRAGMA user_version")
+                == Int64(SkillSchemaV10.version) {
+                try applyV11Migration(connection, beforeCommit: beforeV11Commit)
             }
             try connection.execute("COMMIT")
         } catch {
@@ -657,7 +668,7 @@ nonisolated enum SkillSchemaMigrator {
         guard version >= 0 else {
             throw SQLiteStoreError.invalidState("negative schema version \(version)")
         }
-        guard version <= Int64(SkillSchemaV10.version) else {
+        guard version <= Int64(SkillSchemaV11.version) else {
             throw SQLiteStoreError.invalidState("unsupported schema version \(version)")
         }
         return version

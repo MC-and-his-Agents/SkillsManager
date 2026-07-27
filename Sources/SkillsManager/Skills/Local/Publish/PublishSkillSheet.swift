@@ -4,7 +4,8 @@ struct PublishSkillSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SkillStore.self) private var store
 
-    let skill: Skill
+    let skillID: SkillID
+    let displayName: String
     let nextVersion: String
     let publishedVersion: String?
     @Binding var bump: PublishBump
@@ -19,7 +20,7 @@ struct PublishSkillSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Publish Skill")
                     .font(.title.bold())
-                Text("Push changes for \(skill.displayName) to Clawdhub.")
+                Text("Push changes for \(displayName) to Clawdhub.")
                     .foregroundStyle(.secondary)
             }
 
@@ -80,7 +81,7 @@ struct PublishSkillSheet: View {
                 .split(separator: ",")
                 .map { String($0) }
             try await store.publishSkill(
-                skill,
+                skillID,
                 bump: bump,
                 changelog: changelog,
                 tags: tagList,

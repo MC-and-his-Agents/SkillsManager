@@ -45,13 +45,7 @@ extension SkillStore {
         guard let state = try await persistence.loadPublishState(forSlug: slug) else {
             return nil
         }
-        return PublishState(
-            lastPublishedHash: state.lastPublishedHash,
-            lastPublishedAt: Date(
-                timeIntervalSince1970: Double(state.lastPublishedAtMilliseconds) / 1_000
-            ),
-            hashAlgorithmVersion: state.hashAlgorithmVersion
-        )
+        return PublishState(state)
     }
 
     func savePublishState(for slug: String, hash: String) async throws {
@@ -63,14 +57,46 @@ extension SkillStore {
 
     func savePublishState(_ state: PublishState, for slug: String) async throws {
         guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
-        let milliseconds = try LegacyDateCodec.milliseconds(from: state.lastPublishedAt)
         try await persistence.savePublishState(
-            SQLitePublishState(
-                lastPublishedHash: state.lastPublishedHash,
-                lastPublishedAtMilliseconds: milliseconds,
-                hashAlgorithmVersion: state.hashAlgorithmVersion
-            ),
+            try state.sqliteState(),
             forSlug: slug
+        )
+    }
+
+    func loadPublishState(for skillID: SkillID) async throws -> PublishState? {
+        guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
+        return try await persistence.loadManagedPublishState(skillID).map(PublishState.init)
+    }
+
+    func savePublishState(for skillID: SkillID, hash: String) async throws {
+        try await savePublishState(
+            PublishState(lastPublishedHash: hash, lastPublishedAt: Date()),
+            for: skillID
+        )
+    }
+
+    func savePublishState(_ state: PublishState, for skillID: SkillID) async throws {
+        guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
+        try await persistence.saveManagedPublishState(try state.sqliteState(), skillID: skillID)
+    }
+}
+
+private extension SkillStore.PublishState {
+    init(_ state: SQLitePublishState) {
+        self.init(
+            lastPublishedHash: state.lastPublishedHash,
+            lastPublishedAt: Date(
+                timeIntervalSince1970: Double(state.lastPublishedAtMilliseconds) / 1_000
+            ),
+            hashAlgorithmVersion: state.hashAlgorithmVersion
+        )
+    }
+
+    func sqliteState() throws -> SQLitePublishState {
+        SQLitePublishState(
+            lastPublishedHash: lastPublishedHash,
+            lastPublishedAtMilliseconds: try LegacyDateCodec.milliseconds(from: lastPublishedAt),
+            hashAlgorithmVersion: hashAlgorithmVersion
         )
     }
 }

@@ -14,13 +14,11 @@ struct SkillMarkdownView: View {
     @State private var installedVersion: String?
     @State private var latestVersion: String?
     @State private var updateAvailable = false
-    @State private var isUpdating = false
     @State private var isCheckingPublish = false
     @State private var publishSheetSkill: Skill?
     @State private var changelog = ""
     @State private var tags = "latest"
     @State private var bump: PublishBump = .patch
-    @State private var publishErrorMessage: String?
     @State private var publishedVersion: String?
     @State private var cliStatus = SkillStore.CliStatus(
         isInstalled: false,
@@ -73,20 +71,18 @@ struct SkillMarkdownView: View {
         .sheet(item: $publishSheetSkill, onDismiss: {
             Task { await refreshPublishState() }
         }) {
-            PublishSkillSheet(
-                skill: $0,
-                nextVersion: nextPublishVersion,
-                publishedVersion: publishedVersion,
-                bump: $bump,
-                changelog: $changelog,
-                tags: $tags
-            )
-            .environment(store)
-        }
-        .alert("Update result", isPresented: publishErrorBinding) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(publishErrorMessage ?? "Unable to update this skill.")
+            if let skillID = $0.managedSkillID {
+                PublishSkillSheet(
+                    skillID: skillID,
+                    displayName: $0.displayName,
+                    nextVersion: nextPublishVersion,
+                    publishedVersion: publishedVersion,
+                    bump: $bump,
+                    changelog: $changelog,
+                    tags: $tags
+                )
+                .environment(store)
+            }
         }
     }
 
@@ -116,7 +112,10 @@ struct SkillMarkdownView: View {
 
     @ViewBuilder
     private var publishContent: some View {
-        if isCheckingCli || isCheckingPublish {
+        if skill.managedStatus == .needsRepair {
+            Text("This managed Skill needs repair before it can be published.")
+                .foregroundStyle(.secondary)
+        } else if isCheckingCli || isCheckingPublish {
             Text("Checking Clawdhub status…")
                 .foregroundStyle(.secondary)
         } else if !cliStatus.isInstalled {
@@ -220,12 +219,10 @@ struct SkillMarkdownView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if updateAvailable, let latestVersion {
-                Button(isUpdating ? "Updating…" : "Update to v\(latestVersion)") {
-                    Task { await updateSkill() }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isUpdating)
+            if updateAvailable {
+                Text("Managed updates are not available yet.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -242,6 +239,7 @@ struct SkillMarkdownView: View {
     }
 
     private func refreshOwnedState() async {
+        guard skill.managedStatus == .managed else { return }
         isCheckingCli = true
         cliStatus = await store.fetchClawdhubStatus()
         isCheckingCli = false
@@ -292,23 +290,6 @@ struct SkillMarkdownView: View {
         isCheckingPublish = false
     }
 
-    private func updateSkill() async {
-        guard let origin = clawdhubOrigin else { return }
-        isUpdating = true
-        do {
-            let warning = try await store.updateInstalledSkill(
-                slug: origin.slug,
-                version: latestVersion,
-                client: remoteStore.client
-            )
-            publishErrorMessage = warning
-            await refreshInstalledState()
-        } catch {
-            publishErrorMessage = error.localizedDescription
-        }
-        isUpdating = false
-    }
-
     private func copyLoginCommand() {
         let command = "bunx clawdhub@latest login"
         let pasteboard = NSPasteboard.general
@@ -356,14 +337,4 @@ struct SkillMarkdownView: View {
         return "1.0.0"
     }
 
-    private var publishErrorBinding: Binding<Bool> {
-        Binding(
-            get: { publishErrorMessage != nil },
-            set: { newValue in
-                if !newValue {
-                    publishErrorMessage = nil
-                }
-            }
-        )
-    }
 }
