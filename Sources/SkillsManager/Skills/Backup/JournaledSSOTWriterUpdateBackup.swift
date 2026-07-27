@@ -33,6 +33,7 @@ extension JournaledSSOTWriter {
         _ skillID: SkillID
     ) throws -> ManagedSkillUpdateBaseline {
         try requireAuthority()
+        try recoverAll()
         try recoverIndependentUpdateBackups()
         try requireNoUpdateBackupRepair(skillID)
         guard let domain = try journal.storedDomain(skillID),
@@ -68,6 +69,7 @@ extension JournaledSSOTWriter {
                 == sourceSnapshot.fingerprintDigest else {
             throw JournaledSSOTWriterError.invalidInput
         }
+        try recoverAll()
         try recoverIndependentUpdateBackups()
         try requireNoUpdateBackupRepair(skillID)
         let oldSnapshot = try validateUpdateBaseline(expected)

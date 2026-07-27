@@ -140,22 +140,37 @@ nonisolated func managedInstallKnownProblem(
         switch error {
         case .busy:
             return .operationInProgress
-        case .posix(_, let code) where code == EACCES || code == EPERM:
+        case .posix(_, let code) where isPermissionPOSIXCode(code):
             return .permissionDenied
         default:
             return nil
         }
     }
+    if let error = error as? SSOTOperationFileSystemError,
+       case .posix(_, let code) = error,
+       isPermissionPOSIXCode(code) {
+        return .permissionDenied
+    }
+    if let error = error as? SSOTDurabilityError,
+       case .posix(_, let code) = error,
+       isPermissionPOSIXCode(code) {
+        return .permissionDenied
+    }
+    if let error = error as? SkillBackupFileSystemError,
+       case .posix(_, let code) = error,
+       isPermissionPOSIXCode(code) {
+        return .permissionDenied
+    }
     if let error = error as? SkillContentSnapshotError {
         if case .fileSystemFailure(_, let code) = error,
-           code == EACCES || code == EPERM {
+           isPermissionPOSIXCode(code) {
             return .permissionDenied
         }
         return .sourceChanged
     }
     if let error = error as? ManagedPathError {
         if case .posix(_, let code) = error,
-           code == EACCES || code == EPERM {
+           isPermissionPOSIXCode(code) {
             return .permissionDenied
         }
         return nil
@@ -166,6 +181,10 @@ nonisolated func managedInstallKnownProblem(
         return .permissionDenied
     }
     return nil
+}
+
+private nonisolated func isPermissionPOSIXCode(_ code: Int32) -> Bool {
+    code == EACCES || code == EPERM
 }
 
 nonisolated struct ManagedInstallProviderInput: Sendable {

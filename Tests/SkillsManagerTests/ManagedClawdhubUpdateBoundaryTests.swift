@@ -5,6 +5,19 @@ import Testing
 
 @Suite("Managed Clawdhub update boundaries")
 struct ManagedClawdhubUpdateBoundaryTests {
+    @Test("typed filesystem permission errors use stable permission semantics")
+    func typedPermissionErrors() {
+        let errors: [Error] = [
+            SSOTOperationFileSystemError.posix(operation: "stage", code: EACCES),
+            SSOTDurabilityError.posix(operation: "sync", code: EPERM),
+            SkillBackupFileSystemError.posix(operation: "backup", code: EACCES),
+        ]
+
+        for error in errors {
+            #expect(managedInstallKnownProblem(for: error) == .permissionDenied)
+        }
+    }
+
     @Test("a damaged update backup blocks preparation with repair semantics")
     func backupRepairBlocksPreparation() async throws {
         try await withImportCandidate { candidate in

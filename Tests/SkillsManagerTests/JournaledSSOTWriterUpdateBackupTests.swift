@@ -188,6 +188,97 @@ struct JournaledSSOTWriterUpdateBackupTests {
         #expect(try context.workspace.scalar("SELECT display_name FROM skills") == "first")
         #expect(try context.workspace.integer("SELECT db_revision FROM skills") == 1)
     }
+
+    @Test("an unfinished replacement blocks a fresh update before backup")
+    func pendingReplacementBlocksFreshUpdate() async throws {
+        let workspace = try WriterWorkspace()
+        var writer: JournaledSSOTWriter? = try await workspace.openWriter()
+        let skillID = SkillID()
+        let old = try workspace.snapshot(content: "old")
+        _ = try await writer!.create(
+            payload: workspace.payload(skillID: skillID, name: "Old", snapshot: old),
+            sourceSnapshot: old
+        )
+        writer = nil
+
+        var hooks = JournaledSSOTWriterHooks()
+        hooks.checkpoint = { point, _ in
+            if point == .afterPreparedInsert || point == .beforeReplacementSwap {
+                throw Stop.requested
+            }
+        }
+        writer = try await workspace.openWriter(hooks: hooks)
+        let baseline = try await writer!.managedSkillUpdateBaseline(skillID)
+        let pending = try workspace.snapshot(content: "pending")
+        await #expect(throws: SSOTWriterCheckpointInterruption.self) {
+            _ = try await writer!.replace(
+                payload: workspace.payload(
+                    skillID: skillID,
+                    name: "Pending",
+                    snapshot: pending
+                ),
+                sourceSnapshot: pending,
+                expectedOld: try SSOTReplacementExpectation(
+                    identity: baseline.finalIdentity,
+                    fingerprint: baseline.domain.payload.skill.contentFingerprint,
+                    databaseRevision: baseline.domain.revision
+                )
+            )
+        }
+        let attempted = try workspace.snapshot(content: "attempted")
+
+        await #expect(throws: SSOTWriterCheckpointInterruption.self) {
+            _ = try await writer!.replaceManagedSkillWithBackup(
+                expected: baseline,
+                replacementPayload: workspace.payload(
+                    skillID: skillID,
+                    name: "Attempted",
+                    snapshot: attempted
+                ),
+                sourceSnapshot: attempted,
+                operationID: SSOTOperationID(),
+                backupID: SkillBackupID()
+            )
+        }
+
+        #expect(try workspace.integer("SELECT count(*) FROM skill_backups") == 0)
+        #expect(try workspace.integer("SELECT count(*) FROM skill_operations") == 2)
+    }
+
+    @Test("a repair-blocked replacement blocks a fresh update before backup")
+    func repairReplacementBlocksFreshUpdate() async throws {
+        let workspace = try WriterWorkspace()
+        var hooks = JournaledSSOTWriterHooks()
+        hooks.checkpoint = { point, _ in
+            if point == .afterPreparedInsert { throw Stop.requested }
+        }
+        let writer = try await workspace.openWriter(hooks: hooks)
+        let skillID = SkillID()
+        let snapshot = try workspace.snapshot(content: "corrupt")
+        await #expect(throws: SSOTWriterCheckpointInterruption.self) {
+            _ = try await writer.create(
+                payload: workspace.payload(
+                    skillID: skillID,
+                    name: "Corrupt",
+                    snapshot: snapshot
+                ),
+                sourceSnapshot: snapshot
+            )
+        }
+        try workspace.mutateIgnoringTrigger(
+            named: "skill_operations_immutable_ownership",
+            "UPDATE skill_operations SET domain_payload = X'00'"
+        )
+
+        await #expect(throws: JournaledSSOTWriterError.self) {
+            _ = try await writer.managedSkillUpdateBaseline(skillID)
+        }
+
+        #expect(try workspace.integer("SELECT count(*) FROM skill_backups") == 0)
+        #expect(try workspace.integer(
+            "SELECT count(*) FROM skill_operations WHERE outcome = 'needsRepair'"
+        ) == 1)
+    }
 }
 
 private final class UpdateBackupContext: @unchecked Sendable {
