@@ -393,6 +393,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
     @Environment(SkillStore.self) private var store
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
+    @Environment(SkillDistributionViewModel.self) private var distributionModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
 
     @Binding var source: SkillSource
@@ -413,6 +414,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             }
             .onChange(of: remoteStore.selectedSkillID) { _, _ in
                 Task { await remoteStore.loadSelectedSkill() }
+            }
+            .onChange(of: distributionSelectionKey) { _, _ in
+                Task { await refreshDistributionSelection() }
             }
             .onChange(of: source) { _, newValue in
                 if newValue != .clawdhub {
@@ -441,7 +445,10 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                       libraryRuntime.readiness == .ready else {
                     return
                 }
-                Task { await discoveryModel.refresh() }
+                Task {
+                    await discoveryModel.refresh()
+                    await refreshDistributionSelection()
+                }
             }
     }
 
@@ -450,10 +457,16 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             discoveryModel.blockRuntime(
                 message: "The managed library is not ready. Resolve its startup diagnostics first."
             )
+            distributionModel.blockRuntime(
+                message: "The managed library is not ready. Resolve its startup diagnostics first."
+            )
             return
         }
         guard let writer = store.persistence else {
             discoveryModel.blockRuntime(
+                message: "The managed library session is unavailable."
+            )
+            distributionModel.blockRuntime(
                 message: "The managed library session is unavailable."
             )
             return
@@ -470,5 +483,25 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
         if needsInitialRefresh {
             await discoveryModel.refresh()
         }
+        distributionModel.activate(dependencies: .live(writer: writer))
+        await refreshDistributionSelection()
+    }
+
+    private func refreshDistributionSelection() async {
+        let observation = discoveryModel.selectedItem?.observation
+        let isManaged = observation?.status == .managed
+        await distributionModel.refresh(
+            skillID: isManaged ? observation?.matchedSkillID : nil,
+            displayName: isManaged ? observation?.relativeLocator : nil
+        )
+    }
+
+    private var distributionSelectionKey: String {
+        let observation = discoveryModel.selectedItem?.observation
+        return [
+            observation?.status.rawValue ?? "",
+            observation?.matchedSkillID?.directoryName ?? "",
+            observation?.relativeLocator ?? "",
+        ].joined(separator: "\u{0}")
     }
 }

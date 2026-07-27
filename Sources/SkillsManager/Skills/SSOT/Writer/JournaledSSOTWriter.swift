@@ -151,6 +151,11 @@ actor JournaledSSOTWriter {
         )
     }
 
+    func loadDistributionBindings(skillID: SkillID) throws -> [DistributionBinding] {
+        try requireAuthority()
+        return try DistributionBindingStore(connection: connection).load(skillID: skillID)
+    }
+
     func applyDistribution(
         skillID: SkillID,
         plan: DistributionPlan
