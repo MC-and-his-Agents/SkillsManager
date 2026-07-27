@@ -23,7 +23,22 @@ nonisolated struct DistributionBindingStore {
         desired: [DistributionBindingIntent],
         nowMilliseconds: Int64
     ) throws -> [DistributionBinding] {
-        return try connection.withImmediateTransaction {
+        try connection.withImmediateTransaction {
+            try replaceInCurrentTransaction(
+                skillID: skillID,
+                expectedOld: expectedOld,
+                desired: desired,
+                nowMilliseconds: nowMilliseconds
+            )
+        }
+    }
+
+    func replaceInCurrentTransaction(
+        skillID: SkillID,
+        expectedOld: [DistributionBinding],
+        desired: [DistributionBindingIntent],
+        nowMilliseconds: Int64
+    ) throws -> [DistributionBinding] {
             let actual = try loadBindings(skillID: skillID)
             guard canonical(expectedOld) == actual else {
                 throw DistributionBindingStoreError.conflict
@@ -87,7 +102,6 @@ nonisolated struct DistributionBindingStore {
                 throw DistributionBindingStoreError.conflict
             }
             return readback
-        }
     }
 
     private func loadBindings(skillID: SkillID) throws -> [DistributionBinding] {

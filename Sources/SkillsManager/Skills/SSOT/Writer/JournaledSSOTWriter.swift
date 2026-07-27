@@ -7,17 +7,20 @@ actor JournaledSSOTWriter {
     let ownership: SSOTWriterOwnership
     let fileSystem: SSOTOperationFileSystem
     let journal: SSOTJournalStore
+    let distribution: DistributionSymlinkExecutor
     let hooks: JournaledSSOTWriterHooks
 
     private init(
         connection: SQLiteConnection,
         ownership: SSOTWriterOwnership,
         fileSystem: SSOTOperationFileSystem,
+        distribution: DistributionSymlinkExecutor,
         hooks: JournaledSSOTWriterHooks
     ) throws {
         self.connection = connection
         self.ownership = ownership
         self.fileSystem = fileSystem
+        self.distribution = distribution
         journal = try SSOTJournalStore(connection: connection)
         self.hooks = hooks
     }
@@ -74,10 +77,19 @@ actor JournaledSSOTWriter {
                 }
             )
         )
+        let distributionFileSystem = try DistributionSymlinkFileSystem(
+            homeURL: FileManager.default.homeDirectoryForCurrentUser
+        )
+        let distribution = try DistributionSymlinkExecutor(
+            connection: connection,
+            fileSystem: distributionFileSystem
+        )
+        try distribution.recoverAll()
         let writer = try JournaledSSOTWriter(
             connection: connection,
             ownership: ownership,
             fileSystem: fileSystem,
+            distribution: distribution,
             hooks: hooks
         )
         try await writer.recoverAll()
@@ -120,6 +132,45 @@ actor JournaledSSOTWriter {
             connection: connection,
             ssotRoot: fileSystem.verifiedRoot
         )
+    }
+
+    func distributionPlan(
+        skillID: SkillID,
+        desiredScope: DistributionDesiredScope,
+        requiredAdapterCodes: Set<String>,
+        catalog: DistributionTargetCatalog = .current
+    ) throws -> DistributionPlan {
+        try requireAuthority()
+        let bindings = try DistributionBindingStore(connection: connection).load(skillID: skillID)
+        return try distribution.dryRun(
+            skillID: skillID,
+            currentBindings: bindings,
+            desiredScope: desiredScope,
+            requiredAdapterCodes: requiredAdapterCodes,
+            catalog: catalog
+        )
+    }
+
+    func applyDistribution(
+        skillID: SkillID,
+        plan: DistributionPlan
+    ) throws -> DistributionOperationRecord {
+        try requireAuthority()
+        let bindingStore = DistributionBindingStore(connection: connection)
+        let ownershipStore = DistributionLinkOwnershipStore(connection: connection)
+        return try distribution.apply(
+            skillID: skillID,
+            plan: plan,
+            expectedOldBindings: bindingStore.load(skillID: skillID),
+            expectedOldOwnership: ownershipStore.load(skillID: skillID)
+        )
+    }
+
+    func reconcileDistribution(
+        skillID: SkillID
+    ) throws -> DistributionReconcileResult {
+        try requireAuthority()
+        return try distribution.reconcile(skillID: skillID)
     }
 
     func discoveryCatalog() throws -> SkillDiscoveryCatalog {
