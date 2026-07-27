@@ -1,4 +1,9 @@
+import Darwin
 import SwiftUI
+
+nonisolated enum SkillDistributionStateError: Error {
+    case invalidPersistedBindings
+}
 
 extension SkillDistributionViewModel {
     enum Problem: Equatable {
@@ -60,6 +65,7 @@ extension SkillDistributionViewModel {
 
     struct PendingPreview: Identifiable, Sendable {
         let id = UUID()
+        let generation: UInt64
         let skillID: SkillID
         let desiredScope: DistributionDesiredScope
         let requiredAdapterCodes: Set<String>
@@ -124,5 +130,49 @@ extension SkillDistributionViewModel.PreviewRow.Kind {
         case .binding: "link"
         case .noChange: "checkmark.circle"
         }
+    }
+}
+
+extension SkillDistributionViewModel {
+    static func problem(for error: Error) -> Problem {
+        if error is SkillDistributionStateError {
+            return .invalidPersistedBindings
+        }
+        if let error = error as? DistributionSymlinkExecutorError {
+            switch error {
+            case .blocked(let conflicts):
+                if conflicts.contains(where: { $0.reason == .targetUnavailable }) {
+                    return .targetUnavailable
+                }
+                return .failed("The distribution plan is blocked by a target conflict.")
+            case .needsRepair:
+                return .needsRepair
+            case .operationInProgress:
+                return .operationInProgress
+            case .conflict:
+                return .previewExpired
+            }
+        }
+        if let error = error as? DistributionSymlinkFileSystemError {
+            switch error {
+            case .unavailable:
+                return .targetUnavailable
+            case .posix(_, let code) where code == EACCES || code == EPERM:
+                return .permissionDenied
+            default:
+                return .failed(error.localizedDescription)
+            }
+        }
+        if let error = error as? ManagedPathError,
+           case .posix(_, let code) = error,
+           code == EACCES || code == EPERM {
+            return .permissionDenied
+        }
+        let nsError = error as NSError
+        if nsError.domain == NSPOSIXErrorDomain,
+           nsError.code == Int(EACCES) || nsError.code == Int(EPERM) {
+            return .permissionDenied
+        }
+        return .failed(error.localizedDescription)
     }
 }

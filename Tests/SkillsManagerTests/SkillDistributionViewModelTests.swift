@@ -108,6 +108,50 @@ struct SkillDistributionViewModelTests {
         #expect(blockedModel.pendingPreview?.plan.conflicts.map(\.reason) == [.targetUnavailable])
     }
 
+    @Test("partial scope preview includes retained targets")
+    @MainActor
+    func partialScopePreview() async throws {
+        let skillID = distributionSkillID()
+        let slug = try DefaultDistributionSlug(validating: "demo")
+        let current = try distributionBinding(
+            skillID: skillID,
+            scope: .agent(.codex),
+            slug: slug
+        )
+        let added = DistributionBindingIntent(
+            skillID: skillID,
+            scope: .agent(.opencode),
+            distributionSlug: slug
+        )
+        let entry = try #require(
+            DistributionTargetCatalog.current.entry(for: added.scope, slug: slug)
+        )
+        let plan = distributionPlan(
+            status: .executable,
+            actions: [
+                DistributionFilesystemAction(
+                    kind: .createSymlink,
+                    entry: entry,
+                    ssotLocator: DistributionTargetCatalog.current.ssotLocator(for: skillID)
+                ),
+            ],
+            replacement: [current.intent, added]
+        )
+        let model = distributionModel(bindings: [current], plan: plan)
+        await model.refresh(skillID: skillID, displayName: "demo")
+
+        model.chooseScope(.agents)
+        model.setAgent(.codex, selected: true)
+        model.setAgent(.opencode, selected: true)
+        await model.preparePreview()
+
+        #expect(model.pendingPreview?.rows.map(\.kind) == [.create, .noChange])
+        #expect(model.pendingPreview?.rows.map(\.scopeKey) == [
+            "agent:opencode",
+            "agent:codex",
+        ])
+    }
+
     @Test("confirmation rejects a changed canonical plan without applying")
     @MainActor
     func stalePreview() async throws {
@@ -141,6 +185,69 @@ struct SkillDistributionViewModelTests {
         #expect(model.problem == .previewExpired)
         #expect(model.pendingPreview == nil)
         #expect(await probe.applyCount == 0)
+    }
+
+    @Test("selection change during replan prevents apply")
+    @MainActor
+    func selectionChangeDuringConfirmation() async throws {
+        let firstID = distributionSkillID()
+        let secondID = SkillID(UUID(uuidString: "ffeeddcc-bbaa-9988-7766-554433221100")!)
+        let slug = try DefaultDistributionSlug(validating: "demo")
+        let plan = distributionPlan(
+            status: .executable,
+            replacement: [
+                DistributionBindingIntent(
+                    skillID: firstID,
+                    scope: .global,
+                    distributionSlug: slug
+                ),
+            ]
+        )
+        let probe = DistributionPlanProbe(
+            plans: [plan],
+            replanDelay: .milliseconds(30)
+        )
+        let model = distributionModel(probe: probe)
+        await model.refresh(skillID: firstID, displayName: "demo")
+        await model.preparePreview()
+
+        let confirmation = Task { await model.confirmPreview() }
+        while await probe.planCallCount < 2 {
+            await Task.yield()
+        }
+        await model.refresh(skillID: secondID, displayName: "second")
+        await confirmation.value
+
+        #expect(await probe.applyCount == 0)
+        #expect(model.activeSkillID == secondID)
+        #expect(model.problem == nil)
+        #expect(!model.isApplying)
+    }
+
+    @Test("slow preview failure cannot overwrite a new selection")
+    @MainActor
+    func stalePreviewFailure() async {
+        let firstID = distributionSkillID()
+        let secondID = SkillID(UUID(uuidString: "ffeeddcc-bbaa-9988-7766-554433221100")!)
+        let probe = DistributionPlanProbe(
+            plans: [distributionPlan(status: .noOp)],
+            initialPlanDelay: .milliseconds(30),
+            planError: .unavailable
+        )
+        let model = distributionModel(probe: probe)
+        await model.refresh(skillID: firstID, displayName: "first")
+
+        let preparation = Task { await model.preparePreview() }
+        while await probe.planCallCount < 1 {
+            await Task.yield()
+        }
+        await model.refresh(skillID: secondID, displayName: "second")
+        await preparation.value
+
+        #expect(model.activeSkillID == secondID)
+        #expect(model.problem == nil)
+        #expect(model.pendingPreview == nil)
+        #expect(!model.isPreparingPreview)
     }
 
     @Test("no-op skips apply and successful confirmation accepts one submit")
@@ -363,138 +470,4 @@ struct SkillDistributionViewModelTests {
         #expect(await probe.loadCount == 2)
         #expect(model.loadState == .ready(.notConfigured))
     }
-}
-
-private actor DistributionLoadProbe {
-    private(set) var loadCount = 0
-
-    func load() -> [DistributionBinding] { loadCount += 1; return [] }
-}
-
-private actor DistributionPlanProbe {
-    private let plans: [DistributionPlan]
-    private let applyRecord: DistributionOperationRecord
-    private let applyDelay: Duration?
-    private var planIndex = 0
-    private(set) var applyCount = 0
-
-    init(
-        plans: [DistributionPlan],
-        applyRecord: DistributionOperationRecord? = nil,
-        applyDelay: Duration? = nil
-    ) {
-        self.plans = plans
-        self.applyRecord = applyRecord ?? distributionOperation(skillID: distributionSkillID())
-        self.applyDelay = applyDelay
-    }
-
-    func nextPlan() -> DistributionPlan {
-        let plan = plans[min(planIndex, plans.count - 1)]
-        planIndex += 1
-        return plan
-    }
-
-    func apply() async throws -> DistributionOperationRecord {
-        applyCount += 1
-        if let applyDelay {
-            try await Task.sleep(for: applyDelay)
-        }
-        return applyRecord
-    }
-}
-
-@MainActor
-private func distributionModel(
-    bindings: [DistributionBinding] = [],
-    reconcileStatus: DistributionReconcileStatus = .inSync,
-    plan: DistributionPlan = distributionPlan(status: .noOp),
-    loadError: DistributionSymlinkFileSystemError? = nil,
-    apply: @escaping @Sendable (SkillID, DistributionPlan)
-        async throws -> DistributionOperationRecord = {
-        skillID, _ in distributionOperation(skillID: skillID)
-    }
-) -> SkillDistributionViewModel {
-    let model = SkillDistributionViewModel()
-    model.activate(dependencies: SkillDistributionDependencies(
-        loadBindings: { _ in
-            if let loadError { throw loadError }
-            return bindings
-        },
-        reconcile: { _ in
-            DistributionReconcileResult(status: reconcileStatus, observations: [:])
-        },
-        plan: { _, _, _ in plan },
-        apply: apply
-    ))
-    return model
-}
-
-@MainActor
-private func distributionModel(probe: DistributionPlanProbe) -> SkillDistributionViewModel {
-    let model = SkillDistributionViewModel()
-    model.activate(dependencies: SkillDistributionDependencies(
-        loadBindings: { _ in [] },
-        reconcile: { _ in DistributionReconcileResult(status: .inSync, observations: [:]) },
-        plan: { _, _, _ in await probe.nextPlan() },
-        apply: { _, _ in try await probe.apply() }
-    ))
-    return model
-}
-
-private func distributionSkillID() -> SkillID {
-    .init(UUID(uuidString: "00112233-4455-6677-8899-aabbccddeeff")!)
-}
-
-private func distributionBinding(
-    skillID: SkillID,
-    scope: DistributionBindingScope,
-    slug: DefaultDistributionSlug
-) throws -> DistributionBinding {
-    try DistributionBinding(
-        skillID: skillID,
-        scope: scope,
-        distributionSlug: slug,
-        createdAtMilliseconds: 10,
-        updatedAtMilliseconds: 11
-    )
-}
-
-private func distributionPlan(
-    status: DistributionPlanStatus,
-    replacement: [DistributionBindingIntent] = [],
-    conflicts: [DistributionPlanConflict] = []
-) -> DistributionPlan {
-    DistributionPlan(
-        status: status,
-        filesystemActions: [],
-        bindingsChanged: !replacement.isEmpty,
-        bindingReplacement: replacement,
-        conflicts: conflicts
-    )
-}
-
-private func distributionOperation(
-    skillID: SkillID,
-    phase: DistributionOperationPhase = .completed,
-    outcome: DistributionOperationOutcome? = .applied
-) -> DistributionOperationRecord {
-    let payload = Data("{}".utf8)
-    return DistributionOperationRecord(
-        operationID: SSOTOperationID(),
-        skillID: skillID,
-        phase: phase,
-        outcome: outcome,
-        oldBindings: payload,
-        newBindings: payload,
-        planPayload: payload,
-        preflightPayload: payload,
-        runtimePayload: payload,
-        forwardCursor: 0,
-        rollbackCursor: 0,
-        cleanupCursor: 0,
-        attemptCount: 1,
-        lastError: nil,
-        createdAtMilliseconds: 1,
-        updatedAtMilliseconds: 2
-    )
 }

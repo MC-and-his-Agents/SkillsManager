@@ -1,4 +1,3 @@
-import Darwin
 import Foundation
 import Observation
 
@@ -93,7 +92,6 @@ import Observation
         await refresh(
             skillID: skillID,
             displayName: displayName,
-            whileApplying: false,
             clearFeedback: true
         )
     }
@@ -106,13 +104,14 @@ import Observation
     private func refresh(
         skillID: SkillID?,
         displayName: String?,
-        whileApplying: Bool,
         clearFeedback: Bool
     ) async {
-        guard whileApplying || !isApplying else { return }
+        let previousSkillID = activeSkillID
         refreshGeneration &+= 1
         let generation = refreshGeneration
-        pendingPreview = nil
+        if !isApplying || skillID != previousSkillID {
+            pendingPreview = nil
+        }
         if clearFeedback {
             problem = nil
             successMessage = nil
@@ -215,6 +214,7 @@ import Observation
                 return
             }
             pendingPreview = PendingPreview(
+                generation: generation,
                 skillID: skillID,
                 desiredScope: desiredScope,
                 requiredAdapterCodes: requiredAdapterCodes,
@@ -223,6 +223,13 @@ import Observation
                 rows: previewRows(plan: plan, slug: distributionSlug)
             )
         } catch {
+            guard generation == refreshGeneration,
+                  activeSkillID == skillID,
+                  scopeChoice == choice,
+                  selectedAgents == agents,
+                  self.distributionSlug == distributionSlug else {
+                return
+            }
             problem = Self.problem(for: error)
         }
     }
@@ -237,6 +244,7 @@ import Observation
               let preview = pendingPreview,
               let dependencies,
               activeSkillID == preview.skillID,
+              previewIsCurrent(preview),
               preview.plan.status != .blocked else {
             return
         }
@@ -244,6 +252,7 @@ import Observation
         isApplying = true
         problem = nil
         successMessage = nil
+        var didStartApply = false
         defer { isApplying = false }
 
         do {
@@ -252,19 +261,31 @@ import Observation
                 preview.desiredScope,
                 preview.requiredAdapterCodes
             )
+            guard previewIsCurrent(preview) else {
+                if activeSkillID == preview.skillID {
+                    pendingPreview = nil
+                    problem = .previewExpired
+                }
+                return
+            }
             guard try currentPlan.canonicalJSONData() == preview.canonicalPlan else {
+                pendingPreview = nil
                 await refreshPreservingFeedback(skillID: preview.skillID)
                 problem = .previewExpired
                 return
             }
 
             if currentPlan.status == .noOp {
+                pendingPreview = nil
                 await refreshPreservingFeedback(skillID: preview.skillID)
                 successMessage = "No distribution changes were needed."
                 return
             }
 
+            didStartApply = true
             let operation = try await dependencies.apply(preview.skillID, currentPlan)
+            guard activeSkillID == preview.skillID else { return }
+            pendingPreview = nil
             guard operation.phase == .completed, operation.outcome == .applied else {
                 await refreshPreservingFeedback(skillID: preview.skillID)
                 problem = .operationDidNotComplete
@@ -273,6 +294,15 @@ import Observation
             await refreshPreservingFeedback(skillID: preview.skillID)
             successMessage = "Distribution completed and the current state was refreshed."
         } catch {
+            if !didStartApply, !previewIsCurrent(preview) {
+                if activeSkillID == preview.skillID {
+                    pendingPreview = nil
+                    problem = .previewExpired
+                }
+                return
+            }
+            guard activeSkillID == preview.skillID else { return }
+            pendingPreview = nil
             let mapped = Self.problem(for: error)
             await refreshPreservingFeedback(skillID: preview.skillID)
             problem = mapped
@@ -379,7 +409,26 @@ import Observation
                 locator: action.entry.canonicalLocator
             )
         }
-        if plan.bindingsChanged, plan.filesystemActions.isEmpty {
+        let actionScopeKeys = Set(
+            plan.filesystemActions.map(\.entry.target.scope.targetScopeKey)
+        )
+        rows.append(contentsOf: plan.bindingReplacement.compactMap { intent in
+            guard !actionScopeKeys.contains(intent.scope.targetScopeKey),
+                  currentBindings.contains(where: { $0.intent == intent }) else {
+                return nil
+            }
+            return DistributionTargetCatalog.current.entry(
+                for: intent.scope,
+                slug: intent.distributionSlug
+            ).map {
+                PreviewRow(
+                    kind: .noChange,
+                    scopeKey: intent.scope.targetScopeKey,
+                    locator: $0.canonicalLocator
+                )
+            }
+        })
+        if plan.bindingsChanged, plan.filesystemActions.isEmpty, rows.isEmpty {
             rows = plan.bindingReplacement.compactMap { binding in
                 DistributionTargetCatalog.current.entry(
                     for: binding.scope,
@@ -400,9 +449,30 @@ import Observation
         await refresh(
             skillID: skillID,
             displayName: activeDisplayName,
-            whileApplying: true,
             clearFeedback: false
         )
+    }
+
+    private func previewIsCurrent(_ preview: PendingPreview) -> Bool {
+        preview.generation == refreshGeneration
+            && activeSkillID == preview.skillID
+            && desiredScopeMatches(preview.desiredScope)
+            && requiredCodes(for: scopeChoice, agents: selectedAgents)
+                == preview.requiredAdapterCodes
+    }
+
+    private func desiredScopeMatches(_ expected: DistributionDesiredScope) -> Bool {
+        guard let current = desiredScope() else { return false }
+        return switch (current, expected) {
+        case (.disabled, .disabled):
+            true
+        case (.global(let lhs), .global(let rhs)):
+            lhs == rhs
+        case (.agents(let lhsAgents, let lhsSlug), .agents(let rhsAgents, let rhsSlug)):
+            lhsAgents == rhsAgents && lhsSlug == rhsSlug
+        default:
+            false
+        }
     }
 
     private func clearSelection() {
@@ -425,51 +495,4 @@ import Observation
         }
     }
 
-    private static func problem(for error: Error) -> Problem {
-        if let error = error as? SkillDistributionStateError {
-            switch error {
-            case .invalidPersistedBindings: return .invalidPersistedBindings
-            }
-        }
-        if let error = error as? DistributionSymlinkExecutorError {
-            switch error {
-            case .blocked(let conflicts):
-                if conflicts.contains(where: { $0.reason == .targetUnavailable }) {
-                    return .targetUnavailable
-                }
-                return .failed("The distribution plan is blocked by a target conflict.")
-            case .needsRepair:
-                return .needsRepair
-            case .operationInProgress:
-                return .operationInProgress
-            case .conflict:
-                return .previewExpired
-            }
-        }
-        if let error = error as? DistributionSymlinkFileSystemError {
-            switch error {
-            case .unavailable:
-                return .targetUnavailable
-            case .posix(_, let code) where code == EACCES || code == EPERM:
-                return .permissionDenied
-            default:
-                return .failed(error.localizedDescription)
-            }
-        }
-        if let error = error as? ManagedPathError,
-           case .posix(_, let code) = error,
-           code == EACCES || code == EPERM {
-            return .permissionDenied
-        }
-        let nsError = error as NSError
-        if nsError.domain == NSPOSIXErrorDomain,
-           nsError.code == Int(EACCES) || nsError.code == Int(EPERM) {
-            return .permissionDenied
-        }
-        return .failed(error.localizedDescription)
-    }
-}
-
-private nonisolated enum SkillDistributionStateError: Error {
-    case invalidPersistedBindings
 }

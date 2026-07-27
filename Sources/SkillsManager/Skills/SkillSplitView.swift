@@ -447,7 +447,6 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 }
                 Task {
                     await discoveryModel.refresh()
-                    await refreshDistributionSelection()
                 }
             }
     }
@@ -502,6 +501,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             observation?.status.rawValue ?? "",
             observation?.matchedSkillID?.directoryName ?? "",
             observation?.relativeLocator ?? "",
+            String(discoveryModel.publishedRefreshGeneration),
         ].joined(separator: "\u{0}")
     }
 }
