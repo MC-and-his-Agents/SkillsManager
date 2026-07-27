@@ -33,6 +33,43 @@ struct JournaledSSOTWriterDeletionTests {
         }
     }
 
+    @Test("maps domain and persistence failures to stable public errors")
+    func mapsStableDomainErrors() {
+        #expect(throws: SkillDeletionError.conflict) {
+            try withStableSkillLifecycleErrors(.mutation) {
+                throw SkillBackupStoreError.conflict
+            }
+        }
+        #expect(throws: SkillDeletionError.backupCorrupt) {
+            try withStableSkillLifecycleErrors(.backupRead) {
+                throw SkillBackupManifestError.invalidManifest
+            }
+        }
+        #expect(throws: SkillDeletionError.needsRepair) {
+            try withStableSkillLifecycleErrors(.mutation) {
+                throw SkillDeletionOperationStoreError.corruptRecord
+            }
+        }
+        #expect(throws: SkillDeletionError.backupCorrupt) {
+            try withStableSkillLifecycleErrors(.backupRead) {
+                throw SSOTWritePayloadError.invalidPayload
+            }
+        }
+        #expect(throws: SkillDeletionError.conflict) {
+            try withStableSkillLifecycleErrors(.mutation) {
+                throw SSOTJournalStoreError.stateConflict
+            }
+        }
+        #expect(throws: SkillDeletionError.needsRepair) {
+            try withStableSkillLifecycleErrors(.mutation) {
+                throw JournaledSSOTWriterError.operationNeedsRepair(
+                    SSOTOperationID(),
+                    .journalMarkedNeedsRepair
+                )
+            }
+        }
+    }
+
     @Test("deletes only after a valid backup and restores idempotently")
     func deletesAndRestores() async throws {
         let workspace = try WriterWorkspace()
@@ -108,6 +145,52 @@ struct JournaledSSOTWriterDeletionTests {
         let repeated = try await writer.restoreBackup(backup.backupID)
         #expect(repeated.status == retried.status)
         #expect(repeated.warnings == retried.warnings)
+    }
+
+    @Test("restore retry treats matching local origin evidence as a no-op")
+    func restoreRetryKeepsOriginWarningsStable() async throws {
+        let workspace = try WriterWorkspace()
+        let writer = try await workspace.openWriter()
+        let snapshot = try workspace.snapshot(content: "retry-origin")
+        let skillID = SkillID()
+        let origin = try LocalSkillOriginRecord(
+            skillID: skillID,
+            scope: .global,
+            rawLocator: "RetryOrigin",
+            normalizedLocator: "RetryOrigin",
+            collisionKey: SkillContentPath.collisionKey(for: "RetryOrigin"),
+            fingerprint: SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest),
+            confirmedAtMilliseconds: 1
+        )
+        _ = try await writer.create(
+            payload: workspace.payload(
+                skillID: skillID,
+                name: "RetryOrigin",
+                snapshot: snapshot,
+                localOrigins: [origin]
+            ),
+            sourceSnapshot: snapshot
+        )
+        _ = try await writer.deleteManagedSkill(skillID: skillID)
+        let backup = try await writer.listBackups(originalSkillID: skillID)[0]
+        let restored = try await writer.restoreBackup(backup.backupID)
+        #expect(restored.warnings.isEmpty)
+
+        let connection = try SQLiteConnection(url: workspace.database)
+        let clear = try connection.prepare(
+            """
+            UPDATE skill_backups
+            SET restore_result_json = NULL, updated_at_ms = updated_at_ms + 1
+            WHERE backup_id = ?
+            """
+        )
+        try clear.bind(backup.backupID.bytes, at: 1)
+        _ = try clear.step()
+
+        let retried = try await writer.restoreBackup(backup.backupID)
+        #expect(retried.status == .completed)
+        #expect(retried.warnings.isEmpty)
+        #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 1)
     }
 
     @Test(

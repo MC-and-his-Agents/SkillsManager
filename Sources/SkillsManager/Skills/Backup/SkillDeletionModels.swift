@@ -91,6 +91,28 @@ private nonisolated func stableSkillLifecycleError(
     context: SkillLifecycleErrorContext
 ) -> SkillDeletionError {
     if let stable = error as? SkillDeletionError { return stable }
+    if let stable = stableDistributionError(error, context: context) { return stable }
+    if let stable = stablePersistenceError(error, context: context) { return stable }
+    if let stable = stableStorageError(error) { return stable }
+    if error is DecodingError {
+        return context == .backupRead ? .backupCorrupt : .needsRepair
+    }
+    let cocoa = error as NSError
+    if cocoa.domain == NSPOSIXErrorDomain {
+        return stablePOSIXError(Int32(cocoa.code))
+    }
+    if cocoa.domain == NSCocoaErrorDomain,
+       cocoa.code == NSFileReadNoPermissionError
+        || cocoa.code == NSFileWriteNoPermissionError {
+        return .permissionDenied
+    }
+    return .unavailable
+}
+
+private nonisolated func stableDistributionError(
+    _ error: Error,
+    context: SkillLifecycleErrorContext
+) -> SkillDeletionError? {
     if let executor = error as? DistributionSymlinkExecutorError {
         return switch executor {
         case .needsRepair: .needsRepair
@@ -120,6 +142,67 @@ private nonisolated func stableSkillLifecycleError(
         case .destinationExists: .conflict
         }
     }
+    return nil
+}
+
+private nonisolated func stablePersistenceError(
+    _ error: Error,
+    context: SkillLifecycleErrorContext
+) -> SkillDeletionError? {
+    if let store = error as? SkillBackupStoreError {
+        return switch store {
+        case .conflict, .invalidRecord: .conflict
+        case .corruptRecord: .backupCorrupt
+        }
+    }
+    if error is SkillBackupManifestError {
+        return context == .backupRead ? .backupCorrupt : .conflict
+    }
+    if error is SkillBackupRecordError {
+        return context == .backupRead ? .backupCorrupt : .conflict
+    }
+    if let store = error as? SkillDeletionOperationStoreError {
+        return switch store {
+        case .conflict, .operationNotFound: .conflict
+        case .invalidRecord, .corruptRecord: .needsRepair
+        }
+    }
+    if error is SSOTWritePayloadError {
+        return context == .backupRead ? .backupCorrupt : .needsRepair
+    }
+    if let journal = error as? SSOTJournalStoreError {
+        return switch journal {
+        case .stateConflict, .databaseConflict, .operationNotFound: .conflict
+        case .invalidRecord, .payloadMismatch, .corruptRecord: .needsRepair
+        }
+    }
+    if let writer = error as? JournaledSSOTWriterError {
+        return switch writer {
+        case .operationNeedsRepair, .recoveryDidNotConverge: .needsRepair
+        case .invalidInput, .operationRolledBack: .conflict
+        }
+    }
+    return nil
+}
+
+private nonisolated func stableStorageError(_ error: Error) -> SkillDeletionError? {
+    if let fileSystem = error as? SSOTOperationFileSystemError {
+        return switch fileSystem {
+        case .posix(_, let code): stablePOSIXError(code)
+        case .stagingCleanupFailed: .needsRepair
+        case .invalidOperationItemRole, .stagingAlreadyExists,
+             .stagedContentMismatch, .destinationAlreadyExists, .itemChanged:
+            .conflict
+        }
+    }
+    if let durability = error as? SSOTDurabilityError {
+        return switch durability {
+        case .posix(_, let code): stablePOSIXError(code)
+        }
+    }
+    if error is ManagedPromotionIndeterminate {
+        return .needsRepair
+    }
     if let ownership = error as? SSOTWriterOwnershipError {
         return switch ownership {
         case .busy: .operationInProgress
@@ -137,16 +220,7 @@ private nonisolated func stableSkillLifecycleError(
     if let sqlite = error as? SQLiteStoreError {
         return stableSQLiteError(sqlite)
     }
-    let cocoa = error as NSError
-    if cocoa.domain == NSPOSIXErrorDomain {
-        return stablePOSIXError(Int32(cocoa.code))
-    }
-    if cocoa.domain == NSCocoaErrorDomain,
-       cocoa.code == NSFileReadNoPermissionError
-        || cocoa.code == NSFileWriteNoPermissionError {
-        return .permissionDenied
-    }
-    return .unavailable
+    return nil
 }
 
 private nonisolated func stablePOSIXError(_ code: Int32) -> SkillDeletionError {

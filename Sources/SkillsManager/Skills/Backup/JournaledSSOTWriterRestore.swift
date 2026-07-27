@@ -277,11 +277,7 @@ extension JournaledSSOTWriter {
         let occupied = try journal.localOrigins()
         var result: [LocalSkillOriginRecord] = []
         for origin in origins {
-            if occupied.contains(where: { $0.position == origin.position }) {
-                warnings.append("origin_conflict:\(origin.scope.sortKey):\(origin.collisionKey)")
-                continue
-            }
-            result.append(try LocalSkillOriginRecord(
+            let restored = try LocalSkillOriginRecord(
                 skillID: skill.skillID,
                 scope: origin.scope,
                 rawLocator: origin.rawLocator,
@@ -289,7 +285,18 @@ extension JournaledSSOTWriter {
                 collisionKey: origin.collisionKey,
                 fingerprint: skill.contentFingerprint,
                 confirmedAtMilliseconds: origin.confirmedAtMilliseconds
-            ))
+            )
+            if let existing = occupied.first(where: { $0.position == restored.position }) {
+                if existing.skillID == restored.skillID,
+                   existing.rawLocator == restored.rawLocator,
+                   existing.normalizedLocator == restored.normalizedLocator,
+                   existing.fingerprint == restored.fingerprint {
+                    continue
+                }
+                warnings.append("origin_conflict:\(origin.scope.sortKey):\(origin.collisionKey)")
+                continue
+            }
+            result.append(restored)
         }
         return result
     }

@@ -128,17 +128,21 @@ nonisolated final class SkillBackupFileSystem {
             preparationRecorded = true
             try afterPreparationRecorded()
             try validateAuthority()
-            try skillGuard.promoteStagedItemIfAbsent(
-                at: stagingURL,
-                to: finalURL,
-                expectedStaged: staging.identity
-            ) { descriptor in
+            let validatePublication: (Int32) throws -> Void = { descriptor in
                 try self.validatePublishedDirectory(
                     descriptor,
                     expectedManifestDigest: publication.manifestDigest,
                     expectedFingerprint: expectedFingerprint
                 )
             }
+            try skillGuard.promoteStagedItemIfAbsent(
+                at: stagingURL,
+                to: finalURL,
+                expectedStaged: staging.identity,
+                commitCheckpoint: { try self.validateAuthority() },
+                validateStaged: validatePublication,
+                validateCommitted: validatePublication
+            )
             try SSOTDurability.syncDirectory(skillGuard.rootDescriptor)
             try afterPromotion()
             try skillRoot.revalidate()
@@ -181,17 +185,21 @@ nonisolated final class SkillBackupFileSystem {
             break
         case (nil, publication.identity):
             try validateAuthority()
-            try skillGuard.promoteStagedItemIfAbsent(
-                at: stagingURL,
-                to: finalURL,
-                expectedStaged: publication.identity
-            ) { descriptor in
+            let validatePublication: (Int32) throws -> Void = { descriptor in
                 try self.validatePublishedDirectory(
                     descriptor,
                     expectedManifestDigest: publication.manifestDigest,
                     expectedFingerprint: publication.contentFingerprint
                 )
             }
+            try skillGuard.promoteStagedItemIfAbsent(
+                at: stagingURL,
+                to: finalURL,
+                expectedStaged: publication.identity,
+                commitCheckpoint: { try self.validateAuthority() },
+                validateStaged: validatePublication,
+                validateCommitted: validatePublication
+            )
             try SSOTDurability.syncDirectory(skillGuard.rootDescriptor)
         case (nil, nil):
             throw SkillBackupFileSystemError.preparedContentMissing
