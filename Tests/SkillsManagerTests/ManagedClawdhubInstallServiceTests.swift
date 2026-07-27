@@ -74,7 +74,7 @@ struct ManagedClawdhubInstallServiceTests {
         }
     }
 
-    @Test("different provider version requires update without writes")
+    @Test("different provider version updates the existing managed Skill")
     func versionChangeRequiresUpdate() async throws {
         try await withImportCandidate { candidate in
             let existing = try existingDomain(candidate: candidate, version: "1.0.0")
@@ -92,13 +92,22 @@ struct ManagedClawdhubInstallServiceTests {
             let result = try await service.execute(preview.token)
 
             #expect(preview.disposition == .updateRequired)
-            #expect(result.status == .updateRequired)
+            #expect(result.status == .updated)
             #expect(await probe.createCount == 0)
+            #expect(await probe.replaceCount == 1)
             #expect(await probe.applyCount == 0)
+            let updated = try #require(await probe.createdPayload)
+            #expect(updated.skill.skillID == existing.payload.skill.skillID)
+            #expect(updated.skill.displayName == existing.payload.skill.displayName)
+            #expect(updated.skill.defaultDistributionSlug
+                == existing.payload.skill.defaultDistributionSlug)
+            #expect(updated.skill.createdAtMilliseconds
+                == existing.payload.skill.createdAtMilliseconds)
+            #expect(updated.providerProvenance.first?.version?.value == "2.0.0")
         }
     }
 
-    @Test("different content at the same version requires update without writes")
+    @Test("different content at the same version updates the existing managed Skill")
     func contentChangeRequiresUpdate() async throws {
         try await withImportCandidate { candidate in
             let existing = try existingDomain(
@@ -122,9 +131,177 @@ struct ManagedClawdhubInstallServiceTests {
             let result = try await service.execute(preview.token)
 
             #expect(preview.disposition == .updateRequired)
-            #expect(result.status == .updateRequired)
+            #expect(result.status == .updated)
             #expect(await probe.createCount == 0)
+            #expect(await probe.replaceCount == 1)
             #expect(await probe.applyCount == 0)
+        }
+    }
+
+    @Test("update preserves the existing global distribution scope")
+    func updatePreservesDistributionScope() async throws {
+        try await withImportCandidate { candidate in
+            let existing = try existingDomain(candidate: candidate, version: "1.0.0")
+            let binding = try distributionBinding(
+                skillID: existing.payload.skill.skillID,
+                scope: .global,
+                slug: existing.payload.skill.defaultDistributionSlug
+            )
+            let probe = ManagedLocalImportProbe(
+                existingPayload: existing.payload,
+                existingProvenance: existing.provenance,
+                existingBindings: [binding]
+            )
+            let service = ManagedInstallService(dependencies: probe.dependencies())
+
+            let preview = try await service.prepareClawdhub(
+                candidate: candidate,
+                skill: remoteSkill(version: "2.0.0"),
+                scope: .agents([.claude])
+            )
+
+            if case .global = preview.desiredScope {} else {
+                Issue.record("Expected the persisted global scope")
+            }
+            #expect(await probe.requestedAdapterCodes.first
+                == Set(DistributionTargetCatalog.current.globalReaders.map(\.storageKey)))
+        }
+    }
+
+    @Test("terminal replace rollback preserves a stable retry boundary")
+    func updateRollback() async throws {
+        try await withImportCandidate { candidate in
+            let existing = try existingDomain(candidate: candidate, version: "1.0.0")
+            let probe = ManagedLocalImportProbe(
+                readbackState: .init(
+                    phase: .completed,
+                    outcome: .rolledBack,
+                    cleanupState: .notApplicable
+                ),
+                existingPayload: existing.payload,
+                existingProvenance: existing.provenance
+            )
+            let service = ManagedInstallService(dependencies: probe.dependencies())
+            let preview = try await service.prepareClawdhub(
+                candidate: candidate,
+                skill: remoteSkill(version: "2.0.0"),
+                scope: .global
+            )
+
+            await #expect(throws: ManagedLocalImportProblem.updateRolledBack) {
+                _ = try await service.execute(preview.token)
+            }
+            await #expect(throws: ManagedLocalImportProblem.updateRolledBack) {
+                _ = try await service.execute(preview.token)
+            }
+            #expect(await probe.replaceCount == 1)
+        }
+    }
+
+    @Test("pending replace readback is not retried")
+    func updateIndeterminate() async throws {
+        try await withImportCandidate { candidate in
+            let existing = try existingDomain(candidate: candidate, version: "1.0.0")
+            let probe = ManagedLocalImportProbe(
+                readbackState: .init(
+                    phase: .prepared,
+                    outcome: .pending,
+                    cleanupState: .notStarted
+                ),
+                existingPayload: existing.payload,
+                existingProvenance: existing.provenance
+            )
+            let service = ManagedInstallService(dependencies: probe.dependencies())
+            let preview = try await service.prepareClawdhub(
+                candidate: candidate,
+                skill: remoteSkill(version: "2.0.0"),
+                scope: .global
+            )
+
+            let first = try await service.execute(preview.token)
+            let repeated = try await service.execute(preview.token)
+            #expect(first.status == .updateIndeterminate)
+            #expect(first == repeated)
+            #expect(await probe.replaceCount == 1)
+        }
+    }
+
+    @Test("distribution drift is reported as partial update success")
+    func updateDistributionNeedsAttention() async throws {
+        try await withImportCandidate { candidate in
+            let existing = try existingDomain(candidate: candidate, version: "1.0.0")
+            let probe = ManagedLocalImportProbe(
+                existingPayload: existing.payload,
+                existingProvenance: existing.provenance,
+                reconcileStatus: .drifted
+            )
+            let service = ManagedInstallService(dependencies: probe.dependencies())
+            let preview = try await service.prepareClawdhub(
+                candidate: candidate,
+                skill: remoteSkill(version: "2.0.0"),
+                scope: .global
+            )
+
+            let result = try await service.execute(preview.token)
+
+            #expect(result.status == .updatedDistributionNeedsAttention)
+            #expect(await probe.replaceCount == 1)
+            #expect(await probe.applyCount == 0)
+        }
+    }
+
+    @Test("update preserves provenance from other providers")
+    func updatePreservesOtherProvenance() async throws {
+        try await withImportCandidate { candidate in
+            let existing = try existingDomain(
+                candidate: candidate,
+                version: "1.0.0",
+                includeOtherProvider: true
+            )
+            let probe = ManagedLocalImportProbe(
+                existingPayload: existing.payload,
+                existingProvenance: existing.provenance
+            )
+            let service = ManagedInstallService(dependencies: probe.dependencies())
+            let preview = try await service.prepareClawdhub(
+                candidate: candidate,
+                skill: remoteSkill(version: "2.0.0"),
+                scope: .global
+            )
+
+            _ = try await service.execute(preview.token)
+
+            let providers = try #require(await probe.createdPayload).providerProvenance
+            #expect(Set(providers.map(\.identity.provider)) == ["clawdhub", "skills.sh"])
+            #expect(providers.first {
+                $0.identity.provider == "skills.sh"
+            }?.identity.identifier == "other-demo")
+        }
+    }
+
+    @Test("provider update refuses a managed Skill with local origins")
+    func updateRejectsLocalOrigins() async throws {
+        try await withImportCandidate { candidate in
+            let existing = try existingDomain(
+                candidate: candidate,
+                version: "1.0.0",
+                includeLocalOrigin: true
+            )
+            let probe = ManagedLocalImportProbe(
+                existingPayload: existing.payload,
+                existingProvenance: existing.provenance
+            )
+            let service = ManagedInstallService(dependencies: probe.dependencies())
+            let preview = try await service.prepareClawdhub(
+                candidate: candidate,
+                skill: remoteSkill(version: "2.0.0"),
+                scope: .global
+            )
+
+            await #expect(throws: ManagedLocalImportProblem.providerConflict) {
+                _ = try await service.execute(preview.token)
+            }
+            #expect(await probe.replaceCount == 0)
         }
     }
 
@@ -232,19 +409,26 @@ private func writerDependencies(
                 operationID: operationID
             )
         },
-        createReadback: { try await writer.ssotOperationReadback($0) },
+        operationReadback: { try await writer.ssotOperationReadback($0) },
         domainReadback: { try await writer.storedDomainReadback($0)?.payload },
         provenanceReadback: { try await writer.providerProvenance($0) },
+        updateBaseline: { try await writer.managedSkillUpdateBaseline($0) },
+        replaceWithBackup: { baseline, payload, snapshot, operationID, backupID in
+            try await writer.replaceManagedSkillWithBackup(
+                expected: baseline,
+                replacementPayload: payload,
+                sourceSnapshot: snapshot,
+                operationID: operationID,
+                backupID: backupID
+            )
+        },
         apply: probe.apply,
         reconcile: probe.reconcile,
         nowMilliseconds: probe.nowMilliseconds
     )
 }
 
-private func remoteSkill(
-    slug: String = "demo",
-    version: String? = "1.0.0"
-) -> RemoteSkill {
+func remoteSkill(slug: String = "demo", version: String? = "1.0.0") -> RemoteSkill {
     RemoteSkill(
         id: slug,
         slug: slug,
@@ -257,10 +441,12 @@ private func remoteSkill(
     )
 }
 
-private func existingDomain(
+func existingDomain(
     candidate: SkillImportWorker.ImportCandidatePayload,
     version: String?,
-    fingerprint: SkillContentFingerprint? = nil
+    fingerprint: SkillContentFingerprint? = nil,
+    includeOtherProvider: Bool = false,
+    includeLocalOrigin: Bool = false
 ) throws -> (
     payload: SSOTSkillWritePayload,
     provenance: ProviderProvenanceRecord
@@ -281,10 +467,31 @@ private func existingDomain(
         slug: slug,
         version: version
     ).record(skillID: skillID)
+    var provenances = [provenance]
+    if includeOtherProvider {
+        provenances.append(try ProviderProvenanceRecord(
+            skillID: skillID,
+            identity: ProviderAliasIdentity(provider: "skills.sh", identifier: "other-demo"),
+            identifierKey: SkillContentPath.collisionKey(for: "other-demo"),
+            version: nil
+        ))
+    }
+    let localOrigins = includeLocalOrigin ? [
+        try LocalSkillOriginRecord(
+            skillID: skillID,
+            scope: .global,
+            rawLocator: "demo",
+            normalizedLocator: "demo",
+            collisionKey: SkillContentPath.collisionKey(for: "demo"),
+            fingerprint: skill.contentFingerprint,
+            confirmedAtMilliseconds: 1
+        ),
+    ] : []
     return (
         try SSOTSkillWritePayload(
             skill: skill,
-            providerProvenance: [provenance]
+            providerProvenance: provenances,
+            localOrigins: localOrigins
         ),
         provenance
     )

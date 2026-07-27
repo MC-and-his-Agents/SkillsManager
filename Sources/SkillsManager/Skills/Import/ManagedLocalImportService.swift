@@ -5,9 +5,10 @@ actor ManagedInstallService {
     private struct Pending: Sendable {
         let preview: ManagedLocalImportPreview
         let operationID: SSOTOperationID
+        let backupID: SkillBackupID
         let candidate: SkillImportWorker.ImportCandidatePayload
         let providerInput: ManagedInstallProviderInput?
-        let expectedPayload: SSOTSkillWritePayload?
+        let expectedBaseline: ManagedSkillUpdateBaseline?
         let canonicalPlan: Data
     }
 
@@ -74,16 +75,29 @@ actor ManagedInstallService {
         var slug = try distributionSlug ?? DefaultDistributionSlug(candidateFrom: displayName)
         var skillID = SkillID()
         var disposition: ManagedLocalImportPreview.Disposition = .createNew
-        var expectedPayload: SSOTSkillWritePayload?
+        var expectedBaseline: ManagedSkillUpdateBaseline?
+        var resolvedScope = try scope.desiredScope(slug: slug)
         if let providerInput,
            let existing = try await dependencies.provenanceReadback(providerInput.identity) {
-            guard let payload = try await dependencies.domainReadback(existing.skillID) else {
-                throw ManagedLocalImportProblem.providerConflict
+            let baseline: ManagedSkillUpdateBaseline
+            do {
+                baseline = try await dependencies.updateBaseline(existing.skillID)
+            } catch let problem as ManagedLocalImportProblem {
+                throw problem
+            } catch {
+                throw managedInstallKnownProblem(for: error)
+                    ?? ManagedLocalImportProblem.failed(error.localizedDescription)
             }
-            expectedPayload = payload
+            let payload = baseline.domain.payload
+            expectedBaseline = baseline
             skillID = payload.skill.skillID
             displayName = payload.skill.displayName
             slug = payload.skill.defaultDistributionSlug
+            do {
+                resolvedScope = try baseline.distributionSelection.desiredScope(for: skillID)
+            } catch {
+                throw ManagedLocalImportProblem.providerConflict
+            }
             disposition = try remoteDisposition(
                 existing: existing,
                 payload: payload,
@@ -91,7 +105,6 @@ actor ManagedInstallService {
                 candidate: candidate
             )
         }
-        let resolvedScope = try scope.desiredScope(slug: slug)
         let plan = try await dependencies.plan(
             skillID,
             resolvedScope,
@@ -110,9 +123,10 @@ actor ManagedInstallService {
         states[preview.token] = .pending(Pending(
             preview: preview,
             operationID: SSOTOperationID(),
+            backupID: SkillBackupID(),
             candidate: candidate,
             providerInput: providerInput,
-            expectedPayload: expectedPayload,
+            expectedBaseline: expectedBaseline,
             canonicalPlan: try plan.canonicalJSONData()
         ))
         return preview
@@ -165,7 +179,20 @@ actor ManagedInstallService {
             guard try await unchangedExistingPayload(pending) else {
                 throw ManagedLocalImportProblem.providerConflict
             }
-            return result(preview, status: .updateRequired)
+            guard let baseline = pending.expectedBaseline,
+                  let providerInput = pending.providerInput else {
+                throw ManagedLocalImportProblem.providerConflict
+            }
+            return try await ManagedClawdhubUpdateService(
+                dependencies: dependencies
+            ).execute(
+                preview: preview,
+                baseline: baseline,
+                providerInput: providerInput,
+                candidate: pending.candidate,
+                operationID: pending.operationID,
+                backupID: pending.backupID
+            )
         case .createNew:
             break
         }
@@ -236,7 +263,7 @@ actor ManagedInstallService {
             return createState(record)
         } catch let createError {
             do {
-                return createState(try await dependencies.createReadback(operationID))
+                return createState(try await dependencies.operationReadback(operationID))
             } catch SSOTJournalStoreError.operationNotFound {
                 do {
                     guard let stored = try await dependencies.domainReadback(
@@ -275,49 +302,7 @@ actor ManagedInstallService {
     }
 
     private func problem(for error: Error) -> ManagedLocalImportProblem {
-        if error is CancellationError {
-            return .failed("Import was cancelled.")
-        }
-        if let error = error as? JournaledSSOTWriterError {
-            switch error {
-            case .operationNeedsRepair:
-                return .needsRepair
-            case .operationRolledBack:
-                return .createRolledBack
-            case .invalidInput, .recoveryDidNotConverge:
-                return .failed(error.localizedDescription)
-            }
-        }
-        if let error = error as? SSOTWriterOwnershipError {
-            switch error {
-            case .busy:
-                return .operationInProgress
-            case .posix(_, let code) where code == EACCES || code == EPERM:
-                return .permissionDenied
-            default:
-                return .failed(error.localizedDescription)
-            }
-        }
-        if let error = error as? SkillContentSnapshotError {
-            if case .fileSystemFailure(_, let code) = error,
-               code == EACCES || code == EPERM {
-                return .permissionDenied
-            }
-            return .sourceChanged
-        }
-        if let error = error as? ManagedPathError {
-            if case .posix(_, let code) = error,
-               code == EACCES || code == EPERM {
-                return .permissionDenied
-            }
-            return .failed(error.localizedDescription)
-        }
-        let nsError = error as NSError
-        if nsError.domain == NSPOSIXErrorDomain,
-           nsError.code == Int(EACCES) || nsError.code == Int(EPERM) {
-            return .permissionDenied
-        }
-        return .failed(error.localizedDescription)
+        managedInstallKnownProblem(for: error) ?? .failed(error.localizedDescription)
     }
 
     private func distribute(
@@ -371,7 +356,7 @@ actor ManagedInstallService {
     }
 
     private func unchangedExistingPayload(_ pending: Pending) async throws -> Bool {
-        guard let expectedPayload = pending.expectedPayload,
+        guard let expectedPayload = pending.expectedBaseline?.domain.payload,
               let current = try await dependencies.domainReadback(
                 pending.preview.skillID
               ) else {
