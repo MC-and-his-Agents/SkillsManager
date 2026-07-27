@@ -7,7 +7,10 @@ APP_BUNDLE="${APP_NAME}.app"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/version.env"
 ZIP_NAME="${APP_NAME}-${MARKETING_VERSION}.zip"
-SPARKLE_FEED_URL=${SPARKLE_FEED_URL:-"https://raw.githubusercontent.com/MC-and-his-Agents/SkillsManager/main/appcast.xml"}
+SPARKLE_FEED_URL=${SPARKLE_FEED_URL:?
+"Set SPARKLE_FEED_URL to the published appcast endpoint."}
+NOTARIZATION_RESULT_FILE=${NOTARIZATION_RESULT_FILE:-}
+umask 077
 
 if [[ -z "${SPARKLE_PUBLIC_KEY:-}" ]]; then
   echo "Missing SPARKLE_PUBLIC_KEY env var. Sparkle will not be enabled without it." >&2
@@ -24,6 +27,7 @@ if [[ -f "$APP_STORE_CONNECT_API_KEY_P8" ]]; then
 else
   echo "$APP_STORE_CONNECT_API_KEY_P8" | sed 's/\\n/\n/g' > /tmp/app-store-connect-key.p8
 fi
+chmod 600 /tmp/app-store-connect-key.p8
 trap 'rm -f /tmp/app-store-connect-key.p8 /tmp/${APP_NAME}Notarize.zip' EXIT
 
 ARCHES_VALUE=${ARCHES:-"arm64 x86_64"}
@@ -51,11 +55,19 @@ if [[ ! -x "$STAPLER_BIN" ]]; then
 fi
 "$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "/tmp/${APP_NAME}Notarize.zip"
 
-xcrun notarytool submit "/tmp/${APP_NAME}Notarize.zip" \
-  --key /tmp/app-store-connect-key.p8 \
-  --key-id "$APP_STORE_CONNECT_KEY_ID" \
-  --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
+NOTARY_ARGS=(
+  notarytool submit "/tmp/${APP_NAME}Notarize.zip"
+  --key /tmp/app-store-connect-key.p8
+  --key-id "$APP_STORE_CONNECT_KEY_ID"
+  --issuer "$APP_STORE_CONNECT_ISSUER_ID"
   --wait
+)
+if [[ -n "$NOTARIZATION_RESULT_FILE" ]]; then
+  xcrun "${NOTARY_ARGS[@]}" --output-format json > "$NOTARIZATION_RESULT_FILE"
+  chmod 600 "$NOTARIZATION_RESULT_FILE"
+else
+  xcrun "${NOTARY_ARGS[@]}"
+fi
 
 "$STAPLER_BIN" staple "$APP_BUNDLE"
 
@@ -64,6 +76,7 @@ find "$APP_BUNDLE" -name '._*' -delete
 
 "$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "$ZIP_NAME"
 
+codesign --verify --deep --strict --verbose=4 "$APP_BUNDLE"
 spctl -a -t exec -vv "$APP_BUNDLE"
 "$STAPLER_BIN" validate "$APP_BUNDLE"
 

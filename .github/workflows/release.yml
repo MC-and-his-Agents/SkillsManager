@@ -4,44 +4,75 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  admission:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_CANDIDATE_ENABLED: ${{ vars.RELEASE_CANDIDATE_ENABLED }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release ref and version
+        run: ./Scripts/validate_release_ref.sh
+
+  build:
+    needs: admission
     runs-on: macos-26
+    environment: release
     env:
       APP_IDENTITY: ${{ vars.APP_IDENTITY }}
       APP_STORE_CONNECT_KEY_ID: ${{ vars.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ vars.APP_STORE_CONNECT_ISSUER_ID }}
       SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
       SPARKLE_FEED_URL: ${{ vars.SPARKLE_FEED_URL }}
+      SPARKLE_PRODUCT_URL: https://github.com/MC-and-his-Agents/SkillsManager
+      EXPECTED_SPARKLE_FEED_URL: https://github.com/MC-and-his-Agents/SkillsManager/releases/latest/download/appcast.xml
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
       - name: Set up Swift 6.2
-        uses: swift-actions/setup-swift@v2
+        uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a # v2
         with:
           swift-version: "6.2"
 
-      - name: Validate release version
+      - name: Prepare release metadata
         run: |
           set -euo pipefail
           source version.env
-          if [[ "$GITHUB_REF_NAME" != "v${MARKETING_VERSION}" ]]; then
-            echo "Tag $GITHUB_REF_NAME does not match version.env (${MARKETING_VERSION})." >&2
+          [[ "$SPARKLE_FEED_URL" == "$EXPECTED_SPARKLE_FEED_URL" ]] || {
+            echo "SPARKLE_FEED_URL must be $EXPECTED_SPARKLE_FEED_URL." >&2
             exit 1
-          fi
+          }
+          [[ -n "$SPARKLE_PUBLIC_KEY" ]] || {
+            echo "SPARKLE_PUBLIC_KEY is required." >&2
+            exit 1
+          }
           echo "MARKETING_VERSION=${MARKETING_VERSION}" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> "$GITHUB_ENV"
           echo "RELEASE_ZIP=SkillsManager-${MARKETING_VERSION}.zip" >> "$GITHUB_ENV"
+          echo "NOTARIZATION_RESULT_FILE=$RUNNER_TEMP/notarization-result.json" >> "$GITHUB_ENV"
+
+      - name: Revalidate release ref after environment approval
+        env:
+          RELEASE_CANDIDATE_ENABLED: ${{ vars.RELEASE_CANDIDATE_ENABLED }}
+        run: ./Scripts/validate_release_ref.sh
+
+      - name: Test
+        run: swift test --no-parallel --quiet
 
       - name: Import Developer ID certificate
         env:
@@ -49,11 +80,17 @@ jobs:
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
           set -euo pipefail
+          umask 077
+          [[ -n "$MACOS_CERTIFICATE_P12" && -n "$MACOS_CERTIFICATE_PASSWORD" ]] || {
+            echo "Developer ID certificate secrets are required." >&2
+            exit 1
+          }
           certificate_path="$RUNNER_TEMP/developer-id.p12"
           keychain_path="$RUNNER_TEMP/release.keychain-db"
           keychain_password=$(openssl rand -hex 24)
 
           printf '%s' "$MACOS_CERTIFICATE_P12" | openssl base64 -d -A -out "$certificate_path"
+          chmod 600 "$certificate_path"
           security create-keychain -p "$keychain_password" "$keychain_path"
           security set-keychain-settings -lut 21600 "$keychain_path"
           security unlock-keychain -p "$keychain_password" "$keychain_path"
@@ -69,6 +106,11 @@ jobs:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           set -euo pipefail
+          umask 077
+          [[ -n "$APP_STORE_CONNECT_PRIVATE_KEY" && -n "$SPARKLE_PRIVATE_KEY" ]] || {
+            echo "Apple and Sparkle private keys are required." >&2
+            exit 1
+          }
           app_store_key="$RUNNER_TEMP/AuthKey.p8"
           sparkle_key="$RUNNER_TEMP/sparkle-private-key.txt"
           printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$app_store_key"
@@ -84,23 +126,61 @@ jobs:
         run: |
           set -euo pipefail
           SPARKLE_RELEASE_VERSION="$MARKETING_VERSION" \
-            ./Scripts/make_appcast.sh "$RELEASE_ZIP" "$SPARKLE_FEED_URL"
-          grep -Fq 'sparkle:edSignature=' appcast.xml
-          grep -Fq "/releases/download/v${MARKETING_VERSION}/${RELEASE_ZIP}" appcast.xml
+          SPARKLE_RELEASE_NOTES_FILE="$GITHUB_WORKSPACE/RELEASE_NOTES.md" \
+            ./Scripts/make_appcast.sh \
+              "$RELEASE_ZIP" \
+              "$SPARKLE_FEED_URL" \
+              "$SPARKLE_PRODUCT_URL"
 
-      - name: Publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify release artifact
         run: |
           set -euo pipefail
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$RELEASE_ZIP" appcast.xml --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" "$RELEASE_ZIP" appcast.xml \
-              --verify-tag \
-              --title "Skills Manager ${MARKETING_VERSION}" \
-              --generate-notes
-          fi
+          evidence_dir="$GITHUB_WORKSPACE/release-evidence"
+          rm -rf "$evidence_dir"
+          mkdir "$evidence_dir"
+          jq '{id, status, message}' "$NOTARIZATION_RESULT_FILE" \
+            > "$evidence_dir/notarization-evidence.json"
+          [[ "$(jq -r '.status' "$evidence_dir/notarization-evidence.json")" == "Accepted" ]]
+          ./Scripts/verify_release_artifact.sh \
+            SkillsManager.app \
+            "$RELEASE_ZIP" \
+            appcast.xml \
+            "$evidence_dir/release-verification.txt"
+          cp appcast.xml RELEASE_NOTES.md "$evidence_dir/"
+
+      - name: Upload candidate evidence
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-candidate-evidence-${{ github.sha }}
+          retention-days: 3
+          if-no-files-found: error
+          path: |
+            release-evidence/appcast.xml
+            release-evidence/RELEASE_NOTES.md
+            release-evidence/notarization-evidence.json
+            release-evidence/release-verification.txt
+
+      - name: Stage tag release payload
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          payload_dir="$GITHUB_WORKSPACE/release-payload"
+          rm -rf "$payload_dir"
+          mkdir "$payload_dir"
+          cp "$RELEASE_ZIP" appcast.xml RELEASE_NOTES.md "$payload_dir/"
+
+      - name: Upload tag release payload
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-payload-${{ github.sha }}
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            release-payload/${{ env.RELEASE_ZIP }}
+            release-payload/appcast.xml
+            release-payload/RELEASE_NOTES.md
 
       - name: Remove release credentials
         if: always()
@@ -108,4 +188,71 @@ jobs:
           security delete-keychain "$RUNNER_TEMP/release.keychain-db" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/developer-id.p12" \
             "$RUNNER_TEMP/AuthKey.p8" \
-            "$RUNNER_TEMP/sparkle-private-key.txt"
+            "$RUNNER_TEMP/sparkle-private-key.txt" \
+            "$RUNNER_TEMP/notarization-result.json"
+          rm -rf "$GITHUB_WORKSPACE/SkillsManager.app" \
+            "$GITHUB_WORKSPACE/release-evidence" \
+            "$GITHUB_WORKSPACE/release-payload"
+          if [[ -n "${RELEASE_ZIP:-}" ]]; then
+            rm -f "$GITHUB_WORKSPACE/$RELEASE_ZIP"
+          fi
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified release payload
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-payload-${{ github.sha }}
+          path: release-payload
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          zip="SkillsManager-${version}.zip"
+          direct_tag_sha=$(git ls-remote \
+            "https://github.com/${GITHUB_REPOSITORY}.git" \
+            "refs/tags/$GITHUB_REF_NAME" \
+            | awk 'NR == 1 { print $1 }')
+          peeled_tag_sha=$(git ls-remote \
+            "https://github.com/${GITHUB_REPOSITORY}.git" \
+            "refs/tags/$GITHUB_REF_NAME^{}" \
+            | awk 'NR == 1 { print $1 }')
+          current_tag_sha=${peeled_tag_sha:-$direct_tag_sha}
+          [[ -n "$current_tag_sha" && "$current_tag_sha" == "$GITHUB_SHA" ]] || {
+            echo "Tag moved after the verified build." >&2
+            exit 1
+          }
+          mapfile -t files < <(find release-payload -maxdepth 1 -type f -exec basename {} \; | sort)
+          [[ "${#files[@]}" == "3" \
+            && -f "release-payload/$zip" \
+            && -f release-payload/appcast.xml \
+            && -f release-payload/RELEASE_NOTES.md ]] || {
+            echo "Unexpected release payload: ${files[*]}" >&2
+            exit 1
+          }
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --notes-file release-payload/RELEASE_NOTES.md
+            gh release upload "$GITHUB_REF_NAME" \
+              "release-payload/$zip" \
+              release-payload/appcast.xml \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              "release-payload/$zip" \
+              release-payload/appcast.xml \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --title "Skills Manager ${version}" \
+              --notes-file release-payload/RELEASE_NOTES.md
+          fi
