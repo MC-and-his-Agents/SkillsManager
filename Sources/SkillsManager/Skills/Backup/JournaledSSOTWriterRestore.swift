@@ -27,22 +27,62 @@ extension JournaledSSOTWriter {
             let status: SkillRestoreStatus =
                 existing?.payload.skill.contentFingerprint == backup.contentFingerprint
                 ? .noOp : .ready
+            let targets = try manifest.distributionSelection.bindingIntents.map { intent in
+                guard let entry = DistributionTargetCatalog.current.entry(
+                    for: intent.scope,
+                    slug: intent.distributionSlug
+                ) else {
+                    throw SkillDeletionError.backupCorrupt
+                }
+                return SkillDistributionTargetSummary(
+                    scopeKey: intent.scope.targetScopeKey,
+                    canonicalLocator: entry.canonicalLocator
+                )
+            }
+            let targetPayload = try existing.map {
+                try SSOTWritePayloadCodec.encode($0.payload)
+            }
             return SkillRestorePreview(
                 backupID: backupID,
                 originalSkillID: manifest.originalSkillID,
                 targetSkillID: targetID,
-                status: status
+                status: status,
+                summary: SkillBackupSummary(
+                    content: SkillContentSummary(
+                        displayName: manifest.payload.skill.displayName.value,
+                        contentFingerprint: manifest.contentFingerprint,
+                        statistics: manifest.statistics
+                    ),
+                    sourceLocator: manifest.payload.source.map {
+                        $0.subpath.value.isEmpty || $0.subpath.value == "."
+                            ? $0.repositoryURL.value
+                            : "\($0.repositoryURL.value)#\($0.subpath.value)"
+                    },
+                    targets: targets
+                ),
+                token: SkillRestorePreviewToken(
+                    backupUpdatedAtMilliseconds: backup.updatedAtMilliseconds,
+                    directoryIdentity: backup.directoryIdentity,
+                    manifestDigest: backup.manifestDigest,
+                    contentFingerprint: backup.contentFingerprint,
+                    targetSkillID: targetID,
+                    targetRevision: existing?.revision,
+                    targetPayload: targetPayload
+                )
             )
         }
     }
 
     func restoreBackup(
-        _ backupID: SkillBackupID,
+        preview: SkillRestorePreview,
         restoreDistribution: Bool = false
     ) throws -> SkillRestoreResult {
         try withStableSkillLifecycleErrors(.backupRead) {
-            try performRestoreBackup(
-                backupID,
+            guard try restorePreview(preview.backupID).token == preview.token else {
+                throw SkillDeletionError.previewExpired
+            }
+            return try performRestoreBackup(
+                preview.backupID,
                 restoreDistribution: restoreDistribution
             )
         }
