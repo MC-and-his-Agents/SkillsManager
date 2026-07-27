@@ -69,6 +69,15 @@ nonisolated final class SkillBackupStore {
         return records
     }
 
+    func list() throws -> [SkillBackupRecord] {
+        let statement = try connection.prepare(
+            Self.selectSQL + " ORDER BY created_at_ms DESC, backup_id"
+        )
+        var records: [SkillBackupRecord] = []
+        while try statement.step() { records.append(try decode(statement)) }
+        return records
+    }
+
     func recoverable() throws -> [SkillBackupRecord] {
         let statement = try connection.prepare(
             Self.selectSQL

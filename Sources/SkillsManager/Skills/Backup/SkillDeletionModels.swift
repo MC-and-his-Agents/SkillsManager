@@ -8,17 +8,45 @@ nonisolated enum SkillDeletionStatus: String, Sendable {
     case needsRepair
     case completed
     case cleanupPending
+    case rolledBack
 }
 
-nonisolated struct SkillDeletionPreview: Sendable {
+nonisolated struct SkillContentSummary: Equatable, Sendable {
+    let displayName: String
+    let contentFingerprint: SkillContentFingerprint
+    let statistics: SkillContentSnapshot.Statistics
+}
+
+nonisolated struct SkillDistributionTargetSummary: Equatable, Sendable, Identifiable {
+    let scopeKey: String
+    let canonicalLocator: String
+
+    var id: String { "\(scopeKey)\u{0}\(canonicalLocator)" }
+}
+
+nonisolated struct SkillDeletionPreviewToken: Equatable, Sendable {
+    let skillID: SkillID
+    let databaseRevision: Int64
+    let domainPayload: Data
+    let expectationPayload: Data
+    let ssotIdentity: ManagedItemIdentity
+    let contentFingerprint: SkillContentFingerprint
+    let statistics: SkillContentSnapshot.Statistics
+}
+
+nonisolated struct SkillDeletionPreview: Equatable, Sendable {
     let skillID: SkillID
     let displayName: String
-    let distributedTargetCount: Int
+    let content: SkillContentSummary?
+    let targets: [SkillDistributionTargetSummary]
     let status: SkillDeletionStatus
+    let operation: SkillDeletionResult?
+    let token: SkillDeletionPreviewToken?
 }
 
-nonisolated struct SkillDeletionResult: Sendable {
+nonisolated struct SkillDeletionResult: Equatable, Sendable {
     let operationID: SSOTOperationID
+    let skillID: SkillID
     let backupID: SkillBackupID
     let status: SkillDeletionStatus
 }
@@ -30,23 +58,65 @@ nonisolated enum SkillRestoreStatus: String, Sendable {
     case restoredUndistributed
 }
 
-nonisolated struct SkillRestorePreview: Sendable {
+nonisolated struct SkillBackupSummary: Equatable, Sendable {
+    let content: SkillContentSummary
+    let sourceLocator: String?
+    let targets: [SkillDistributionTargetSummary]
+}
+
+nonisolated struct SkillRestorePreviewToken: Equatable, Sendable {
+    let backupUpdatedAtMilliseconds: Int64
+    let directoryIdentity: ManagedItemIdentity
+    let manifestDigest: Data
+    let contentFingerprint: SkillContentFingerprint
+    let targetSkillID: SkillID
+    let targetRevision: Int64?
+    let targetPayload: Data?
+}
+
+nonisolated struct SkillRestorePreview: Equatable, Sendable {
     let backupID: SkillBackupID
     let originalSkillID: SkillID
     let targetSkillID: SkillID
     let status: SkillRestoreStatus
+    let summary: SkillBackupSummary
+    let token: SkillRestorePreviewToken
 }
 
-nonisolated struct SkillRestoreResult: Sendable {
+nonisolated struct SkillRestoreResult: Equatable, Sendable {
     let backupID: SkillBackupID
     let restoredSkillID: SkillID
     let status: SkillRestoreStatus
     let warnings: [String]
 }
 
-nonisolated enum SkillDeletionError: LocalizedError, Equatable {
+nonisolated enum SkillBackupCatalogAvailability: String, Sendable {
+    case available
+    case preparing
+    case pruning
+    case needsRepair
+    case corrupt
+    case permissionDenied
+    case unavailable
+}
+
+nonisolated struct SkillBackupCatalogItem: Equatable, Sendable, Identifiable {
+    let backupID: SkillBackupID
+    let originalSkillID: SkillID
+    let availability: SkillBackupCatalogAvailability
+    let isPinned: Bool
+    let restoredSkillID: SkillID?
+    let createdAtMilliseconds: Int64
+    let summary: SkillBackupSummary?
+    let problem: SkillDeletionError?
+
+    var id: SkillBackupID { backupID }
+}
+
+nonisolated enum SkillDeletionError: LocalizedError, Equatable, Sendable {
     case skillNotFound
     case conflict
+    case previewExpired
     case operationInProgress
     case needsRepair
     case backupCorrupt
@@ -57,6 +127,7 @@ nonisolated enum SkillDeletionError: LocalizedError, Equatable {
         switch self {
         case .skillNotFound: "The managed Skill was not found."
         case .conflict: "The managed Skill changed during deletion."
+        case .previewExpired: "The preview expired because the managed state changed."
         case .operationInProgress: "A deletion operation is already in progress."
         case .needsRepair: "The deletion operation requires repair."
         case .backupCorrupt: "The Skill backup is missing or corrupt."

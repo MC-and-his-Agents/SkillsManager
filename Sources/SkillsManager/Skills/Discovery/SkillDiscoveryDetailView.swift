@@ -125,6 +125,7 @@ struct SkillDiscoveryDetailView: View {
 
                 if observation.status == .managed, observation.matchedSkillID != nil {
                     SkillDistributionView()
+                    SkillDeletionView()
                 }
 
                 actionSection(for: item)

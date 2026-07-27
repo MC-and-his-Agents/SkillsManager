@@ -7,18 +7,23 @@ extension JournaledSSOTWriter {
             let operations = try SkillDeletionOperationStore(connection: connection).recoverable()
                 .filter { $0.skillID == skillID }
             if let operation = operations.first {
+                let readback = deletionResult(operation)
                 return SkillDeletionPreview(
                     skillID: skillID,
                     displayName: try journal.managedSkillRecord(skillID)?.displayName.value ?? "",
-                    distributedTargetCount: 0,
-                    status: operation.outcome == .needsRepair
-                        ? .needsRepair : .operationInProgress
+                    content: nil,
+                    targets: [],
+                    status: readback.status,
+                    operation: readback,
+                    token: nil
                 )
             }
             guard let domain = try journal.storedDomain(skillID) else {
                 throw SkillDeletionError.skillNotFound
             }
             let selection = try loadDistributionSelection(skillID: skillID)
+            let ownership = try DistributionLinkOwnershipStore(connection: connection)
+                .load(skillID: skillID)
             let reconcile = try distribution.reconcile(skillID: skillID)
             guard reconcile.status == .inSync else {
                 if reconcile.status == .needsRepair { throw SkillDeletionError.needsRepair }
@@ -27,11 +32,53 @@ extension JournaledSSOTWriter {
                 }
                 throw SkillDeletionError.conflict
             }
+            guard let ssotIdentity = try fileSystem.managedRootGuard.itemIdentity(
+                at: fileSystem.finalURL(skillID: skillID)
+            ) else {
+                throw SkillDeletionError.conflict
+            }
+            let snapshot = try fileSystem.captureExpectedFinal(
+                skillID: skillID,
+                expectedIdentity: ssotIdentity,
+                expectedFingerprint: domain.payload.skill.contentFingerprint
+            )
+            let expectation = SkillDeletionExpectation(
+                databaseRevision: domain.revision,
+                selection: selection,
+                ownership: ownership
+            )
+            let targets = try selection.bindings.map { binding in
+                guard let entry = DistributionTargetCatalog.current.entry(
+                    for: binding.scope,
+                    slug: binding.distributionSlug
+                ) else {
+                    throw SkillDeletionError.needsRepair
+                }
+                return SkillDistributionTargetSummary(
+                    scopeKey: binding.scope.targetScopeKey,
+                    canonicalLocator: entry.canonicalLocator
+                )
+            }
             return SkillDeletionPreview(
                 skillID: skillID,
                 displayName: domain.payload.skill.displayName.value,
-                distributedTargetCount: selection.bindings.count,
-                status: .ready
+                content: SkillContentSummary(
+                    displayName: domain.payload.skill.displayName.value,
+                    contentFingerprint: domain.payload.skill.contentFingerprint,
+                    statistics: snapshot.statistics
+                ),
+                targets: targets,
+                status: .ready,
+                operation: nil,
+                token: SkillDeletionPreviewToken(
+                    skillID: skillID,
+                    databaseRevision: domain.revision,
+                    domainPayload: try SSOTWritePayloadCodec.encode(domain.payload),
+                    expectationPayload: try expectation.canonicalData(),
+                    ssotIdentity: ssotIdentity,
+                    contentFingerprint: domain.payload.skill.contentFingerprint,
+                    statistics: snapshot.statistics
+                )
             )
         }
     }
@@ -42,6 +89,26 @@ extension JournaledSSOTWriter {
         try withStableSkillLifecycleErrors(.mutation) {
             try requireAuthority()
             return try SkillDeletionOperationStore(connection: connection).load(operationID)
+        }
+    }
+
+    func deletionReadback(
+        _ operationID: SSOTOperationID
+    ) throws -> SkillDeletionResult {
+        try withStableSkillLifecycleErrors(.mutation) {
+            try requireAuthority()
+            return deletionResult(
+                try SkillDeletionOperationStore(connection: connection).load(operationID)
+            )
+        }
+    }
+
+    func recoverableDeletionReadbacks() throws -> [SkillDeletionResult] {
+        try withStableSkillLifecycleErrors(.mutation) {
+            try requireAuthority()
+            return try SkillDeletionOperationStore(connection: connection)
+                .recoverable()
+                .map(deletionResult)
         }
     }
 

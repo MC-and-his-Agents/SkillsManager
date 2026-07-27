@@ -85,7 +85,7 @@ struct JournaledSSOTWriterDeletionTests {
             sourceSnapshot: snapshot
         )
 
-        let deletion = try await writer.deleteManagedSkill(skillID: skillID)
+        let deletion = try await deleteManagedSkill(writer, skillID: skillID)
         #expect(deletion.status == .completed)
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 0)
         #expect(!FileManager.default.fileExists(
@@ -95,8 +95,8 @@ struct JournaledSSOTWriterDeletionTests {
         let backups = try await writer.listBackups(originalSkillID: skillID)
         #expect(backups.count == 1)
         #expect(backups[0].state == .available)
-        let restored = try await writer.restoreBackup(backups[0].backupID)
-        let repeated = try await writer.restoreBackup(backups[0].backupID)
+        let restored = try await restoreBackup(writer, backupID: backups[0].backupID)
+        let repeated = try await restoreBackup(writer, backupID: backups[0].backupID)
         #expect(restored.restoredSkillID == skillID)
         #expect(repeated.restoredSkillID == restored.restoredSkillID)
         #expect(repeated.status == restored.status)
@@ -113,9 +113,9 @@ struct JournaledSSOTWriterDeletionTests {
             payload: workspace.payload(skillID: skillID, name: "Retry", snapshot: snapshot),
             sourceSnapshot: snapshot
         )
-        _ = try await writer.deleteManagedSkill(skillID: skillID)
+        _ = try await deleteManagedSkill(writer, skillID: skillID)
         let backup = try await writer.listBackups(originalSkillID: skillID)[0]
-        let restored = try await writer.restoreBackup(backup.backupID)
+        let restored = try await restoreBackup(writer, backupID: backup.backupID)
 
         let connection = try SQLiteConnection(url: workspace.database)
         let store = try SkillBackupStore(connection: connection)
@@ -136,13 +136,14 @@ struct JournaledSSOTWriterDeletionTests {
         )
         try store.replace(expected: persisted, with: conflict)
 
-        let retried = try await writer.restoreBackup(
-            backup.backupID,
+        let retried = try await restoreBackup(
+            writer,
+            backupID: backup.backupID,
             restoreDistribution: true
         )
         #expect(retried.status == .completed)
         #expect(retried.warnings.isEmpty)
-        let repeated = try await writer.restoreBackup(backup.backupID)
+        let repeated = try await restoreBackup(writer, backupID: backup.backupID)
         #expect(repeated.status == retried.status)
         #expect(repeated.warnings == retried.warnings)
     }
@@ -171,9 +172,9 @@ struct JournaledSSOTWriterDeletionTests {
             ),
             sourceSnapshot: snapshot
         )
-        _ = try await writer.deleteManagedSkill(skillID: skillID)
+        _ = try await deleteManagedSkill(writer, skillID: skillID)
         let backup = try await writer.listBackups(originalSkillID: skillID)[0]
-        let restored = try await writer.restoreBackup(backup.backupID)
+        let restored = try await restoreBackup(writer, backupID: backup.backupID)
         #expect(restored.warnings.isEmpty)
 
         let connection = try SQLiteConnection(url: workspace.database)
@@ -187,7 +188,7 @@ struct JournaledSSOTWriterDeletionTests {
         try clear.bind(backup.backupID.bytes, at: 1)
         _ = try clear.step()
 
-        let retried = try await writer.restoreBackup(backup.backupID)
+        let retried = try await restoreBackup(writer, backupID: backup.backupID)
         #expect(retried.status == .completed)
         #expect(retried.warnings.isEmpty)
         #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 1)
@@ -218,7 +219,7 @@ struct JournaledSSOTWriterDeletionTests {
             sourceSnapshot: snapshot
         )
         do {
-            _ = try await writer!.deleteManagedSkill(skillID: skillID)
+            _ = try await deleteManagedSkill(writer!, skillID: skillID)
             Issue.record("Expected deletion checkpoint interruption")
         } catch is SSOTWriterCheckpointInterruption {}
         writer = nil
@@ -255,7 +256,8 @@ struct JournaledSSOTWriterDeletionTests {
             sourceSnapshot: snapshot
         )
         await #expect(throws: SSOTWriterCheckpointInterruption.self) {
-            _ = try await writer!.deleteManagedSkill(
+            _ = try await deleteManagedSkill(
+                writer!,
                 skillID: skillID,
                 operationID: operationID,
                 backupID: backupID
@@ -277,6 +279,7 @@ struct JournaledSSOTWriterDeletionTests {
         #expect(operation.lastError == nil)
         #expect(operation.phase == .completed)
         #expect(operation.outcome == .rolledBack)
+        #expect(try await recovered.deletionReadback(operationID).status == .rolledBack)
     }
 
     @Test("management lock drift blocks backup promotion")
@@ -302,7 +305,7 @@ struct JournaledSSOTWriterDeletionTests {
         )
 
         await #expect(throws: SkillDeletionError.unavailable) {
-            _ = try await writer.deleteManagedSkill(skillID: skillID)
+            _ = try await deleteManagedSkill(writer, skillID: skillID)
         }
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
         #expect(try workspace.scalar(
@@ -324,7 +327,7 @@ struct JournaledSSOTWriterDeletionTests {
             ),
             sourceSnapshot: original
         )
-        _ = try await writer.deleteManagedSkill(skillID: originalID)
+        _ = try await deleteManagedSkill(writer, skillID: originalID)
         let backup = try await writer.listBackups(originalSkillID: originalID)[0]
 
         let replacement = try workspace.snapshot(content: "replacement")
@@ -336,8 +339,8 @@ struct JournaledSSOTWriterDeletionTests {
             ),
             sourceSnapshot: replacement
         )
-        let restored = try await writer.restoreBackup(backup.backupID)
-        let repeated = try await writer.restoreBackup(backup.backupID)
+        let restored = try await restoreBackup(writer, backupID: backup.backupID)
+        let repeated = try await restoreBackup(writer, backupID: backup.backupID)
         #expect(restored.restoredSkillID != originalID)
         #expect(repeated.restoredSkillID == restored.restoredSkillID)
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 2)
@@ -353,7 +356,7 @@ struct JournaledSSOTWriterDeletionTests {
             payload: workspace.payload(skillID: skillID, name: "Trusted", snapshot: snapshot),
             sourceSnapshot: snapshot
         )
-        _ = try await writer.deleteManagedSkill(skillID: skillID)
+        _ = try await deleteManagedSkill(writer, skillID: skillID)
         let backup = try await writer.listBackups(originalSkillID: skillID)[0]
         let file = workspace.managementRoot
             .appendingPathComponent("skill-backups")
@@ -362,7 +365,7 @@ struct JournaledSSOTWriterDeletionTests {
         try Data("tampered".utf8).write(to: file)
 
         await #expect(throws: (any Error).self) {
-            _ = try await writer.restoreBackup(backup.backupID)
+            _ = try await restoreBackup(writer, backupID: backup.backupID)
         }
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 0)
     }
@@ -380,10 +383,10 @@ struct JournaledSSOTWriterDeletionTests {
             sourceSnapshot: snapshot
         )
         for _ in 0..<11 {
-            _ = try await writer.deleteManagedSkill(skillID: skillID)
+            _ = try await deleteManagedSkill(writer, skillID: skillID)
             let backup = try await writer.listBackups(originalSkillID: skillID)
                 .first { $0.restoreResultJSON == nil }!
-            _ = try await writer.restoreBackup(backup.backupID)
+            _ = try await restoreBackup(writer, backupID: backup.backupID)
         }
 
         let result = try await writer.runBackupRetention(
@@ -393,4 +396,30 @@ struct JournaledSSOTWriterDeletionTests {
         #expect(result.prunedBackupIDs.count == 1)
         #expect(try await writer.listBackups(originalSkillID: skillID).count == 10)
     }
+}
+
+private func deleteManagedSkill(
+    _ writer: JournaledSSOTWriter,
+    skillID: SkillID,
+    operationID: SSOTOperationID = SSOTOperationID(),
+    backupID: SkillBackupID = SkillBackupID()
+) async throws -> SkillDeletionResult {
+    let preview = try await writer.deletionPreview(skillID: skillID)
+    return try await writer.deleteManagedSkill(
+        preview: preview,
+        operationID: operationID,
+        backupID: backupID
+    )
+}
+
+private func restoreBackup(
+    _ writer: JournaledSSOTWriter,
+    backupID: SkillBackupID,
+    restoreDistribution: Bool = false
+) async throws -> SkillRestoreResult {
+    let preview = try await writer.restorePreview(backupID)
+    return try await writer.restoreBackup(
+        preview: preview,
+        restoreDistribution: restoreDistribution
+    )
 }

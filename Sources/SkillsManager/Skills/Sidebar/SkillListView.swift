@@ -54,17 +54,6 @@ struct SkillListView: View {
             }
         }
         .listStyle(.sidebar)
-        .alert(
-            "Unable to Delete Skill",
-            isPresented: Binding(
-                get: { store.deleteErrorMessage != nil },
-                set: { if !$0 { store.deleteErrorMessage = nil } }
-            )
-        ) {
-            Button("OK") { store.deleteErrorMessage = nil }
-        } message: {
-            Text(store.deleteErrorMessage ?? "The Skill could not be deleted safely.")
-        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -195,19 +184,6 @@ struct SkillListView: View {
                 skill: skill.skill,
                 installedPlatforms: skill.installedPlatforms
             )
-            .swipeActions(edge: .trailing) {
-                Button(role: .destructive) {
-                    Task { await store.deleteSkills(ids: skill.deleteIDs) }
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-        }
-        .onDelete { offsets in
-            let ids = offsets
-                .filter { skills.indices.contains($0) }
-                .flatMap { skills[$0].deleteIDs }
-            Task { await store.deleteSkills(ids: ids) }
         }
     }
 }

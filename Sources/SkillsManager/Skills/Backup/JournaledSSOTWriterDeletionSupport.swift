@@ -2,13 +2,13 @@ import Foundation
 
 extension JournaledSSOTWriter {
     func deleteManagedSkill(
-        skillID: SkillID,
+        preview: SkillDeletionPreview,
         operationID: SSOTOperationID = SSOTOperationID(),
         backupID: SkillBackupID = SkillBackupID()
     ) throws -> SkillDeletionResult {
         try withStableSkillLifecycleErrors(.mutation) {
             try performDeleteManagedSkill(
-                skillID: skillID,
+                preview: preview,
                 operationID: operationID,
                 backupID: backupID
             )
@@ -16,12 +16,18 @@ extension JournaledSSOTWriter {
     }
 
     private func performDeleteManagedSkill(
-        skillID: SkillID,
+        preview: SkillDeletionPreview,
         operationID: SSOTOperationID,
         backupID: SkillBackupID
     ) throws -> SkillDeletionResult {
         try requireAuthority()
-        _ = try deletionPreview(skillID: skillID)
+        guard preview.status == .ready,
+              let token = preview.token,
+              token.skillID == preview.skillID,
+              try deletionPreview(skillID: preview.skillID).token == token else {
+            throw SkillDeletionError.previewExpired
+        }
+        let skillID = preview.skillID
         guard let domain = try journal.storedDomain(skillID) else {
             throw SkillDeletionError.skillNotFound
         }
@@ -134,6 +140,62 @@ extension JournaledSSOTWriter {
         }
     }
 
+    func backupCatalog() throws -> [SkillBackupCatalogItem] {
+        try withStableSkillLifecycleErrors(.backupRead) {
+            try requireAuthority()
+            return try SkillBackupStore(connection: connection).list().map { record in
+                try backupCatalogItem(record)
+            }
+        }
+    }
+
+    private func backupCatalogItem(
+        _ record: SkillBackupRecord
+    ) throws -> SkillBackupCatalogItem {
+        var availability = SkillBackupCatalogAvailability.unavailable
+        var summary: SkillBackupSummary?
+        var problem: SkillDeletionError?
+        switch record.state {
+        case .preparing:
+            availability = .preparing
+            summary = nil
+            problem = nil
+        case .pruning:
+            availability = .pruning
+            summary = nil
+            problem = nil
+        case .needsRepair:
+            availability = .needsRepair
+            summary = nil
+            problem = .needsRepair
+        case .available:
+            do {
+                availability = .available
+                summary = try restorePreview(record.backupID).summary
+                problem = nil
+            } catch let error as SkillDeletionError {
+                summary = nil
+                problem = error
+                availability = switch error {
+                case .backupCorrupt: .corrupt
+                case .permissionDenied: .permissionDenied
+                case .needsRepair: .needsRepair
+                default: .unavailable
+                }
+            }
+        }
+        return SkillBackupCatalogItem(
+            backupID: record.backupID,
+            originalSkillID: record.originalSkillID,
+            availability: availability,
+            isPinned: record.isPinned,
+            restoredSkillID: record.restoredSkillID,
+            createdAtMilliseconds: record.createdAtMilliseconds,
+            summary: summary,
+            problem: problem
+        )
+    }
+
     func validateBackup(_ backupID: SkillBackupID) throws -> SkillBackupRecord {
         try withStableSkillLifecycleErrors(.backupRead) {
             try requireAuthority()
@@ -182,11 +244,16 @@ extension JournaledSSOTWriter {
             status = .completed
         } else if operation.outcome == .applied {
             status = .cleanupPending
+        } else if operation.phase == .databaseCommitted {
+            status = .cleanupPending
+        } else if operation.outcome == .rolledBack {
+            status = .rolledBack
         } else {
             status = .operationInProgress
         }
         return SkillDeletionResult(
             operationID: operation.operationID,
+            skillID: operation.skillID,
             backupID: operation.backupID,
             status: status
         )

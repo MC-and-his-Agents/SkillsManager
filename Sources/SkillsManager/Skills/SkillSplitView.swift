@@ -5,10 +5,12 @@ struct SkillSplitView: View {
     @Environment(SkillStore.self) private var store
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
+    @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
 
     @State private var searchText = ""
     @State private var showingImport = false
     @State private var showingAddPath = false
+    @State private var showingBackups = false
     @State private var source: SkillSource = .local
     @State private var downloadErrorMessage: String?
     @State private var isDownloadingRemote = false
@@ -57,6 +59,10 @@ struct SkillSplitView: View {
             .sheet(isPresented: $showingAddPath) {
                 AddCustomPathView()
                     .environment(store)
+            }
+            .sheet(isPresented: $showingBackups) {
+                SkillBackupLibraryView()
+                    .environment(lifecycleModel)
             }
             .sheet(item: $installSkill) { skill in
                 RemoteInstallSheet(
@@ -131,6 +137,25 @@ struct SkillSplitView: View {
 
     @ToolbarContentBuilder
     private func toolbarContent() -> some CustomizableToolbarContent {
+        if source == .discovery {
+            ToolbarItem(id: "backups") {
+                Button {
+                    showingBackups = true
+                    Task { await lifecycleModel.refreshBackupsOnly() }
+                } label: {
+                    Label("Skill Backups", systemImage: "archivebox")
+                        .labelStyle(.iconOnly)
+                }
+                .disabled(lifecycleModel.isMutating)
+                .help("Skill Backups")
+                .accessibilityLabel(
+                    lifecycleModel.availableBackupCount == 0
+                        ? "Skill Backups"
+                        : "Skill Backups, \(lifecycleModel.availableBackupCount) available"
+                )
+            }
+        }
+
         if source == .clawdhub {
             ToolbarItem(id: "download") {
                 Button {
@@ -394,6 +419,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillDistributionViewModel.self) private var distributionModel
+    @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
 
     @Binding var source: SkillSource
@@ -416,7 +442,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 Task { await remoteStore.loadSelectedSkill() }
             }
             .onChange(of: distributionSelectionKey) { _, _ in
-                Task { await refreshDistributionSelection() }
+                Task { await refreshManagedSelection() }
             }
             .onChange(of: source) { _, newValue in
                 if newValue != .clawdhub {
@@ -439,6 +465,12 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             .onChange(of: libraryRuntime.readiness) { _, _ in
                 Task { await synchronizeDiscoveryRuntime() }
             }
+            .onChange(of: lifecycleModel.publishedMutationGeneration) { _, _ in
+                Task {
+                    await store.loadSkills()
+                    await discoveryModel.refresh()
+                }
+            }
             .onChange(of: scenePhase) { oldValue, newValue in
                 guard oldValue != .active,
                       newValue == .active,
@@ -459,6 +491,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             distributionModel.blockRuntime(
                 message: "The managed library is not ready. Resolve its startup diagnostics first."
             )
+            lifecycleModel.blockRuntime(
+                message: "The managed library is not ready. Resolve its startup diagnostics first."
+            )
             return
         }
         guard let writer = store.persistence else {
@@ -466,6 +501,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 message: "The managed library session is unavailable."
             )
             distributionModel.blockRuntime(
+                message: "The managed library session is unavailable."
+            )
+            lifecycleModel.blockRuntime(
                 message: "The managed library session is unavailable."
             )
             return
@@ -483,15 +521,19 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             await discoveryModel.refresh()
         }
         distributionModel.activate(dependencies: .live(writer: writer))
-        await refreshDistributionSelection()
+        lifecycleModel.activate(dependencies: .live(writer: writer))
+        await refreshManagedSelection()
     }
 
-    private func refreshDistributionSelection() async {
+    private func refreshManagedSelection() async {
         let observation = discoveryModel.selectedItem?.observation
         let isManaged = observation?.status == .managed
         await distributionModel.refresh(
             skillID: isManaged ? observation?.matchedSkillID : nil,
             displayName: isManaged ? observation?.relativeLocator : nil
+        )
+        await lifecycleModel.refresh(
+            skillID: isManaged ? observation?.matchedSkillID : nil
         )
     }
 

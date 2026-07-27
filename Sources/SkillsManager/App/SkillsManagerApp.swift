@@ -13,6 +13,7 @@ struct SkillsManagerApp: App {
     @State private var store: SkillStore
     @State private var discoveryModel = SkillDiscoveryViewModel()
     @State private var distributionModel = SkillDistributionViewModel()
+    @State private var lifecycleModel = SkillLifecycleViewModel()
     @State private var libraryRuntime = LibraryRuntimeState()
     @State private var remoteStore = RemoteSkillStore(client: .live())
     @State private var runtimeBootstrap = AppLibraryRuntimeBootstrap()
@@ -32,6 +33,7 @@ struct SkillsManagerApp: App {
                 .environment(customPathStore)
                 .environment(discoveryModel)
                 .environment(distributionModel)
+                .environment(lifecycleModel)
                 .environment(libraryRuntime)
                 .task {
                     await runtimeBootstrap.start(

@@ -23,7 +23,6 @@ import Observation
         let id: Skill.ID
         let skill: Skill
         let installedPlatforms: Set<SkillPlatform>
-        let deleteIDs: [Skill.ID]
     }
 
     struct CliStatus {
@@ -41,7 +40,6 @@ import Observation
     var selectedMarkdown: String = ""
     var selectedReferenceID: SkillReference.ID?
     var selectedReferenceMarkdown: String = ""
-    var deleteErrorMessage: String?
 
     private let fileWorker = SkillFileWorker()
     private let importWorker = SkillImportWorker()
@@ -208,26 +206,6 @@ import Observation
         }
     }
 
-    func deleteSkills(ids: [Skill.ID]) async {
-        deleteErrorMessage = nil
-        var failures: [String] = []
-        for id in ids {
-            guard let skill = skills.first(where: { $0.id == id }) else { continue }
-            do {
-                try ManagedSkillRemoval.remove(
-                    targetURL: skill.folderURL,
-                    managedRoot: skill.managedRoot
-                )
-            } catch {
-                failures.append("\(skill.displayName): \(error.localizedDescription)")
-            }
-        }
-        await loadSkills()
-        if !failures.isEmpty {
-            deleteErrorMessage = failures.joined(separator: "\n")
-        }
-    }
-
     func isOwnedSkill(_ skill: Skill) -> Bool {
         // Skills from custom paths are always considered "owned"
         if skill.customPath != nil {
@@ -286,8 +264,7 @@ import Observation
             return LocalSkillGroup(
                 id: preferredSelection.id,
                 skill: preferredContent,
-                installedPlatforms: installedPlatforms,
-                deleteIDs: filteredSkills.map(\.id)
+                installedPlatforms: installedPlatforms
             )
         }
         .sorted { lhs, rhs in
