@@ -41,14 +41,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.swift == 'true'
-      - name: Set up Swift 6.2
-        if: needs.changes.outputs.swift == 'true'
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "6.2"
       - name: Build
         if: needs.changes.outputs.swift == 'true'
-        run: swift build
+        run: |
+          swift --version
+          swift build
       - name: Skip Swift build
         if: needs.changes.outputs.swift != 'true'
         run: echo "No Swift changes; build is not required."
@@ -59,14 +56,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.swift == 'true'
-      - name: Set up Swift 6.2
-        if: needs.changes.outputs.swift == 'true'
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "6.2"
       - name: Test
         if: needs.changes.outputs.swift == 'true'
-        run: swift test --no-parallel
+        run: |
+          swift --version
+          swift test --no-parallel
       - name: Skip Swift tests
         if: needs.changes.outputs.swift != 'true'
         run: echo "No Swift changes; tests are not required."
