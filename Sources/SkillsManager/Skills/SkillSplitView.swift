@@ -416,10 +416,12 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
     }
 
     private func refreshManagedSelection() async {
+        let selection = managedSelection
         await refreshManagedSkillSelection(
-            managedSelection,
+            selection,
             distributionModel: distributionModel,
-            lifecycleModel: lifecycleModel
+            lifecycleModel: lifecycleModel,
+            isCurrent: { selection == managedSelection }
         )
     }
 
@@ -475,12 +477,9 @@ struct ManagedSkillSelection: Equatable, Sendable {
         discovery: Self?
     ) -> Self? {
         switch source {
-        case .local:
-            local
-        case .discovery:
-            discovery
-        case .clawdhub:
-            nil
+        case .local: local
+        case .discovery: discovery
+        case .clawdhub: nil
         }
     }
 }
@@ -489,12 +488,13 @@ struct ManagedSkillSelection: Equatable, Sendable {
 func refreshManagedSkillSelection(
     _ selection: ManagedSkillSelection?,
     distributionModel: SkillDistributionViewModel,
-    lifecycleModel: SkillLifecycleViewModel
+    lifecycleModel: SkillLifecycleViewModel,
+    isCurrent: @MainActor () -> Bool
 ) async {
-    async let distribution: Void = distributionModel.refresh(
+    await distributionModel.refresh(
         skillID: selection?.skillID,
         displayName: selection?.displayName
     )
-    async let lifecycle: Void = lifecycleModel.refresh(skillID: selection?.skillID)
-    _ = await (distribution, lifecycle)
+    guard isCurrent() else { return }
+    await lifecycleModel.refresh(skillID: selection?.skillID)
 }

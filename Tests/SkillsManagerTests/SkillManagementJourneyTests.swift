@@ -85,28 +85,35 @@ struct SkillManagementJourneyTests {
             }
         ))
 
+        var current: ManagedSkillSelection? = first
         let stale = Task {
             await refreshManagedSkillSelection(
                 first,
                 distributionModel: distribution,
-                lifecycleModel: lifecycle
+                lifecycleModel: lifecycle,
+                isCurrent: { current == first }
             )
         }
         try await Task.sleep(for: .milliseconds(5))
+        current = second
         await refreshManagedSkillSelection(
             second,
             distributionModel: distribution,
-            lifecycleModel: lifecycle
+            lifecycleModel: lifecycle,
+            isCurrent: { current == second }
         )
-        await stale.value
 
         #expect(lifecycle.deletionState == .ready(secondPreview))
 
+        current = nil
         await refreshManagedSkillSelection(
             nil,
             distributionModel: distribution,
-            lifecycleModel: lifecycle
+            lifecycleModel: lifecycle,
+            isCurrent: { current == nil }
         )
+        await stale.value
+
         #expect(lifecycle.deletionState == .empty)
         #expect(distribution.loadState == .empty)
     }
