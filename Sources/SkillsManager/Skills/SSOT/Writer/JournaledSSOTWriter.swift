@@ -93,13 +93,14 @@ actor JournaledSSOTWriter {
             connection: connection,
             fileSystem: distributionFileSystem
         )
-        let copyDistribution = try DistributionCopyExecutor(
-            connection: connection,
-            fileSystem: distributionFileSystem
-        )
         let backupFileSystem = try SkillBackupFileSystem(
             managementRoot: managementRoot,
             ownership: ownership
+        )
+        let copyDistribution = try DistributionCopyExecutor(
+            connection: connection,
+            fileSystem: distributionFileSystem,
+            backupFileSystem: backupFileSystem
         )
         try distribution.recoverAll()
         try copyDistribution.recoverAll()

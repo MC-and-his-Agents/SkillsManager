@@ -188,7 +188,8 @@ nonisolated extension DistributionCopyExecutor {
         expectedOldLinks: [DistributionLinkOwnership],
         source: DistributionCopySource,
         operationID: SSOTOperationID,
-        approvedCopyDrift: DistributionCopyEvidence? = nil
+        approvedCopyDrift: DistributionCopyEvidence? = nil,
+        approvedHistoricalMigration: DistributionHistoricalMigrationApproval? = nil
     ) throws -> DistributionOperationPreflightV2 {
         guard try configurationStore.load(skillID: skillID)
                 == plan.expectedOldConfigured,
@@ -210,7 +211,8 @@ nonisolated extension DistributionCopyExecutor {
                 oldLinks: expectedOldLinks,
                 source: source,
                 operationID: operationID,
-                approvedCopyDrift: approvedCopyDrift
+                approvedCopyDrift: approvedCopyDrift,
+                approvedHistoricalMigration: approvedHistoricalMigration
             )
         }
         return DistributionOperationPreflightV2(
@@ -240,7 +242,8 @@ nonisolated extension DistributionCopyExecutor {
         oldLinks: [DistributionLinkOwnership],
         source: DistributionCopySource,
         operationID: SSOTOperationID,
-        approvedCopyDrift: DistributionCopyEvidence?
+        approvedCopyDrift: DistributionCopyEvidence?,
+        approvedHistoricalMigration: DistributionHistoricalMigrationApproval?
     ) throws -> DistributionOperationPreflightActionV2 {
         let old = oldBindings.first {
             $0.scope == action.entry.target.scope
@@ -249,6 +252,9 @@ nonisolated extension DistributionCopyExecutor {
         let oldLink = oldLinks.first {
             $0.targetScopeKey == action.entry.target.scope.targetScopeKey
         }
+        let isHistoricalMigration = old == nil
+            && action.kind == .replaceCopyWithSymlink
+            && approvedHistoricalMigration != nil
         let observation = try old.map {
             try observeCurrent(
                 action.entry,
@@ -257,13 +263,29 @@ nonisolated extension DistributionCopyExecutor {
                 linkOwnership: oldLinks
             )
         } ?? observeUnmanaged(action.entry)
-        try requirePreflightObservation(
-            action.kind,
-            observation: observation,
-            skillID: skillID,
-            approvedCopyDrift: approvedCopyDrift
-        )
+        if let approvedHistoricalMigration, isHistoricalMigration {
+            let current = try fileSystem.captureCopy(
+                action.entry,
+                expectedRootIdentity: approvedHistoricalMigration.source.rootIdentity,
+                expectedEntryIdentity: approvedHistoricalMigration.source.entryIdentity
+            ).evidence
+            guard current == approvedHistoricalMigration.source else {
+                throw DistributionSymlinkExecutorError.conflict
+            }
+        } else {
+            try requirePreflightObservation(
+                action.kind,
+                observation: observation,
+                skillID: skillID,
+                approvedCopyDrift: approvedCopyDrift
+            )
+        }
         let root = try fileSystem.existingRoot(for: action.entry.target.scope)
+        if let approvedHistoricalMigration, isHistoricalMigration {
+            guard root == approvedHistoricalMigration.source.rootIdentity else {
+                throw DistributionSymlinkExecutorError.conflict
+            }
+        }
         return try DistributionOperationPreflightActionV2(
             actionIndex: index,
             kind: action.kind.rawValue,
@@ -273,7 +295,9 @@ nonisolated extension DistributionCopyExecutor {
             oldCopy: try preflightOldCopy(
                 action: action,
                 old: old,
-                approvedCopyDrift: approvedCopyDrift
+                approvedCopyDrift: approvedCopyDrift,
+                approvedHistoricalMigration: isHistoricalMigration
+                    ? approvedHistoricalMigration : nil
             ),
             oldLink: oldLink.map {
                 try DistributionLinkEvidenceWireV2(
@@ -297,7 +321,11 @@ nonisolated extension DistributionCopyExecutor {
                     operationID: operationID,
                     actionIndex: index
                 )
-                : nil
+                : nil,
+            historicalMigrationBackup: try isHistoricalMigration
+                ? approvedHistoricalMigration.map {
+                    try DistributionHistoricalMigrationBackupWireV2($0.backup)
+                } : nil
         )
     }
 
@@ -440,8 +468,14 @@ nonisolated extension DistributionCopyExecutor {
     private func preflightOldCopy(
         action: DistributionFilesystemAction,
         old: DistributionBinding?,
-        approvedCopyDrift: DistributionCopyEvidence?
+        approvedCopyDrift: DistributionCopyEvidence?,
+        approvedHistoricalMigration: DistributionHistoricalMigrationApproval?
     ) throws -> DistributionCopyEvidenceWireV2? {
+        if let approvedHistoricalMigration {
+            return try DistributionCopyEvidenceWireV2(
+                approvedHistoricalMigration.source
+            )
+        }
         if action.kind == .discardCopyDrift {
             guard let approvedCopyDrift else {
                 throw DistributionSymlinkExecutorError.conflict

@@ -16,6 +16,7 @@ nonisolated extension SkillBackupManifestV1 {
         let forkLineage: ForkLineageWire?
         let distributionSelection: SelectionWire
         let content: ContentWire
+        let migrationMetadata: MigrationWire?
 
         enum CodingKeys: String, CodingKey {
             case aliases
@@ -26,6 +27,7 @@ nonisolated extension SkillBackupManifestV1 {
             case distributionSelection = "distribution_selection"
             case forkLineage = "fork_lineage"
             case localOrigins = "local_origins"
+            case migrationMetadata = "migration_metadata"
             case originalSkillID = "original_skill_id"
             case providerProvenance = "provider_provenance"
             case restoredFromSkillID = "restored_from_skill_id"
@@ -34,7 +36,7 @@ nonisolated extension SkillBackupManifestV1 {
             case source
         }
 
-        init(_ manifest: SkillBackupManifestV1) {
+        init(_ manifest: SkillBackupManifestV1) throws {
             schemaVersion = SkillBackupManifestV1.schemaVersion
             backupID = manifest.backupID.uuid.uuidString.lowercased()
             originalSkillID = manifest.originalSkillID.uuid.uuidString.lowercased()
@@ -59,6 +61,7 @@ nonisolated extension SkillBackupManifestV1 {
                 fingerprint: manifest.contentFingerprint,
                 statistics: manifest.statistics
             )
+            migrationMetadata = try manifest.migrationMetadata.map(MigrationWire.init)
         }
 
         init(from decoder: Decoder) throws {
@@ -92,6 +95,10 @@ nonisolated extension SkillBackupManifestV1 {
                 forKey: .distributionSelection
             )
             content = try container.decode(ContentWire.self, forKey: .content)
+            migrationMetadata = try container.decodeIfPresent(
+                MigrationWire.self,
+                forKey: .migrationMetadata
+            )
         }
 
         func encode(to encoder: Encoder) throws {
@@ -116,6 +123,7 @@ nonisolated extension SkillBackupManifestV1 {
             try container.encodeIfPresent(forkLineage, forKey: .forkLineage)
             try container.encode(distributionSelection, forKey: .distributionSelection)
             try container.encode(content, forKey: .content)
+            try container.encodeIfPresent(migrationMetadata, forKey: .migrationMetadata)
         }
 
         func manifest() throws -> SkillBackupManifestV1 {
@@ -155,7 +163,92 @@ nonisolated extension SkillBackupManifestV1 {
                 databaseRevision: databaseRevision,
                 distributionSelection: selection,
                 statistics: content.statistics,
-                createdAtMilliseconds: createdAtMilliseconds
+                createdAtMilliseconds: createdAtMilliseconds,
+                migrationMetadata: try migrationMetadata?.metadata()
+            )
+        }
+    }
+
+    struct MigrationWire: Codable {
+        let operationID: String
+        let sourceScopeKey: String
+        let sourceScopeKind: String
+        let adapterCode: String?
+        let rawLocator: String
+        let normalizedLocator: String
+        let rootIdentity: Data
+        let candidateIdentity: Data
+        let fingerprintAlgorithmVersion: Int
+        let contentFingerprint: String
+        let createdAtMilliseconds: Int64
+        let reason: String
+
+        enum CodingKeys: String, CodingKey {
+            case adapterCode = "adapter_code"
+            case candidateIdentity = "candidate_identity"
+            case contentFingerprint = "content_fingerprint"
+            case createdAtMilliseconds = "created_at_ms"
+            case fingerprintAlgorithmVersion = "fingerprint_algorithm_version"
+            case normalizedLocator = "normalized_locator"
+            case operationID = "operation_id"
+            case rawLocator = "raw_locator"
+            case reason
+            case rootIdentity = "root_identity"
+            case sourceScopeKey = "source_scope_key"
+            case sourceScopeKind = "source_scope_kind"
+        }
+
+        init(_ metadata: SkillBackupMigrationMetadata) throws {
+            operationID = metadata.operationID.uuid.uuidString.lowercased()
+            sourceScopeKey = metadata.sourceScope.targetScopeKey
+            sourceScopeKind = metadata.sourceScope.kind
+            adapterCode = metadata.sourceScope.adapter?.storageKey
+            rawLocator = metadata.rawLocator
+            normalizedLocator = metadata.normalizedLocator
+            rootIdentity = try ManagedItemIdentityCodec.encode(metadata.rootIdentity)
+            candidateIdentity = try ManagedItemIdentityCodec.encode(metadata.candidateIdentity)
+            fingerprintAlgorithmVersion = metadata.fingerprint.algorithmVersion
+            contentFingerprint = lowerHex(metadata.fingerprint.digest)
+            createdAtMilliseconds = metadata.createdAtMilliseconds
+            reason = metadata.reason.rawValue
+        }
+
+        func metadata() throws -> SkillBackupMigrationMetadata {
+            let scope: DistributionBindingScope
+            switch sourceScopeKind {
+            case "global":
+                guard adapterCode == nil, sourceScopeKey == "global" else {
+                    throw SkillBackupManifestError.invalidManifest
+                }
+                scope = .global
+            case "agent":
+                guard let adapterCode,
+                      let platform = SkillPlatform.allCases.first(where: {
+                          $0.storageKey == adapterCode
+                      }),
+                      sourceScopeKey == "agent:\(adapterCode)" else {
+                    throw SkillBackupManifestError.invalidManifest
+                }
+                scope = .agent(platform)
+            default:
+                throw SkillBackupManifestError.invalidManifest
+            }
+            guard let reason = SkillBackupMigrationReason(rawValue: reason) else {
+                throw SkillBackupManifestError.invalidManifest
+            }
+            return try SkillBackupMigrationMetadata(
+                operationID: SSOTOperationID(try lowerUUID(operationID)),
+                sourceScope: scope,
+                rawLocator: rawLocator,
+                normalizedLocator: normalizedLocator,
+                rootIdentity: ManagedItemIdentityCodec.decode(rootIdentity),
+                candidateIdentity: ManagedItemIdentityCodec.decode(candidateIdentity),
+                fingerprint: SkillContentFingerprint(
+                    algorithmVersion: fingerprintAlgorithmVersion,
+                    digest: try lowerHexData(contentFingerprint)
+                ),
+                createdAtMilliseconds: createdAtMilliseconds,
+                reason: reason
             )
         }
     }

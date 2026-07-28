@@ -142,7 +142,9 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                 oldIntent?.syncMode,
                 newIntent?.syncMode
             ) {
-            case (nil, .symlink): .createSymlink
+            case (nil, .symlink):
+                actionKinds[key] == .replaceCopyWithSymlink
+                    ? .replaceCopyWithSymlink : .createSymlink
             case (nil, .copy): .createCopy
             case (.symlink, nil): .removeSymlink
             case (.copy, nil): .removeCopy
@@ -225,7 +227,12 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                 && intent.distributionSlug == planSlug
         }
         let actionKind = DistributionFilesystemActionKind(rawValue: action.kind)
-        let oldCopyMatches = if let evidence = action.oldCopy,
+        let isHistoricalMigration = action.historicalMigrationBackup != nil
+        let oldCopyMatches = if isHistoricalMigration,
+                                actionKind == .replaceCopyWithSymlink,
+                                oldBinding == nil {
+            action.oldCopy != nil
+        } else if let evidence = action.oldCopy,
                                 let baseline = oldBinding?.copyBaseline {
             (actionKind == .discardCopyDrift
                 ? evidence.content.algorithmVersion == baseline.content.algorithmVersion
@@ -243,6 +250,20 @@ nonisolated extension DistributionOperationPayloadV2Validator {
               action.oldCopy != nil || action.oldLink != nil
                 || oldBinding == nil else {
             throw DistributionOperationStoreError.invalidRecord
+        }
+        if let backup = action.historicalMigrationBackup {
+            guard actionKind == .replaceCopyWithSymlink,
+                  oldBinding == nil,
+                  action.oldCopy != nil,
+                  action.oldLink == nil,
+                  UUID(uuidString: backup.backupID)?.uuidString.lowercased()
+                    == backup.backupID,
+                  !backup.locator.hasPrefix("/"),
+                  backup.locator.split(separator: "/").count == 2,
+                  (try? ManagedItemIdentityCodec.decode(backup.directoryIdentity)) != nil,
+                  backup.manifestDigest.count == 32 else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
         }
         guard action.oldCopy == nil
                 || action.rootIdentity == action.oldCopy?.rootIdentity,
@@ -290,6 +311,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             action.oldCopy != nil && action.oldLink == nil
                 && action.stagingName == nil
                 && action.quarantineName == copyQuarantine
+                && (oldBinding != nil || action.historicalMigrationBackup != nil)
         case nil:
             false
         }

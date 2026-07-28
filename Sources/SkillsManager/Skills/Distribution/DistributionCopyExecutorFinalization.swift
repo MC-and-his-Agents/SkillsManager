@@ -207,6 +207,11 @@ nonisolated extension DistributionCopyExecutor {
             )
         }
         for item in items.dropFirst(Int(record.cleanupCursor)) {
+            try requireHistoricalMigrationBackups(
+                plan: plan,
+                preflight: preflight,
+                operationID: operationID
+            )
             try cleanup(item)
             record = try operationStore.load(operationID)
             try operationStore.updateProgress(

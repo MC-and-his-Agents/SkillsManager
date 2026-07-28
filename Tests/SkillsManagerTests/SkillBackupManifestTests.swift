@@ -85,6 +85,88 @@ struct SkillBackupManifestTests {
         #expect(String(decoding: encoded, as: UTF8.self).contains("\"fork_lineage\""))
     }
 
+    @Test("round-trips complete historical migration metadata")
+    func historicalMigrationMetadataRoundTrip() throws {
+        let ordinary = try makeManifest()
+        let workspace = try WriterWorkspace()
+        let candidate = workspace.workspace.appendingPathComponent("candidate", isDirectory: true)
+        try FileManager.default.createDirectory(at: candidate, withIntermediateDirectories: false)
+        let metadata = try SkillBackupMigrationMetadata(
+            operationID: SSOTOperationID(
+                UUID(uuidString: "12345678-1234-4234-8234-123456789abc")!
+            ),
+            sourceScope: .global,
+            rawLocator: "demo",
+            normalizedLocator: "demo",
+            rootIdentity: workspace.verifiedRoot.identity,
+            candidateIdentity: try ManagedRootReference.capture(at: candidate)
+                .verifiedRoot().identity,
+            fingerprint: ordinary.contentFingerprint,
+            createdAtMilliseconds: ordinary.createdAtMilliseconds
+        )
+        let manifest = try SkillBackupManifestV1(
+            backupID: ordinary.backupID,
+            payload: ordinary.payload,
+            databaseRevision: ordinary.databaseRevision,
+            distributionSelection: ordinary.distributionSelection,
+            statistics: ordinary.statistics,
+            createdAtMilliseconds: ordinary.createdAtMilliseconds,
+            migrationMetadata: metadata
+        )
+        let encoded = try manifest.encoded()
+        let decoded = try SkillBackupManifestV1.decode(encoded)
+
+        #expect(decoded.migrationMetadata == metadata)
+        #expect(try decoded.encoded() == encoded)
+        #expect(String(decoding: encoded, as: UTF8.self).contains(
+            "\"reason\":\"historical_skill_migration\""
+        ))
+    }
+
+    @Test("rejects incomplete or tampered historical migration metadata")
+    func rejectsInvalidHistoricalMigrationMetadata() throws {
+        let ordinary = try makeManifest()
+        let workspace = try WriterWorkspace()
+        let candidate = workspace.workspace.appendingPathComponent("candidate", isDirectory: true)
+        try FileManager.default.createDirectory(at: candidate, withIntermediateDirectories: false)
+        let metadata = try SkillBackupMigrationMetadata(
+            operationID: SSOTOperationID(),
+            sourceScope: .global,
+            rawLocator: "demo",
+            normalizedLocator: "demo",
+            rootIdentity: workspace.verifiedRoot.identity,
+            candidateIdentity: try ManagedRootReference.capture(at: candidate)
+                .verifiedRoot().identity,
+            fingerprint: ordinary.contentFingerprint,
+            createdAtMilliseconds: ordinary.createdAtMilliseconds
+        )
+        let encoded = try SkillBackupManifestV1(
+            backupID: ordinary.backupID,
+            payload: ordinary.payload,
+            databaseRevision: ordinary.databaseRevision,
+            distributionSelection: ordinary.distributionSelection,
+            statistics: ordinary.statistics,
+            createdAtMilliseconds: ordinary.createdAtMilliseconds,
+            migrationMetadata: metadata
+        ).encoded()
+        let raw = String(decoding: encoded, as: UTF8.self)
+        let incomplete = raw.replacingOccurrences(
+            of: "\"reason\":\"historical_skill_migration\",",
+            with: ""
+        )
+        let tampered = raw.replacingOccurrences(
+            of: "historical_skill_migration",
+            with: "unexpected"
+        )
+
+        #expect(throws: SkillBackupManifestError.self) {
+            try SkillBackupManifestV1.decode(Data(incomplete.utf8))
+        }
+        #expect(throws: SkillBackupManifestError.self) {
+            try SkillBackupManifestV1.decode(Data(tampered.utf8))
+        }
+    }
+
     @Test("rejects missing null fields and non-lowercase identities")
     func rejectsNonCanonicalIdentityForms() throws {
         let encoded = try makeManifest().encoded()

@@ -5,6 +5,63 @@ import Testing
 
 @Suite("Distribution Copy executor", .serialized)
 struct DistributionCopyExecutorTests {
+    @Test("ordinary callers cannot forge the historical migration action")
+    func rejectsHistoricalMigrationWithoutApproval() throws {
+        let fixture = try CopyExecutorFixture()
+        defer { fixture.cleanup() }
+        try FileManager.default.createDirectory(
+            at: fixture.copyURL,
+            withIntermediateDirectories: true
+        )
+        try Data("historical".utf8).write(
+            to: fixture.copyURL.appendingPathComponent("SKILL.md")
+        )
+        let entry = try #require(
+            DistributionTargetCatalog.current.entry(for: .global, slug: fixture.slug)
+        )
+        let plan = DistributionPlan(
+            status: .executable,
+            filesystemActions: [
+                DistributionFilesystemAction(
+                    kind: .replaceCopyWithSymlink,
+                    entry: entry,
+                    ssotLocator: DistributionTargetCatalog.current.ssotLocator(
+                        for: fixture.skillID
+                    )
+                ),
+            ],
+            bindingsChanged: true,
+            bindingReplacement: [
+                DistributionBindingIntent(
+                    skillID: fixture.skillID,
+                    scope: .global,
+                    distributionSlug: fixture.slug,
+                    syncMode: .symlink
+                ),
+            ],
+            configurationChanged: true,
+            expectedOldConfigured: false,
+            desiredConfigured: true,
+            conflicts: []
+        )
+
+        #expect(throws: DistributionSymlinkExecutorError.conflict) {
+            _ = try fixture.executor.apply(
+                skillID: fixture.skillID,
+                plan: plan,
+                expectedOldBindings: []
+            )
+        }
+        #expect(try fixture.connection.querySingleInt(
+            "SELECT count(*) FROM distribution_operations"
+        ) == 0)
+        #expect(try fixture.bindingStore.load(skillID: fixture.skillID).isEmpty)
+        #expect(try String(
+            contentsOf: fixture.copyURL.appendingPathComponent("SKILL.md"),
+            encoding: .utf8
+        ) == "historical")
+    }
+
     @Test("creates, refreshes, and removes a managed Copy")
     func lifecycle() throws {
         let fixture = try CopyExecutorFixture()

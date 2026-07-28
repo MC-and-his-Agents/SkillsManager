@@ -33,6 +33,7 @@ nonisolated struct JournaledSSOTWriterHooks: Sendable {
     var checkpoint: @Sendable (SSOTWriterCheckpoint, SSOTOperationID) throws -> Void = { _, _ in }
     var fileSystemCheckpoint: @Sendable (SSOTOperationFileSystemCheckpoint) throws -> Void = { _ in }
     var deletionCheckpoint: @Sendable (SkillDeletionCheckpoint) throws -> Void = { _ in }
+    var historicalMigrationBackupPublished: @Sendable (SkillID) throws -> Void = { _ in }
     var shouldFailCleanup: @Sendable (SSOTCleanupItemRole) -> Bool = { _ in false }
     var nowMilliseconds: @Sendable () -> Int64 = {
         max(0, Int64(Date().timeIntervalSince1970 * 1_000))

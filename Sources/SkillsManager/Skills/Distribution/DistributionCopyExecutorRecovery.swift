@@ -90,6 +90,7 @@ nonisolated extension DistributionCopyExecutor {
         }
         try requireOldReadback(
             operationID: operationID,
+            plan: plan,
             preflight: preflight,
             bindings: expectedOldBindings,
             links: expectedOldLinks
@@ -324,6 +325,7 @@ nonisolated extension DistributionCopyExecutor {
 
     private func requireOldReadback(
         operationID: SSOTOperationID,
+        plan: DistributionPlan,
         preflight: DistributionOperationPreflightV2,
         bindings: [DistributionBinding],
         links: [DistributionLinkOwnership]
@@ -345,6 +347,32 @@ nonisolated extension DistributionCopyExecutor {
             bindings: bindings,
             links: links
         )
+        for (action, persisted) in zip(plan.filesystemActions, preflight.actions)
+        where persisted.historicalMigrationBackup != nil {
+            guard let expected = try persisted.oldCopy?.evidence() else {
+                throw DistributionSymlinkExecutorError.needsRepair(
+                    "historical migration rollback evidence is missing"
+                )
+            }
+            do {
+                let restored = try fileSystem.captureCopy(
+                    action.entry,
+                    expectedRootIdentity: expected.rootIdentity,
+                    expectedEntryIdentity: expected.entryIdentity
+                ).evidence
+                guard restored == expected else {
+                    throw DistributionSymlinkExecutorError.needsRepair(
+                        "historical migration source rollback drifted"
+                    )
+                }
+            } catch let problem as DistributionSymlinkExecutorError {
+                throw problem
+            } catch {
+                throw DistributionSymlinkExecutorError.needsRepair(
+                    "historical migration source rollback drifted"
+                )
+            }
+        }
     }
 
     private func operationIDSkillID(_ operationID: SSOTOperationID) throws -> SkillID {
