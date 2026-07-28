@@ -144,12 +144,69 @@ private nonisolated struct DistributionPreflightAction: Codable {
     let temporaryName: String
 }
 
+private nonisolated struct DistributionRepairPreflightTarget: Codable {
+    let targetScopeKey: String
+    let slug: String
+    let rootIdentity: Data
+}
+
 private nonisolated struct DistributionPreflightPayload: Codable {
     let actions: [DistributionPreflightAction]
     let ssotIdentity: Data
     let absoluteLinkTarget: String
     let expectedOldConfigured: Bool
     let desiredConfigured: Bool
+    let repairTargets: [DistributionRepairPreflightTarget]
+
+    private enum CodingKeys: String, CodingKey {
+        case actions
+        case ssotIdentity
+        case absoluteLinkTarget
+        case expectedOldConfigured
+        case desiredConfigured
+        case repairTargets
+    }
+
+    init(
+        actions: [DistributionPreflightAction],
+        ssotIdentity: Data,
+        absoluteLinkTarget: String,
+        expectedOldConfigured: Bool,
+        desiredConfigured: Bool,
+        repairTargets: [DistributionRepairPreflightTarget] = []
+    ) {
+        self.actions = actions
+        self.ssotIdentity = ssotIdentity
+        self.absoluteLinkTarget = absoluteLinkTarget
+        self.expectedOldConfigured = expectedOldConfigured
+        self.desiredConfigured = desiredConfigured
+        self.repairTargets = repairTargets
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        actions = try container.decode([DistributionPreflightAction].self, forKey: .actions)
+        ssotIdentity = try container.decode(Data.self, forKey: .ssotIdentity)
+        absoluteLinkTarget = try container.decode(String.self, forKey: .absoluteLinkTarget)
+        expectedOldConfigured = try container.decode(Bool.self, forKey: .expectedOldConfigured)
+        desiredConfigured = try container.decode(Bool.self, forKey: .desiredConfigured)
+        repairTargets = try container.decodeIfPresent(
+            [DistributionRepairPreflightTarget].self,
+            forKey: .repairTargets
+        ) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(actions, forKey: .actions)
+        try container.encode(ssotIdentity, forKey: .ssotIdentity)
+        try container.encode(absoluteLinkTarget, forKey: .absoluteLinkTarget)
+        try container.encode(expectedOldConfigured, forKey: .expectedOldConfigured)
+        try container.encode(desiredConfigured, forKey: .desiredConfigured)
+        if !repairTargets.isEmpty {
+            try container.encode(repairTargets, forKey: .repairTargets)
+        }
+    }
 }
 
 private nonisolated struct DistributionRuntimeEvidence: Codable {
@@ -325,6 +382,38 @@ nonisolated final class DistributionSymlinkExecutor {
         )
     }
 
+    func repairPlan(
+        skillID: SkillID,
+        selection: DistributionSelectionReadback,
+        intent: DistributionRepairIntent,
+        scopeKeys: Set<String>,
+        catalog: DistributionTargetCatalog = .current
+    ) throws -> DistributionPlan {
+        let ownership = try ownershipStore.load(skillID: skillID)
+        var observations: [DistributionTargetEntry: DistributionTargetObservation] = [:]
+        for binding in selection.bindings {
+            guard let entry = catalog.entry(
+                for: binding.scope,
+                slug: binding.distributionSlug
+            ) else {
+                throw DistributionRepairPlanningError.unavailable
+            }
+            observations[entry] = try observe(
+                entry: entry,
+                skillID: skillID,
+                ownership: ownership
+            )
+        }
+        return try DistributionPlanner().repairPlan(
+            skillID: skillID,
+            selection: selection,
+            intent: intent,
+            scopeKeys: scopeKeys,
+            observations: observations,
+            catalog: catalog
+        )
+    }
+
     func apply(
         skillID: SkillID,
         plan: DistributionPlan,
@@ -334,6 +423,9 @@ nonisolated final class DistributionSymlinkExecutor {
     ) throws -> DistributionOperationRecord {
         guard plan.status == .executable else {
             if plan.status == .blocked { throw DistributionSymlinkExecutorError.blocked(plan.conflicts) }
+            throw DistributionSymlinkExecutorError.conflict
+        }
+        guard (plan.repairIntent == nil) == plan.repairScopeKeys.isEmpty else {
             throw DistributionSymlinkExecutorError.conflict
         }
         let timestamp = nowMilliseconds ?? self.nowMilliseconds()
@@ -449,6 +541,13 @@ nonisolated final class DistributionSymlinkExecutor {
                         throw DistributionSymlinkExecutorError.needsRepair("SSOT identity changed")
                     }
                     let rootIdentity = try fileSystem.ensureRoot(for: action.entry.target.scope)
+                    if !preflightAction.rootIdentity.isEmpty {
+                        guard try ManagedItemIdentityCodec.decode(
+                            preflightAction.rootIdentity
+                        ) == rootIdentity else {
+                            throw DistributionSymlinkExecutorError.conflict
+                        }
+                    }
                     pending[index] = DistributionRuntimeEvidence.Pending(
                         actionIndex: index,
                         kind: action.kind.rawValue,
@@ -515,7 +614,7 @@ nonisolated final class DistributionSymlinkExecutor {
                 bindings: plan.bindingReplacement,
                 ownership: desiredOwnership,
                 expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
-            ) else {
+            ), try repairTargetsMatchAppliedState(plan: plan, preflight: preflight) else {
                 throw DistributionSymlinkExecutorError.needsRepair("filesystem readback drifted")
             }
             try operationStore.updateProgress(
@@ -606,7 +705,7 @@ nonisolated final class DistributionSymlinkExecutor {
                 bindings: plan.bindingReplacement,
                 ownership: desiredOwnership,
                 expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
-            ) else {
+            ), try repairTargetsMatchAppliedState(plan: plan, preflight: preflight) else {
                 throw DistributionSymlinkExecutorError.needsRepair("final distribution readback drifted")
             }
             try operationStore.complete(
@@ -1106,7 +1205,7 @@ nonisolated final class DistributionSymlinkExecutor {
         let runtime = try decodeRuntime(operation)
         let newBindings = try decodeBindingIntents(operation.newBindings, skillID: operation.skillID)
         let plan = try recoveryPlan(
-            skillID: operation.skillID,
+            operation: operation,
             bindings: newBindings,
             preflight: preflight
         )
@@ -1140,7 +1239,7 @@ nonisolated final class DistributionSymlinkExecutor {
             bindings: newBindings,
             ownership: desiredOwnership,
             expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
-        ) else {
+        ), try repairTargetsMatchAppliedState(plan: plan, preflight: preflight) else {
             throw DistributionSymlinkExecutorError.needsRepair(
                 "filesystemApplied readback drifted"
             )
@@ -1410,10 +1509,14 @@ nonisolated final class DistributionSymlinkExecutor {
     }
 
     private func recoveryPlan(
-        skillID: SkillID,
+        operation: DistributionOperationRecord,
         bindings: [DistributionBindingIntent],
         preflight: DistributionPreflightPayload
     ) throws -> DistributionPlan {
+        let wire = try DistributionOperationPayloadCodec.decode(
+            DistributionPlanWire.self,
+            from: operation.planPayload
+        )
         let actions = try preflight.actions.map { action in
             guard let entry = preflightEntry(action),
                   let kind = DistributionFilesystemActionKind(rawValue: action.kind) else {
@@ -1424,13 +1527,15 @@ nonisolated final class DistributionSymlinkExecutor {
         return DistributionPlan(
             status: .executable,
             filesystemActions: actions,
-            bindingsChanged: !actions.isEmpty || !bindings.isEmpty,
+            bindingsChanged: wire.bindingsChanged,
             bindingReplacement: bindings,
             configurationChanged: preflight.expectedOldConfigured
                 != preflight.desiredConfigured,
             expectedOldConfigured: preflight.expectedOldConfigured,
             desiredConfigured: preflight.desiredConfigured,
-            conflicts: []
+            conflicts: [],
+            repairIntent: wire.repairIntent.flatMap(DistributionRepairIntent.init),
+            repairScopeKeys: wire.repairScopeKeys ?? []
         )
     }
 
@@ -1454,10 +1559,6 @@ nonisolated final class DistributionSymlinkExecutor {
         }
         guard canonical(actualBindings) == canonical(expectedBindings) else { return false }
         let ownership = try ownershipStore.load(skillID: operation.skillID)
-        guard ownership.map(\.targetScopeKey).sorted()
-                == expectedBindings.map(\.scope.targetScopeKey).sorted() else {
-            return false
-        }
         let expectedOwnership = try expectedOwnership(
             operation: operation,
             bindings: expectedBindings,
@@ -1474,7 +1575,20 @@ nonisolated final class DistributionSymlinkExecutor {
     ) throws -> [DistributionLinkOwnership] {
         let runtime = try decodeRuntime(operation)
         if expectation == .old {
-            guard runtime.oldOwnership.count == bindings.count else {
+            let expectedScopes = Set(bindings.map(\.scope.targetScopeKey))
+            let actualScopes = Set(runtime.oldOwnership.map(\.targetScopeKey))
+            let wire = try DistributionOperationPayloadCodec.decode(
+                DistributionPlanWire.self,
+                from: operation.planPayload
+            )
+            let selected = Set(wire.repairScopeKeys ?? [])
+            let complete = if wire.repairIntent == nil {
+                actualScopes == expectedScopes
+            } else {
+                actualScopes.isSubset(of: expectedScopes)
+                    && expectedScopes.subtracting(selected).isSubset(of: actualScopes)
+            }
+            guard complete else {
                 throw DistributionSymlinkExecutorError.needsRepair(
                     "journal has no complete old ownership snapshot"
                 )
@@ -1540,10 +1654,21 @@ nonisolated final class DistributionSymlinkExecutor {
     ) throws -> Bool {
         let preflight = try decodePreflight(operation)
         guard !preflight.ssotIdentity.isEmpty else { return false }
-        let bindings = try decodeBindingIntents(
+        var bindings = try decodeBindingIntents(
             expected == .old ? operation.oldBindings : operation.newBindings,
             skillID: operation.skillID
         )
+        let wire = try DistributionOperationPayloadCodec.decode(
+            DistributionPlanWire.self,
+            from: operation.planPayload
+        )
+        let repairIntent = wire.repairIntent.flatMap(DistributionRepairIntent.init)
+        if repairIntent != nil,
+           !(repairIntent == .rebuildMissingSymlink && expected == .new) {
+            let selected = Set(wire.repairScopeKeys ?? [])
+            bindings.removeAll { selected.contains($0.scope.targetScopeKey) }
+            guard try repairTargetsRemainMissing(preflight) else { return false }
+        }
         let ownership = try ownershipStore.load(skillID: operation.skillID)
         return try finalReadback(
             skillID: operation.skillID,
@@ -1551,6 +1676,38 @@ nonisolated final class DistributionSymlinkExecutor {
             ownership: ownership,
             expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
         )
+    }
+
+    private func repairTargetsMatchAppliedState(
+        plan: DistributionPlan,
+        preflight: DistributionPreflightPayload
+    ) throws -> Bool {
+        guard plan.repairIntent == .disableMissingBinding else { return true }
+        return try repairTargetsRemainMissing(preflight)
+    }
+
+    private func repairTargetsRemainMissing(
+        _ preflight: DistributionPreflightPayload
+    ) throws -> Bool {
+        for target in preflight.repairTargets {
+            guard let bindingScope = distributionRepairScope(for: target.targetScopeKey),
+                  let slug = try? DefaultDistributionSlug(validating: target.slug),
+                  let entry = DistributionTargetCatalog.current.entry(
+                      for: bindingScope,
+                      slug: slug
+                  ) else {
+                return false
+            }
+            guard case .missing = try fileSystem.observe(entry) else { return false }
+            let root = try fileSystem.existingRoot(for: bindingScope)
+            if !target.rootIdentity.isEmpty {
+                guard let root,
+                      root == (try ManagedItemIdentityCodec.decode(target.rootIdentity)) else {
+                    return false
+                }
+            }
+        }
+        return true
     }
 
     private func expectedSSOTIdentity(
@@ -1641,13 +1798,63 @@ nonisolated final class DistributionSymlinkExecutor {
                 throw DistributionSymlinkExecutorError.conflict
             }
         }
+        let repairTargets = try makeRepairPreflightTargets(
+            skillID: skillID,
+            plan: plan,
+            expectedOldBindings: expectedOldBindings,
+            expectedOldOwnership: expectedOldOwnership,
+            absoluteLinkTarget: target
+        )
         return DistributionPreflightPayload(
             actions: actions,
             ssotIdentity: ssotIdentity,
             absoluteLinkTarget: target,
             expectedOldConfigured: plan.expectedOldConfigured,
-            desiredConfigured: plan.desiredConfigured
+            desiredConfigured: plan.desiredConfigured,
+            repairTargets: repairTargets
         )
+    }
+
+    private func makeRepairPreflightTargets(
+        skillID: SkillID,
+        plan: DistributionPlan,
+        expectedOldBindings: [DistributionBinding],
+        expectedOldOwnership: [DistributionLinkOwnership],
+        absoluteLinkTarget: String
+    ) throws -> [DistributionRepairPreflightTarget] {
+        guard plan.repairIntent != nil else { return [] }
+        let bindings = Dictionary(uniqueKeysWithValues: expectedOldBindings.map {
+            ($0.scope.targetScopeKey, $0)
+        })
+        return try plan.repairScopeKeys.map { scopeKey in
+            guard let binding = bindings[scopeKey],
+                  let entry = DistributionTargetCatalog.current.entry(
+                      for: binding.scope,
+                      slug: binding.distributionSlug
+                  ),
+                  try observe(
+                      entry: entry,
+                      skillID: skillID,
+                      ownership: expectedOldOwnership
+                  ) == .missing else {
+                throw DistributionSymlinkExecutorError.conflict
+            }
+            let root = try fileSystem.existingRoot(for: binding.scope)
+            if let old = expectedOldOwnership.first(where: {
+                $0.targetScopeKey == scopeKey
+            }) {
+                guard let root,
+                      old.rootIdentity == root,
+                      old.absoluteLinkTarget == absoluteLinkTarget else {
+                    throw DistributionSymlinkExecutorError.conflict
+                }
+            }
+            return DistributionRepairPreflightTarget(
+                targetScopeKey: scopeKey,
+                slug: binding.distributionSlug.value,
+                rootIdentity: try root.map(ManagedItemIdentityCodec.encode) ?? Data()
+            )
+        }.sorted { utf8Precedes($0.targetScopeKey, $1.targetScopeKey) }
     }
 
     private func observe(

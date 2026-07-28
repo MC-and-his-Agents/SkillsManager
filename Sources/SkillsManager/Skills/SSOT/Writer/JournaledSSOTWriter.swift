@@ -213,7 +213,9 @@ actor JournaledSSOTWriter {
         copyForkAdmissionBypass: SSOTOperationID? = nil
     ) throws -> DistributionOperationRecord {
         try requireAuthority()
-        guard !plan.filesystemActions.contains(where: {
+        guard plan.repairIntent == nil,
+              plan.repairScopeKeys.isEmpty,
+              !plan.filesystemActions.contains(where: {
             $0.kind == .discardCopyDrift
         }) else {
             throw DistributionSymlinkExecutorError.conflict
@@ -251,6 +253,51 @@ actor JournaledSSOTWriter {
             plan: plan,
             expectedOldBindings: oldBindings,
             expectedOldOwnership: ownershipStore.load(skillID: skillID)
+        )
+    }
+
+    func applyDistributionRepair(
+        skillID: SkillID,
+        intent: DistributionRepairIntent,
+        scopeKeys: Set<String>,
+        expectedSelectionToken: Data,
+        expectedPlan: Data
+    ) throws -> DistributionOperationRecord {
+        try requireAuthority()
+        let selection = try loadDistributionSelection(skillID: skillID)
+        guard try DistributionRepairSelectionToken.encode(
+            selection,
+            skillID: skillID
+        ) == expectedSelectionToken else {
+            throw DistributionSymlinkExecutorError.conflict
+        }
+        let plan = try distribution.repairPlan(
+            skillID: skillID,
+            selection: selection,
+            intent: intent,
+            scopeKeys: scopeKeys
+        )
+        guard try plan.canonicalJSONData() == expectedPlan else {
+            throw DistributionSymlinkExecutorError.conflict
+        }
+        let targets = Set((selection.bindings.map(\.intent) + plan.bindingReplacement).map {
+            CopyForkTargetReservation(
+                scopeKey: $0.scope.targetScopeKey,
+                slugKey: $0.distributionSlug.collisionKey
+            )
+        })
+        try requireCopyForkAdmission(
+            skillID: skillID,
+            targets: targets,
+            bypass: nil
+        )
+        return try distribution.apply(
+            skillID: skillID,
+            plan: plan,
+            expectedOldBindings: selection.bindings,
+            expectedOldOwnership: DistributionLinkOwnershipStore(
+                connection: connection
+            ).load(skillID: skillID)
         )
     }
 
