@@ -439,11 +439,11 @@ private struct PreparedCopyFork {
     }
 }
 
-private let globalReaderCodes = Set(
+let globalReaderCodes = Set(
     DistributionTargetCatalog.current.globalReaders.map(\.storageKey)
 )
 
-private func prepareParentCopy(
+func prepareParentCopy(
     workspace: WriterWorkspace,
     writer: JournaledSSOTWriter
 ) async throws -> SkillID {
@@ -466,7 +466,7 @@ private func prepareParentCopy(
     return skillID
 }
 
-private final class CopyForkCheckpointInterruption: @unchecked Sendable {
+final class CopyForkCheckpointInterruption: @unchecked Sendable {
     private let lock = NSLock()
     private var point: SSOTWriterCheckpoint?
 

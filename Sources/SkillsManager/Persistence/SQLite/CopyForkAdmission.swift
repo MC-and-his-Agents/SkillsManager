@@ -14,6 +14,7 @@ nonisolated struct CopyForkAdmission {
 
     func reserve(_ record: CopyForkOperationRecord) throws {
         try connection.withImmediateTransaction {
+            try requireNoUnindexedHostOperation()
             try requireAvailable(
                 skillIDs: [record.parentSkillID, record.childSkillID],
                 target: CopyForkTargetReservation(
@@ -24,6 +25,28 @@ nonisolated struct CopyForkAdmission {
                 bypassHostOperation: nil
             )
             try CopyForkOperationStore(connection: connection).insertReservation(record)
+        }
+    }
+
+    private func requireNoUnindexedHostOperation() throws {
+        let activeDeletion = try connection.querySingleInt(
+            """
+            SELECT count(*) FROM skill_deletion_operations
+            WHERE outcome IN ('pending', 'needsRepair')
+               OR cleanup_state IN ('pending', 'needsRepair')
+            """
+        )
+        let unfinishedRestore = try connection.querySingleInt(
+            """
+            SELECT count(*) FROM skill_backups
+            WHERE restored_skill_id IS NOT NULL
+              AND restore_result_json IS NULL
+            """
+        )
+        // ponytail: these legacy records have no indexed target set; keep the
+        // conservative global gate until a future schema persists one.
+        guard activeDeletion == 0, unfinishedRestore == 0 else {
+            throw CopyForkError.operationInProgress
         }
     }
 
