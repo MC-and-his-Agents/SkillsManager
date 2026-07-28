@@ -331,6 +331,7 @@ nonisolated struct SkillDeletionExpectation: Sendable {
             let adapter: String?
             let slug: String
             let syncMode: String
+            let copyBaseline: DistributionCopyBaselineWireV2?
             let createdAtMilliseconds: Int64
             let updatedAtMilliseconds: Int64
         }
@@ -352,7 +353,7 @@ nonisolated struct SkillDeletionExpectation: Sendable {
         init(_ expectation: SkillDeletionExpectation) throws {
             databaseRevision = expectation.databaseRevision
             explicitlyConfigured = expectation.selection.isExplicitlyConfigured
-            bindings = expectation.selection.bindings
+            bindings = try expectation.selection.bindings
                 .sorted { $0.scope.targetScopeKey < $1.scope.targetScopeKey }
                 .map {
                     Binding(
@@ -360,6 +361,9 @@ nonisolated struct SkillDeletionExpectation: Sendable {
                         adapter: $0.scope.adapter?.storageKey,
                         slug: $0.distributionSlug.value,
                         syncMode: $0.syncMode.rawValue,
+                        copyBaseline: try $0.copyBaseline.map(
+                            DistributionCopyBaselineWireV2.init
+                        ),
                         createdAtMilliseconds: $0.createdAtMilliseconds,
                         updatedAtMilliseconds: $0.updatedAtMilliseconds
                     )
@@ -405,11 +409,15 @@ nonisolated struct SkillDeletionExpectation: Sendable {
                 guard let syncMode = DistributionSyncMode(rawValue: value.syncMode) else {
                     throw SkillDeletionError.backupCorrupt
                 }
+                guard (syncMode == .copy) == (value.copyBaseline != nil) else {
+                    throw SkillDeletionError.backupCorrupt
+                }
                 return try DistributionBinding(
                     skillID: skillID,
                     scope: scope,
                     distributionSlug: DefaultDistributionSlug(validating: value.slug),
                     syncMode: syncMode,
+                    copyBaseline: try value.copyBaseline?.baseline(),
                     createdAtMilliseconds: value.createdAtMilliseconds,
                     updatedAtMilliseconds: value.updatedAtMilliseconds
                 )
@@ -427,6 +435,13 @@ nonisolated struct SkillDeletionExpectation: Sendable {
                     absoluteLinkTarget: value.absoluteLinkTarget,
                     verifiedAtMilliseconds: value.verifiedAtMilliseconds
                 )
+            }
+            guard Set(decodedBindings.map(\.syncMode)).count <= 1,
+                  Set(decodedOwnership.map(\.targetScopeKey))
+                    == Set(decodedBindings.filter {
+                        $0.syncMode == .symlink
+                    }.map(\.scope.targetScopeKey)) else {
+                throw SkillDeletionError.backupCorrupt
             }
             return SkillDeletionExpectation(
                 databaseRevision: databaseRevision,

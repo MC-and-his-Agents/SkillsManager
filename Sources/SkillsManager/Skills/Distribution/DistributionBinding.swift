@@ -2,6 +2,7 @@ import Foundation
 
 nonisolated enum DistributionSyncMode: String, Hashable, Sendable {
     case symlink
+    case copy
 }
 nonisolated enum DistributionBindingScope: Hashable, Sendable {
     case global
@@ -38,6 +39,7 @@ nonisolated enum DistributionBindingScope: Hashable, Sendable {
 
 nonisolated enum DistributionBindingError: Error, Equatable {
     case invalidTimestampRange
+    case invalidCopyBaseline
 }
 
 /// Desired Binding semantics without persistence-owned timestamps.
@@ -63,6 +65,7 @@ nonisolated struct DistributionBindingIntent: Hashable, Sendable {
 /// Persisted expected distribution truth. Local discovery origins remain separate.
 nonisolated struct DistributionBinding: Hashable, Sendable {
     let intent: DistributionBindingIntent
+    let copyBaseline: DistributionCopyBaseline?
     let createdAtMilliseconds: Int64
     let updatedAtMilliseconds: Int64
 
@@ -71,6 +74,7 @@ nonisolated struct DistributionBinding: Hashable, Sendable {
         scope: DistributionBindingScope,
         distributionSlug: DefaultDistributionSlug,
         syncMode: DistributionSyncMode = .symlink,
+        copyBaseline: DistributionCopyBaseline? = nil,
         createdAtMilliseconds: Int64,
         updatedAtMilliseconds: Int64
     ) throws {
@@ -78,12 +82,16 @@ nonisolated struct DistributionBinding: Hashable, Sendable {
               updatedAtMilliseconds >= createdAtMilliseconds else {
             throw DistributionBindingError.invalidTimestampRange
         }
+        guard (syncMode == .copy) == (copyBaseline != nil) else {
+            throw DistributionBindingError.invalidCopyBaseline
+        }
         intent = DistributionBindingIntent(
             skillID: skillID,
             scope: scope,
             distributionSlug: distributionSlug,
             syncMode: syncMode
         )
+        self.copyBaseline = copyBaseline
         self.createdAtMilliseconds = createdAtMilliseconds
         self.updatedAtMilliseconds = updatedAtMilliseconds
     }

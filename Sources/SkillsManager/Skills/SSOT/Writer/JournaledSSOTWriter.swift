@@ -8,6 +8,7 @@ actor JournaledSSOTWriter {
     let fileSystem: SSOTOperationFileSystem
     let journal: SSOTJournalStore
     let distribution: DistributionSymlinkExecutor
+    let copyDistribution: DistributionCopyExecutor
     let backupFileSystem: SkillBackupFileSystem
     let hooks: JournaledSSOTWriterHooks
 
@@ -16,6 +17,7 @@ actor JournaledSSOTWriter {
         ownership: SSOTWriterOwnership,
         fileSystem: SSOTOperationFileSystem,
         distribution: DistributionSymlinkExecutor,
+        copyDistribution: DistributionCopyExecutor,
         backupFileSystem: SkillBackupFileSystem,
         hooks: JournaledSSOTWriterHooks
     ) throws {
@@ -23,6 +25,7 @@ actor JournaledSSOTWriter {
         self.ownership = ownership
         self.fileSystem = fileSystem
         self.distribution = distribution
+        self.copyDistribution = copyDistribution
         self.backupFileSystem = backupFileSystem
         journal = try SSOTJournalStore(connection: connection)
         self.hooks = hooks
@@ -32,6 +35,7 @@ actor JournaledSSOTWriter {
         managementRoot: VerifiedSSOTRoot,
         ssotRoot: VerifiedSSOTRoot,
         databaseURL: URL,
+        distributionHomeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
         hooks: JournaledSSOTWriterHooks = .init()
     ) async throws -> JournaledSSOTWriter {
         guard managementRoot.identity != ssotRoot.identity,
@@ -51,6 +55,7 @@ actor JournaledSSOTWriter {
             ssotRoot: ssotRoot,
             connection: connection,
             ownership: ownership,
+            distributionHomeURL: distributionHomeURL,
             hooks: hooks
         )
     }
@@ -60,6 +65,7 @@ actor JournaledSSOTWriter {
         ssotRoot: VerifiedSSOTRoot,
         connection: sending SQLiteConnection,
         ownership: SSOTWriterOwnership,
+        distributionHomeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
         hooks: JournaledSSOTWriterHooks = .init()
     ) async throws -> JournaledSSOTWriter {
         guard connection.accessMode != .readOnly,
@@ -81,9 +87,13 @@ actor JournaledSSOTWriter {
             )
         )
         let distributionFileSystem = try DistributionSymlinkFileSystem(
-            homeURL: FileManager.default.homeDirectoryForCurrentUser
+            homeURL: distributionHomeURL
         )
         let distribution = try DistributionSymlinkExecutor(
+            connection: connection,
+            fileSystem: distributionFileSystem
+        )
+        let copyDistribution = try DistributionCopyExecutor(
             connection: connection,
             fileSystem: distributionFileSystem
         )
@@ -92,11 +102,13 @@ actor JournaledSSOTWriter {
             ownership: ownership
         )
         try distribution.recoverAll()
+        try copyDistribution.recoverAll()
         let writer = try JournaledSSOTWriter(
             connection: connection,
             ownership: ownership,
             fileSystem: fileSystem,
             distribution: distribution,
+            copyDistribution: copyDistribution,
             backupFileSystem: backupFileSystem,
             hooks: hooks
         )
@@ -152,6 +164,37 @@ actor JournaledSSOTWriter {
         )
     }
 
+    func distributionPlan(
+        skillID: SkillID,
+        desiredConfiguration: DistributionDesiredConfiguration,
+        desiredConfigured: Bool = true,
+        requiredAdapterCodes: Set<String>,
+        catalog: DistributionTargetCatalog = .current
+    ) throws -> DistributionPlan {
+        try requireAuthority()
+        let bindings = try DistributionBindingStore(connection: connection)
+            .load(skillID: skillID)
+        if desiredConfiguration.syncMode == .symlink,
+           bindings.allSatisfy({ $0.syncMode == .symlink }) {
+            return try distribution.dryRun(
+                skillID: skillID,
+                currentBindings: bindings,
+                desiredScope: desiredConfiguration.scope,
+                desiredConfigured: desiredConfigured,
+                requiredAdapterCodes: requiredAdapterCodes,
+                catalog: catalog
+            )
+        }
+        return try copyDistribution.dryRun(
+            skillID: skillID,
+            currentBindings: bindings,
+            desiredConfiguration: desiredConfiguration,
+            desiredConfigured: desiredConfigured,
+            requiredAdapterCodes: requiredAdapterCodes,
+            catalog: catalog
+        )
+    }
+
     func loadDistributionSelection(
         skillID: SkillID
     ) throws -> DistributionSelectionReadback {
@@ -170,10 +213,18 @@ actor JournaledSSOTWriter {
         try requireAuthority()
         let bindingStore = DistributionBindingStore(connection: connection)
         let ownershipStore = DistributionLinkOwnershipStore(connection: connection)
+        let oldBindings = try bindingStore.load(skillID: skillID)
+        if plan.filesystemActions.contains(where: { $0.kind.requiresV2 }) {
+            return try copyDistribution.apply(
+                skillID: skillID,
+                plan: plan,
+                expectedOldBindings: oldBindings
+            )
+        }
         return try distribution.apply(
             skillID: skillID,
             plan: plan,
-            expectedOldBindings: bindingStore.load(skillID: skillID),
+            expectedOldBindings: oldBindings,
             expectedOldOwnership: ownershipStore.load(skillID: skillID)
         )
     }
@@ -182,7 +233,15 @@ actor JournaledSSOTWriter {
         skillID: SkillID
     ) throws -> DistributionReconcileResult {
         try requireAuthority()
-        return try distribution.reconcile(skillID: skillID)
+        let bindings = try DistributionBindingStore(connection: connection)
+            .load(skillID: skillID)
+        if bindings.contains(where: { $0.syncMode == .copy }) {
+            return try copyDistribution.reconcile(
+                skillID: skillID,
+                bindings: bindings
+            )
+        }
+        return try distribution.reconcile(skillID: skillID, bindings: bindings)
     }
 
     func discoveryCatalog() throws -> SkillDiscoveryCatalog {

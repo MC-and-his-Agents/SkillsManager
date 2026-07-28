@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Testing
 @testable import SkillsManager
@@ -309,6 +310,105 @@ struct DistributionPlannerTests {
         #expect(!first.contains("\\/"))
     }
 
+    @Test("plans Copy add, refresh, removal, and mode transitions")
+    func copyMatrix() throws {
+        let slug = try DefaultDistributionSlug(validating: "review")
+        let entry = try #require(catalog.entry(for: .global, slug: slug))
+        let desiredCopy = DistributionDesiredConfiguration(
+            scope: .global(slug),
+            syncMode: .copy
+        )
+        let create = planner.plan(
+            skillID: skillID,
+            currentBindings: [],
+            desiredConfiguration: desiredCopy,
+            requiredAdapterCodes: globalCoverage,
+            observations: [entry: .missing]
+        )
+        #expect(create.filesystemActions.map(\.kind) == [.createCopy])
+        #expect(create.bindingReplacement.map(\.syncMode) == [.copy])
+
+        let copy = try copyBinding(scope: .global, slug: slug)
+        let refresh = planner.plan(
+            skillID: skillID,
+            currentBindings: [copy],
+            desiredConfiguration: desiredCopy,
+            requiredAdapterCodes: globalCoverage,
+            observations: [entry: copyObservation(.sourceChanged)]
+        )
+        #expect(refresh.filesystemActions.map(\.kind) == [.refreshCopy])
+
+        let remove = planner.plan(
+            skillID: skillID,
+            currentBindings: [copy],
+            desiredConfiguration: .init(scope: .disabled, syncMode: .copy),
+            requiredAdapterCodes: [],
+            observations: [entry: copyObservation(.inSync)]
+        )
+        #expect(remove.filesystemActions.map(\.kind) == [.removeCopy])
+
+        let toSymlink = planner.plan(
+            skillID: skillID,
+            currentBindings: [copy],
+            desiredConfiguration: .init(scope: .global(slug), syncMode: .symlink),
+            requiredAdapterCodes: globalCoverage,
+            observations: [entry: copyObservation(.inSync)]
+        )
+        #expect(toSymlink.filesystemActions.map(\.kind) == [.replaceCopyWithSymlink])
+
+        let symlink = try binding(scope: .global, slug: slug)
+        let toCopy = planner.plan(
+            skillID: skillID,
+            currentBindings: [symlink],
+            desiredConfiguration: desiredCopy,
+            requiredAdapterCodes: globalCoverage,
+            observations: [entry: managedCorrect]
+        )
+        #expect(toCopy.filesystemActions.map(\.kind) == [.replaceSymlinkWithCopy])
+    }
+
+    @Test("Copy drift states fail closed with stable evidence")
+    func copyDrift() throws {
+        let slug = try DefaultDistributionSlug(validating: "review")
+        let entry = try #require(catalog.entry(for: .global, slug: slug))
+        let current = [try copyBinding(scope: .global, slug: slug)]
+        let cases: [(DistributionCopyObservationState, DistributionConflictReason)] = [
+            (.contentDrift, .copyContentDrift),
+            (.physicalDrift, .copyPhysicalDrift),
+            (.rootReplaced, .copyRootReplaced),
+            (.targetReplaced, .copyTargetReplaced),
+            (.targetMissing, .copyTargetMissing),
+            (.baselineInvalid, .copyBaselineInvalid),
+        ]
+        for (state, reason) in cases {
+            let plan = planner.plan(
+                skillID: skillID,
+                currentBindings: current,
+                desiredConfiguration: .init(scope: .disabled, syncMode: .copy),
+                requiredAdapterCodes: [],
+                observations: [entry: copyObservation(state)]
+            )
+            expectBlocked(plan, reason: reason)
+            #expect(plan.conflicts.first?.copyEvidence?.skillID == skillID)
+        }
+    }
+
+    @Test("mixed persisted modes fail closed")
+    func mixedModes() throws {
+        let slug = try DefaultDistributionSlug(validating: "review")
+        let global = try copyBinding(scope: .global, slug: slug)
+        let agent = try binding(scope: .agent(.claude), slug: slug)
+        let plan = planner.plan(
+            skillID: skillID,
+            currentBindings: [global, agent],
+            desiredConfiguration: .init(scope: .disabled, syncMode: .copy),
+            requiredAdapterCodes: [],
+            observations: [:]
+        )
+        #expect(plan.status == .blocked)
+        #expect(plan.conflicts.contains(where: { $0.reason == .invalidDesiredScope }))
+    }
+
     private var globalCoverage: Set<String> {
         ["codex", "opencode", "copilot"]
     }
@@ -334,6 +434,63 @@ struct DistributionPlannerTests {
         )
     }
 
+    private func copyBinding(
+        scope: DistributionBindingScope,
+        slug: DefaultDistributionSlug
+    ) throws -> DistributionBinding {
+        let identity = try plannerIdentity()
+        return try DistributionBinding(
+            skillID: skillID,
+            scope: scope,
+            distributionSlug: slug,
+            syncMode: .copy,
+            copyBaseline: DistributionCopyBaseline(
+                contentFingerprint: SkillContentFingerprint(
+                    algorithmVersion: 1,
+                    digest: Data(repeating: 1, count: 32)
+                ),
+                physicalTreeDigest: CopyPhysicalTreeDigest(
+                    digest: Data(repeating: 2, count: 32)
+                ),
+                rootIdentity: identity,
+                entryIdentity: identity,
+                appliedOperationID: SSOTOperationID(),
+                verifiedAtMilliseconds: 9
+            ),
+            createdAtMilliseconds: 10,
+            updatedAtMilliseconds: 11
+        )
+    }
+
+    private func copyObservation(
+        _ state: DistributionCopyObservationState
+    ) -> DistributionTargetObservation {
+        .copy(DistributionCopyObservation(
+            state: state,
+            evidence: DistributionCopyConflictEvidence(
+                skillID: skillID,
+                baselineContentFingerprint: try? SkillContentFingerprint(
+                    algorithmVersion: 1,
+                    digest: Data(repeating: 1, count: 32)
+                ),
+                observedContentFingerprint: try? SkillContentFingerprint(
+                    algorithmVersion: 1,
+                    digest: Data(repeating: 3, count: 32)
+                ),
+                baselinePhysicalTreeDigest: try? CopyPhysicalTreeDigest(
+                    digest: Data(repeating: 2, count: 32)
+                ),
+                observedPhysicalTreeDigest: try? CopyPhysicalTreeDigest(
+                    digest: Data(repeating: 4, count: 32)
+                ),
+                baselineRootIdentity: try? plannerIdentity(),
+                observedRootIdentity: try? plannerIdentity(),
+                baselineEntryIdentity: try? plannerIdentity(),
+                observedEntryIdentity: try? plannerIdentity()
+            )
+        ))
+    }
+
     private func expectBlocked(
         _ plan: DistributionPlan,
         reason: DistributionConflictReason
@@ -344,4 +501,16 @@ struct DistributionPlannerTests {
         #expect(plan.bindingReplacement.isEmpty)
         #expect(plan.conflicts.map(\.reason) == [reason])
     }
+}
+
+private func plannerIdentity() throws -> ManagedItemIdentity {
+    let descriptor = Darwin.open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+    guard descriptor >= 0 else {
+        throw DistributionSymlinkFileSystemError.posix(
+            operation: "open planner identity fixture",
+            code: errno
+        )
+    }
+    defer { Darwin.close(descriptor) }
+    return try ManagedItemIdentityCodec.capture(descriptor: descriptor)
 }

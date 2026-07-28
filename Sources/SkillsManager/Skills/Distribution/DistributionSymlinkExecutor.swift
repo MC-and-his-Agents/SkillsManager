@@ -479,6 +479,9 @@ nonisolated final class DistributionSymlinkExecutor {
                         expectedRootIdentity: rootIdentity
                     )
                     created[index] = evidence
+                case .createCopy, .refreshCopy, .removeCopy,
+                     .replaceSymlinkWithCopy, .replaceCopyWithSymlink:
+                    throw DistributionSymlinkExecutorError.conflict
                 }
                 pending[index] = nil
                 try operationStore.updateProgress(
@@ -700,6 +703,7 @@ nonisolated final class DistributionSymlinkExecutor {
 
     func recoverAll() throws {
         for operation in try operationStore.recoverableOperations() {
+            guard operation.formatVersion == 1 else { continue }
             if operation.phase == .prepared {
                 let runtime = try decodeRuntime(operation)
                 if runtime.created.isEmpty && runtime.removed.isEmpty {
@@ -1371,6 +1375,11 @@ nonisolated final class DistributionSymlinkExecutor {
                       target == expected.absoluteLinkTarget else {
                     throw DistributionSymlinkExecutorError.needsRepair("rollback did not restore a link")
                 }
+            case .createCopy, .refreshCopy, .removeCopy,
+                 .replaceSymlinkWithCopy, .replaceCopyWithSymlink:
+                throw DistributionSymlinkExecutorError.needsRepair(
+                    "v1 rollback contains a Copy action"
+                )
             }
         }
         guard try ownershipStore.load(skillID: skillID) == expectedOldOwnership else {
@@ -1627,6 +1636,9 @@ nonisolated final class DistributionSymlinkExecutor {
                     entryIdentity: try ManagedItemIdentityCodec.encode(ownership.entryIdentity),
                     temporaryName: distributionTemporaryName(operationID, actionIndex: index)
                 )
+            case .createCopy, .refreshCopy, .removeCopy,
+                 .replaceSymlinkWithCopy, .replaceCopyWithSymlink:
+                throw DistributionSymlinkExecutorError.conflict
             }
         }
         return DistributionPreflightPayload(

@@ -95,6 +95,12 @@ nonisolated extension DistributionConflictReason {
         case .managedTargetMismatch: "The saved link points to a different managed Skill."
         case .unknownObject: "An unmanaged item already exists at this target."
         case .slugOccupied: "Another managed Skill already uses this name."
+        case .copyContentDrift: "The managed copy contains local content changes."
+        case .copyPhysicalDrift: "The managed copy contains unexpected files or permissions."
+        case .copyRootReplaced: "The managed copy root was replaced."
+        case .copyTargetReplaced: "The managed copy directory was replaced."
+        case .copyTargetMissing: "The managed copy is missing."
+        case .copyBaselineInvalid: "The managed copy baseline is unavailable or invalid."
         }
     }
 }

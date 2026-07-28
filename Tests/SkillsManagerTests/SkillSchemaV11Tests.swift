@@ -9,7 +9,7 @@ struct SkillSchemaV11Tests {
         case stop
     }
 
-    @Test("migrates one-to-one publish state atomically and accepts read-only v11")
+    @Test("migrates one-to-one publish state atomically and accepts read-only current schema")
     func migratesOneToOneAtomically() throws {
         try withV10Database { connection, databaseURL in
             let skillID = SkillID()
@@ -33,7 +33,7 @@ struct SkillSchemaV11Tests {
             ) == "unresolved")
 
             try SkillSchemaMigrator.migrateIfNeeded(connection)
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 11)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 12)
             #expect(try ManagedPublishStateStore(connection: connection).load(skillID: skillID)
                 == SQLitePublishState(
                     lastPublishedHash: "old",

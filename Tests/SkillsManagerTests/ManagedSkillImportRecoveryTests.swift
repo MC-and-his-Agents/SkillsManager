@@ -140,7 +140,7 @@ struct ManagedSkillImportRecoveryTests {
         _ = recovered
         #expect(
             try workspace.integer("PRAGMA user_version")
-                == Int64(SkillSchemaV11.version)
+                == Int64(SkillSchemaV12.version)
         )
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
         #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 0)

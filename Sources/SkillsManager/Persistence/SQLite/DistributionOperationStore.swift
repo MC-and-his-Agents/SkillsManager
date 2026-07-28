@@ -117,7 +117,7 @@ private nonisolated struct DistributionBindingWire: Codable, Equatable {
     }
 }
 
-private nonisolated struct DistributionPlanBindingWire: Codable, Equatable {
+nonisolated struct DistributionPlanBindingWire: Codable, Equatable {
     let skillID: String
     let scopeKind: String
     let adapterCode: String?
@@ -137,7 +137,7 @@ private nonisolated struct DistributionPlanBindingWire: Codable, Equatable {
     }
 }
 
-private nonisolated struct DistributionPlanActionWire: Codable, Equatable {
+nonisolated struct DistributionPlanActionWire: Codable, Equatable {
     let action: String
     let targetScopeKey: String
     let targetLocator: String
@@ -151,7 +151,7 @@ private nonisolated struct DistributionPlanActionWire: Codable, Equatable {
     }
 }
 
-private nonisolated struct DistributionPlanConflictWire: Codable, Equatable {
+nonisolated struct DistributionPlanConflictWire: Codable, Equatable {
     let reason: String
     let targetScopeKey: String
     let slugKey: String
@@ -165,7 +165,7 @@ private nonisolated struct DistributionPlanConflictWire: Codable, Equatable {
     }
 }
 
-private nonisolated struct DistributionPlanWire: Codable, Equatable {
+nonisolated struct DistributionPlanWire: Codable, Equatable {
     let status: String
     let filesystemActions: [DistributionPlanActionWire]
     let bindingsChanged: Bool
@@ -911,6 +911,7 @@ private nonisolated enum DistributionOperationPayloadValidator {
 }
 
 nonisolated struct DistributionOperationDraft: Sendable, Equatable {
+    let formatVersion: Int
     let operationID: SSOTOperationID
     let skillID: SkillID
     let oldBindings: Data
@@ -922,6 +923,7 @@ nonisolated struct DistributionOperationDraft: Sendable, Equatable {
     let updatedAtMilliseconds: Int64
 
     init(
+        formatVersion: Int = 1,
         operationID: SSOTOperationID = SSOTOperationID(),
         skillID: SkillID,
         oldBindings: Data,
@@ -949,7 +951,8 @@ nonisolated struct DistributionOperationDraft: Sendable, Equatable {
             phase: .prepared,
             outcome: nil
         )
-        try DistributionOperationPayloadValidator.validate(
+        try validateDistributionPayloads(
+            formatVersion: formatVersion,
             operationID: operationID,
             skillID: skillID,
             oldBindingsData: oldBindings,
@@ -958,10 +961,12 @@ nonisolated struct DistributionOperationDraft: Sendable, Equatable {
             preflightData: preflightPayload,
             runtimeData: runtimePayload,
             phase: .prepared,
+            outcome: nil,
             forwardCursor: 0,
             rollbackCursor: 0,
             cleanupCursor: 0
         )
+        self.formatVersion = formatVersion
         self.operationID = operationID
         self.skillID = skillID
         self.oldBindings = oldBindings
@@ -976,6 +981,7 @@ nonisolated struct DistributionOperationDraft: Sendable, Equatable {
     var record: DistributionOperationRecord {
         // Validation is performed by the initializer above.
         DistributionOperationRecord(
+            formatVersion: formatVersion,
             operationID: operationID,
             skillID: skillID,
             phase: .prepared,
@@ -997,6 +1003,7 @@ nonisolated struct DistributionOperationDraft: Sendable, Equatable {
 }
 
 nonisolated struct DistributionOperationRecord: Sendable, Equatable {
+    let formatVersion: Int
     let operationID: SSOTOperationID
     let skillID: SkillID
     let phase: DistributionOperationPhase
@@ -1015,6 +1022,7 @@ nonisolated struct DistributionOperationRecord: Sendable, Equatable {
     let updatedAtMilliseconds: Int64
 
     init(
+        formatVersion: Int = 1,
         operationID: SSOTOperationID,
         skillID: SkillID,
         phase: DistributionOperationPhase,
@@ -1032,6 +1040,7 @@ nonisolated struct DistributionOperationRecord: Sendable, Equatable {
         createdAtMilliseconds: Int64,
         updatedAtMilliseconds: Int64
     ) {
+        self.formatVersion = formatVersion
         self.operationID = operationID
         self.skillID = skillID
         self.phase = phase
@@ -1121,18 +1130,19 @@ nonisolated final class DistributionOperationStore {
               old_bindings, new_bindings, plan_payload, preflight_payload, runtime_payload,
               forward_cursor, rollback_cursor, cleanup_cursor, attempt_count, last_error,
               created_at_ms, updated_at_ms
-            ) VALUES (?, 1, ?, 'prepared', NULL, ?, ?, ?, ?, ?, 0, 0, 0, 0, NULL, ?, ?)
+            ) VALUES (?, ?, ?, 'prepared', NULL, ?, ?, ?, ?, ?, 0, 0, 0, 0, NULL, ?, ?)
             """
         )
         try statement.bind(record.operationID.bytes, at: 1)
-        try statement.bind(record.skillID.bytes, at: 2)
-        try statement.bind(record.oldBindings, at: 3)
-        try statement.bind(record.newBindings, at: 4)
-        try statement.bind(record.planPayload, at: 5)
-        try statement.bind(record.preflightPayload, at: 6)
-        try statement.bind(record.runtimePayload, at: 7)
-        try statement.bind(record.createdAtMilliseconds, at: 8)
-        try statement.bind(record.updatedAtMilliseconds, at: 9)
+        try statement.bind(Int64(record.formatVersion), at: 2)
+        try statement.bind(record.skillID.bytes, at: 3)
+        try statement.bind(record.oldBindings, at: 4)
+        try statement.bind(record.newBindings, at: 5)
+        try statement.bind(record.planPayload, at: 6)
+        try statement.bind(record.preflightPayload, at: 7)
+        try statement.bind(record.runtimePayload, at: 8)
+        try statement.bind(record.createdAtMilliseconds, at: 9)
+        try statement.bind(record.updatedAtMilliseconds, at: 10)
         do {
             guard try !statement.step() else { throw DistributionOperationStoreError.corruptRecord }
         } catch let error as DistributionOperationStoreError {
@@ -1220,7 +1230,8 @@ nonisolated final class DistributionOperationStore {
             createdAtMilliseconds: 0, updatedAtMilliseconds: updatedAtMilliseconds,
             phase: phase, outcome: nil
         )
-        try DistributionOperationPayloadValidator.validateRuntime(
+        try validateDistributionRuntime(
+            formatVersion: current.formatVersion,
             runtimePayload,
             planData: current.planPayload,
             preflightData: current.preflightPayload,
@@ -1247,6 +1258,71 @@ nonisolated final class DistributionOperationStore {
         if let lastError { try statement.bind(lastError, at: 7) } else { try statement.bindNull(at: 7) }
         try statement.bind(updatedAtMilliseconds, at: 8)
         try statement.bind(operationID.bytes, at: 9)
+        try finishMutation(statement)
+    }
+
+    func markFilesystemAppliedV2(
+        operationID: SSOTOperationID,
+        newBindings: Data,
+        runtimePayload: Data,
+        attemptCount: Int64,
+        updatedAtMilliseconds: Int64
+    ) throws {
+        let current = try loadOperation(operationID)
+        let actionCount = try filesystemActionCount(in: current.planPayload)
+        guard current.formatVersion == 2,
+              current.phase == .applying,
+              attemptCount >= current.attemptCount,
+              updatedAtMilliseconds >= current.updatedAtMilliseconds else {
+            throw DistributionOperationStoreError.conflict
+        }
+        try DistributionOperationRecord.validate(
+            oldBindings: current.oldBindings,
+            newBindings: newBindings,
+            planPayload: current.planPayload,
+            preflightPayload: current.preflightPayload,
+            runtimePayload: runtimePayload,
+            forwardCursor: actionCount,
+            rollbackCursor: 0,
+            cleanupCursor: 0,
+            attemptCount: attemptCount,
+            lastError: nil,
+            createdAtMilliseconds: current.createdAtMilliseconds,
+            updatedAtMilliseconds: updatedAtMilliseconds,
+            phase: .filesystemApplied,
+            outcome: nil
+        )
+        try validateDistributionPayloads(
+            formatVersion: 2,
+            operationID: current.operationID,
+            skillID: current.skillID,
+            oldBindingsData: current.oldBindings,
+            newBindingsData: newBindings,
+            planData: current.planPayload,
+            preflightData: current.preflightPayload,
+            runtimeData: runtimePayload,
+            phase: .filesystemApplied,
+            outcome: nil,
+            forwardCursor: actionCount,
+            rollbackCursor: 0,
+            cleanupCursor: 0
+        )
+        let statement = try connection.prepare(
+            """
+            UPDATE distribution_operations
+            SET phase = 'filesystemApplied', new_bindings = ?, runtime_payload = ?,
+                forward_cursor = ?, rollback_cursor = 0, cleanup_cursor = 0,
+                attempt_count = ?, last_error = NULL, updated_at_ms = ?
+            WHERE operation_id = ? AND format_version = 2
+              AND phase = 'applying' AND outcome IS NULL
+            """
+        )
+        try statement.bind(newBindings, at: 1)
+        try statement.bind(runtimePayload, at: 2)
+        try statement.bind(actionCount, at: 3)
+        try statement.bind(attemptCount, at: 4)
+        try statement.bind(updatedAtMilliseconds, at: 5)
+        try statement.bind(operationID.bytes, at: 6)
         try finishMutation(statement)
     }
 
@@ -1310,6 +1386,9 @@ nonisolated final class DistributionOperationStore {
             throw DistributionOperationStoreError.invalidRecord
         }
         let current = try loadOperation(operationID)
+        guard current.formatVersion == 1 || outcome == .applied else {
+            throw DistributionOperationStoreError.conflict
+        }
         switch (outcome, current.phase) {
         case (.applied, .cleaning):
             break
@@ -1334,6 +1413,67 @@ nonisolated final class DistributionOperationStore {
         try finishMutation(statement)
     }
 
+    func completeV2RolledBack(
+        operationID: SSOTOperationID,
+        desiredBindings: Data,
+        runtimePayload: Data,
+        updatedAtMilliseconds: Int64
+    ) throws {
+        let current = try loadOperation(operationID)
+        guard current.formatVersion == 2,
+              current.phase == .rollingBack,
+              current.rollbackCursor >= current.forwardCursor,
+              updatedAtMilliseconds >= current.updatedAtMilliseconds else {
+            throw DistributionOperationStoreError.conflict
+        }
+        try DistributionOperationRecord.validate(
+            oldBindings: current.oldBindings,
+            newBindings: desiredBindings,
+            planPayload: current.planPayload,
+            preflightPayload: current.preflightPayload,
+            runtimePayload: runtimePayload,
+            forwardCursor: current.forwardCursor,
+            rollbackCursor: current.rollbackCursor,
+            cleanupCursor: current.cleanupCursor,
+            attemptCount: current.attemptCount,
+            lastError: current.lastError,
+            createdAtMilliseconds: current.createdAtMilliseconds,
+            updatedAtMilliseconds: updatedAtMilliseconds,
+            phase: .completed,
+            outcome: .rolledBack
+        )
+        try validateDistributionPayloads(
+            formatVersion: 2,
+            operationID: current.operationID,
+            skillID: current.skillID,
+            oldBindingsData: current.oldBindings,
+            newBindingsData: desiredBindings,
+            planData: current.planPayload,
+            preflightData: current.preflightPayload,
+            runtimeData: runtimePayload,
+            phase: .completed,
+            outcome: .rolledBack,
+            forwardCursor: current.forwardCursor,
+            rollbackCursor: current.rollbackCursor,
+            cleanupCursor: current.cleanupCursor
+        )
+        let statement = try connection.prepare(
+            """
+            UPDATE distribution_operations
+            SET phase = 'completed', outcome = 'rolledBack',
+                new_bindings = ?, runtime_payload = ?,
+                updated_at_ms = MAX(updated_at_ms, ?)
+            WHERE operation_id = ? AND format_version = 2
+              AND phase = 'rollingBack' AND outcome IS NULL
+            """
+        )
+        try statement.bind(desiredBindings, at: 1)
+        try statement.bind(runtimePayload, at: 2)
+        try statement.bind(updatedAtMilliseconds, at: 3)
+        try statement.bind(operationID.bytes, at: 4)
+        try finishMutation(statement)
+    }
+
     func transaction<T>(_ body: () throws -> T) throws -> T {
         try connection.withImmediateTransaction(body)
     }
@@ -1352,6 +1492,7 @@ nonisolated final class DistributionOperationStore {
                 statement.text(at: 4), as: DistributionOperationOutcome.self
             )
             let record = DistributionOperationRecord(
+                formatVersion: Int(statement.int64(at: 1)),
                 operationID: try SSOTOperationID(bytes: distributionRequiredBlob(statement, 0)),
                 skillID: try SkillID(bytes: distributionRequiredBlob(statement, 2)),
                 phase: phase,
@@ -1379,7 +1520,8 @@ nonisolated final class DistributionOperationStore {
                 updatedAtMilliseconds: record.updatedAtMilliseconds,
                 phase: record.phase, outcome: record.outcome
             )
-            try DistributionOperationPayloadValidator.validate(
+            try validateDistributionPayloads(
+                formatVersion: record.formatVersion,
                 operationID: record.operationID,
                 skillID: record.skillID,
                 oldBindingsData: record.oldBindings,
@@ -1388,6 +1530,7 @@ nonisolated final class DistributionOperationStore {
                 preflightData: record.preflightPayload,
                 runtimeData: record.runtimePayload,
                 phase: record.phase,
+                outcome: record.outcome,
                 forwardCursor: record.forwardCursor,
                 rollbackCursor: record.rollbackCursor,
                 cleanupCursor: record.cleanupCursor
@@ -1413,8 +1556,94 @@ nonisolated final class DistributionOperationStore {
            forward_cursor, rollback_cursor, cleanup_cursor, attempt_count, last_error,
            created_at_ms, updated_at_ms
     FROM distribution_operations
-    WHERE format_version = 1
+    WHERE 1 = 1
     """
+}
+
+private nonisolated func validateDistributionPayloads(
+    formatVersion: Int,
+    operationID: SSOTOperationID,
+    skillID: SkillID,
+    oldBindingsData: Data,
+    newBindingsData: Data,
+    planData: Data,
+    preflightData: Data,
+    runtimeData: Data,
+    phase: DistributionOperationPhase,
+    outcome: DistributionOperationOutcome?,
+    forwardCursor: Int64,
+    rollbackCursor: Int64,
+    cleanupCursor: Int64
+) throws {
+    switch formatVersion {
+    case 1:
+        try DistributionOperationPayloadValidator.validate(
+            operationID: operationID,
+            skillID: skillID,
+            oldBindingsData: oldBindingsData,
+            newBindingsData: newBindingsData,
+            planData: planData,
+            preflightData: preflightData,
+            runtimeData: runtimeData,
+            phase: phase,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor
+        )
+    case 2:
+        try DistributionOperationPayloadV2Validator.validate(
+            operationID: operationID,
+            skillID: skillID,
+            oldBindingsData: oldBindingsData,
+            newBindingsData: newBindingsData,
+            planData: planData,
+            preflightData: preflightData,
+            runtimeData: runtimeData,
+            phase: phase,
+            outcome: outcome,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor
+        )
+    default:
+        throw DistributionOperationStoreError.corruptRecord
+    }
+}
+
+private nonisolated func validateDistributionRuntime(
+    formatVersion: Int,
+    _ runtimeData: Data,
+    planData: Data,
+    preflightData: Data,
+    forwardCursor: Int64,
+    rollbackCursor: Int64,
+    cleanupCursor: Int64,
+    phase: DistributionOperationPhase
+) throws {
+    switch formatVersion {
+    case 1:
+        try DistributionOperationPayloadValidator.validateRuntime(
+            runtimeData,
+            planData: planData,
+            preflightData: preflightData,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor,
+            phase: phase
+        )
+    case 2:
+        try DistributionOperationPayloadV2Validator.validateRuntime(
+            runtimeData,
+            planData: planData,
+            preflightData: preflightData,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor,
+            phase: phase
+        )
+    default:
+        throw DistributionOperationStoreError.corruptRecord
+    }
 }
 
 nonisolated func distributionRequiredBlob(

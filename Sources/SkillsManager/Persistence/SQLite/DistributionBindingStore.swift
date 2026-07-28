@@ -39,76 +39,95 @@ nonisolated struct DistributionBindingStore {
         desired: [DistributionBindingIntent],
         nowMilliseconds: Int64
     ) throws -> [DistributionBinding] {
-            let actual = try loadBindings(skillID: skillID)
-            guard canonical(expectedOld) == actual else {
-                throw DistributionBindingStoreError.conflict
-            }
-            guard nowMilliseconds >= 0 else {
-                throw DistributionBindingStoreError.invalidInput
-            }
-            let desired = try canonicalDesired(desired, skillID: skillID)
-            guard actual.map(\.intent) != desired else { return actual }
+        let actual = try loadBindings(skillID: skillID)
+        guard canonical(expectedOld) == actual else {
+            throw DistributionBindingStoreError.conflict
+        }
+        guard nowMilliseconds >= 0 else {
+            throw DistributionBindingStoreError.invalidInput
+        }
+        let desired = try canonicalDesired(desired, skillID: skillID)
+        guard desired.allSatisfy({ $0.syncMode == .symlink }) else {
+            throw DistributionBindingStoreError.invalidInput
+        }
+        guard actual.map(\.intent) != desired else { return actual }
 
-            let actualByScope = Dictionary(
-                uniqueKeysWithValues: actual.map { ($0.scope.targetScopeKey, $0) }
-            )
-            let desiredByScope = Dictionary(
-                uniqueKeysWithValues: desired.map { ($0.scope.targetScopeKey, $0) }
-            )
-            let replacement = try desired.map { intent in
-                if let old = actualByScope[intent.scope.targetScopeKey] {
-                    guard old.intent != intent else { return old }
-                    guard old.updatedAtMilliseconds < Int64.max else {
-                        throw DistributionBindingStoreError.invalidInput
-                    }
-                    return try DistributionBinding(
-                        skillID: intent.skillID,
-                        scope: intent.scope,
-                        distributionSlug: intent.distributionSlug,
-                        syncMode: intent.syncMode,
-                        createdAtMilliseconds: old.createdAtMilliseconds,
-                        updatedAtMilliseconds: max(
-                            nowMilliseconds,
-                            old.updatedAtMilliseconds + 1
-                        )
-                    )
+        let actualByScope = Dictionary(
+            uniqueKeysWithValues: actual.map { ($0.scope.targetScopeKey, $0) }
+        )
+        let replacement = try desired.map { intent in
+            if let old = actualByScope[intent.scope.targetScopeKey] {
+                guard old.intent != intent else { return old }
+                guard old.updatedAtMilliseconds < Int64.max else {
+                    throw DistributionBindingStoreError.invalidInput
                 }
                 return try DistributionBinding(
                     skillID: intent.skillID,
                     scope: intent.scope,
                     distributionSlug: intent.distributionSlug,
                     syncMode: intent.syncMode,
-                    createdAtMilliseconds: nowMilliseconds,
-                    updatedAtMilliseconds: nowMilliseconds
+                    createdAtMilliseconds: old.createdAtMilliseconds,
+                    updatedAtMilliseconds: max(
+                        nowMilliseconds,
+                        old.updatedAtMilliseconds + 1
+                    )
                 )
             }
+            return try DistributionBinding(
+                skillID: intent.skillID,
+                scope: intent.scope,
+                distributionSlug: intent.distributionSlug,
+                syncMode: intent.syncMode,
+                createdAtMilliseconds: nowMilliseconds,
+                updatedAtMilliseconds: nowMilliseconds
+            )
+        }
 
-            for binding in actual where desiredByScope[binding.scope.targetScopeKey] == nil {
-                try delete(binding)
-            }
+        return try writeReplacement(
+            skillID: skillID,
+            actual: actual,
+            replacement: replacement
+        )
+    }
 
-            for binding in replacement {
-                if let old = actualByScope[binding.scope.targetScopeKey] {
-                    if old != binding {
-                        try update(old, to: binding)
-                    }
-                } else {
-                    try insert(binding)
-                }
-            }
-
-            let readback = try loadBindings(skillID: skillID)
-            guard readback == replacement else {
-                throw DistributionBindingStoreError.conflict
-            }
-            return readback
+    func replaceFinalizedInCurrentTransaction(
+        skillID: SkillID,
+        expectedOld: [DistributionBinding],
+        desired: [DistributionBinding]
+    ) throws -> [DistributionBinding] {
+        let actual = try loadBindings(skillID: skillID)
+        guard canonical(expectedOld) == actual else {
+            throw DistributionBindingStoreError.conflict
+        }
+        let replacement = canonical(desired)
+        guard replacement.allSatisfy({ $0.skillID == skillID }),
+              Set(replacement.map(\.scope.targetScopeKey)).count == replacement.count,
+              Set(replacement.map(\.syncMode)).count <= 1 else {
+            throw DistributionBindingStoreError.invalidInput
+        }
+        let globalCount = replacement.count { $0.scope == .global }
+        guard (globalCount == 0 || (globalCount == 1 && replacement.count == 1)),
+              Set(replacement.map(\.distributionSlug)).count <= 1 else {
+            throw DistributionBindingStoreError.invalidInput
+        }
+        guard replacement != actual else { return actual }
+        return try writeReplacement(
+            skillID: skillID,
+            actual: actual,
+            replacement: replacement
+        )
     }
 
     private func loadBindings(skillID: SkillID) throws -> [DistributionBinding] {
         let statement = try connection.prepare(
             """
             SELECT scope_kind, adapter_code, target_scope_key,
-              distribution_slug, slug_key, sync_mode, created_at_ms, updated_at_ms
+              distribution_slug, slug_key, sync_mode,
+              copy_content_algorithm_version, copy_content_fingerprint,
+              copy_tree_algorithm_version, copy_tree_digest,
+              copy_root_identity, copy_entry_identity,
+              copy_applied_operation_id, copy_verified_at_ms,
+              created_at_ms, updated_at_ms
             FROM distribution_bindings WHERE skill_id = ?
             """
         )
@@ -117,7 +136,14 @@ nonisolated struct DistributionBindingStore {
         while try statement.step() {
             bindings.append(try decode(statement, skillID: skillID))
         }
-        return canonical(bindings)
+        let result = canonical(bindings)
+        let globalCount = result.count { $0.scope == .global }
+        guard Set(result.map(\.scope.targetScopeKey)).count == result.count,
+              Set(result.map(\.syncMode)).count <= 1,
+              globalCount == 0 || (globalCount == 1 && result.count == 1) else {
+            throw DistributionBindingStoreError.corruptRecord
+        }
+        return result
     }
 
     private func decode(
@@ -161,8 +187,9 @@ nonisolated struct DistributionBindingStore {
                 scope: scope,
                 distributionSlug: slug,
                 syncMode: syncMode,
-                createdAtMilliseconds: statement.int64(at: 6),
-                updatedAtMilliseconds: statement.int64(at: 7)
+                copyBaseline: try decodeCopyBaseline(statement, syncMode: syncMode),
+                createdAtMilliseconds: statement.int64(at: 14),
+                updatedAtMilliseconds: statement.int64(at: 15)
             )
         } catch let error as DistributionBindingStoreError {
             throw error
@@ -183,7 +210,8 @@ nonisolated struct DistributionBindingStore {
             throw DistributionBindingStoreError.invalidInput
         }
         let globalCount = desired.count { $0.scope == .global }
-        guard globalCount == 0 || (globalCount == 1 && desired.count == 1) else {
+        guard (globalCount == 0 || (globalCount == 1 && desired.count == 1)),
+              Set(desired.map(\.syncMode)).count <= 1 else {
             throw DistributionBindingStoreError.invalidInput
         }
         return desired.sorted(by: distributionBindingIntentPrecedes)
@@ -214,16 +242,22 @@ nonisolated struct DistributionBindingStore {
         let statement = try connection.prepare(
             """
             UPDATE distribution_bindings
-            SET distribution_slug = ?, slug_key = ?, sync_mode = ?, updated_at_ms = ?
+            SET distribution_slug = ?, slug_key = ?, sync_mode = ?,
+                copy_content_algorithm_version = ?, copy_content_fingerprint = ?,
+                copy_tree_algorithm_version = ?, copy_tree_digest = ?,
+                copy_root_identity = ?, copy_entry_identity = ?,
+                copy_applied_operation_id = ?, copy_verified_at_ms = ?,
+                updated_at_ms = ?
             WHERE skill_id = ? AND target_scope_key = ?
             """
         )
         try statement.bind(binding.distributionSlug.value, at: 1)
         try statement.bind(binding.distributionSlug.collisionKey, at: 2)
         try statement.bind(binding.syncMode.rawValue, at: 3)
-        try statement.bind(binding.updatedAtMilliseconds, at: 4)
-        try statement.bind(binding.skillID.bytes, at: 5)
-        try statement.bind(binding.scope.targetScopeKey, at: 6)
+        try bindCopyBaseline(binding.copyBaseline, to: statement, startingAt: 4)
+        try statement.bind(binding.updatedAtMilliseconds, at: 12)
+        try statement.bind(binding.skillID.bytes, at: 13)
+        try statement.bind(binding.scope.targetScopeKey, at: 14)
         try finishExactlyOne(statement)
     }
 
@@ -232,8 +266,13 @@ nonisolated struct DistributionBindingStore {
             """
             INSERT INTO distribution_bindings(
               skill_id, scope_kind, adapter_code, target_scope_key,
-              distribution_slug, slug_key, sync_mode, created_at_ms, updated_at_ms
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+              distribution_slug, slug_key, sync_mode,
+              copy_content_algorithm_version, copy_content_fingerprint,
+              copy_tree_algorithm_version, copy_tree_digest,
+              copy_root_identity, copy_entry_identity,
+              copy_applied_operation_id, copy_verified_at_ms,
+              created_at_ms, updated_at_ms
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
         )
         try statement.bind(binding.skillID.bytes, at: 1)
@@ -247,9 +286,91 @@ nonisolated struct DistributionBindingStore {
         try statement.bind(binding.distributionSlug.value, at: 5)
         try statement.bind(binding.distributionSlug.collisionKey, at: 6)
         try statement.bind(binding.syncMode.rawValue, at: 7)
-        try statement.bind(binding.createdAtMilliseconds, at: 8)
-        try statement.bind(binding.updatedAtMilliseconds, at: 9)
+        try bindCopyBaseline(binding.copyBaseline, to: statement, startingAt: 8)
+        try statement.bind(binding.createdAtMilliseconds, at: 16)
+        try statement.bind(binding.updatedAtMilliseconds, at: 17)
         try finishExactlyOne(statement)
+    }
+
+    private func writeReplacement(
+        skillID: SkillID,
+        actual: [DistributionBinding],
+        replacement: [DistributionBinding]
+    ) throws -> [DistributionBinding] {
+        let actualByScope = Dictionary(
+            uniqueKeysWithValues: actual.map { ($0.scope.targetScopeKey, $0) }
+        )
+        let desiredKeys = Set(replacement.map(\.scope.targetScopeKey))
+        for binding in actual where !desiredKeys.contains(binding.scope.targetScopeKey) {
+            try delete(binding)
+        }
+        for binding in replacement {
+            if let old = actualByScope[binding.scope.targetScopeKey] {
+                if old != binding { try update(old, to: binding) }
+            } else {
+                try insert(binding)
+            }
+        }
+        let readback = try loadBindings(skillID: skillID)
+        guard readback == replacement else {
+            throw DistributionBindingStoreError.conflict
+        }
+        return readback
+    }
+
+    private func decodeCopyBaseline(
+        _ statement: SQLiteStatement,
+        syncMode: DistributionSyncMode
+    ) throws -> DistributionCopyBaseline? {
+        if syncMode == .symlink {
+            guard (6...13).allSatisfy({ statement.isNull(at: Int32($0)) }) else {
+                throw DistributionBindingStoreError.corruptRecord
+            }
+            return nil
+        }
+        guard !statement.isNull(at: 6),
+              let contentDigest = statement.blob(at: 7),
+              !statement.isNull(at: 8),
+              let treeDigest = statement.blob(at: 9),
+              let rootIdentity = statement.blob(at: 10),
+              let entryIdentity = statement.blob(at: 11),
+              let operationID = statement.blob(at: 12),
+              !statement.isNull(at: 13) else {
+            throw DistributionBindingStoreError.corruptRecord
+        }
+        return try DistributionCopyBaseline(
+            contentFingerprint: SkillContentFingerprint(
+                algorithmVersion: Int(statement.int64(at: 6)),
+                digest: contentDigest
+            ),
+            physicalTreeDigest: CopyPhysicalTreeDigest(
+                algorithmVersion: Int(statement.int64(at: 8)),
+                digest: treeDigest
+            ),
+            rootIdentity: ManagedItemIdentityCodec.decode(rootIdentity),
+            entryIdentity: ManagedItemIdentityCodec.decode(entryIdentity),
+            appliedOperationID: SSOTOperationID(bytes: operationID),
+            verifiedAtMilliseconds: statement.int64(at: 13)
+        )
+    }
+
+    private func bindCopyBaseline(
+        _ baseline: DistributionCopyBaseline?,
+        to statement: SQLiteStatement,
+        startingAt start: Int32
+    ) throws {
+        guard let baseline else {
+            for index in start..<(start + 8) { try statement.bindNull(at: index) }
+            return
+        }
+        try statement.bind(Int64(baseline.contentFingerprint.algorithmVersion), at: start)
+        try statement.bind(baseline.contentFingerprint.digest, at: start + 1)
+        try statement.bind(Int64(baseline.physicalTreeDigest.algorithmVersion), at: start + 2)
+        try statement.bind(baseline.physicalTreeDigest.digest, at: start + 3)
+        try statement.bind(try ManagedItemIdentityCodec.encode(baseline.rootIdentity), at: start + 4)
+        try statement.bind(try ManagedItemIdentityCodec.encode(baseline.entryIdentity), at: start + 5)
+        try statement.bind(baseline.appliedOperationID.bytes, at: start + 6)
+        try statement.bind(baseline.verifiedAtMilliseconds, at: start + 7)
     }
 
     private func finishExactlyOne(_ statement: SQLiteStatement) throws {

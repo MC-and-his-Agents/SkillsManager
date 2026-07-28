@@ -24,7 +24,7 @@ extension JournaledSSOTWriter {
             let selection = try loadDistributionSelection(skillID: skillID)
             let ownership = try DistributionLinkOwnershipStore(connection: connection)
                 .load(skillID: skillID)
-            let reconcile = try distribution.reconcile(skillID: skillID)
+            let reconcile = try reconcileDistribution(skillID: skillID)
             guard reconcile.status == .inSync else {
                 if reconcile.status == .needsRepair { throw SkillDeletionError.needsRepair }
                 if reconcile.status == .operationInProgress {
@@ -304,10 +304,13 @@ extension JournaledSSOTWriter {
               ownership == expectation.ownership else {
             throw SkillDeletionError.conflict
         }
-        let plan = try distribution.dryRun(
+        let mode = current.bindings.first?.syncMode ?? .symlink
+        let plan = try distributionPlan(
             skillID: operation.skillID,
-            currentBindings: current.bindings,
-            desiredScope: .disabled,
+            desiredConfiguration: DistributionDesiredConfiguration(
+                scope: .disabled,
+                syncMode: mode
+            ),
             desiredConfigured: current.isExplicitlyConfigured,
             requiredAdapterCodes: []
         )
@@ -317,11 +320,9 @@ extension JournaledSSOTWriter {
         }
         try requireAuthority()
         if plan.status == .executable {
-            let applied = try distribution.apply(
+            let applied = try applyDistribution(
                 skillID: operation.skillID,
-                plan: plan,
-                expectedOldBindings: current.bindings,
-                expectedOldOwnership: ownership
+                plan: plan
             )
             guard applied.phase == .completed, applied.outcome == .applied else {
                 throw SkillDeletionError.needsRepair

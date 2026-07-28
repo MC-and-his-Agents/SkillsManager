@@ -16,7 +16,8 @@ nonisolated struct SkillBackupDistributionSelection: Sendable {
     ) throws {
         let ordered = bindingIntents.sorted(by: distributionBindingIntentPrecedes)
         guard Set(ordered.map(\.scope.targetScopeKey)).count == ordered.count,
-              Set(ordered).count == ordered.count else {
+              Set(ordered).count == ordered.count,
+              Set(ordered.map(\.syncMode)).count <= 1 else {
             throw SkillBackupManifestError.invalidManifest
         }
         self.isExplicitlyConfigured = isExplicitlyConfigured
