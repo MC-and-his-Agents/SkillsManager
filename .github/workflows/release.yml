@@ -237,21 +237,118 @@ jobs:
             echo "Unexpected release payload: ${files[*]}" >&2
             exit 1
           }
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" \
-              --repo "$GITHUB_REPOSITORY" \
-              --notes-file release-payload/RELEASE_NOTES.md
-            gh release upload "$GITHUB_REF_NAME" \
-              "release-payload/$zip" \
-              release-payload/appcast.xml \
-              --repo "$GITHUB_REPOSITORY" \
-              --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" \
-              "release-payload/$zip" \
-              release-payload/appcast.xml \
-              --repo "$GITHUB_REPOSITORY" \
-              --verify-tag \
-              --title "Skills Manager ${version}" \
-              --notes-file release-payload/RELEASE_NOTES.md
-          fi
+          gh release create "$GITHUB_REF_NAME" \
+            "release-payload/$zip" \
+            release-payload/appcast.xml \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "Skills Manager ${version}" \
+            --notes-file release-payload/RELEASE_NOTES.md
+
+  post-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: publish
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+      GH_TOKEN: ${{ github.token }}
+      SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+      SPARKLE_FEED_URL: https://github.com/MC-and-his-Agents/SkillsManager/releases/latest/download/appcast.xml
+      SPARKLE_PRODUCT_URL: https://github.com/MC-and-his-Agents/SkillsManager
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Verify public release and smoke test
+        run: |
+          set -euo pipefail
+          source version.env
+          version="${GITHUB_REF_NAME#v}"
+          zip="SkillsManager-${version}.zip"
+          release_dir="$RUNNER_TEMP/public-release"
+          extract_dir="$RUNNER_TEMP/public-app"
+          mkdir "$release_dir" "$extract_dir"
+
+          [[ "$version" == "$MARKETING_VERSION" ]]
+          printf '%s\n' "$zip" appcast.xml | sort > "$RUNNER_TEMP/expected-assets.txt"
+          gh release view "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets \
+            --jq '.assets[].name' \
+            | sort > "$RUNNER_TEMP/actual-assets.txt"
+          diff -u "$RUNNER_TEMP/expected-assets.txt" "$RUNNER_TEMP/actual-assets.txt"
+          gh release view "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json body > "$RUNNER_TEMP/release.json"
+          jq -j '.body' "$RUNNER_TEMP/release.json" > "$RUNNER_TEMP/release-notes.md"
+          cmp RELEASE_NOTES.md "$RUNNER_TEMP/release-notes.md"
+
+          base_url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+          curl --fail --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            --retry-max-time 120 --max-time 120 \
+            --write-out 'zip_http_status=%{http_code}\nzip_final_url=%{url_effective}\n' \
+            --output "$release_dir/$zip" \
+            "$base_url/$zip"
+          curl --fail --location \
+            --retry 5 --retry-delay 2 --retry-all-errors \
+            --retry-max-time 120 --max-time 120 \
+            --write-out 'appcast_http_status=%{http_code}\nappcast_final_url=%{url_effective}\n' \
+            --output "$release_dir/appcast.xml" \
+            "$base_url/appcast.xml"
+
+          item="(//*[local-name()='item'][\
+          * [local-name()='shortVersionString' and text()='${MARKETING_VERSION}'] and \
+          * [local-name()='version' and text()='${BUILD_NUMBER}']])[1]"
+          enclosure_url=$(xmllint --xpath \
+            "string($item/*[local-name()='enclosure']/@url)" \
+            "$release_dir/appcast.xml")
+          enclosure_length=$(xmllint --xpath \
+            "string($item/*[local-name()='enclosure']/@length)" \
+            "$release_dir/appcast.xml")
+          enclosure_signature=$(xmllint --xpath \
+            "string($item/*[local-name()='enclosure']/@*[local-name()='edSignature'])" \
+            "$release_dir/appcast.xml")
+          [[ "$enclosure_url" == "$base_url/$zip" ]]
+          [[ "$enclosure_length" == "$(stat -f%z "$release_dir/$zip")" ]]
+
+          swift Scripts/verify_sparkle_signature.swift \
+            "$release_dir/$zip" \
+            "$enclosure_signature" \
+            "$SPARKLE_PUBLIC_KEY"
+
+          ditto -x -k "$release_dir/$zip" "$extract_dir"
+          app="$extract_dir/SkillsManager.app"
+          [[ -d "$app" ]]
+          SPARKLE_DOWNLOAD_URL_PREFIX="$base_url/" \
+            ./Scripts/verify_release_artifact.sh \
+              "$app" \
+              "$release_dir/$zip" \
+              "$release_dir/appcast.xml" \
+              "$RUNNER_TEMP/release-verification.txt"
+
+          executable=$(plutil -extract CFBundleExecutable raw -o - "$app/Contents/Info.plist")
+          log="$RUNNER_TEMP/skills-manager-smoke.log"
+          "$app/Contents/MacOS/$executable" >"$log" 2>&1 &
+          app_pid=$!
+          cleanup() {
+            kill -TERM "$app_pid" 2>/dev/null || true
+            for _ in {1..5}; do
+              if ! kill -0 "$app_pid" 2>/dev/null; then
+                wait "$app_pid" 2>/dev/null || true
+                return
+              fi
+              sleep 1
+            done
+            kill -KILL "$app_pid" 2>/dev/null || true
+            wait "$app_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for _ in {1..10}; do
+            sleep 1
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              cat "$log" >&2
+              exit 1
+            fi
+          done
+          echo "post_release_smoke=pass"
