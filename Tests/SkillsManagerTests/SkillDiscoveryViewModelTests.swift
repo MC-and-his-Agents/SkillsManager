@@ -18,6 +18,7 @@ struct SkillDiscoveryViewModelTests {
         #expect(await probe.waitForCallCount(1))
         #expect(viewModel.loadState == .loading)
         await probe.succeedNext(SkillDiscoveryResult(
+            observedRoots: [],
             observations: [observation],
             rootDiagnostics: [SkillDiscoveryRootDiagnostic(
                 root: root,
@@ -52,6 +53,7 @@ struct SkillDiscoveryViewModelTests {
         let terminalRefresh = Task { await viewModel.refresh() }
         #expect(await probe.waitForCallCount(2))
         await probe.succeedNext(SkillDiscoveryResult(
+            observedRoots: [],
             observations: [
                 discoveryTestObservation(status: .conflict, reason: .evidenceConflict),
                 discoveryTestObservation(
@@ -97,6 +99,7 @@ struct SkillDiscoveryViewModelTests {
         let refresh = Task { await viewModel.refresh() }
         #expect(await probe.waitForCallCount(1))
         await probe.succeedNext(SkillDiscoveryResult(
+            observedRoots: [],
             observations: [upper, lower],
             rootDiagnostics: []
         ))
@@ -296,6 +299,7 @@ func discoveryTestResult(
     diagnostics: [SkillDiscoveryRootDiagnostic] = []
 ) -> SkillDiscoveryResult {
     SkillDiscoveryResult(
+        observedRoots: [],
         observations: observation.map { [$0] } ?? [],
         rootDiagnostics: diagnostics
     )
