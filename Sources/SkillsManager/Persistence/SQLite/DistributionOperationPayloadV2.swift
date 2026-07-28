@@ -262,6 +262,8 @@ nonisolated enum DistributionOperationPayloadV2Validator {
             || phase == .cleaning
             || (phase == .completed && outcome == .applied) {
             try validatePersistedBindings(new, skillID: skillID)
+        } else if phase == .rollingBack {
+            try validateRollbackBindings(new, skillID: skillID)
         } else {
             try validateDesiredBindings(new, skillID: skillID)
         }
@@ -415,6 +417,21 @@ nonisolated enum DistributionOperationPayloadV2Validator {
             throw DistributionOperationStoreError.invalidRecord
         }
         try validateBindingSet(wires.map { try $0.intent(expectedSkillID: skillID) })
+    }
+
+    private static func validateRollbackBindings(
+        _ wires: [DistributionBindingWireV2],
+        skillID: SkillID
+    ) throws {
+        if wires.allSatisfy({
+            $0.createdAtMilliseconds == nil
+                && $0.updatedAtMilliseconds == nil
+                && $0.copyBaseline == nil
+        }) {
+            try validateDesiredBindings(wires, skillID: skillID)
+        } else {
+            try validatePersistedBindings(wires, skillID: skillID)
+        }
     }
 
     private static func validateBindingSet(
