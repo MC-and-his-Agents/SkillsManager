@@ -288,6 +288,27 @@ struct SkillConsistencyRepairTests {
         #expect(try ownership(fixture).map(\.targetScopeKey) == ["agent:claude"])
     }
 
+    @Test("terminal drift is rejected before reporting success")
+    func postTerminalDrift() async throws {
+        let fixture = try await RepairFixture()
+        try FileManager.default.removeItem(at: fixture.targetURL)
+        let service = SkillConsistencyRepairService(
+            writer: fixture.writer,
+            homeURL: fixture.workspace.distributionHomeURL,
+            afterApply: {
+                try FileManager.default.removeItem(at: fixture.targetURL)
+            }
+        )
+        let preview = try await service.prepare(
+            skillID: fixture.skillID,
+            action: .rebuildMissingSymlink(scopeKeys: ["global"])
+        )
+
+        await #expect(throws: SkillConsistencyRepairError.needsRepair) {
+            _ = try await service.confirm(preview)
+        }
+    }
+
     @Test("typed execution permission errors remain stable")
     func permissionErrorMapping() {
         #expect(stableSkillConsistencyRepairError(

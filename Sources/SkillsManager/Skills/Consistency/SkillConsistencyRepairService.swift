@@ -4,16 +4,19 @@ actor SkillConsistencyRepairService {
     private let writer: JournaledSSOTWriter
     private let audit: SkillConsistencyAuditService
     private let beforeApply: @Sendable () async throws -> Void
+    private let afterApply: @Sendable () async throws -> Void
     private var consumedConfirmations = Set<UUID>()
 
     init(
         writer: JournaledSSOTWriter,
         homeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
         betweenAuditCaptures: @escaping @Sendable () async throws -> Void = {},
-        beforeApply: @escaping @Sendable () async throws -> Void = {}
+        beforeApply: @escaping @Sendable () async throws -> Void = {},
+        afterApply: @escaping @Sendable () async throws -> Void = {}
     ) {
         self.writer = writer
         self.beforeApply = beforeApply
+        self.afterApply = afterApply
         audit = SkillConsistencyAuditService(
             writer: writer,
             homeURL: homeURL,
@@ -93,6 +96,10 @@ actor SkillConsistencyRepairService {
             )
             guard operation.phase == .completed,
                   operation.outcome == .applied else {
+                throw SkillConsistencyRepairError.needsRepair
+            }
+            try await afterApply()
+            guard try await writer.appliedDistributionRepairMatches(operation) else {
                 throw SkillConsistencyRepairError.needsRepair
             }
             return .applied(operation.operationID)

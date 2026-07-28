@@ -811,6 +811,23 @@ nonisolated final class DistributionSymlinkExecutor {
         return DistributionReconcileResult(status: drifted ? .drifted : .inSync, observations: observations)
     }
 
+    func appliedRepairMatches(
+        _ operation: DistributionOperationRecord
+    ) throws -> Bool {
+        guard operation.formatVersion == 1,
+              operation.phase == .completed,
+              operation.outcome == .applied,
+              try DistributionOperationPayloadCodec.decode(
+                  DistributionPlanWire.self,
+                  from: operation.planPayload
+              ).repairIntent != nil else {
+            return false
+        }
+        return try currentSSOTMatches(operation)
+            && databaseMatches(operation: operation, expected: .new)
+            && diskMatches(operation: operation, expected: .new)
+    }
+
     func recoverAll() throws {
         for operation in try operationStore.recoverableOperations() {
             guard operation.formatVersion == 1 else { continue }

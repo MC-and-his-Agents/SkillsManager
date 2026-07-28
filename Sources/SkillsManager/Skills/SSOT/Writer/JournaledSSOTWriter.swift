@@ -316,6 +316,13 @@ actor JournaledSSOTWriter {
         return try distribution.reconcile(skillID: skillID, bindings: bindings)
     }
 
+    func appliedDistributionRepairMatches(
+        _ operation: DistributionOperationRecord
+    ) throws -> Bool {
+        try requireAuthority()
+        return try distribution.appliedRepairMatches(operation)
+    }
+
     func discoveryCatalog() throws -> SkillDiscoveryCatalog {
         try journal.discoveryCatalog()
     }
