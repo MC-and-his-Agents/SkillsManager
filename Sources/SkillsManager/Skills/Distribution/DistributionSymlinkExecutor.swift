@@ -607,7 +607,8 @@ nonisolated final class DistributionSymlinkExecutor {
                 oldOwnership: expectedOldOwnership,
                 created: created,
                 operationID: operationID,
-                timestamp: timestamp
+                timestamp: timestamp,
+                missingScopeKeys: Set(preflight.repairTargets.map(\.targetScopeKey))
             )
             guard try finalReadback(
                 skillID: skillID,
@@ -1242,7 +1243,8 @@ nonisolated final class DistributionSymlinkExecutor {
                 }
             ),
             operationID: operation.operationID,
-            timestamp: operation.createdAtMilliseconds
+            timestamp: operation.createdAtMilliseconds,
+            missingScopeKeys: Set(preflight.repairTargets.map(\.targetScopeKey))
         )
         guard try finalReadback(
             skillID: operation.skillID,
@@ -1593,16 +1595,18 @@ nonisolated final class DistributionSymlinkExecutor {
         if expectation == .old {
             let expectedScopes = Set(bindings.map(\.scope.targetScopeKey))
             let actualScopes = Set(runtime.oldOwnership.map(\.targetScopeKey))
-            let wire = try DistributionOperationPayloadCodec.decode(
+            let plan = try DistributionOperationPayloadCodec.decode(
                 DistributionPlanWire.self,
                 from: operation.planPayload
             )
-            let selected = Set(wire.repairScopeKeys ?? [])
-            let complete = if wire.repairIntent == nil {
+            let missing = Set(
+                try decodePreflight(operation).repairTargets.map(\.targetScopeKey)
+            )
+            let complete = if plan.repairIntent == nil {
                 actualScopes == expectedScopes
             } else {
                 actualScopes.isSubset(of: expectedScopes)
-                    && expectedScopes.subtracting(selected).isSubset(of: actualScopes)
+                    && expectedScopes.subtracting(missing).isSubset(of: actualScopes)
             }
             guard complete else {
                 throw DistributionSymlinkExecutorError.needsRepair(
@@ -1622,7 +1626,8 @@ nonisolated final class DistributionSymlinkExecutor {
             }
         }
 
-        let preflight = try decodePreflight(operation).actions
+        let preflightPayload = try decodePreflight(operation)
+        let preflight = preflightPayload.actions
         let oldOwnership = try expectedOwnership(
             operation: operation,
             bindings: try decodeBindingIntents(operation.oldBindings, skillID: operation.skillID),
@@ -1634,13 +1639,23 @@ nonisolated final class DistributionSymlinkExecutor {
         )
         let repairIntent = wire.repairIntent.flatMap(DistributionRepairIntent.init)
         let selectedRepairScopes = Set(wire.repairScopeKeys ?? [])
-        return try bindings.map { binding in
+        let missingRepairScopes = Set(
+            preflightPayload.repairTargets.map(\.targetScopeKey)
+        )
+        return try bindings.compactMap { binding in
             if repairIntent != nil,
-               !selectedRepairScopes.contains(binding.scope.targetScopeKey),
-               let old = oldOwnership.first(where: {
-                   $0.targetScopeKey == binding.scope.targetScopeKey
-               }) {
-                return old
+               !selectedRepairScopes.contains(binding.scope.targetScopeKey) {
+                if let old = oldOwnership.first(where: {
+                    $0.targetScopeKey == binding.scope.targetScopeKey
+                }) {
+                    return old
+                }
+                guard missingRepairScopes.contains(binding.scope.targetScopeKey) else {
+                    throw DistributionSymlinkExecutorError.needsRepair(
+                        "journal is missing retained ownership evidence"
+                    )
+                }
+                return nil
             }
             if let actionIndex = preflight.firstIndex(where: {
                 $0.kind == DistributionFilesystemActionKind.createSymlink.rawValue
@@ -2023,15 +2038,21 @@ nonisolated final class DistributionSymlinkExecutor {
         oldOwnership: [DistributionLinkOwnership],
         created: [Int: DistributionSymlinkEvidence],
         operationID: SSOTOperationID,
-        timestamp: Int64
+        timestamp: Int64,
+        missingScopeKeys: Set<String> = []
     ) throws -> [DistributionLinkOwnership] {
-        try plan.bindingReplacement.map { binding in
+        try plan.bindingReplacement.compactMap { binding in
             if plan.repairIntent != nil,
-               !plan.repairScopeKeys.contains(binding.scope.targetScopeKey),
-               let old = oldOwnership.first(where: {
-                   $0.targetScopeKey == binding.scope.targetScopeKey
-               }) {
-                return old
+               !plan.repairScopeKeys.contains(binding.scope.targetScopeKey) {
+                if let old = oldOwnership.first(where: {
+                    $0.targetScopeKey == binding.scope.targetScopeKey
+                }) {
+                    return old
+                }
+                guard missingScopeKeys.contains(binding.scope.targetScopeKey) else {
+                    throw DistributionSymlinkExecutorError.conflict
+                }
+                return nil
             }
             let actionIndex = plan.filesystemActions.firstIndex {
                 $0.kind == .createSymlink
@@ -2077,9 +2098,7 @@ nonisolated final class DistributionSymlinkExecutor {
             guard let entry = DistributionTargetCatalog.current.entry(
                 for: binding.scope,
                 slug: binding.distributionSlug
-            ), let row = ownership.first(where: {
-                $0.targetScopeKey == binding.scope.targetScopeKey
-            }), row.absoluteLinkTarget == target.absoluteTarget else {
+            ) else {
                 return false
             }
             if allowedMissingScopeKeys.contains(binding.scope.targetScopeKey) {
@@ -2087,6 +2106,11 @@ nonisolated final class DistributionSymlinkExecutor {
                     return false
                 }
                 continue
+            }
+            guard let row = ownership.first(where: {
+                $0.targetScopeKey == binding.scope.targetScopeKey
+            }), row.absoluteLinkTarget == target.absoluteTarget else {
+                return false
             }
             guard case .symlink(
                 let root,

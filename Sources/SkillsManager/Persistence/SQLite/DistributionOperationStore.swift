@@ -326,12 +326,14 @@ private nonisolated enum DistributionOperationPayloadValidator {
         let runtime = try decodeRuntime(runtimeData)
         let oldScopes = Set(old.map(bindingScopeKey))
         let ownershipScopes = Set(runtime.oldOwnership.map(\.targetScopeKey))
-        let selectedRepairScopes = Set(plan.repairScopeKeys ?? [])
+        let persistedMissingScopes = Set(
+            (preflight.repairTargets ?? []).map(\.targetScopeKey)
+        )
         let ownershipMatches = if plan.repairIntent == nil {
             ownershipScopes == oldScopes
         } else {
             ownershipScopes.isSubset(of: oldScopes)
-                && oldScopes.subtracting(selectedRepairScopes).isSubset(of: ownershipScopes)
+                && oldScopes.subtracting(persistedMissingScopes).isSubset(of: ownershipScopes)
         }
         guard ownershipMatches,
               runtime.oldOwnership.allSatisfy({
@@ -346,7 +348,7 @@ private nonisolated enum DistributionOperationPayloadValidator {
                 ($0.targetScopeKey, $0)
             })
             for ownership in runtime.oldOwnership
-                where selectedRepairScopes.contains(ownership.targetScopeKey) {
+                where persistedMissingScopes.contains(ownership.targetScopeKey) {
                 guard let target = targets[ownership.targetScopeKey],
                       !target.rootIdentity.isEmpty,
                       target.rootIdentity == ownership.rootIdentity,

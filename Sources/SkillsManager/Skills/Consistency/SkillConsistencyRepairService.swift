@@ -3,14 +3,17 @@ import Foundation
 actor SkillConsistencyRepairService {
     private let writer: JournaledSSOTWriter
     private let audit: SkillConsistencyAuditService
+    private let beforeApply: @Sendable () async throws -> Void
     private var consumedConfirmations = Set<UUID>()
 
     init(
         writer: JournaledSSOTWriter,
         homeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
-        betweenAuditCaptures: @escaping @Sendable () async throws -> Void = {}
+        betweenAuditCaptures: @escaping @Sendable () async throws -> Void = {},
+        beforeApply: @escaping @Sendable () async throws -> Void = {}
     ) {
         self.writer = writer
+        self.beforeApply = beforeApply
         audit = SkillConsistencyAuditService(
             writer: writer,
             homeURL: homeURL,
@@ -80,21 +83,7 @@ actor SkillConsistencyRepairService {
                   let intent = preview.action.intent else {
                 throw SkillConsistencyRepairError.stalePreview
             }
-            let selection = try await writer.loadDistributionSelection(
-                skillID: preview.skillID
-            )
-            guard try DistributionRepairSelectionToken.encode(
-                selection,
-                skillID: preview.skillID
-            ) == preview.selectionToken else {
-                throw SkillConsistencyRepairError.stalePreview
-            }
-            let expected = try repairReadbackExpectation(
-                manifest: prepared.manifest,
-                skillID: preview.skillID,
-                action: preview.action,
-                selection: selection
-            )
+            try await beforeApply()
             let operation = try await writer.applyDistributionRepair(
                 skillID: preview.skillID,
                 intent: intent,
@@ -106,44 +95,11 @@ actor SkillConsistencyRepairService {
                   operation.outcome == .applied else {
                 throw SkillConsistencyRepairError.needsRepair
             }
-            let reconcile = try await writer.reconcileDistribution(skillID: preview.skillID)
-            guard stableSkillConsistencyRepairReadback(
-                reconcile,
-                skillID: preview.skillID,
-                expectedBindingScopeKeys: expected.bindingScopeKeys,
-                expectedMissingScopeKeys: expected.missingScopeKeys
-            ) else {
-                throw SkillConsistencyRepairError.needsRepair
-            }
             return .applied(operation.operationID)
         } catch is CancellationError {
             throw CancellationError()
         } catch {
             throw stableSkillConsistencyRepairError(error)
-        }
-    }
-
-    private func repairReadbackExpectation(
-        manifest: SkillConsistencyAuditManifest,
-        skillID: SkillID,
-        action: SkillConsistencyRepairAction,
-        selection: DistributionSelectionReadback
-    ) throws -> (bindingScopeKeys: Set<String>, missingScopeKeys: Set<String>) {
-        let current = try observations(manifest: manifest, skillID: skillID)
-        let missing = Set(current.compactMap { entry, observation in
-            observation == .missing ? entry.target.scope.targetScopeKey : nil
-        })
-        let bindingScopes = Set(selection.bindings.map(\.scope.targetScopeKey))
-        switch action {
-        case .rebuildMissingSymlink:
-            return (bindingScopes, [])
-        case .disableMissingBinding(let selected):
-            return (
-                bindingScopes.subtracting(selected),
-                missing.subtracting(selected)
-            )
-        case .skip:
-            throw SkillConsistencyRepairError.invalidSelection
         }
     }
 
@@ -193,36 +149,6 @@ actor SkillConsistencyRepairService {
         })
     }
 
-}
-
-nonisolated func stableSkillConsistencyRepairReadback(
-    _ result: DistributionReconcileResult,
-    skillID: SkillID,
-    expectedBindingScopeKeys: Set<String>,
-    expectedMissingScopeKeys: Set<String>
-) -> Bool {
-    let scopeKeys = Set(result.observations.keys.map(\.target.scope.targetScopeKey))
-    guard scopeKeys == expectedBindingScopeKeys else { return false }
-    let expectedStatus: DistributionReconcileStatus = expectedMissingScopeKeys.isEmpty
-        ? .inSync
-        : .drifted
-    guard result.status == expectedStatus else { return false }
-
-    var missing = Set<String>()
-    for (entry, observation) in result.observations {
-        let scopeKey = entry.target.scope.targetScopeKey
-        switch observation {
-        case .missing:
-            missing.insert(scopeKey)
-        case .managed(let owner, let directoryName):
-            guard owner == skillID, directoryName == skillID.directoryName else {
-                return false
-            }
-        default:
-            return false
-        }
-    }
-    return missing == expectedMissingScopeKeys
 }
 
 nonisolated func stableSkillConsistencyRepairError(

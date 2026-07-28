@@ -107,6 +107,7 @@ func recoverRebuild() async throws {
     try executor.recoverAll()
 
     let record = try operation(fixture, operationID: operationID)
+    #expect(record.lastError == nil)
     #expect(record.phase == .completed)
     #expect(record.outcome == .applied)
     #expect(try ownership(fixture).first?.appliedOperationID == operationID)
@@ -148,9 +149,19 @@ func recoverDisable() async throws {
 }
 
 func recoverPartialDisable() async throws {
+    try await recoverPartialDisable(phase: .prepared, outcome: .rolledBack)
+    try await recoverPartialDisable(phase: .filesystemApplied, outcome: .applied)
+}
+
+private func recoverPartialDisable(
+    phase: DistributionOperationPhase,
+    outcome: DistributionOperationOutcome
+) async throws {
     let fixture = try await RepairFixture(agentPlatforms: [.codex, .claude])
     try FileManager.default.removeItem(at: fixture.distributionURL(for: .agent(.codex)))
     try FileManager.default.removeItem(at: fixture.distributionURL(for: .agent(.claude)))
+    try deleteOwnership(fixture, scopeKey: "agent:claude")
+    let expectedOldOwnership = try ownership(fixture)
     let service = SkillConsistencyRepairService(
         writer: fixture.writer,
         homeURL: fixture.workspace.distributionHomeURL
@@ -164,23 +175,30 @@ func recoverPartialDisable() async throws {
         Issue.record("partial disable did not apply")
         return
     }
-    try restoreBindingsAndOwnership(fixture)
+    try restoreBindingsAndOwnership(fixture, ownership: expectedOldOwnership)
     try rewindOperation(
         fixture,
         operationID: operationID,
-        phase: .prepared,
+        phase: phase,
         forwardCursor: 0
     )
 
     try recoveryExecutor(fixture).recoverAll()
 
     let record = try operation(fixture, operationID: operationID)
+    #expect(record.lastError == nil)
     #expect(record.phase == .completed)
-    #expect(record.outcome == .rolledBack)
-    #expect(try DistributionBindingStore(
+    #expect(record.outcome == outcome)
+    let bindings = try DistributionBindingStore(
         connection: SQLiteConnection(url: fixture.workspace.database)
-    ).load(skillID: fixture.skillID).count == 2)
-    #expect(try ownership(fixture) == fixture.oldOwnership)
+    ).load(skillID: fixture.skillID)
+    if outcome == .rolledBack {
+        #expect(bindings.count == 2)
+        #expect(try ownership(fixture) == expectedOldOwnership)
+    } else {
+        #expect(bindings.map(\.scope) == [.agent(.claude)])
+        #expect(try ownership(fixture).isEmpty)
+    }
 }
 
 func binding(
@@ -258,6 +276,48 @@ func deleteOwnership(_ fixture: RepairFixture) throws {
         "DELETE FROM distribution_link_ownership WHERE skill_id = ?"
     )
     try statement.bind(fixture.skillID.bytes, at: 1)
+    _ = try statement.step()
+}
+
+func deleteOwnership(_ fixture: RepairFixture, scopeKey: String) throws {
+    let connection = try SQLiteConnection(url: fixture.workspace.database)
+    let statement = try connection.prepare(
+        """
+        DELETE FROM distribution_link_ownership
+        WHERE skill_id = ? AND target_scope_key = ?
+        """
+    )
+    try statement.bind(fixture.skillID.bytes, at: 1)
+    try statement.bind(scopeKey, at: 2)
+    _ = try statement.step()
+}
+
+func refreshOwnershipIdentity(
+    _ fixture: RepairFixture,
+    scopeKey: String,
+    targetURL: URL
+) throws {
+    var metadata = stat()
+    guard Darwin.lstat(targetURL.path, &metadata) == 0 else {
+        throw DistributionSymlinkFileSystemError.posix(
+            operation: "inspect replacement",
+            code: errno
+        )
+    }
+    let connection = try SQLiteConnection(url: fixture.workspace.database)
+    let statement = try connection.prepare(
+        """
+        UPDATE distribution_link_ownership
+        SET entry_identity = ?
+        WHERE skill_id = ? AND target_scope_key = ?
+        """
+    )
+    try statement.bind(
+        try ManagedItemIdentityCodec.encode(ManagedItemIdentity(metadata)),
+        at: 1
+    )
+    try statement.bind(fixture.skillID.bytes, at: 2)
+    try statement.bind(scopeKey, at: 3)
     _ = try statement.step()
 }
 
@@ -343,20 +403,25 @@ func restoreOwnership(_ fixture: RepairFixture) throws {
     )
 }
 
-func restoreBindingsAndOwnership(_ fixture: RepairFixture) throws {
+func restoreBindingsAndOwnership(
+    _ fixture: RepairFixture,
+    ownership desiredOwnership: [DistributionLinkOwnership]? = nil
+) throws {
     let connection = try SQLiteConnection(url: fixture.workspace.database)
     let bindingStore = DistributionBindingStore(connection: connection)
     _ = try bindingStore.replace(
         skillID: fixture.skillID,
         expectedOld: bindingStore.load(skillID: fixture.skillID),
         desired: fixture.oldBindings.map(\.intent),
-        nowMilliseconds: 100
+        nowMilliseconds: try #require(
+            fixture.oldBindings.first
+        ).createdAtMilliseconds
     )
     let ownershipStore = DistributionLinkOwnershipStore(connection: connection)
     _ = try ownershipStore.replace(
         skillID: fixture.skillID,
         expectedOld: ownershipStore.load(skillID: fixture.skillID),
-        desired: fixture.oldOwnership,
+        desired: desiredOwnership ?? fixture.oldOwnership,
         appliedOperationID: try #require(fixture.oldOwnership.first).appliedOperationID,
         nowMilliseconds: 100
     )

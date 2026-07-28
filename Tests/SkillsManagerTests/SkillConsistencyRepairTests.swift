@@ -218,6 +218,7 @@ struct SkillConsistencyRepairTests {
         let claudeURL = try fixture.distributionURL(for: .agent(.claude))
         try FileManager.default.removeItem(at: codexURL)
         try FileManager.default.removeItem(at: claudeURL)
+        try deleteOwnership(fixture, scopeKey: "agent:claude")
         let service = SkillConsistencyRepairService(
             writer: fixture.writer,
             homeURL: fixture.workspace.distributionHomeURL
@@ -236,9 +237,7 @@ struct SkillConsistencyRepairTests {
             skillID: fixture.skillID
         )
         #expect(selection.bindings.map(\.scope) == [.agent(.claude)])
-        #expect(try ownership(fixture) == fixture.oldOwnership.filter {
-            $0.targetScopeKey == "agent:claude"
-        })
+        #expect(try ownership(fixture).isEmpty)
         #expect(!FileManager.default.fileExists(atPath: codexURL.path))
         #expect(!FileManager.default.fileExists(atPath: claudeURL.path))
 
@@ -248,39 +247,45 @@ struct SkillConsistencyRepairTests {
         }
     }
 
-    @Test("repair readback rejects wrong managed targets and scope sets")
-    func repairReadbackValidation() throws {
-        let skillID = SkillID()
-        let slug = try DefaultDistributionSlug(validating: "demo")
-        let codex = try #require(DistributionTargetCatalog.current.entry(
-            for: .agent(.codex),
-            slug: slug
-        ))
-        let claude = try #require(DistributionTargetCatalog.current.entry(
-            for: .agent(.claude),
-            slug: slug
-        ))
-        let expectedScopes = Set(["agent:codex", "agent:claude"])
-        let expectedMissing = Set(["agent:claude"])
+    @Test("writer preflight owns terminal truth after audit changes")
+    func auditToPreflightChange() async throws {
+        let fixture = try await RepairFixture(agentPlatforms: [.codex, .claude])
+        let codexURL = try fixture.distributionURL(for: .agent(.codex))
+        let claudeURL = try fixture.distributionURL(for: .agent(.claude))
+        let currentClaudeTarget = try destination(of: claudeURL)
+        let claudeTarget = try #require(currentClaudeTarget)
+        try FileManager.default.removeItem(at: codexURL)
+        try FileManager.default.removeItem(at: claudeURL)
+        let service = SkillConsistencyRepairService(
+            writer: fixture.writer,
+            homeURL: fixture.workspace.distributionHomeURL,
+            beforeApply: {
+                try FileManager.default.createSymbolicLink(
+                    atPath: claudeURL.path,
+                    withDestinationPath: claudeTarget
+                )
+                try refreshOwnershipIdentity(
+                    fixture,
+                    scopeKey: "agent:claude",
+                    targetURL: claudeURL
+                )
+            }
+        )
+        let preview = try await service.prepare(
+            skillID: fixture.skillID,
+            action: .disableMissingBinding(scopeKeys: ["agent:codex"])
+        )
 
-        #expect(!stableSkillConsistencyRepairReadback(
-            .init(
-                status: .drifted,
-                observations: [
-                    codex: .managed(skillID: skillID, ssotDirectoryName: "wrong"),
-                    claude: .missing,
-                ]
-            ),
-            skillID: skillID,
-            expectedBindingScopeKeys: expectedScopes,
-            expectedMissingScopeKeys: expectedMissing
-        ))
-        #expect(!stableSkillConsistencyRepairReadback(
-            .init(status: .drifted, observations: [claude: .missing]),
-            skillID: skillID,
-            expectedBindingScopeKeys: expectedScopes,
-            expectedMissingScopeKeys: expectedMissing
-        ))
+        guard case .applied = try await service.confirm(preview) else {
+            Issue.record("changed preflight did not apply")
+            return
+        }
+
+        #expect(try destination(of: claudeURL) == claudeTarget)
+        #expect(try await fixture.writer.loadDistributionSelection(
+            skillID: fixture.skillID
+        ).bindings.map(\.scope) == [.agent(.claude)])
+        #expect(try ownership(fixture).map(\.targetScopeKey) == ["agent:claude"])
     }
 
     @Test("typed execution permission errors remain stable")
