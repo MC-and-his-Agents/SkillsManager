@@ -456,15 +456,26 @@ final class CopyCheckpointInterruption: @unchecked Sendable {
     private let target: DistributionFilesystemCheckpoint
     private let lock = NSLock()
     private var fired = false
+    private var isArmed: Bool
 
-    init(target: DistributionFilesystemCheckpoint) {
+    init(
+        target: DistributionFilesystemCheckpoint,
+        isArmed: Bool = true
+    ) {
         self.target = target
+        self.isArmed = isArmed
+    }
+
+    func arm() {
+        lock.lock()
+        isArmed = true
+        lock.unlock()
     }
 
     func reach(_ checkpoint: DistributionFilesystemCheckpoint) throws {
         lock.lock()
         defer { lock.unlock() }
-        guard checkpoint == target, !fired else { return }
+        guard isArmed, checkpoint == target, !fired else { return }
         fired = true
         throw Failure()
     }

@@ -342,6 +342,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                     Task { await store.loadSelectedSkill() }
                 }
             }
+            .onChange(of: distributionModel.publishedForkSelectionGeneration) { _, _ in
+                Task { await selectRequestedFork() }
+            }
             .onChange(of: searchText) { _, newValue in
                 guard source == .clawdhub else { return }
                 searchTask?.cancel()
@@ -425,6 +428,27 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
         )
     }
 
+    private func selectRequestedFork() async {
+        guard let childSkillID = distributionModel.requestedForkChildSkillID else {
+            return
+        }
+        await store.loadSkills()
+        await discoveryModel.refresh()
+        guard distributionModel.requestedForkChildSkillID == childSkillID else {
+            return
+        }
+        guard let item = discoveryModel.items.first(where: {
+            $0.observation.status == .managed
+                && $0.observation.matchedSkillID == childSkillID
+        }) else {
+            distributionModel.reportForkSelectionFailure(childSkillID)
+            return
+        }
+        source = .discovery
+        discoveryModel.selectedItemID = item.id
+        distributionModel.acknowledgeForkSelection(childSkillID)
+    }
+
     private var distributionSelectionKey: String {
         let selection = managedSelection
         return [
@@ -465,36 +489,4 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             discovery: discovery
         )
     }
-}
-
-struct ManagedSkillSelection: Equatable, Sendable {
-    let skillID: SkillID
-    let displayName: String
-
-    static func resolve(
-        source: SkillSource,
-        local: Self?,
-        discovery: Self?
-    ) -> Self? {
-        switch source {
-        case .local: local
-        case .discovery: discovery
-        case .clawdhub: nil
-        }
-    }
-}
-
-@MainActor
-func refreshManagedSkillSelection(
-    _ selection: ManagedSkillSelection?,
-    distributionModel: SkillDistributionViewModel,
-    lifecycleModel: SkillLifecycleViewModel,
-    isCurrent: @MainActor () -> Bool
-) async {
-    await distributionModel.refresh(
-        skillID: selection?.skillID,
-        displayName: selection?.displayName
-    )
-    guard isCurrent() else { return }
-    await lifecycleModel.refresh(skillID: selection?.skillID)
 }

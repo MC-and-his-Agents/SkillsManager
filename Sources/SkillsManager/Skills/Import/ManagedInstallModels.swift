@@ -252,7 +252,16 @@ nonisolated struct ManagedInstallDependencies: Sendable {
     static func live(writer: JournaledSSOTWriter) -> Self {
         let distribution = SkillDistributionDependencies.live(writer: writer)
         return Self(
-            plan: distribution.plan,
+            plan: { skillID, scope, requiredAdapterCodes in
+                try await distribution.plan(
+                    skillID,
+                    DistributionDesiredConfiguration(
+                        scope: scope,
+                        syncMode: .symlink
+                    ),
+                    requiredAdapterCodes
+                )
+            },
             create: { payload, snapshot, operationID in
                 try await writer.create(
                     payload: payload,

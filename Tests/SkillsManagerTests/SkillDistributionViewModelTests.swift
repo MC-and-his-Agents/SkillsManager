@@ -96,7 +96,7 @@ struct SkillDistributionViewModelTests {
         await model.preparePreview()
         #expect(model.problem == nil)
         #expect(model.pendingPreview != nil)
-        if case .disabled = model.pendingPreview?.desiredScope {
+        if case .disabled = model.pendingPreview?.desiredConfiguration.scope {
             #expect(model.pendingPreview?.requiredAdapterCodes.isEmpty == true)
         } else {
             Issue.record("Expected disabled distribution scope")

@@ -479,7 +479,7 @@ nonisolated final class DistributionSymlinkExecutor {
                         expectedRootIdentity: rootIdentity
                     )
                     created[index] = evidence
-                case .createCopy, .refreshCopy, .removeCopy,
+                case .createCopy, .refreshCopy, .discardCopyDrift, .removeCopy,
                      .replaceSymlinkWithCopy, .replaceCopyWithSymlink:
                     throw DistributionSymlinkExecutorError.conflict
                 }
@@ -1375,7 +1375,7 @@ nonisolated final class DistributionSymlinkExecutor {
                       target == expected.absoluteLinkTarget else {
                     throw DistributionSymlinkExecutorError.needsRepair("rollback did not restore a link")
                 }
-            case .createCopy, .refreshCopy, .removeCopy,
+            case .createCopy, .refreshCopy, .discardCopyDrift, .removeCopy,
                  .replaceSymlinkWithCopy, .replaceCopyWithSymlink:
                 throw DistributionSymlinkExecutorError.needsRepair(
                     "v1 rollback contains a Copy action"
@@ -1636,7 +1636,7 @@ nonisolated final class DistributionSymlinkExecutor {
                     entryIdentity: try ManagedItemIdentityCodec.encode(ownership.entryIdentity),
                     temporaryName: distributionTemporaryName(operationID, actionIndex: index)
                 )
-            case .createCopy, .refreshCopy, .removeCopy,
+            case .createCopy, .refreshCopy, .discardCopyDrift, .removeCopy,
                  .replaceSymlinkWithCopy, .replaceCopyWithSymlink:
                 throw DistributionSymlinkExecutorError.conflict
             }

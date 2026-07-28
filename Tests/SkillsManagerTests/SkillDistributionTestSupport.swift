@@ -119,9 +119,9 @@ func distributionModel(probe: DistributionPlanProbe) -> SkillDistributionViewMod
             isExplicitlyConfigured: false
         ) },
         reconcile: { _ in DistributionReconcileResult(status: .inSync, observations: [:]) },
-        plan: { _, scope, codes in
+        plan: { _, configuration, codes in
             try await probe.nextPlan(
-                desiredScope: scope,
+                desiredScope: configuration.scope,
                 requiredAdapterCodes: codes
             )
         },

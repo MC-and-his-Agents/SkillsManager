@@ -6,6 +6,22 @@ nonisolated enum SkillDistributionStateError: Error {
 }
 
 extension SkillDistributionViewModel {
+    enum LoadState: Equatable {
+        case blocked(String)
+        case empty
+        case loading
+        case ready(Status)
+        case failed(Problem)
+    }
+
+    enum Status: Equatable {
+        case notConfigured
+        case inSync
+        case drifted
+        case needsRepair
+        case operationInProgress
+    }
+
     enum Problem: Equatable {
         case invalidPersistedBindings
         case previewExpired
@@ -14,6 +30,7 @@ extension SkillDistributionViewModel {
         case needsRepair
         case operationInProgress
         case operationDidNotComplete
+        case forkCreatedButNotLocated
         case failed(String)
 
         var message: String {
@@ -32,6 +49,8 @@ extension SkillDistributionViewModel {
                 "A distribution operation is already in progress for this Skill."
             case .operationDidNotComplete:
                 "The distribution operation did not reach a successful terminal state."
+            case .forkCreatedButNotLocated:
+                "The Fork was created, but it could not be selected in the refreshed library."
             case .failed(let message):
                 message
             }
@@ -41,6 +60,7 @@ extension SkillDistributionViewModel {
     struct TargetRow: Identifiable, Equatable, Sendable {
         let scopeKey: String
         let locator: String
+        let syncMode: DistributionSyncMode
 
         var id: String { "\(scopeKey)\u{0}\(locator)" }
     }
@@ -55,10 +75,34 @@ extension SkillDistributionViewModel {
         var id: SkillPlatform { platform }
     }
 
+    struct ForkLineageRow: Equatable, Sendable {
+        let parentSkillID: SkillID
+        let parentDisplayName: String?
+        let createdAtMilliseconds: Int64
+        let forkedFromFingerprint: SkillContentFingerprint
+
+        init(_ readback: SkillForkLineageReadback) {
+            parentSkillID = readback.parentSkillID
+            parentDisplayName = readback.parentDisplayName
+            createdAtMilliseconds = readback.createdAtMilliseconds
+            forkedFromFingerprint = readback.forkedFromFingerprint
+        }
+
+        var parentLabel: String {
+            parentDisplayName ?? parentSkillID.directoryName
+        }
+
+        var fingerprintLabel: String {
+            forkedFromFingerprint.shortDisplayName
+        }
+    }
+
     struct PreviewRow: Identifiable, Equatable, Sendable {
         enum Kind: String, Sendable {
             case remove
             case create
+            case refresh
+            case replace
             case binding
             case configuration
             case noChange
@@ -71,15 +115,26 @@ extension SkillDistributionViewModel {
         var id: String { "\(kind.rawValue)\u{0}\(scopeKey)\u{0}\(locator)" }
     }
 
+    struct DriftDecision: Identifiable, Equatable, Sendable {
+        let scopeKey: String
+        let locator: String
+        let preview: CopyDriftDecisionPreview
+
+        var id: String {
+            "\(scopeKey)\u{0}\(preview.binding.distributionSlug.collisionKey)"
+        }
+    }
+
     struct PendingPreview: Identifiable, Sendable {
         let id = UUID()
         let generation: UInt64
         let skillID: SkillID
-        let desiredScope: DistributionDesiredScope
+        let desiredConfiguration: DistributionDesiredConfiguration
         let requiredAdapterCodes: Set<String>
         let plan: DistributionPlan
         let canonicalPlan: Data
         let rows: [PreviewRow]
+        let driftDecisions: [DriftDecision]
     }
 }
 
@@ -130,8 +185,10 @@ extension SkillDistributionViewModel.Status {
 extension SkillDistributionViewModel.PreviewRow.Kind {
     var displayName: String {
         switch self {
-        case .remove: "Remove link"
-        case .create: "Create link"
+        case .remove: "Remove target"
+        case .create: "Create target"
+        case .refresh: "Refresh Copy"
+        case .replace: "Change distribution mode"
         case .binding: "Update saved target"
         case .configuration: "Save Agent selection"
         case .noChange: "No change"
@@ -142,9 +199,20 @@ extension SkillDistributionViewModel.PreviewRow.Kind {
         switch self {
         case .remove: "minus.circle"
         case .create: "plus.circle"
+        case .refresh: "arrow.clockwise.circle"
+        case .replace: "arrow.triangle.swap"
         case .binding: "link"
         case .configuration: "checklist"
         case .noChange: "checkmark.circle"
+        }
+    }
+}
+
+nonisolated extension DistributionSyncMode {
+    var displayName: String {
+        switch self {
+        case .symlink: "Symlink"
+        case .copy: "Copy"
         }
     }
 }
@@ -167,6 +235,26 @@ extension SkillDistributionViewModel {
                 return .operationInProgress
             case .conflict:
                 return .previewExpired
+            }
+        }
+        if let error = error as? CopyForkError {
+            switch error {
+            case .previewExpired, .bindingConflict:
+                return .previewExpired
+            case .permissionDenied:
+                return .permissionDenied
+            case .targetUnavailable:
+                return .targetUnavailable
+            case .operationInProgress:
+                return .operationInProgress
+            case .needsRepair:
+                return .needsRepair
+            case .notCopy:
+                return .failed("The selected target is not a managed Copy.")
+            case .notContentOnlyDrift:
+                return .failed("Only content-only Copy changes can use this decision.")
+            case .unsafeContent:
+                return .failed("The Copy contains unsupported or unsafe content.")
             }
         }
         if let error = error as? DistributionSymlinkFileSystemError {

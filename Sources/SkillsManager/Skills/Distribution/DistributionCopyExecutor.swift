@@ -75,10 +75,21 @@ nonisolated final class DistributionCopyExecutor {
         skillID: SkillID,
         plan: DistributionPlan,
         expectedOldBindings: [DistributionBinding],
+        approvedCopyDrift: DistributionCopyEvidence? = nil,
+        approvedCopySource: DistributionCopySourceEvidence? = nil,
         nowMilliseconds: Int64? = nil
     ) throws -> DistributionOperationRecord {
         guard plan.status == .executable,
               plan.filesystemActions.contains(where: { $0.kind.requiresV2 }) else {
+            throw DistributionSymlinkExecutorError.conflict
+        }
+        let discardActions = plan.filesystemActions.filter {
+            $0.kind == .discardCopyDrift
+        }
+        guard discardActions.isEmpty == (approvedCopyDrift == nil),
+              discardActions.isEmpty == (approvedCopySource == nil),
+              discardActions.count <= 1,
+              discardActions.isEmpty || plan.filesystemActions.count == 1 else {
             throw DistributionSymlinkExecutorError.conflict
         }
         let timestamp = nowMilliseconds ?? self.nowMilliseconds()
@@ -95,13 +106,18 @@ nonisolated final class DistributionCopyExecutor {
         let formatVersion = operationFormatVersion(for: expectedOldBindings)
         let oldLinks = try linkOwnershipStore.load(skillID: skillID)
         let source = try fileSystem.copySource(for: skillID)
+        if let approvedCopySource,
+           try source.decisionEvidence() != approvedCopySource {
+            throw DistributionSymlinkExecutorError.conflict
+        }
         let preflight = try makePreflight(
             skillID: skillID,
             plan: plan,
             expectedOldBindings: expectedOldBindings,
             expectedOldLinks: oldLinks,
             source: source,
-            operationID: operationID
+            operationID: operationID,
+            approvedCopyDrift: approvedCopyDrift
         )
         var runtime = DistributionOperationRuntimeV2(
             wireVersion: 2,
@@ -395,7 +411,7 @@ nonisolated final class DistributionCopyExecutor {
                 )
             case .createCopy:
                 try promoteCopy(action, index, preflight, &runtime, operationID, timestamp)
-            case .refreshCopy:
+            case .refreshCopy, .discardCopyDrift:
                 try quarantineCopy(
                     action, index, preflight, operationID, &runtime, timestamp
                 )
@@ -461,7 +477,8 @@ nonisolated extension DistributionFilesystemActionKind {
 
     var createsCopy: Bool {
         switch self {
-        case .createCopy, .refreshCopy, .replaceSymlinkWithCopy: true
+        case .createCopy, .refreshCopy, .discardCopyDrift,
+             .replaceSymlinkWithCopy: true
         default: false
         }
     }

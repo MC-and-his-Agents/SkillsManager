@@ -153,6 +153,7 @@ nonisolated enum DistributionFilesystemActionKind: String, Sendable {
     case createSymlink = "create_symlink"
     case createCopy = "create_copy"
     case refreshCopy = "refresh_copy"
+    case discardCopyDrift = "discard_copy_drift"
     case removeCopy = "remove_copy"
     case replaceSymlinkWithCopy = "replace_symlink_with_copy"
     case replaceCopyWithSymlink = "replace_copy_with_symlink"
@@ -160,7 +161,8 @@ nonisolated enum DistributionFilesystemActionKind: String, Sendable {
     var canonicalRank: Int {
         switch self {
         case .removeSymlink, .removeCopy: 0
-        case .refreshCopy, .replaceSymlinkWithCopy, .replaceCopyWithSymlink: 1
+        case .refreshCopy, .discardCopyDrift,
+             .replaceSymlinkWithCopy, .replaceCopyWithSymlink: 1
         case .createSymlink, .createCopy: 2
         }
     }
