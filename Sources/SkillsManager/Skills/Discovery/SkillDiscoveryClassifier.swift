@@ -18,7 +18,21 @@ nonisolated struct SkillDiscoveryClassifier {
         let skillsByID: [SkillID: SkillDiscoveryManagedSkill]
         let skillsByFingerprint: [SkillContentFingerprint: Set<SkillID>]
         let skillsByAlias: [ProviderAliasIdentity: Set<SkillID>]
+        let skillsByProvenance: [ProviderProvenanceKey: Set<SkillID>]
         let associations: [AssociationKey: [SkillDiscoveryLocalAssociation]]
+    }
+
+    private struct ProviderProvenanceKey: Hashable {
+        let provider: String
+        let identifierKey: String
+
+        init?(_ identity: ProviderAliasIdentity) {
+            guard let slug = try? DefaultDistributionSlug(
+                validating: identity.identifier
+            ) else { return nil }
+            provider = identity.provider
+            identifierKey = slug.collisionKey
+        }
     }
 
     private struct AssociationKey: Hashable {
@@ -136,6 +150,8 @@ nonisolated struct SkillDiscoveryClassifier {
     ) -> Set<SkillID> {
         candidate.providerAliases.reduce(into: Set<SkillID>()) { result, alias in
             result.formUnion(index.skillsByAlias[alias] ?? [])
+            guard let key = ProviderProvenanceKey(alias) else { return }
+            result.formUnion(index.skillsByProvenance[key] ?? [])
         }
     }
 
@@ -170,12 +186,17 @@ nonisolated struct SkillDiscoveryClassifier {
         })
         var skillsByFingerprint: [SkillContentFingerprint: Set<SkillID>] = [:]
         var skillsByAlias: [ProviderAliasIdentity: Set<SkillID>] = [:]
+        var skillsByProvenance: [ProviderProvenanceKey: Set<SkillID>] = [:]
         for skill in catalog.managedSkills {
             skillsByFingerprint[skill.fingerprint, default: []].insert(skill.skillID)
             if skill.sourceKey != nil {
                 for alias in skill.providerAliases {
                     skillsByAlias[alias, default: []].insert(skill.skillID)
                 }
+            }
+            for alias in skill.providerProvenanceAliases {
+                guard let key = ProviderProvenanceKey(alias) else { continue }
+                skillsByProvenance[key, default: []].insert(skill.skillID)
             }
         }
         let associations = Dictionary(grouping: catalog.localAssociations) {
@@ -185,6 +206,7 @@ nonisolated struct SkillDiscoveryClassifier {
             skillsByID: skillsByID,
             skillsByFingerprint: skillsByFingerprint,
             skillsByAlias: skillsByAlias,
+            skillsByProvenance: skillsByProvenance,
             associations: associations
         )
     }

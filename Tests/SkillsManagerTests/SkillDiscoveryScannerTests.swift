@@ -104,8 +104,8 @@ struct SkillDiscoveryScannerTests {
         }
     }
 
-    @Test("bounded Clawdhub metadata only contributes a mapped alias")
-    func clawdhubAliasIsBoundedAndMapped() throws {
+    @Test("bounded Clawdhub metadata matches persisted provenance")
+    func clawdhubAliasMatchesPersistedProvenance() throws {
         try withWorkspace { workspace in
             let root = workspace.appendingPathComponent("skills", isDirectory: true)
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
@@ -124,11 +124,9 @@ struct SkillDiscoveryScannerTests {
                 fingerprint: try SkillContentFingerprint(
                     currentDigest: snapshot.fingerprintDigest
                 ),
-                sourceKey: SkillDiscoverySourceKey(
-                    repositoryURL: "https://github.com/example/demo",
-                    subpath: ""
-                ),
-                providerAliases: [alias]
+                sourceKey: nil,
+                providerAliases: [],
+                providerProvenanceAliases: [alias]
             )
 
             let result = try SkillDiscoveryScanner().scan(
@@ -140,7 +138,7 @@ struct SkillDiscoveryScannerTests {
             #expect(observation.providerAliases == [alias])
             #expect(observation.status == .claimable)
             #expect(observation.matchedSkillID == managed.skillID)
-            #expect(observation.matchedSourceKey == managed.sourceKey)
+            #expect(observation.matchedSourceKey == nil)
         }
     }
 

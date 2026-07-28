@@ -166,6 +166,128 @@ struct SkillDiscoveryClassifierTests {
         #expect(observation.matchedSourceKey == nil)
     }
 
+    @Test("provider provenance uses case and Unicode collision keys")
+    func providerProvenanceUsesCollisionKeys() throws {
+        let pairs = [
+            ("Demo", "demo"),
+            ("Résumé", "Re\u{301}sume\u{301}"),
+        ]
+        for (storedIdentifier, observedIdentifier) in pairs {
+            let stored = try ProviderAliasIdentity(
+                provider: "clawdhub",
+                identifier: storedIdentifier
+            )
+            let observed = try ProviderAliasIdentity(
+                provider: "clawdhub",
+                identifier: observedIdentifier
+            )
+            let skill = managedSkill(
+                id: 1,
+                fingerprintByte: 7,
+                provenanceAliases: [stored]
+            )
+            let observation = try #require(classify(
+                [candidate(name: "demo", fingerprintByte: 7, aliases: [observed])],
+                catalog: SkillDiscoveryCatalog(managedSkills: [skill])
+            ).first)
+
+            #expect(observation.status == .claimable)
+            #expect(observation.matchedSkillID == skill.skillID)
+            #expect(observation.matchedSourceKey == nil)
+        }
+    }
+
+    @Test("provider provenance content drift conflicts")
+    func providerProvenanceDriftConflicts() throws {
+        let stored = try ProviderAliasIdentity(
+            provider: "clawdhub",
+            identifier: "Demo"
+        )
+        let observed = try ProviderAliasIdentity(
+            provider: "clawdhub",
+            identifier: "demo"
+        )
+        let skill = managedSkill(
+            id: 1,
+            fingerprintByte: 1,
+            provenanceAliases: [stored]
+        )
+        let observation = try #require(classify(
+            [candidate(name: "demo", fingerprintByte: 2, aliases: [observed])],
+            catalog: SkillDiscoveryCatalog(managedSkills: [skill])
+        ).first)
+
+        #expect(observation.status == .conflict)
+        #expect(observation.reason == .evidenceConflict)
+    }
+
+    @Test("invalid provenance slug receives no trust")
+    func invalidProvenanceSlugIsIgnored() throws {
+        let alias = try ProviderAliasIdentity(
+            provider: "clawdhub",
+            identifier: "owner/skill"
+        )
+        let skill = managedSkill(
+            id: 1,
+            fingerprintByte: 1,
+            provenanceAliases: [alias]
+        )
+        let observation = try #require(classify(
+            [candidate(name: "demo", fingerprintByte: 2, aliases: [alias])],
+            catalog: SkillDiscoveryCatalog(managedSkills: [skill])
+        ).first)
+
+        #expect(observation.status == .unmanaged)
+        #expect(observation.matchedSkillID == nil)
+    }
+
+    @Test("duplicate provenance keys are ambiguous")
+    func duplicateProvenanceKeysConflict() throws {
+        let firstAlias = try ProviderAliasIdentity(
+            provider: "clawdhub",
+            identifier: "Demo"
+        )
+        let secondAlias = try ProviderAliasIdentity(
+            provider: "clawdhub",
+            identifier: "demo"
+        )
+        let observation = try #require(classify(
+            [candidate(name: "demo", fingerprintByte: 3, aliases: [secondAlias])],
+            catalog: SkillDiscoveryCatalog(managedSkills: [
+                managedSkill(id: 1, fingerprintByte: 1, provenanceAliases: [firstAlias]),
+                managedSkill(id: 2, fingerprintByte: 2, provenanceAliases: [secondAlias]),
+            ])
+        ).first)
+
+        #expect(observation.status == .conflict)
+        #expect(observation.reason == .ambiguousSource)
+    }
+
+    @Test("source and provenance evidence for one Skill deduplicates")
+    func sourceAndProvenanceEvidenceDeduplicates() throws {
+        let sourceAlias = try ProviderAliasIdentity(
+            provider: "clawdhub",
+            identifier: "demo"
+        )
+        let provenanceAlias = try ProviderAliasIdentity(
+            provider: "clawdhub",
+            identifier: "Demo"
+        )
+        let skill = managedSkill(
+            id: 1,
+            fingerprintByte: 7,
+            aliases: [sourceAlias],
+            provenanceAliases: [provenanceAlias]
+        )
+        let observation = try #require(classify(
+            [candidate(name: "demo", fingerprintByte: 7, aliases: [sourceAlias])],
+            catalog: SkillDiscoveryCatalog(managedSkills: [skill])
+        ).first)
+
+        #expect(observation.status == .claimable)
+        #expect(observation.matchedSkillID == skill.skillID)
+    }
+
     @Test("ambiguous fingerprints are conflicts")
     func ambiguousFingerprintConflicts() throws {
         let first = managedSkill(id: 1, fingerprintByte: 7)
@@ -258,7 +380,8 @@ struct SkillDiscoveryClassifierTests {
     private func managedSkill(
         id: UInt8,
         fingerprintByte: UInt8,
-        aliases: Set<ProviderAliasIdentity> = []
+        aliases: Set<ProviderAliasIdentity> = [],
+        provenanceAliases: Set<ProviderAliasIdentity> = []
     ) -> SkillDiscoveryManagedSkill {
         SkillDiscoveryManagedSkill(
             skillID: SkillID(UUID(uuid: (
@@ -269,7 +392,8 @@ struct SkillDiscoveryClassifierTests {
                 repositoryURL: "https://github.com/example/demo",
                 subpath: ""
             ),
-            providerAliases: aliases
+            providerAliases: aliases,
+            providerProvenanceAliases: provenanceAliases
         )
     }
 

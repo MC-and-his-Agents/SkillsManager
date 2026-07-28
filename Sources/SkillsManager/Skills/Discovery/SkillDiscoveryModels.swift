@@ -119,6 +119,21 @@ nonisolated struct SkillDiscoveryManagedSkill: Hashable, Sendable {
     let fingerprint: SkillContentFingerprint
     let sourceKey: SkillDiscoverySourceKey?
     let providerAliases: Set<ProviderAliasIdentity>
+    let providerProvenanceAliases: Set<ProviderAliasIdentity>
+
+    init(
+        skillID: SkillID,
+        fingerprint: SkillContentFingerprint,
+        sourceKey: SkillDiscoverySourceKey?,
+        providerAliases: Set<ProviderAliasIdentity>,
+        providerProvenanceAliases: Set<ProviderAliasIdentity> = []
+    ) {
+        self.skillID = skillID
+        self.fingerprint = fingerprint
+        self.sourceKey = sourceKey
+        self.providerAliases = providerAliases
+        self.providerProvenanceAliases = providerProvenanceAliases
+    }
 }
 
 nonisolated struct SkillDiscoveryLocalAssociation: Hashable, Sendable {

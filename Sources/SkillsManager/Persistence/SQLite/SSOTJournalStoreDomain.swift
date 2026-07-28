@@ -259,7 +259,10 @@ nonisolated extension SSOTJournalStore {
                 skillID: skillID,
                 fingerprint: stored.payload.skill.contentFingerprint,
                 sourceKey: stored.payload.source.map(SkillDiscoverySourceKey.init),
-                providerAliases: Set(stored.payload.providerAliases.map(\.identity))
+                providerAliases: Set(stored.payload.providerAliases.map(\.identity)),
+                providerProvenanceAliases: Set(
+                    stored.payload.providerProvenance.map(\.identity)
+                )
             ))
         }
         let associations = try localOrigins().map {
