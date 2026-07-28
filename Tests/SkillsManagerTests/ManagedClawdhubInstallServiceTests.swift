@@ -29,6 +29,38 @@ struct ManagedClawdhubInstallServiceTests {
         }
     }
 
+    @Test("real writer discovery catalog projects Clawdhub provenance")
+    func discoveryCatalogProjectsProvenance() async throws {
+        try await withImportCandidate { candidate in
+            let workspace = try WriterWorkspace()
+            let writer = try await workspace.openWriter()
+            let planProbe = ManagedLocalImportProbe(planStatuses: [.blocked])
+            let service = ManagedInstallService(
+                dependencies: writerDependencies(writer, planProbe: planProbe)
+            )
+            let remote = remoteSkill(slug: "remote-demo", version: "1.2.3")
+            let preview = try await service.prepareClawdhub(
+                candidate: candidate,
+                skill: remote,
+                scope: .global
+            )
+
+            _ = try await service.execute(preview.token)
+            let catalog = try await writer.discoveryCatalog()
+            let managed = try #require(catalog.managedSkills.first {
+                $0.skillID == preview.skillID
+            })
+            let identity = try ProviderAliasIdentity(
+                provider: "clawdhub",
+                identifier: "remote-demo"
+            )
+
+            #expect(managed.sourceKey == nil)
+            #expect(managed.providerAliases.isEmpty)
+            #expect(managed.providerProvenanceAliases == [identity])
+        }
+    }
+
     @Test("blocked remote distribution still creates one managed Skill")
     func blockedStillCreates() async throws {
         try await withImportCandidate { candidate in
