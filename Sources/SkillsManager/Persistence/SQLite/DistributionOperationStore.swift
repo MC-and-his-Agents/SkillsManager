@@ -174,6 +174,8 @@ nonisolated struct DistributionPlanWire: Codable, Equatable {
     let expectedOldConfigured: Bool?
     let desiredConfigured: Bool?
     let conflicts: [DistributionPlanConflictWire]
+    let repairIntent: String?
+    let repairScopeKeys: [String]?
 
     enum CodingKeys: String, CodingKey {
         case status
@@ -184,6 +186,8 @@ nonisolated struct DistributionPlanWire: Codable, Equatable {
         case expectedOldConfigured = "expected_old_configured"
         case desiredConfigured = "desired_configured"
         case conflicts
+        case repairIntent = "repair_intent"
+        case repairScopeKeys = "repair_scope_keys"
     }
 }
 
@@ -198,12 +202,19 @@ private nonisolated struct DistributionPreflightWire: Codable, Equatable {
     let temporaryName: String
 }
 
+private nonisolated struct DistributionRepairPreflightWire: Codable, Equatable {
+    let targetScopeKey: String
+    let slug: String
+    let rootIdentity: Data
+}
+
 private nonisolated struct DistributionPreflightPayloadWire: Codable, Equatable {
     let actions: [DistributionPreflightWire]
     let ssotIdentity: Data
     let absoluteLinkTarget: String
     let expectedOldConfigured: Bool
     let desiredConfigured: Bool
+    let repairTargets: [DistributionRepairPreflightWire]?
 }
 
 private nonisolated struct DistributionRuntimeWire: Codable, Equatable {
@@ -309,17 +320,42 @@ private nonisolated enum DistributionOperationPayloadValidator {
             preflight,
             plan: plan,
             skillID: skillID,
-            operationID: operationID
+            operationID: operationID,
+            old: old
         )
         let runtime = try decodeRuntime(runtimeData)
-        guard Set(runtime.oldOwnership.map(\.targetScopeKey))
-                == Set(old.map(bindingScopeKey)),
+        let oldScopes = Set(old.map(bindingScopeKey))
+        let ownershipScopes = Set(runtime.oldOwnership.map(\.targetScopeKey))
+        let persistedMissingScopes = Set(
+            (preflight.repairTargets ?? []).map(\.targetScopeKey)
+        )
+        let ownershipMatches = if plan.repairIntent == nil {
+            ownershipScopes == oldScopes
+        } else {
+            ownershipScopes.isSubset(of: oldScopes)
+                && oldScopes.subtracting(persistedMissingScopes).isSubset(of: ownershipScopes)
+        }
+        guard ownershipMatches,
               runtime.oldOwnership.allSatisfy({
                   $0.absoluteLinkTarget.hasSuffix(
                       "/.SkillsManager/skills/\(skillID.directoryName)"
                   )
               }) else {
             throw DistributionOperationStoreError.invalidRecord
+        }
+        if plan.repairIntent != nil {
+            let targets = Dictionary(uniqueKeysWithValues: (preflight.repairTargets ?? []).map {
+                ($0.targetScopeKey, $0)
+            })
+            for ownership in runtime.oldOwnership
+                where persistedMissingScopes.contains(ownership.targetScopeKey) {
+                guard let target = targets[ownership.targetScopeKey],
+                      !target.rootIdentity.isEmpty,
+                      target.rootIdentity == ownership.rootIdentity,
+                      ownership.absoluteLinkTarget == preflight.absoluteLinkTarget else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+            }
         }
         try validateRuntime(
             runtime,
@@ -385,11 +421,17 @@ private nonisolated enum DistributionOperationPayloadValidator {
                       "status", "filesystem_actions", "bindings_changed",
                       "binding_replacement", "conflicts",
                   ]
-                  let keys = Set(object.keys)
-                  return keys == oldKeys || keys == oldKeys.union([
+                  let configurationKeys: Set<String> = [
                       "configuration_changed", "expected_old_configured",
                       "desired_configured",
-                  ])
+                  ]
+                  let repairKeys: Set<String> = [
+                      "repair_intent", "repair_scope_keys",
+                  ]
+                  let keys = Set(object.keys)
+                  return keys == oldKeys
+                      || keys == oldKeys.union(configurationKeys)
+                      || keys == oldKeys.union(configurationKeys).union(repairKeys)
               }(),
               let actions = object["filesystem_actions"] as? [[String: Any]],
               actions.allSatisfy({
@@ -425,10 +467,13 @@ private nonisolated enum DistributionOperationPayloadValidator {
                 DistributionPreflightPayloadWire.self,
                 from: data
             )
-            guard Set(object.keys) == [
+            let oldKeys: Set<String> = [
                 "actions", "ssotIdentity", "absoluteLinkTarget",
                 "expectedOldConfigured", "desiredConfigured",
-            ], plan.expectedOldConfigured == value.expectedOldConfigured,
+            ]
+            let keys = Set(object.keys)
+            guard (keys == oldKeys || keys == oldKeys.union(["repairTargets"])),
+            plan.expectedOldConfigured == value.expectedOldConfigured,
             plan.desiredConfigured == value.desiredConfigured,
             !value.ssotIdentity.isEmpty,
             !value.absoluteLinkTarget.isEmpty else {
@@ -463,7 +508,8 @@ private nonisolated enum DistributionOperationPayloadValidator {
                 ssotIdentity: Data(),
                 absoluteLinkTarget: "",
                 expectedOldConfigured: plan.expectedOldConfigured ?? !(old?.isEmpty ?? true),
-                desiredConfigured: plan.desiredConfigured ?? true
+                desiredConfigured: plan.desiredConfigured ?? true,
+                repairTargets: nil
             )
         }
         return DistributionPreflightPayloadWire(
@@ -471,7 +517,8 @@ private nonisolated enum DistributionOperationPayloadValidator {
             ssotIdentity: first.ssotIdentity,
             absoluteLinkTarget: first.absoluteLinkTarget,
             expectedOldConfigured: plan.expectedOldConfigured ?? !(old?.isEmpty ?? true),
-            desiredConfigured: plan.desiredConfigured ?? true
+            desiredConfigured: plan.desiredConfigured ?? true,
+            repairTargets: nil
         )
     }
 
@@ -655,6 +702,10 @@ private nonisolated enum DistributionOperationPayloadValidator {
         guard replacementKeys == newKeys else {
             throw DistributionOperationStoreError.invalidRecord
         }
+        if plan.repairIntent != nil || plan.repairScopeKeys != nil {
+            try validateRepairPlan(plan, skillID: skillID, old: old, new: new)
+            return
+        }
         var targets = Set<String>()
         var roots = Set<String>()
         var sawCreate = false
@@ -698,16 +749,81 @@ private nonisolated enum DistributionOperationPayloadValidator {
         }
     }
 
+    private static func validateRepairPlan(
+        _ plan: DistributionPlanWire,
+        skillID: SkillID,
+        old: [DistributionBindingWire],
+        new: [DistributionBindingWire]
+    ) throws {
+        guard let rawIntent = plan.repairIntent,
+              let intent = DistributionRepairIntent(rawValue: rawIntent),
+              let scopeKeys = plan.repairScopeKeys,
+              !scopeKeys.isEmpty,
+              scopeKeys.count <= maximumRoots,
+              Set(scopeKeys).count == scopeKeys.count,
+              scopeKeys == scopeKeys.sorted(by: utf8Precedes),
+              plan.expectedOldConfigured == plan.desiredConfigured,
+              Set(old.map(\.slug)).count == 1,
+              Set(new.map(\.slug)).count <= 1 else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        let oldByScope = Dictionary(uniqueKeysWithValues: old.map {
+            (bindingScopeKey($0), $0)
+        })
+        let newByScope = Dictionary(uniqueKeysWithValues: new.map {
+            (bindingScopeKey($0), $0)
+        })
+        let selected = Set(scopeKeys)
+        guard selected.isSubset(of: Set(oldByScope.keys)) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+
+        switch intent {
+        case .rebuildMissingSymlink:
+            guard !old.isEmpty,
+                  Set(old.map(bindingKey)) == Set(new.map(bindingKey)),
+                  plan.bindingsChanged == false,
+                  plan.filesystemActions.count == scopeKeys.count,
+                  Set(plan.filesystemActions.map(\.targetScopeKey)) == selected else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            for action in plan.filesystemActions {
+                guard action.action
+                        == DistributionFilesystemActionKind.createSymlink.rawValue,
+                      let scope = scope(for: action.targetScopeKey),
+                      let slug = slug(for: action.targetLocator, scope: scope),
+                      let current = oldByScope[action.targetScopeKey],
+                      slug == current.slug,
+                      action.ssotLocator
+                        == DistributionTargetCatalog.current.ssotLocator(for: skillID) else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+            }
+        case .disableMissingBinding:
+            guard plan.filesystemActions.isEmpty,
+                  plan.bindingsChanged,
+                  new.count < old.count,
+                  Set(newByScope.keys) == Set(oldByScope.keys).subtracting(selected),
+                  new.allSatisfy({ oldByScope[bindingScopeKey($0)].map(bindingKey) == bindingKey($0) })
+            else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        }
+    }
+
     private static func validatePreflight(
         _ preflight: DistributionPreflightPayloadWire,
         plan: DistributionPlanWire,
         skillID: SkillID,
-        operationID: SSOTOperationID
+        operationID: SSOTOperationID,
+        old: [DistributionBindingWire]
     ) throws {
         if preflight.actions.isEmpty,
            preflight.ssotIdentity.isEmpty,
            preflight.absoluteLinkTarget.isEmpty {
-            guard plan.filesystemActions.isEmpty else {
+            guard plan.filesystemActions.isEmpty,
+                  plan.repairIntent == nil,
+                  preflight.repairTargets == nil else {
                 throw DistributionOperationStoreError.invalidRecord
             }
             return
@@ -768,6 +884,62 @@ private nonisolated enum DistributionOperationPayloadValidator {
         guard ssotIdentity == nil || ssotIdentity == preflight.ssotIdentity,
               absoluteTarget == nil || absoluteTarget == preflight.absoluteLinkTarget else {
             throw DistributionOperationStoreError.invalidRecord
+        }
+        try validateRepairPreflight(preflight, plan: plan, old: old)
+    }
+
+    private static func validateRepairPreflight(
+        _ preflight: DistributionPreflightPayloadWire,
+        plan: DistributionPlanWire,
+        old: [DistributionBindingWire]
+    ) throws {
+        guard plan.repairIntent != nil else {
+            guard preflight.repairTargets == nil else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            return
+        }
+        guard let targets = preflight.repairTargets,
+              let scopeKeys = plan.repairScopeKeys,
+              !targets.isEmpty,
+              targets.count <= maximumRoots else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        let targetScopeKeys = targets.map(\.targetScopeKey)
+        let targetScopes = Set(targetScopeKeys)
+        let selectedScopes = Set(scopeKeys)
+        guard targetScopes.count == targets.count,
+              targetScopeKeys == targetScopeKeys.sorted(by: utf8Precedes) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        switch plan.repairIntent.flatMap(DistributionRepairIntent.init) {
+        case .rebuildMissingSymlink:
+            guard targetScopes == selectedScopes else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case .disableMissingBinding:
+            guard selectedScopes.isSubset(of: targetScopes) else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case nil:
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        let oldByScope = Dictionary(uniqueKeysWithValues: old.map {
+            (bindingScopeKey($0), $0)
+        })
+        for target in targets {
+            guard let scope = scope(for: target.targetScopeKey),
+                  let slug = try? DefaultDistributionSlug(validating: target.slug),
+                  oldByScope[target.targetScopeKey]?.slug == slug.value,
+                  DistributionTargetCatalog.current.entry(for: scope, slug: slug) != nil,
+                  target.rootIdentity.isEmpty
+                    || target.rootIdentity.count == ManagedItemIdentityCodec.encodedByteCount
+            else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            if !target.rootIdentity.isEmpty {
+                try validateIdentity(target.rootIdentity)
+            }
         }
     }
 

@@ -10,6 +10,8 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         let plan = try decodePlanV2(data)
         guard let expectedConfigured = plan.expectedOldConfigured,
               let desiredConfigured = plan.desiredConfigured,
+              plan.repairIntent == nil,
+              plan.repairScopeKeys == nil,
               plan.configurationChanged
                 == (expectedConfigured != desiredConfigured) else {
             throw DistributionOperationStoreError.invalidRecord

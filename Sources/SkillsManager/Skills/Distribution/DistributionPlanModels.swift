@@ -205,6 +205,11 @@ nonisolated enum DistributionPlanStatus: String, Sendable {
     case blocked
 }
 
+nonisolated enum DistributionRepairIntent: String, Sendable {
+    case rebuildMissingSymlink = "rebuild_missing_symlink"
+    case disableMissingBinding = "disable_missing_binding"
+}
+
 nonisolated struct DistributionPlan: Sendable {
     let status: DistributionPlanStatus
     let filesystemActions: [DistributionFilesystemAction]
@@ -214,6 +219,32 @@ nonisolated struct DistributionPlan: Sendable {
     let expectedOldConfigured: Bool
     let desiredConfigured: Bool
     let conflicts: [DistributionPlanConflict]
+    let repairIntent: DistributionRepairIntent?
+    let repairScopeKeys: [String]
+
+    init(
+        status: DistributionPlanStatus,
+        filesystemActions: [DistributionFilesystemAction],
+        bindingsChanged: Bool,
+        bindingReplacement: [DistributionBindingIntent],
+        configurationChanged: Bool,
+        expectedOldConfigured: Bool,
+        desiredConfigured: Bool,
+        conflicts: [DistributionPlanConflict],
+        repairIntent: DistributionRepairIntent? = nil,
+        repairScopeKeys: [String] = []
+    ) {
+        self.status = status
+        self.filesystemActions = filesystemActions
+        self.bindingsChanged = bindingsChanged
+        self.bindingReplacement = bindingReplacement
+        self.configurationChanged = configurationChanged
+        self.expectedOldConfigured = expectedOldConfigured
+        self.desiredConfigured = desiredConfigured
+        self.conflicts = conflicts
+        self.repairIntent = repairIntent
+        self.repairScopeKeys = repairScopeKeys
+    }
 
     func canonicalJSONData() throws -> Data {
         let encoder = JSONEncoder()
@@ -270,6 +301,8 @@ private nonisolated struct CanonicalDistributionPlan: Encodable {
     let expectedOldConfigured: Bool
     let desiredConfigured: Bool
     let conflicts: [CanonicalDistributionConflict]
+    let repairIntent: String?
+    let repairScopeKeys: [String]?
 
     enum CodingKeys: String, CodingKey {
         case status
@@ -280,6 +313,8 @@ private nonisolated struct CanonicalDistributionPlan: Encodable {
         case expectedOldConfigured = "expected_old_configured"
         case desiredConfigured = "desired_configured"
         case conflicts
+        case repairIntent = "repair_intent"
+        case repairScopeKeys = "repair_scope_keys"
     }
 
     init(_ plan: DistributionPlan) {
@@ -297,6 +332,9 @@ private nonisolated struct CanonicalDistributionPlan: Encodable {
         conflicts = plan.conflicts
             .sorted(by: distributionConflictPrecedes)
             .map(CanonicalDistributionConflict.init)
+        repairIntent = plan.repairIntent?.rawValue
+        repairScopeKeys = plan.repairIntent == nil
+            ? nil : plan.repairScopeKeys.sorted(by: utf8Precedes)
     }
 }
 
@@ -431,6 +469,6 @@ private nonisolated struct CanonicalCopyConflictEvidence: Encodable {
     }
 }
 
-private nonisolated func utf8Precedes(_ lhs: String, _ rhs: String) -> Bool {
+nonisolated func utf8Precedes(_ lhs: String, _ rhs: String) -> Bool {
     lhs.utf8.lexicographicallyPrecedes(rhs.utf8)
 }

@@ -115,12 +115,17 @@ nonisolated struct DistributionLinkOwnershipStore {
         expectedOld: [DistributionLinkOwnership],
         desired: [DistributionLinkOwnership],
         appliedOperationID: SSOTOperationID,
-        nowMilliseconds: Int64
+        nowMilliseconds: Int64,
+        retainedOld: [DistributionLinkOwnership] = []
     ) throws -> [DistributionLinkOwnership] {
         guard nowMilliseconds >= 0,
               expectedOld.allSatisfy({ $0.skillID == skillID }),
+              retainedOld.allSatisfy({ $0.skillID == skillID }),
               desired.allSatisfy({
-                  $0.skillID == skillID && $0.appliedOperationID == appliedOperationID
+                  $0.skillID == skillID
+                      && ($0.appliedOperationID == appliedOperationID
+                          || expectedOld.contains($0)
+                          || retainedOld.contains($0))
               }) else {
             throw DistributionLinkOwnershipStoreError.invalidInput
         }
