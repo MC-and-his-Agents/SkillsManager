@@ -108,6 +108,42 @@ struct CopyDriftDiscardServiceTests {
         #expect(try fixture.workspace.integer("SELECT count(*) FROM skills") == 1)
     }
 
+    @Test("SSOT changes expire both destructive decisions without mutation")
+    func staleSSOTEvidence() async throws {
+        let fixture = try await makeDiscardFixture()
+        let preview = try await fixture.writer.copyDriftDecisionPreview(
+            parentSkillID: fixture.skillID,
+            scope: .global
+        )
+        let ssot = fixture.workspace.root.appendingPathComponent(
+            fixture.skillID.directoryName,
+            isDirectory: true
+        )
+        try Data("externally replaced".utf8).write(
+            to: ssot.appendingPathComponent("SKILL.md")
+        )
+        let operationCount = try fixture.workspace.integer(
+            "SELECT count(*) FROM distribution_operations"
+        )
+
+        await #expect(throws: CopyForkError.previewExpired) {
+            _ = try await fixture.writer.discardCopyDrift(preview)
+        }
+        await #expect(throws: CopyForkError.previewExpired) {
+            _ = try await fixture.writer.createCopyFork(preview)
+        }
+        #expect(try fixture.workspace.integer(
+            "SELECT count(*) FROM distribution_operations"
+        ) == operationCount)
+        #expect(try fixture.workspace.integer(
+            "SELECT count(*) FROM copy_fork_operations"
+        ) == 0)
+        #expect(try String(
+            contentsOf: fixture.copyURL.appendingPathComponent("SKILL.md"),
+            encoding: .utf8
+        ) == "locally changed")
+    }
+
     @Test("Copy-Fork provenance uses format v3 and keeps the explicit action")
     func discardFromForkUsesV3() async throws {
         let fixture = try await makeDiscardFixture()

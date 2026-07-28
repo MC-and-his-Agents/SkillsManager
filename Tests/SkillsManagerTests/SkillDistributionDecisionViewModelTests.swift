@@ -229,6 +229,13 @@ private func decisionFixture() throws -> DistributionDecisionFixture {
             parentRevision: 0,
             binding: binding,
             observedEvidence: observed,
+            sourceEvidence: DistributionCopySourceEvidence(
+                absoluteTarget: "/tmp/ssot",
+                ssotIdentity: observed.entryIdentity,
+                contentFingerprint: observed.contentFingerprint,
+                physicalTreeDigest: observed.physicalTreeDigest
+            ),
+            token: Data("source-decision".utf8),
             forkPreview: fork
         )
     )

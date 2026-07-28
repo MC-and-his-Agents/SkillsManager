@@ -47,7 +47,44 @@ nonisolated struct CopyDriftDecisionPreview: Equatable, Sendable {
     let parentRevision: Int64
     let binding: DistributionBinding
     let observedEvidence: DistributionCopyEvidence
+    let sourceEvidence: DistributionCopySourceEvidence
+    let token: Data
     let forkPreview: CopyForkPreview
+}
+
+nonisolated struct CopyDriftDecisionPreviewWire: Codable, Equatable {
+    let version: Int
+    let forkPreviewToken: Data
+    let absoluteSSOTTarget: String
+    let ssotIdentity: Data
+    let sourceContent: DistributionFingerprintWireV2
+    let sourcePhysicalTree: DistributionTreeDigestWireV2
+
+    init(
+        forkPreviewToken: Data,
+        sourceEvidence: DistributionCopySourceEvidence
+    ) throws {
+        version = 1
+        self.forkPreviewToken = forkPreviewToken
+        absoluteSSOTTarget = sourceEvidence.absoluteTarget
+        ssotIdentity = try ManagedItemIdentityCodec.encode(sourceEvidence.ssotIdentity)
+        sourceContent = DistributionFingerprintWireV2(
+            sourceEvidence.contentFingerprint
+        )
+        sourcePhysicalTree = DistributionTreeDigestWireV2(
+            sourceEvidence.physicalTreeDigest
+        )
+    }
+
+    func canonicalData() throws -> Data {
+        try DistributionOperationPayloadCodec.encode(self)
+    }
+
+    static func decode(_ data: Data) throws -> Self {
+        let value = try DistributionOperationPayloadCodec.decode(Self.self, from: data)
+        guard value.version == 1 else { throw CopyForkError.previewExpired }
+        return value
+    }
 }
 
 nonisolated enum CopyForkOperationPhase: String, Sendable {

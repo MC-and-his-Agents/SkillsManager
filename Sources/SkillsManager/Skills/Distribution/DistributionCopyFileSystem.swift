@@ -6,6 +6,24 @@ nonisolated struct DistributionCopySource: Sendable {
     let ssotIdentity: ManagedItemIdentity
     let snapshot: SkillContentSnapshot
     let physicalTree: CopyPhysicalTreeSnapshot
+
+    func decisionEvidence() throws -> DistributionCopySourceEvidence {
+        DistributionCopySourceEvidence(
+            absoluteTarget: absoluteTarget,
+            ssotIdentity: ssotIdentity,
+            contentFingerprint: try SkillContentFingerprint(
+                currentDigest: snapshot.fingerprintDigest
+            ),
+            physicalTreeDigest: physicalTree.digest
+        )
+    }
+}
+
+nonisolated struct DistributionCopySourceEvidence: Equatable, Sendable {
+    let absoluteTarget: String
+    let ssotIdentity: ManagedItemIdentity
+    let contentFingerprint: SkillContentFingerprint
+    let physicalTreeDigest: CopyPhysicalTreeDigest
 }
 
 nonisolated struct DistributionCopyEvidence: Equatable, Sendable {

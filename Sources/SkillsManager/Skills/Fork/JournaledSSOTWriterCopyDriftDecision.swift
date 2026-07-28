@@ -33,10 +33,20 @@ extension JournaledSSOTWriter {
                 parent: context.domain.payload.skill,
                 createdAt: createdAt
             )
+            let forkToken = try wire.canonicalData()
+            let sourceEvidence = try copyDistribution.fileSystem
+                .copySource(for: parentSkillID)
+                .decisionEvidence()
+            let decisionWire = try CopyDriftDecisionPreviewWire(
+                forkPreviewToken: forkToken,
+                sourceEvidence: sourceEvidence
+            )
             return CopyDriftDecisionPreview(
                 parentRevision: context.domain.revision,
                 binding: context.binding,
                 observedEvidence: capture.evidence,
+                sourceEvidence: sourceEvidence,
+                token: try decisionWire.canonicalData(),
                 forkPreview: CopyForkPreview(
                     operationID: operationID,
                     parentSkillID: parentSkillID,
@@ -44,7 +54,7 @@ extension JournaledSSOTWriter {
                     scope: scope,
                     distributionSlug: context.binding.distributionSlug,
                     contentFingerprint: capture.evidence.contentFingerprint,
-                    token: try wire.canonicalData()
+                    token: forkToken
                 )
             )
         }
@@ -58,6 +68,7 @@ extension JournaledSSOTWriter {
             let fork = preview.forkPreview
             let wire = try CopyForkPreviewWire.decode(fork.token)
             try requirePreview(fork, matches: wire)
+            try requireCopyDriftDecisionSource(preview)
             let context = try copyForkContext(
                 parentSkillID: fork.parentSkillID,
                 scope: fork.scope
@@ -113,8 +124,37 @@ extension JournaledSSOTWriter {
                 skillID: fork.parentSkillID,
                 plan: plan,
                 expectedOldBindings: context.bindings,
-                approvedCopyDrift: capture.evidence
+                approvedCopyDrift: capture.evidence,
+                approvedCopySource: preview.sourceEvidence
             )
+        }
+    }
+
+    func createCopyFork(
+        _ preview: CopyDriftDecisionPreview
+    ) throws -> CopyForkResult {
+        try withStableCopyForkErrors {
+            try requireAuthority()
+            try requireCopyDriftDecisionSource(preview)
+            return try createCopyFork(preview.forkPreview)
+        }
+    }
+
+    private func requireCopyDriftDecisionSource(
+        _ preview: CopyDriftDecisionPreview
+    ) throws {
+        let wire = try CopyDriftDecisionPreviewWire.decode(preview.token)
+        let expectedWire = try CopyDriftDecisionPreviewWire(
+            forkPreviewToken: preview.forkPreview.token,
+            sourceEvidence: preview.sourceEvidence
+        )
+        let currentSource = try copyDistribution.fileSystem
+            .copySource(for: preview.forkPreview.parentSkillID)
+            .decisionEvidence()
+        guard wire == expectedWire,
+              try expectedWire.canonicalData() == preview.token,
+              currentSource == preview.sourceEvidence else {
+            throw CopyForkError.previewExpired
         }
     }
 }

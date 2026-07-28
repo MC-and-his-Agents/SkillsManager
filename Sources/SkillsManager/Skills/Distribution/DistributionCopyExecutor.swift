@@ -76,6 +76,7 @@ nonisolated final class DistributionCopyExecutor {
         plan: DistributionPlan,
         expectedOldBindings: [DistributionBinding],
         approvedCopyDrift: DistributionCopyEvidence? = nil,
+        approvedCopySource: DistributionCopySourceEvidence? = nil,
         nowMilliseconds: Int64? = nil
     ) throws -> DistributionOperationRecord {
         guard plan.status == .executable,
@@ -86,6 +87,7 @@ nonisolated final class DistributionCopyExecutor {
             $0.kind == .discardCopyDrift
         }
         guard discardActions.isEmpty == (approvedCopyDrift == nil),
+              discardActions.isEmpty == (approvedCopySource == nil),
               discardActions.count <= 1,
               discardActions.isEmpty || plan.filesystemActions.count == 1 else {
             throw DistributionSymlinkExecutorError.conflict
@@ -104,6 +106,10 @@ nonisolated final class DistributionCopyExecutor {
         let formatVersion = operationFormatVersion(for: expectedOldBindings)
         let oldLinks = try linkOwnershipStore.load(skillID: skillID)
         let source = try fileSystem.copySource(for: skillID)
+        if let approvedCopySource,
+           try source.decisionEvidence() != approvedCopySource {
+            throw DistributionSymlinkExecutorError.conflict
+        }
         let preflight = try makePreflight(
             skillID: skillID,
             plan: plan,

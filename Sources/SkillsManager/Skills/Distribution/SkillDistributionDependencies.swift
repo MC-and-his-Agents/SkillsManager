@@ -148,7 +148,7 @@ private actor SkillDistributionSession {
     func createCopyFork(
         _ preview: CopyDriftDecisionPreview
     ) async throws -> CopyForkResult {
-        try await writer.createCopyFork(preview.forkPreview)
+        try await writer.createCopyFork(preview)
     }
 
     func loadForkLineage(
