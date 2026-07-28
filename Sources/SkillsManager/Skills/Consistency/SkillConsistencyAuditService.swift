@@ -1,6 +1,11 @@
 import Foundation
 
 actor SkillConsistencyAuditService {
+    private struct Capture: Sendable {
+        let manifest: SkillConsistencyAuditManifest
+        let discoveryObservations: [SkillDiscoveryObservation]
+    }
+
     private let writer: JournaledSSOTWriter
     private let homeURL: URL
     private let betweenCaptures: @Sendable () async throws -> Void
@@ -19,17 +24,18 @@ actor SkillConsistencyAuditService {
         do {
             try Task.checkCancellation()
             let first = try await Self.capture(writer: writer, homeURL: homeURL)
-            let firstBytes = try SkillConsistencyAuditManifestCodec.encode(first)
+            let firstBytes = try SkillConsistencyAuditManifestCodec.encode(first.manifest)
             try await betweenCaptures()
             try Task.checkCancellation()
             let second = try await Self.capture(writer: writer, homeURL: homeURL)
-            let secondBytes = try SkillConsistencyAuditManifestCodec.encode(second)
+            let secondBytes = try SkillConsistencyAuditManifestCodec.encode(second.manifest)
             guard firstBytes == secondBytes else {
                 throw SkillConsistencyAuditError.sourceChanged
             }
             return SkillConsistencyAuditPrepared(
-                manifest: second,
-                canonicalBytes: secondBytes
+                manifest: second.manifest,
+                canonicalBytes: secondBytes,
+                discoveryObservations: second.discoveryObservations
             )
         } catch is CancellationError {
             throw CancellationError()
@@ -43,7 +49,7 @@ actor SkillConsistencyAuditService {
     private static func capture(
         writer: JournaledSSOTWriter,
         homeURL: URL
-    ) async throws -> SkillConsistencyAuditManifest {
+    ) async throws -> Capture {
         try Task.checkCancellation()
         let healthDiagnostics = try await writer.healthDiagnostics()
         try Task.checkCancellation()
@@ -98,24 +104,27 @@ actor SkillConsistencyAuditService {
         try Task.checkCancellation()
 
         let root = try managed.root.verifiedRoot()
-        return SkillConsistencyAuditManifest(
-            schema: "skills-manager-consistency-audit/v1",
-            coverage: discoveryResult.rootDiagnostics.isEmpty ? .complete : .incomplete,
-            health: LibraryRuntimeDiagnostic.normalized(healthDiagnostics)
-                .map(SkillConsistencyAuditWire.health),
-            root: SkillConsistencyAuditManagedRoot(
-                registeredLocator: SkillConsistencyAuditWire.locator(managed.root.registeredURL),
-                canonicalLocator: SkillConsistencyAuditWire.locator(managed.root.canonicalURL),
-                identity: try ManagedItemIdentityCodec.encode(root.identity)
+        return Capture(
+            manifest: SkillConsistencyAuditManifest(
+                schema: "skills-manager-consistency-audit/v1",
+                coverage: discoveryResult.rootDiagnostics.isEmpty ? .complete : .incomplete,
+                health: LibraryRuntimeDiagnostic.normalized(healthDiagnostics)
+                    .map(SkillConsistencyAuditWire.health),
+                root: SkillConsistencyAuditManagedRoot(
+                    registeredLocator: SkillConsistencyAuditWire.locator(managed.root.registeredURL),
+                    canonicalLocator: SkillConsistencyAuditWire.locator(managed.root.canonicalURL),
+                    identity: try ManagedItemIdentityCodec.encode(root.identity)
+                ),
+                managedSkills: managedSkills,
+                distributions: distributions,
+                discovery: try SkillConsistencyAuditWire.discovery(
+                    discoveryResult,
+                    homeURL: homeURL,
+                    bindingsBySkillID: bindingsBySkillID,
+                    reconcileBySkillID: reconcileBySkillID
+                )
             ),
-            managedSkills: managedSkills,
-            distributions: distributions,
-            discovery: try SkillConsistencyAuditWire.discovery(
-                discoveryResult,
-                homeURL: homeURL,
-                bindingsBySkillID: bindingsBySkillID,
-                reconcileBySkillID: reconcileBySkillID
-            )
+            discoveryObservations: discoveryResult.observations
         )
     }
 

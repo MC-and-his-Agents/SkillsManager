@@ -6,12 +6,14 @@ struct SkillSplitView: View {
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
+    @Environment(SkillConsistencyViewModel.self) private var consistencyModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
 
     @State private var searchText = ""
     @State private var showingImport = false
     @State private var showingAddPath = false
     @State private var showingBackups = false
+    @State private var showingConsistency = false
     @State private var source: SkillSource = .local
     @State private var downloadErrorMessage: String?
     @State private var isDownloadingRemote = false
@@ -64,6 +66,17 @@ struct SkillSplitView: View {
             .sheet(isPresented: $showingBackups) {
                 SkillBackupLibraryView()
                     .environment(lifecycleModel)
+            }
+            .sheet(isPresented: $showingConsistency) {
+                SkillConsistencyAssistantView {
+                    showingConsistency = false
+                    Task { @MainActor in
+                        await Task.yield()
+                        showingBackups = true
+                        await lifecycleModel.refreshBackupsOnly()
+                    }
+                }
+                .environment(consistencyModel)
             }
             .sheet(item: $installSkill) { skill in
                 ManagedClawdhubInstallView(
@@ -147,6 +160,18 @@ struct SkillSplitView: View {
 
     @ToolbarContentBuilder
     private func toolbarContent() -> some CustomizableToolbarContent {
+        ToolbarItem(id: "consistency") {
+            Button {
+                showingConsistency = true
+            } label: {
+                Label("Consistency Audit", systemImage: "checkmark.shield")
+                    .labelStyle(.iconOnly)
+            }
+            .keyboardShortcut("a", modifiers: [.command, .shift])
+            .help("Consistency Audit")
+            .accessibilityLabel("Open consistency audit")
+        }
+
         if source != .clawdhub {
             ToolbarItem(id: "backups") {
                 Button {
@@ -309,6 +334,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillDistributionViewModel.self) private var distributionModel
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
+    @Environment(SkillConsistencyViewModel.self) private var consistencyModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
 
     @Binding var source: SkillSource
@@ -362,6 +388,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                     await store.loadSkills()
                     await discoveryModel.refresh()
                     await refreshManagedSelection()
+                    await consistencyModel.refreshIfLoaded()
                 }
             }
             .onChange(of: scenePhase) { oldValue, newValue in
@@ -372,6 +399,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 }
                 Task {
                     await discoveryModel.refresh()
+                    await consistencyModel.refreshIfLoaded()
                 }
             }
     }
@@ -387,6 +415,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             lifecycleModel.blockRuntime(
                 message: "The managed library is not ready. Resolve its startup diagnostics first."
             )
+            consistencyModel.blockRuntime(
+                message: "The managed library is not ready. Resolve its startup diagnostics first."
+            )
             return
         }
         guard let writer = store.persistence else {
@@ -397,6 +428,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 message: "The managed library session is unavailable."
             )
             lifecycleModel.blockRuntime(
+                message: "The managed library session is unavailable."
+            )
+            consistencyModel.blockRuntime(
                 message: "The managed library session is unavailable."
             )
             return
@@ -415,7 +449,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
         }
         distributionModel.activate(dependencies: .live(writer: writer))
         lifecycleModel.activate(dependencies: .live(writer: writer))
+        consistencyModel.activate(dependencies: .live(writer: writer))
         await refreshManagedSelection()
+        await consistencyModel.refreshIfLoaded()
     }
 
     private func refreshManagedSelection() async {

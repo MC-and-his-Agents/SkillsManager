@@ -14,6 +14,7 @@ struct SkillsManagerApp: App {
     @State private var discoveryModel = SkillDiscoveryViewModel()
     @State private var distributionModel = SkillDistributionViewModel()
     @State private var lifecycleModel = SkillLifecycleViewModel()
+    @State private var consistencyModel = SkillConsistencyViewModel()
     @State private var libraryRuntime = LibraryRuntimeState()
     @State private var remoteStore = RemoteSkillStore(client: .live())
     @State private var runtimeBootstrap = AppLibraryRuntimeBootstrap()
@@ -34,6 +35,7 @@ struct SkillsManagerApp: App {
                 .environment(discoveryModel)
                 .environment(distributionModel)
                 .environment(lifecycleModel)
+                .environment(consistencyModel)
                 .environment(libraryRuntime)
                 .task {
                     await runtimeBootstrap.start(
