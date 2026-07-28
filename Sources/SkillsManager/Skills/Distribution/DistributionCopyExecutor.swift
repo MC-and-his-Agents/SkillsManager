@@ -7,12 +7,15 @@ nonisolated final class DistributionCopyExecutor {
     let configurationStore: DistributionConfigurationStore
     let linkOwnershipStore: DistributionLinkOwnershipStore
     let operationStore: DistributionOperationStore
+    let backupStore: SkillBackupStore
     let fileSystem: DistributionSymlinkFileSystem
+    let backupFileSystem: SkillBackupFileSystem?
     let nowMilliseconds: () -> Int64
 
     init(
         connection: SQLiteConnection,
         fileSystem: DistributionSymlinkFileSystem,
+        backupFileSystem: SkillBackupFileSystem? = nil,
         nowMilliseconds: @escaping () -> Int64 = {
             Int64(Date().timeIntervalSince1970 * 1_000)
         }
@@ -21,7 +24,9 @@ nonisolated final class DistributionCopyExecutor {
         configurationStore = DistributionConfigurationStore(connection: connection)
         linkOwnershipStore = DistributionLinkOwnershipStore(connection: connection)
         operationStore = try DistributionOperationStore(connection: connection)
+        backupStore = try SkillBackupStore(connection: connection)
         self.fileSystem = fileSystem
+        self.backupFileSystem = backupFileSystem
         self.nowMilliseconds = nowMilliseconds
     }
 
@@ -77,6 +82,8 @@ nonisolated final class DistributionCopyExecutor {
         expectedOldBindings: [DistributionBinding],
         approvedCopyDrift: DistributionCopyEvidence? = nil,
         approvedCopySource: DistributionCopySourceEvidence? = nil,
+        approvedHistoricalMigration: DistributionHistoricalMigrationApproval? = nil,
+        operationID requestedOperationID: SSOTOperationID? = nil,
         nowMilliseconds: Int64? = nil
     ) throws -> DistributionOperationRecord {
         guard plan.status == .executable,
@@ -92,6 +99,19 @@ nonisolated final class DistributionCopyExecutor {
               discardActions.isEmpty || plan.filesystemActions.count == 1 else {
             throw DistributionSymlinkExecutorError.conflict
         }
+        let historicalActions = plan.filesystemActions.filter { action in
+            action.kind == .replaceCopyWithSymlink
+                && !expectedOldBindings.contains(where: {
+                    $0.scope == action.entry.target.scope
+                        && $0.distributionSlug == action.entry.distributionSlug
+                })
+        }
+        guard historicalActions.isEmpty == (approvedHistoricalMigration == nil),
+              historicalActions.count <= 1,
+              historicalActions.isEmpty || plan.filesystemActions.count == 1,
+              historicalActions.isEmpty || expectedOldBindings.isEmpty else {
+            throw DistributionSymlinkExecutorError.conflict
+        }
         let timestamp = nowMilliseconds ?? self.nowMilliseconds()
         guard timestamp >= 0,
               try operationStore.repairRequiredOperations().allSatisfy({
@@ -102,7 +122,14 @@ nonisolated final class DistributionCopyExecutor {
               }) else {
             throw DistributionSymlinkExecutorError.operationInProgress
         }
-        let operationID = SSOTOperationID()
+        let operationID = requestedOperationID ?? SSOTOperationID()
+        if let approvedHistoricalMigration {
+            try requireHistoricalMigrationApproval(
+                approvedHistoricalMigration,
+                action: historicalActions[0],
+                operationID: operationID
+            )
+        }
         let formatVersion = operationFormatVersion(for: expectedOldBindings)
         let oldLinks = try linkOwnershipStore.load(skillID: skillID)
         let source = try fileSystem.copySource(for: skillID)
@@ -117,7 +144,8 @@ nonisolated final class DistributionCopyExecutor {
             expectedOldLinks: oldLinks,
             source: source,
             operationID: operationID,
-            approvedCopyDrift: approvedCopyDrift
+            approvedCopyDrift: approvedCopyDrift,
+            approvedHistoricalMigration: approvedHistoricalMigration
         )
         var runtime = DistributionOperationRuntimeV2(
             wireVersion: 2,
@@ -223,6 +251,13 @@ nonisolated final class DistributionCopyExecutor {
                 expectedOldLinks: oldLinks,
                 timestamp: timestamp
             )
+            if preflight.actions.contains(where: {
+                $0.historicalMigrationBackup != nil
+            }), try operationStore.load(operationID).outcome == .needsRepair {
+                throw DistributionSymlinkExecutorError.needsRepair(
+                    "distribution rollback requires repair"
+                )
+            }
             throw error
         }
     }
@@ -239,6 +274,11 @@ nonisolated final class DistributionCopyExecutor {
         timestamp: Int64
     ) throws -> DistributionOperationRecord {
         try fileSystem.requireUnchanged(source, skillID: skillID)
+        try requireHistoricalMigrationBackups(
+            plan: plan,
+            preflight: preflight,
+            operationID: operationID
+        )
         let desiredBindings = try finalizedBindings(
             plan,
             old: expectedOldBindings,
@@ -400,6 +440,11 @@ nonisolated final class DistributionCopyExecutor {
         timestamp: Int64
     ) throws {
         for (index, action) in plan.filesystemActions.enumerated() {
+            try requireHistoricalMigrationBackup(
+                action: action,
+                preflightAction: preflight.actions[index],
+                operationID: operationID
+            )
             switch action.kind {
             case .removeSymlink:
                 try quarantineLink(

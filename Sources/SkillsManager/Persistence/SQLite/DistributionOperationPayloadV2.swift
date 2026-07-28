@@ -238,6 +238,22 @@ nonisolated struct DistributionLinkEvidenceWireV2: Codable, Equatable, Sendable 
     }
 }
 
+nonisolated struct DistributionHistoricalMigrationBackupWireV2:
+    Codable, Equatable, Sendable
+{
+    let backupID: String
+    let locator: String
+    let directoryIdentity: Data
+    let manifestDigest: Data
+
+    init(_ backup: SkillBackupRecord) throws {
+        backupID = backup.backupID.uuid.uuidString.lowercased()
+        locator = backup.locator
+        directoryIdentity = try ManagedItemIdentityCodec.encode(backup.directoryIdentity)
+        manifestDigest = backup.manifestDigest
+    }
+}
+
 nonisolated struct DistributionOperationPreflightActionV2:
     Codable, Equatable, Sendable
 {
@@ -250,6 +266,84 @@ nonisolated struct DistributionOperationPreflightActionV2:
     let oldLink: DistributionLinkEvidenceWireV2?
     let stagingName: String?
     let quarantineName: String?
+    let historicalMigrationBackup: DistributionHistoricalMigrationBackupWireV2?
+
+    enum CodingKeys: String, CodingKey {
+        case actionIndex
+        case historicalMigrationBackup
+        case kind
+        case oldCopy
+        case oldLink
+        case quarantineName
+        case rootIdentity
+        case slug
+        case stagingName
+        case targetScopeKey
+    }
+
+    init(
+        actionIndex: Int,
+        kind: String,
+        targetScopeKey: String,
+        slug: String,
+        rootIdentity: Data?,
+        oldCopy: DistributionCopyEvidenceWireV2?,
+        oldLink: DistributionLinkEvidenceWireV2?,
+        stagingName: String?,
+        quarantineName: String?,
+        historicalMigrationBackup: DistributionHistoricalMigrationBackupWireV2? = nil
+    ) {
+        self.actionIndex = actionIndex
+        self.kind = kind
+        self.targetScopeKey = targetScopeKey
+        self.slug = slug
+        self.rootIdentity = rootIdentity
+        self.oldCopy = oldCopy
+        self.oldLink = oldLink
+        self.stagingName = stagingName
+        self.quarantineName = quarantineName
+        self.historicalMigrationBackup = historicalMigrationBackup
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        actionIndex = try container.decode(Int.self, forKey: .actionIndex)
+        kind = try container.decode(String.self, forKey: .kind)
+        targetScopeKey = try container.decode(String.self, forKey: .targetScopeKey)
+        slug = try container.decode(String.self, forKey: .slug)
+        rootIdentity = try container.decodeIfPresent(Data.self, forKey: .rootIdentity)
+        oldCopy = try container.decodeIfPresent(
+            DistributionCopyEvidenceWireV2.self,
+            forKey: .oldCopy
+        )
+        oldLink = try container.decodeIfPresent(
+            DistributionLinkEvidenceWireV2.self,
+            forKey: .oldLink
+        )
+        stagingName = try container.decodeIfPresent(String.self, forKey: .stagingName)
+        quarantineName = try container.decodeIfPresent(String.self, forKey: .quarantineName)
+        historicalMigrationBackup = try container.decodeIfPresent(
+            DistributionHistoricalMigrationBackupWireV2.self,
+            forKey: .historicalMigrationBackup
+        )
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(actionIndex, forKey: .actionIndex)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(targetScopeKey, forKey: .targetScopeKey)
+        try container.encode(slug, forKey: .slug)
+        try container.encodeIfPresent(rootIdentity, forKey: .rootIdentity)
+        try container.encodeIfPresent(oldCopy, forKey: .oldCopy)
+        try container.encodeIfPresent(oldLink, forKey: .oldLink)
+        try container.encodeIfPresent(stagingName, forKey: .stagingName)
+        try container.encodeIfPresent(quarantineName, forKey: .quarantineName)
+        try container.encodeIfPresent(
+            historicalMigrationBackup,
+            forKey: .historicalMigrationBackup
+        )
+    }
 }
 
 nonisolated struct DistributionOperationPreflightV2: Codable, Equatable, Sendable {

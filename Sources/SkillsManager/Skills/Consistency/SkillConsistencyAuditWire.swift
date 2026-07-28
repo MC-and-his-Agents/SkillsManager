@@ -89,6 +89,12 @@ nonisolated enum SkillConsistencyAuditWire {
         url.standardizedFileURL.path.precomposedStringWithCanonicalMapping
     }
 
+    static func discoveryObservation(
+        _ value: SkillDiscoveryObservation
+    ) throws -> SkillConsistencyAuditDiscoveryObservation {
+        try discoveryObservation(value, attribution: nil)
+    }
+
     static func skillIDPrecedes(_ lhs: SkillID, _ rhs: SkillID) -> Bool {
         lhs.bytes.lexicographicallyPrecedes(rhs.bytes)
     }

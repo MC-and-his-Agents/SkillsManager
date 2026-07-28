@@ -174,26 +174,44 @@ extension JournaledSSOTWriter {
         snapshot: SkillContentSnapshot,
         backupID: SkillBackupID
     ) throws -> SkillBackupRecord {
-        let skillID = baseline.domain.payload.skill.skillID
-        let createdAt = deletionTimestamp()
+        try publishIndependentBackup(
+            domain: baseline.domain,
+            selection: baseline.distributionSelection,
+            snapshot: snapshot,
+            backupID: backupID,
+            createdAtMilliseconds: deletionTimestamp()
+        )
+    }
+
+    func publishIndependentBackup(
+        domain: StoredSkillDomainSnapshot,
+        selection: DistributionSelectionReadback,
+        snapshot: SkillContentSnapshot,
+        backupID: SkillBackupID,
+        createdAtMilliseconds createdAt: Int64,
+        migrationMetadata: SkillBackupMigrationMetadata? = nil
+    ) throws -> SkillBackupRecord {
+        let skillID = domain.payload.skill.skillID
         let manifest = try SkillBackupManifestV1(
             backupID: backupID,
-            payload: baseline.domain.payload,
-            databaseRevision: baseline.domain.revision,
+            payload: domain.payload,
+            databaseRevision: domain.revision,
             distributionSelection: SkillBackupDistributionSelection(
-                baseline.distributionSelection
+                selection
             ),
             statistics: snapshot.statistics,
-            createdAtMilliseconds: createdAt
+            createdAtMilliseconds: createdAt,
+            migrationMetadata: migrationMetadata
         )
         let manifestBytes = try manifest.encoded()
+        let store = try SkillBackupStore(connection: connection)
         _ = try backupFileSystem.publish(
             snapshot: snapshot,
             skillID: skillID,
             backupID: backupID.uuid,
             createdAtMilliseconds: createdAt,
             manifestBytes: manifestBytes,
-            expectedFingerprint: baseline.domain.payload.skill.contentFingerprint,
+            expectedFingerprint: domain.payload.skill.contentFingerprint,
             beforePromotion: { publication in
                 try self.insertUpdateBackupPreparation(
                     publication: publication,
@@ -205,7 +223,6 @@ extension JournaledSSOTWriter {
             afterPreparationRecorded: {},
             afterPromotion: {}
         )
-        let store = try SkillBackupStore(connection: connection)
         guard let preparing = try store.load(backupID),
               preparing.state == .preparing else {
             throw SkillBackupStoreError.conflict
@@ -224,6 +241,12 @@ extension JournaledSSOTWriter {
     }
 
     private func validateUpdateBackup(_ backup: SkillBackupRecord) throws {
+        _ = try validatedBackupManifest(backup)
+    }
+
+    func validatedBackupManifest(
+        _ backup: SkillBackupRecord
+    ) throws -> SkillBackupManifestV1 {
         let validated = try backupFileSystem.validate(
             locator: backup.locator,
             expectedIdentity: backup.directoryIdentity,
@@ -236,6 +259,7 @@ extension JournaledSSOTWriter {
               manifest.contentFingerprint == backup.contentFingerprint else {
             throw SkillBackupManifestError.invalidManifest
         }
+        return manifest
     }
 
     private func insertUpdateBackupPreparation(

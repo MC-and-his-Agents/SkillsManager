@@ -6,6 +6,50 @@ nonisolated enum SkillBackupManifestError: Error, Equatable {
     case notCanonical
 }
 
+nonisolated enum SkillBackupMigrationReason: String, Sendable {
+    case historicalSkillMigration = "historical_skill_migration"
+}
+
+nonisolated struct SkillBackupMigrationMetadata: Equatable, Sendable {
+    let operationID: SSOTOperationID
+    let sourceScope: DistributionBindingScope
+    let rawLocator: String
+    let normalizedLocator: String
+    let rootIdentity: ManagedItemIdentity
+    let candidateIdentity: ManagedItemIdentity
+    let fingerprint: SkillContentFingerprint
+    let createdAtMilliseconds: Int64
+    let reason: SkillBackupMigrationReason
+
+    init(
+        operationID: SSOTOperationID,
+        sourceScope: DistributionBindingScope,
+        rawLocator: String,
+        normalizedLocator: String,
+        rootIdentity: ManagedItemIdentity,
+        candidateIdentity: ManagedItemIdentity,
+        fingerprint: SkillContentFingerprint,
+        createdAtMilliseconds: Int64,
+        reason: SkillBackupMigrationReason = .historicalSkillMigration
+    ) throws {
+        guard createdAtMilliseconds >= 0,
+              rawLocator == normalizedLocator,
+              try DefaultDistributionSlug(validating: normalizedLocator).value
+                == normalizedLocator else {
+            throw SkillBackupManifestError.invalidManifest
+        }
+        self.operationID = operationID
+        self.sourceScope = sourceScope
+        self.rawLocator = rawLocator
+        self.normalizedLocator = normalizedLocator
+        self.rootIdentity = rootIdentity
+        self.candidateIdentity = candidateIdentity
+        self.fingerprint = fingerprint
+        self.createdAtMilliseconds = createdAtMilliseconds
+        self.reason = reason
+    }
+}
+
 nonisolated struct SkillBackupDistributionSelection: Sendable {
     let isExplicitlyConfigured: Bool
     let bindingIntents: [DistributionBindingIntent]
@@ -57,6 +101,7 @@ nonisolated struct SkillBackupManifestV1: Sendable {
     let contentFingerprint: SkillContentFingerprint
     let statistics: SkillContentSnapshot.Statistics
     let createdAtMilliseconds: Int64
+    let migrationMetadata: SkillBackupMigrationMetadata?
 
     init(
         backupID: SkillBackupID,
@@ -64,14 +109,19 @@ nonisolated struct SkillBackupManifestV1: Sendable {
         databaseRevision: Int64,
         distributionSelection: SkillBackupDistributionSelection,
         statistics: SkillContentSnapshot.Statistics,
-        createdAtMilliseconds: Int64
+        createdAtMilliseconds: Int64,
+        migrationMetadata: SkillBackupMigrationMetadata? = nil
     ) throws {
         guard databaseRevision >= 0,
               createdAtMilliseconds >= 0,
               statistics.fileCount >= 0,
               distributionSelection.bindingIntents.allSatisfy({
                   $0.skillID == payload.skill.skillID
-              }) else {
+              }),
+              migrationMetadata?.fingerprint == nil
+                || migrationMetadata?.fingerprint == payload.skill.contentFingerprint,
+              migrationMetadata?.createdAtMilliseconds == nil
+                || migrationMetadata?.createdAtMilliseconds == createdAtMilliseconds else {
             throw SkillBackupManifestError.invalidManifest
         }
         self.backupID = backupID
@@ -82,10 +132,11 @@ nonisolated struct SkillBackupManifestV1: Sendable {
         contentFingerprint = payload.skill.contentFingerprint
         self.statistics = statistics
         self.createdAtMilliseconds = createdAtMilliseconds
+        self.migrationMetadata = migrationMetadata
     }
 
     func encoded() throws -> Data {
-        try SkillBackupCanonicalJSON.encode(Wire(self))
+        try SkillBackupCanonicalJSON.encode(try Wire(self))
     }
 
     static func decode(_ data: Data) throws -> Self {
