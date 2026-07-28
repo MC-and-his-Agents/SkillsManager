@@ -107,12 +107,23 @@ struct SkillConsistencyRepairTests {
         #expect(disable.bindingReplacement.isEmpty)
         #expect(disable.bindingsChanged)
 
+        let codexScope = DistributionBindingScope.agent(.codex).targetScopeKey
+        let partialDisable = try DistributionPlanner().repairPlan(
+            skillID: skillID,
+            selection: selection,
+            intent: .disableMissingBinding,
+            scopeKeys: [codexScope],
+            observations: observations
+        )
+        #expect(partialDisable.filesystemActions.isEmpty)
+        #expect(partialDisable.bindingReplacement.map(\.scope) == [.agent(.claude)])
+
         #expect(throws: DistributionRepairPlanningError.invalidSelection) {
             _ = try DistributionPlanner().repairPlan(
                 skillID: skillID,
                 selection: selection,
                 intent: .rebuildMissingSymlink,
-                scopeKeys: [DistributionBindingScope.agent(.codex).targetScopeKey],
+                scopeKeys: [codexScope],
                 observations: observations
             )
         }
@@ -198,6 +209,94 @@ struct SkillConsistencyRepairTests {
         ).bindings.isEmpty)
         #expect(try ownership(fixture).isEmpty)
         #expect(try configuration(fixture))
+    }
+
+    @Test("partial disable returns applied and retains other missing Binding")
+    func partialDisableMissingBindings() async throws {
+        let fixture = try await RepairFixture(agentPlatforms: [.codex, .claude])
+        let codexURL = try fixture.distributionURL(for: .agent(.codex))
+        let claudeURL = try fixture.distributionURL(for: .agent(.claude))
+        try FileManager.default.removeItem(at: codexURL)
+        try FileManager.default.removeItem(at: claudeURL)
+        let service = SkillConsistencyRepairService(
+            writer: fixture.writer,
+            homeURL: fixture.workspace.distributionHomeURL
+        )
+        let preview = try await service.prepare(
+            skillID: fixture.skillID,
+            action: .disableMissingBinding(scopeKeys: ["agent:codex"])
+        )
+
+        guard case .applied(let operationID) = try await service.confirm(preview) else {
+            Issue.record("partial disable did not apply")
+            return
+        }
+
+        let selection = try await fixture.writer.loadDistributionSelection(
+            skillID: fixture.skillID
+        )
+        #expect(selection.bindings.map(\.scope) == [.agent(.claude)])
+        #expect(try ownership(fixture) == fixture.oldOwnership.filter {
+            $0.targetScopeKey == "agent:claude"
+        })
+        #expect(!FileManager.default.fileExists(atPath: codexURL.path))
+        #expect(!FileManager.default.fileExists(atPath: claudeURL.path))
+
+        try duplicateFirstRepairTarget(fixture, operationID: operationID)
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            _ = try operation(fixture, operationID: operationID)
+        }
+    }
+
+    @Test("repair readback rejects wrong managed targets and scope sets")
+    func repairReadbackValidation() throws {
+        let skillID = SkillID()
+        let slug = try DefaultDistributionSlug(validating: "demo")
+        let codex = try #require(DistributionTargetCatalog.current.entry(
+            for: .agent(.codex),
+            slug: slug
+        ))
+        let claude = try #require(DistributionTargetCatalog.current.entry(
+            for: .agent(.claude),
+            slug: slug
+        ))
+        let expectedScopes = Set(["agent:codex", "agent:claude"])
+        let expectedMissing = Set(["agent:claude"])
+
+        #expect(!stableSkillConsistencyRepairReadback(
+            .init(
+                status: .drifted,
+                observations: [
+                    codex: .managed(skillID: skillID, ssotDirectoryName: "wrong"),
+                    claude: .missing,
+                ]
+            ),
+            skillID: skillID,
+            expectedBindingScopeKeys: expectedScopes,
+            expectedMissingScopeKeys: expectedMissing
+        ))
+        #expect(!stableSkillConsistencyRepairReadback(
+            .init(status: .drifted, observations: [claude: .missing]),
+            skillID: skillID,
+            expectedBindingScopeKeys: expectedScopes,
+            expectedMissingScopeKeys: expectedMissing
+        ))
+    }
+
+    @Test("typed execution permission errors remain stable")
+    func permissionErrorMapping() {
+        #expect(stableSkillConsistencyRepairError(
+            DistributionSymlinkFileSystemError.posix(
+                operation: "create",
+                code: EACCES
+            )
+        ) == .permissionDenied)
+        #expect(stableSkillConsistencyRepairError(
+            DistributionSymlinkFileSystemError.posix(
+                operation: "create",
+                code: EPERM
+            )
+        ) == .permissionDenied)
     }
 
     @Test("ordinary apply rejects a repair plan")
@@ -309,5 +408,6 @@ struct SkillConsistencyRepairTests {
     func recovery() async throws {
         try await recoverRebuild()
         try await recoverDisable()
+        try await recoverPartialDisable()
     }
 }

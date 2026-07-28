@@ -13,7 +13,7 @@ struct RepairFixture {
     let oldBindings: [DistributionBinding]
     let oldOwnership: [DistributionLinkOwnership]
 
-    init() async throws {
+    init(agentPlatforms: Set<SkillPlatform>? = nil) async throws {
         workspace = try WriterWorkspace(distributionEnabled: true)
         writer = try await workspace.openWriter()
         _ = try await writer.migrateLegacy(homeURL: workspace.distributionHomeURL)
@@ -26,20 +26,57 @@ struct RepairFixture {
         )
         slug = payload.skill.defaultDistributionSlug
         _ = try await writer.create(payload: payload, sourceSnapshot: snapshot)
-        let plan = try await writer.distributionPlan(
-            skillID: skillID,
-            desiredScope: .global(slug),
-            requiredAdapterCodes: Set(
+        let desiredScope: DistributionDesiredScope
+        let requiredAdapterCodes: Set<String>
+        if let agentPlatforms {
+            desiredScope = .agents(agentPlatforms, slug)
+            requiredAdapterCodes = Set(agentPlatforms.map(\.storageKey))
+        } else {
+            desiredScope = .global(slug)
+            requiredAdapterCodes = Set(
                 DistributionTargetCatalog.current.globalReaders.map(\.storageKey)
             )
+        }
+        let plan = try await writer.distributionPlan(
+            skillID: skillID,
+            desiredScope: desiredScope,
+            requiredAdapterCodes: requiredAdapterCodes
         )
         _ = try await writer.applyDistribution(skillID: skillID, plan: plan)
-        targetURL = workspace.distributionHomeURL
-            .appendingPathComponent(".agents/skills", isDirectory: true)
-            .appendingPathComponent(slug.value, isDirectory: true)
+        let primaryScope = agentPlatforms?.sorted {
+            $0.storageKey < $1.storageKey
+        }.first.map(DistributionBindingScope.agent) ?? .global
+        targetURL = try repairTargetURL(
+            homeURL: workspace.distributionHomeURL,
+            scope: primaryScope,
+            slug: slug
+        )
         oldBindings = try await writer.loadDistributionSelection(skillID: skillID).bindings
         oldOwnership = try ownership(workspace: workspace, skillID: skillID)
     }
+
+    func distributionURL(for scope: DistributionBindingScope) throws -> URL {
+        try repairTargetURL(
+            homeURL: workspace.distributionHomeURL,
+            scope: scope,
+            slug: slug
+        )
+    }
+}
+
+func repairTargetURL(
+    homeURL: URL,
+    scope: DistributionBindingScope,
+    slug: DefaultDistributionSlug
+) throws -> URL {
+    let entry = try #require(DistributionTargetCatalog.current.entry(
+        for: scope,
+        slug: slug
+    ))
+    return homeURL.appendingPathComponent(
+        String(entry.canonicalLocator.dropFirst(2)),
+        isDirectory: true
+    )
 }
 
 func recoverRebuild() async throws {
@@ -108,6 +145,42 @@ func recoverDisable() async throws {
     #expect(try DistributionBindingStore(
         connection: SQLiteConnection(url: fixture.workspace.database)
     ).load(skillID: fixture.skillID).count == 1)
+}
+
+func recoverPartialDisable() async throws {
+    let fixture = try await RepairFixture(agentPlatforms: [.codex, .claude])
+    try FileManager.default.removeItem(at: fixture.distributionURL(for: .agent(.codex)))
+    try FileManager.default.removeItem(at: fixture.distributionURL(for: .agent(.claude)))
+    let service = SkillConsistencyRepairService(
+        writer: fixture.writer,
+        homeURL: fixture.workspace.distributionHomeURL
+    )
+    let preview = try await service.prepare(
+        skillID: fixture.skillID,
+        action: .disableMissingBinding(scopeKeys: ["agent:codex"])
+    )
+    let result = try await service.confirm(preview)
+    guard case .applied(let operationID) = result else {
+        Issue.record("partial disable did not apply")
+        return
+    }
+    try restoreBindingsAndOwnership(fixture)
+    try rewindOperation(
+        fixture,
+        operationID: operationID,
+        phase: .prepared,
+        forwardCursor: 0
+    )
+
+    try recoveryExecutor(fixture).recoverAll()
+
+    let record = try operation(fixture, operationID: operationID)
+    #expect(record.phase == .completed)
+    #expect(record.outcome == .rolledBack)
+    #expect(try DistributionBindingStore(
+        connection: SQLiteConnection(url: fixture.workspace.database)
+    ).load(skillID: fixture.skillID).count == 2)
+    #expect(try ownership(fixture) == fixture.oldOwnership)
 }
 
 func binding(
@@ -224,6 +297,38 @@ func operationCount(_ fixture: RepairFixture) throws -> Int64 {
         url: fixture.workspace.database,
         accessMode: .readOnly
     ).querySingleInt("SELECT count(*) FROM distribution_operations"))
+}
+
+func duplicateFirstRepairTarget(
+    _ fixture: RepairFixture,
+    operationID: SSOTOperationID
+) throws {
+    let connection = try SQLiteConnection(url: fixture.workspace.database)
+    let select = try connection.prepare(
+        "SELECT preflight_payload FROM distribution_operations WHERE operation_id = ?"
+    )
+    try select.bind(operationID.bytes, at: 1)
+    guard try select.step(),
+          let preflightPayload = select.blob(at: 0),
+          var object = try JSONSerialization.jsonObject(
+              with: preflightPayload
+          ) as? [String: Any],
+          var targets = object["repairTargets"] as? [[String: Any]],
+          let first = targets.first else {
+        throw CocoaError(.fileReadCorruptFile)
+    }
+    targets.append(first)
+    object["repairTargets"] = targets
+    let payload = try JSONSerialization.data(
+        withJSONObject: object,
+        options: [.sortedKeys, .withoutEscapingSlashes]
+    )
+    let update = try connection.prepare(
+        "UPDATE distribution_operations SET preflight_payload = ? WHERE operation_id = ?"
+    )
+    try update.bind(payload, at: 1)
+    try update.bind(operationID.bytes, at: 2)
+    _ = try update.step()
 }
 
 func restoreOwnership(_ fixture: RepairFixture) throws {

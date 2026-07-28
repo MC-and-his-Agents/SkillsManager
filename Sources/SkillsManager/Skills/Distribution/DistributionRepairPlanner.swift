@@ -47,8 +47,15 @@ nonisolated extension DistributionPlanner {
             observations: observations,
             catalog: catalog
         )
-        guard missing == scopeKeys else {
-            throw DistributionRepairPlanningError.invalidSelection
+        switch intent {
+        case .rebuildMissingSymlink:
+            guard missing == scopeKeys else {
+                throw DistributionRepairPlanningError.invalidSelection
+            }
+        case .disableMissingBinding:
+            guard scopeKeys.isSubset(of: missing) else {
+                throw DistributionRepairPlanningError.invalidSelection
+            }
         }
 
         let replacement: [DistributionBindingIntent]

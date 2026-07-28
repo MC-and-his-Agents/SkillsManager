@@ -613,7 +613,12 @@ nonisolated final class DistributionSymlinkExecutor {
                 skillID: skillID,
                 bindings: plan.bindingReplacement,
                 ownership: desiredOwnership,
-                expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
+                expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight),
+                allowedMissingScopeKeys: repairRemainingMissingScopeKeys(
+                    intent: plan.repairIntent,
+                    selectedScopeKeys: plan.repairScopeKeys,
+                    preflight: preflight
+                )
             ), try repairTargetsMatchAppliedState(plan: plan, preflight: preflight) else {
                 throw DistributionSymlinkExecutorError.needsRepair("filesystem readback drifted")
             }
@@ -704,7 +709,12 @@ nonisolated final class DistributionSymlinkExecutor {
                 skillID: skillID,
                 bindings: plan.bindingReplacement,
                 ownership: desiredOwnership,
-                expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
+                expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight),
+                allowedMissingScopeKeys: repairRemainingMissingScopeKeys(
+                    intent: plan.repairIntent,
+                    selectedScopeKeys: plan.repairScopeKeys,
+                    preflight: preflight
+                )
             ), try repairTargetsMatchAppliedState(plan: plan, preflight: preflight) else {
                 throw DistributionSymlinkExecutorError.needsRepair("final distribution readback drifted")
             }
@@ -1238,7 +1248,12 @@ nonisolated final class DistributionSymlinkExecutor {
             skillID: operation.skillID,
             bindings: newBindings,
             ownership: desiredOwnership,
-            expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
+            expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight),
+            allowedMissingScopeKeys: repairRemainingMissingScopeKeys(
+                intent: plan.repairIntent,
+                selectedScopeKeys: plan.repairScopeKeys,
+                preflight: preflight
+            )
         ), try repairTargetsMatchAppliedState(plan: plan, preflight: preflight) else {
             throw DistributionSymlinkExecutorError.needsRepair(
                 "filesystemApplied readback drifted"
@@ -1309,7 +1324,8 @@ nonisolated final class DistributionSymlinkExecutor {
             expectedOld: [],
             desired: desiredOwnership,
             appliedOperationID: operationID,
-            nowMilliseconds: nowMilliseconds
+            nowMilliseconds: nowMilliseconds,
+            retainedOld: expectedOldOwnership
         )
     }
 
@@ -1612,7 +1628,20 @@ nonisolated final class DistributionSymlinkExecutor {
             bindings: try decodeBindingIntents(operation.oldBindings, skillID: operation.skillID),
             expectation: .old
         )
+        let wire = try DistributionOperationPayloadCodec.decode(
+            DistributionPlanWire.self,
+            from: operation.planPayload
+        )
+        let repairIntent = wire.repairIntent.flatMap(DistributionRepairIntent.init)
+        let selectedRepairScopes = Set(wire.repairScopeKeys ?? [])
         return try bindings.map { binding in
+            if repairIntent != nil,
+               !selectedRepairScopes.contains(binding.scope.targetScopeKey),
+               let old = oldOwnership.first(where: {
+                   $0.targetScopeKey == binding.scope.targetScopeKey
+               }) {
+                return old
+            }
             if let actionIndex = preflight.firstIndex(where: {
                 $0.kind == DistributionFilesystemActionKind.createSymlink.rawValue
                     && $0.targetScopeKey == binding.scope.targetScopeKey
@@ -1674,7 +1703,12 @@ nonisolated final class DistributionSymlinkExecutor {
             skillID: operation.skillID,
             bindings: bindings,
             ownership: ownership,
-            expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight)
+            expectedSSOTIdentity: try expectedSSOTIdentity(from: preflight),
+            allowedMissingScopeKeys: repairRemainingMissingScopeKeys(
+                intent: repairIntent,
+                selectedScopeKeys: wire.repairScopeKeys ?? [],
+                preflight: preflight
+            )
         )
     }
 
@@ -1708,6 +1742,16 @@ nonisolated final class DistributionSymlinkExecutor {
             }
         }
         return true
+    }
+
+    private func repairRemainingMissingScopeKeys(
+        intent: DistributionRepairIntent?,
+        selectedScopeKeys: [String],
+        preflight: DistributionPreflightPayload
+    ) -> Set<String> {
+        guard intent == .disableMissingBinding else { return [] }
+        return Set(preflight.repairTargets.map(\.targetScopeKey))
+            .subtracting(selectedScopeKeys)
     }
 
     private func expectedSSOTIdentity(
@@ -1826,7 +1870,38 @@ nonisolated final class DistributionSymlinkExecutor {
         let bindings = Dictionary(uniqueKeysWithValues: expectedOldBindings.map {
             ($0.scope.targetScopeKey, $0)
         })
-        return try plan.repairScopeKeys.map { scopeKey in
+        let scopeKeys: [String]
+        switch plan.repairIntent {
+        case .disableMissingBinding:
+            scopeKeys = try expectedOldBindings.compactMap { binding in
+                guard let entry = DistributionTargetCatalog.current.entry(
+                    for: binding.scope,
+                    slug: binding.distributionSlug
+                ) else {
+                    throw DistributionSymlinkExecutorError.conflict
+                }
+                switch try observe(
+                    entry: entry,
+                    skillID: skillID,
+                    ownership: expectedOldOwnership
+                ) {
+                case .missing:
+                    return binding.scope.targetScopeKey
+                case .managed:
+                    return nil
+                default:
+                    throw DistributionSymlinkExecutorError.conflict
+                }
+            }
+            guard Set(plan.repairScopeKeys).isSubset(of: Set(scopeKeys)) else {
+                throw DistributionSymlinkExecutorError.conflict
+            }
+        case .rebuildMissingSymlink:
+            scopeKeys = plan.repairScopeKeys
+        case nil:
+            return []
+        }
+        return try scopeKeys.map { scopeKey in
             guard let binding = bindings[scopeKey],
                   let entry = DistributionTargetCatalog.current.entry(
                       for: binding.scope,
@@ -1951,6 +2026,13 @@ nonisolated final class DistributionSymlinkExecutor {
         timestamp: Int64
     ) throws -> [DistributionLinkOwnership] {
         try plan.bindingReplacement.map { binding in
+            if plan.repairIntent != nil,
+               !plan.repairScopeKeys.contains(binding.scope.targetScopeKey),
+               let old = oldOwnership.first(where: {
+                   $0.targetScopeKey == binding.scope.targetScopeKey
+               }) {
+                return old
+            }
             let actionIndex = plan.filesystemActions.firstIndex {
                 $0.kind == .createSymlink
                     && $0.entry.target.scope == binding.scope
@@ -1986,7 +2068,8 @@ nonisolated final class DistributionSymlinkExecutor {
         skillID: SkillID,
         bindings: [DistributionBindingIntent],
         ownership: [DistributionLinkOwnership],
-        expectedSSOTIdentity: ManagedItemIdentity
+        expectedSSOTIdentity: ManagedItemIdentity,
+        allowedMissingScopeKeys: Set<String> = []
     ) throws -> Bool {
         let target = try fileSystem.ssotEvidence(for: skillID)
         guard target.identity == expectedSSOTIdentity else { return false }
@@ -1996,8 +2079,20 @@ nonisolated final class DistributionSymlinkExecutor {
                 slug: binding.distributionSlug
             ), let row = ownership.first(where: {
                 $0.targetScopeKey == binding.scope.targetScopeKey
-            }), row.absoluteLinkTarget == target.absoluteTarget,
-            case .symlink(let root, let entryIdentity, let absoluteTarget) = try fileSystem.observe(entry),
+            }), row.absoluteLinkTarget == target.absoluteTarget else {
+                return false
+            }
+            if allowedMissingScopeKeys.contains(binding.scope.targetScopeKey) {
+                guard case .missing = try fileSystem.observe(entry) else {
+                    return false
+                }
+                continue
+            }
+            guard case .symlink(
+                let root,
+                let entryIdentity,
+                let absoluteTarget
+            ) = try fileSystem.observe(entry),
             root == row.rootIdentity, entryIdentity == row.entryIdentity,
             absoluteTarget == row.absoluteLinkTarget else {
                 return false

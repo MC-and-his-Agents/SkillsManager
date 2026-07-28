@@ -899,8 +899,27 @@ private nonisolated enum DistributionOperationPayloadValidator {
         }
         guard let targets = preflight.repairTargets,
               let scopeKeys = plan.repairScopeKeys,
-              targets.count == scopeKeys.count,
-              Set(targets.map(\.targetScopeKey)) == Set(scopeKeys) else {
+              !targets.isEmpty,
+              targets.count <= maximumRoots else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        let targetScopeKeys = targets.map(\.targetScopeKey)
+        let targetScopes = Set(targetScopeKeys)
+        let selectedScopes = Set(scopeKeys)
+        guard targetScopes.count == targets.count,
+              targetScopeKeys == targetScopeKeys.sorted(by: utf8Precedes) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        switch plan.repairIntent.flatMap(DistributionRepairIntent.init) {
+        case .rebuildMissingSymlink:
+            guard targetScopes == selectedScopes else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case .disableMissingBinding:
+            guard selectedScopes.isSubset(of: targetScopes) else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case nil:
             throw DistributionOperationStoreError.invalidRecord
         }
         let oldByScope = Dictionary(uniqueKeysWithValues: old.map {

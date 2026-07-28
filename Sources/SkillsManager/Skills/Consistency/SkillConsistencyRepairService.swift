@@ -63,7 +63,7 @@ actor SkillConsistencyRepairService {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            throw stableError(error)
+            throw stableSkillConsistencyRepairError(error)
         }
     }
 
@@ -80,6 +80,21 @@ actor SkillConsistencyRepairService {
                   let intent = preview.action.intent else {
                 throw SkillConsistencyRepairError.stalePreview
             }
+            let selection = try await writer.loadDistributionSelection(
+                skillID: preview.skillID
+            )
+            guard try DistributionRepairSelectionToken.encode(
+                selection,
+                skillID: preview.skillID
+            ) == preview.selectionToken else {
+                throw SkillConsistencyRepairError.stalePreview
+            }
+            let expected = try repairReadbackExpectation(
+                manifest: prepared.manifest,
+                skillID: preview.skillID,
+                action: preview.action,
+                selection: selection
+            )
             let operation = try await writer.applyDistributionRepair(
                 skillID: preview.skillID,
                 intent: intent,
@@ -92,14 +107,43 @@ actor SkillConsistencyRepairService {
                 throw SkillConsistencyRepairError.needsRepair
             }
             let reconcile = try await writer.reconcileDistribution(skillID: preview.skillID)
-            guard reconcile.status == .inSync else {
+            guard stableSkillConsistencyRepairReadback(
+                reconcile,
+                skillID: preview.skillID,
+                expectedBindingScopeKeys: expected.bindingScopeKeys,
+                expectedMissingScopeKeys: expected.missingScopeKeys
+            ) else {
                 throw SkillConsistencyRepairError.needsRepair
             }
             return .applied(operation.operationID)
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            throw stableError(error)
+            throw stableSkillConsistencyRepairError(error)
+        }
+    }
+
+    private func repairReadbackExpectation(
+        manifest: SkillConsistencyAuditManifest,
+        skillID: SkillID,
+        action: SkillConsistencyRepairAction,
+        selection: DistributionSelectionReadback
+    ) throws -> (bindingScopeKeys: Set<String>, missingScopeKeys: Set<String>) {
+        let current = try observations(manifest: manifest, skillID: skillID)
+        let missing = Set(current.compactMap { entry, observation in
+            observation == .missing ? entry.target.scope.targetScopeKey : nil
+        })
+        let bindingScopes = Set(selection.bindings.map(\.scope.targetScopeKey))
+        switch action {
+        case .rebuildMissingSymlink:
+            return (bindingScopes, [])
+        case .disableMissingBinding(let selected):
+            return (
+                bindingScopes.subtracting(selected),
+                missing.subtracting(selected)
+            )
+        case .skip:
+            throw SkillConsistencyRepairError.invalidSelection
         }
     }
 
@@ -149,38 +193,76 @@ actor SkillConsistencyRepairService {
         })
     }
 
-    private func stableError(_ error: Error) -> SkillConsistencyRepairError {
-        if let error = error as? SkillConsistencyRepairError { return error }
-        if let error = error as? DistributionRepairPlanningError {
-            return switch error {
-            case .invalidSelection: .invalidSelection
-            case .unsupportedBindingState: .unsupportedBindingState
-            case .copyRequiresForkDecision: .copyRequiresForkDecision
-            case .targetOccupied: .targetOccupied
-            case .unavailable: .unavailable
+}
+
+nonisolated func stableSkillConsistencyRepairReadback(
+    _ result: DistributionReconcileResult,
+    skillID: SkillID,
+    expectedBindingScopeKeys: Set<String>,
+    expectedMissingScopeKeys: Set<String>
+) -> Bool {
+    let scopeKeys = Set(result.observations.keys.map(\.target.scope.targetScopeKey))
+    guard scopeKeys == expectedBindingScopeKeys else { return false }
+    let expectedStatus: DistributionReconcileStatus = expectedMissingScopeKeys.isEmpty
+        ? .inSync
+        : .drifted
+    guard result.status == expectedStatus else { return false }
+
+    var missing = Set<String>()
+    for (entry, observation) in result.observations {
+        let scopeKey = entry.target.scope.targetScopeKey
+        switch observation {
+        case .missing:
+            missing.insert(scopeKey)
+        case .managed(let owner, let directoryName):
+            guard owner == skillID, directoryName == skillID.directoryName else {
+                return false
             }
+        default:
+            return false
         }
-        if let error = error as? DistributionSymlinkExecutorError {
-            return switch error {
-            case .conflict: .stalePreview
-            case .operationInProgress: .operationInProgress
-            case .needsRepair: .needsRepair
-            case .blocked: .targetOccupied
-            }
-        }
-        if let error = error as? SkillConsistencyAuditError {
-            return switch error {
-            case .sourceChanged: .stalePreview
-            case .permissionDenied: .permissionDenied
-            case .rootUnavailable, .databaseUnavailable, .writerUnavailable: .unavailable
-            case .inconsistentCatalog: .needsRepair
-            }
-        }
-        let value = error as NSError
-        if value.domain == NSPOSIXErrorDomain,
-           (value.code == Int(EACCES) || value.code == Int(EPERM)) {
-            return .permissionDenied
-        }
-        return .unavailable
     }
+    return missing == expectedMissingScopeKeys
+}
+
+nonisolated func stableSkillConsistencyRepairError(
+    _ error: Error
+) -> SkillConsistencyRepairError {
+    if let error = error as? SkillConsistencyRepairError { return error }
+    if let error = error as? DistributionRepairPlanningError {
+        return switch error {
+        case .invalidSelection: .invalidSelection
+        case .unsupportedBindingState: .unsupportedBindingState
+        case .copyRequiresForkDecision: .copyRequiresForkDecision
+        case .targetOccupied: .targetOccupied
+        case .unavailable: .unavailable
+        }
+    }
+    if let error = error as? DistributionSymlinkExecutorError {
+        return switch error {
+        case .conflict: .stalePreview
+        case .operationInProgress: .operationInProgress
+        case .needsRepair: .needsRepair
+        case .blocked: .targetOccupied
+        }
+    }
+    if let error = error as? SkillConsistencyAuditError {
+        return switch error {
+        case .sourceChanged: .stalePreview
+        case .permissionDenied: .permissionDenied
+        case .rootUnavailable, .databaseUnavailable, .writerUnavailable: .unavailable
+        case .inconsistentCatalog: .needsRepair
+        }
+    }
+    if let error = error as? DistributionSymlinkFileSystemError,
+       case .posix(_, let code) = error,
+       code == EACCES || code == EPERM {
+        return .permissionDenied
+    }
+    let value = error as NSError
+    if value.domain == NSPOSIXErrorDomain,
+       (value.code == Int(EACCES) || value.code == Int(EPERM)) {
+        return .permissionDenied
+    }
+    return .unavailable
 }
