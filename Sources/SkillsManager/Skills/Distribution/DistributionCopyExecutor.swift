@@ -100,18 +100,19 @@ nonisolated final class DistributionCopyExecutor {
         let discardActions = plan.filesystemActions.filter {
             $0.kind == .discardCopyDrift
         }
-        guard discardActions.isEmpty == (approvedCopyDrift == nil),
-              discardActions.isEmpty == (approvedCopySource == nil),
-              discardActions.count <= 1,
-              discardActions.isEmpty || plan.filesystemActions.count == 1 else {
-            throw DistributionSymlinkExecutorError.conflict
-        }
         let historicalActions = plan.filesystemActions.filter { action in
             action.kind == .replaceCopyWithSymlink
                 && !expectedOldBindings.contains(where: {
                     $0.scope == action.entry.target.scope
                         && $0.distributionSlug == action.entry.distributionSlug
                 })
+        }
+        let requiresApprovedCopySource = !discardActions.isEmpty || !historicalActions.isEmpty
+        guard discardActions.isEmpty == (approvedCopyDrift == nil),
+              requiresApprovedCopySource == (approvedCopySource != nil),
+              discardActions.count <= 1,
+              discardActions.isEmpty || plan.filesystemActions.count == 1 else {
+            throw DistributionSymlinkExecutorError.conflict
         }
         guard historicalActions.isEmpty == (approvedHistoricalMigration == nil),
               historicalActions.count <= 1,

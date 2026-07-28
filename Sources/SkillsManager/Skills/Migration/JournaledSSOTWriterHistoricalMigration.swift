@@ -226,6 +226,14 @@ extension JournaledSSOTWriter {
         } catch {
             throw HistoricalSkillMigrationError.backupUnavailable
         }
+        try hooks.historicalMigrationBackupPublished(request.skillID)
+        let currentSSOTAfterBackup = try historicalMigrationSSOTEvidence(
+            skillID: request.skillID,
+            expectedAbsoluteTarget: request.ssotEvidence.absoluteTarget
+        )
+        guard currentSSOTAfterBackup == request.ssotEvidence else {
+            throw HistoricalSkillMigrationError.stalePreview
+        }
         let current = try captureHistoricalMigrationSource(request.source)
         guard current.evidence == capture.evidence else {
             throw HistoricalSkillMigrationError.sourceChanged
@@ -299,6 +307,7 @@ extension JournaledSSOTWriter {
                 skillID: request.skillID,
                 plan: plan,
                 expectedOldBindings: [],
+                approvedCopySource: request.ssotEvidence,
                 approvedHistoricalMigration: approval,
                 operationID: request.operationID,
                 nowMilliseconds: request.createdAtMilliseconds

@@ -221,6 +221,7 @@ struct HistoricalSkillMigrationTests {
                 skillID: prepared.skillID,
                 plan: prepared.plan,
                 expectedOldBindings: [],
+                approvedCopySource: prepared.ssotEvidence,
                 approvedHistoricalMigration: prepared.approval,
                 operationID: prepared.operationID,
                 nowMilliseconds: 42
@@ -246,7 +247,10 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
     let sourceURL: URL
     let slug = "demo"
 
-    init(content: String) async throws {
+    init(
+        content: String,
+        writerHooks: JournaledSSOTWriterHooks = .init()
+    ) async throws {
         workspace = try WriterWorkspace(distributionEnabled: true)
         globalRoot = workspace.distributionHomeURL
             .appendingPathComponent(".agents/skills", isDirectory: true)
@@ -256,7 +260,7 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
             to: sourceURL.appendingPathComponent("SKILL.md"),
             options: .atomic
         )
-        writer = try await workspace.openWriter()
+        writer = try await workspace.openWriter(hooks: writerHooks)
         _ = try await writer.migrateLegacy(homeURL: workspace.distributionHomeURL)
     }
 
@@ -376,12 +380,20 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
             hooks: hooks,
             executorHooks: executorHooks
         )
+        let ssotEvidence = try await writer.historicalMigrationSSOTEvidence(
+            skillID: imported.skill.skillID,
+            expectedAbsoluteTarget: workspace.root.appendingPathComponent(
+                imported.skill.skillID.directoryName,
+                isDirectory: true
+            ).standardizedFileURL.path
+        )
         return HistoricalExecutorPreparation(
             executor: distribution.executor,
             operationStore: distribution.operationStore,
             skillID: imported.skill.skillID,
             operationID: operationID,
             plan: plan,
+            ssotEvidence: ssotEvidence,
             approval: DistributionHistoricalMigrationApproval(
                 source: capture.evidence,
                 backup: backup,
@@ -424,6 +436,7 @@ struct HistoricalExecutorPreparation {
     let skillID: SkillID
     let operationID: SSOTOperationID
     let plan: DistributionPlan
+    let ssotEvidence: DistributionCopySourceEvidence
     let approval: DistributionHistoricalMigrationApproval
 }
 
