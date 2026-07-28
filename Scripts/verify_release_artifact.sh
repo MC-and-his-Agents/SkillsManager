@@ -88,6 +88,10 @@ assert_equal "Appcast product link" "$appcast_link" "$EXPECTED_PRODUCT_URL"
   echo "Appcast EdDSA signature is missing." >&2
   exit 1
 }
+swift "$ROOT/Scripts/verify_sparkle_signature.swift" \
+  "$ZIP" \
+  "$appcast_signature" \
+  "$EXPECTED_PUBLIC_KEY"
 
 zip_sha256=$(shasum -a 256 "$ZIP" | awk '{print $1}')
 {
