@@ -55,7 +55,8 @@ GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 SPARKLE_PLIST_KEYS=""
 if [[ -n "$SPARKLE_PUBLIC_KEY" ]]; then
   if [[ -z "$SPARKLE_FEED_URL" ]]; then
-    SPARKLE_FEED_URL="https://raw.githubusercontent.com/MC-and-his-Agents/SkillsManager/main/appcast.xml"
+    echo "ERROR: SPARKLE_FEED_URL is required when Sparkle is enabled." >&2
+    exit 1
   fi
   SPARKLE_PLIST_KEYS="    <key>SUFeedURL</key><string>${SPARKLE_FEED_URL}</string>
     <key>SUPublicEDKey</key><string>${SPARKLE_PUBLIC_KEY}</string>"
