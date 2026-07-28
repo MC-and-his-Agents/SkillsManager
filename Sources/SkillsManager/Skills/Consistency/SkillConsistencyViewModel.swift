@@ -218,7 +218,7 @@ private actor SkillConsistencySession {
         findingID: String,
         action: SkillConsistencyPresentation.Action
     ) async {
-        guard !isPreparingPreview, !isExecuting,
+        guard !isPreparingPreview, !isExecuting, !isVerifying,
               problem == nil,
               let snapshot,
               snapshot.allowsWrites,
@@ -259,12 +259,12 @@ private actor SkillConsistencySession {
     }
 
     func cancelPreview() {
-        guard !isExecuting else { return }
+        guard !isExecuting, !isVerifying else { return }
         pendingPreview = nil
     }
 
     func confirmPreview() async {
-        guard !isExecuting,
+        guard !isExecuting, !isVerifying,
               let preview = pendingPreview,
               preview.generation == generation,
               let dependencies else {
@@ -335,7 +335,7 @@ private actor SkillConsistencySession {
                 generation: generation,
                 payload: .repair(repair)
             )
-        case .migrate(let importAction):
+        case .migrate(let importAction, let independent):
             guard let observation = finding.observation else {
                 throw HistoricalSkillMigrationError.unsupportedCandidate
             }
@@ -344,16 +344,20 @@ private actor SkillConsistencySession {
                 observation,
                 importAction
             )
+            var details = [
+                "Source: \(migration.sourceLocator)",
+                "SSOT: \(migration.ssotAbsoluteTarget)",
+                "Backup: \(migration.backupID.uuid.uuidString.lowercased())",
+                "Operation: \(migration.operationID.uuid.uuidString.lowercased())",
+            ]
+            if independent {
+                details.insert("Identity: new independent Skill UUID", at: 0)
+            }
             return PendingPreview(
                 id: migration.token.uuid,
                 title: action.title,
                 summary: "Back up the original directory, then replace it with a managed Symlink.",
-                details: [
-                    "Source: \(migration.sourceLocator)",
-                    "SSOT: \(migration.ssotAbsoluteTarget)",
-                    "Backup: \(migration.backupID.uuid.uuidString.lowercased())",
-                    "Operation: \(migration.operationID.uuid.uuidString.lowercased())",
-                ],
+                details: details,
                 affectedFindingIDs: [finding.id],
                 generation: generation,
                 payload: .migration(migration)

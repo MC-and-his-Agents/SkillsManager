@@ -47,16 +47,18 @@ nonisolated enum SkillConsistencyPresentation {
     enum Action: Hashable, Sendable {
         case rebuildMissingSymlinks(scopeKeys: Set<String>)
         case disableMissingBinding(scopeKeys: Set<String>)
-        case migrate(importAction: ManagedSkillImportAction?)
+        case migrate(importAction: ManagedSkillImportAction?, independent: Bool)
         case keepForNow
 
         var title: String {
             switch self {
             case .rebuildMissingSymlinks: "Rebuild missing links"
             case .disableMissingBinding: "Disable missing target"
-            case .migrate(.importNew): "Import, back up and migrate"
-            case .migrate(.claimExisting): "Claim, back up and migrate"
-            case .migrate(nil): "Back up and migrate"
+            case .migrate(.importNew, true):
+                "Import as independent Skill, back up and migrate"
+            case .migrate(.importNew, false): "Import, back up and migrate"
+            case .migrate(.claimExisting, _): "Claim, back up and migrate"
+            case .migrate(nil, _): "Back up and migrate"
             case .keepForNow: "Keep for now"
             }
         }
@@ -291,7 +293,13 @@ nonisolated enum SkillConsistencyPresentation {
                 locator: candidate.1.displayURLs.first?.standardizedFileURL.path,
                 severity: executable ? .warning : .blocking,
                 actions: executable
-                    ? [.migrate(importAction: candidate.2), .keepForNow]
+                    ? [
+                        .migrate(
+                            importAction: candidate.2,
+                            independent: candidate.1.status == .conflict
+                        ),
+                        .keepForNow,
+                    ]
                     : [.keepForNow],
                 observation: executable ? candidate.1 : nil,
                 skillID: candidate.1.matchedSkillID,

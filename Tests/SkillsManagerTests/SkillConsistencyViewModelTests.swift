@@ -136,7 +136,10 @@ struct SkillConsistencyViewModelTests {
     func duplicateConfirmIsSingleShot() async throws {
         let findingAudit = try repairPrepared(missingScopes: ["global"])
         let healthyAudit = try repairPrepared(missingScopes: [])
-        let probe = ConsistencyDependencyProbe(audits: [findingAudit, healthyAudit])
+        let probe = ConsistencyDependencyProbe(
+            audits: [findingAudit, healthyAudit],
+            delaySecondAudit: true
+        )
         let model = SkillConsistencyViewModel()
         model.activate(dependencies: probe.dependencies)
         await model.refresh()
@@ -149,7 +152,9 @@ struct SkillConsistencyViewModelTests {
         #expect(model.pendingPreview != nil)
 
         let first = Task { @MainActor in await model.confirmPreview() }
-        await Task.yield()
+        while await probe.auditCallCount < 2 {
+            await Task.yield()
+        }
         await model.confirmPreview()
         await first.value
 
@@ -219,7 +224,7 @@ struct SkillConsistencyViewModelTests {
 
         await model.prepare(
             findingID: finding.id,
-            action: .migrate(importAction: .importNew)
+            action: .migrate(importAction: .importNew, independent: false)
         )
         await model.confirmPreview()
 
@@ -227,16 +232,56 @@ struct SkillConsistencyViewModelTests {
         #expect(model.successMessage != nil)
         #expect(model.snapshot?.status == .healthy)
     }
+
+    @MainActor
+    @Test("conflict import preview preserves independent Skill identity semantics")
+    func conflictPreviewNamesIndependentIdentity() async throws {
+        let observation = try historicalObservation(
+            status: .conflict,
+            reason: .ambiguousSource
+        )
+        let wire = try SkillConsistencyAuditWire.discoveryObservation(observation)
+        let audit = try prepared(
+            discovery: [wire],
+            rawObservations: [observation]
+        )
+        let probe = ConsistencyDependencyProbe(audits: [audit])
+        let model = SkillConsistencyViewModel()
+        model.activate(dependencies: probe.dependencies)
+        await model.refresh()
+        let finding = try #require(model.snapshot?.findings.first)
+
+        await model.prepare(
+            findingID: finding.id,
+            action: .migrate(importAction: .importNew, independent: true)
+        )
+
+        #expect(
+            model.pendingPreview?.title
+                == "Import as independent Skill, back up and migrate"
+        )
+        #expect(
+            model.pendingPreview?.details.contains(
+                "Identity: new independent Skill UUID"
+            ) == true
+        )
+    }
 }
 
 private actor ConsistencyDependencyProbe {
     private var audits: [SkillConsistencyAuditPrepared]
+    private let delaySecondAudit: Bool
+    private(set) var auditCallCount = 0
     private(set) var prepareRepairCallCount = 0
     private(set) var confirmRepairCallCount = 0
     private(set) var confirmMigrationCallCount = 0
 
-    init(audits: [SkillConsistencyAuditPrepared]) {
+    init(
+        audits: [SkillConsistencyAuditPrepared],
+        delaySecondAudit: Bool = false
+    ) {
         self.audits = audits
+        self.delaySecondAudit = delaySecondAudit
     }
 
     nonisolated var dependencies: SkillConsistencyDependencies {
@@ -280,7 +325,11 @@ private actor ConsistencyDependencyProbe {
         )
     }
 
-    private func nextAudit() throws -> SkillConsistencyAuditPrepared {
+    private func nextAudit() async throws -> SkillConsistencyAuditPrepared {
+        auditCallCount += 1
+        if delaySecondAudit, auditCallCount == 2 {
+            try await Task.sleep(for: .milliseconds(50))
+        }
         guard !audits.isEmpty else { throw SkillConsistencyAuditError.sourceChanged }
         if audits.count == 1 { return audits[0] }
         return audits.removeFirst()
@@ -400,7 +449,10 @@ private func repairPrepared(
     )
 }
 
-private func historicalObservation() throws -> SkillDiscoveryObservation {
+private func historicalObservation(
+    status: SkillDiscoveryStatus = .unmanaged,
+    reason: SkillDiscoveryReason? = nil
+) throws -> SkillDiscoveryObservation {
     let identity = ManagedItemIdentity(
         persistedComponents: .init(
             device: 1,
@@ -424,8 +476,8 @@ private func historicalObservation() throws -> SkillDiscoveryObservation {
             currentDigest: Data(repeating: 2, count: 32)
         ),
         providerAliases: [],
-        status: .unmanaged,
-        reason: nil,
+        status: status,
+        reason: reason,
         matchedSkillID: nil,
         matchedSourceKey: nil
     )
