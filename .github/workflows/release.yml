@@ -296,6 +296,25 @@ jobs:
             --write-out 'appcast_http_status=%{http_code}\nappcast_final_url=%{url_effective}\n' \
             --output "$release_dir/appcast.xml" \
             "$base_url/appcast.xml"
+          latest_matches=false
+          for attempt in {1..6}; do
+            curl --fail --location \
+              --retry 2 --retry-delay 2 --retry-all-errors \
+              --retry-max-time 20 --max-time 20 \
+              --write-out 'latest_appcast_http_status=%{http_code}\nlatest_appcast_final_url=%{url_effective}\n' \
+              --output "$release_dir/latest-appcast.xml" \
+              "$SPARKLE_FEED_URL"
+            if cmp -s "$release_dir/appcast.xml" "$release_dir/latest-appcast.xml"; then
+              latest_matches=true
+              break
+            fi
+            echo "Sparkle latest feed has not converged (attempt $attempt/6)." >&2
+            sleep 5
+          done
+          [[ "$latest_matches" == true ]] || {
+            echo "Sparkle latest feed does not match the tagged appcast." >&2
+            exit 1
+          }
 
           item="(//*[local-name()='item'][\
           * [local-name()='shortVersionString' and text()='${MARKETING_VERSION}'] and \
