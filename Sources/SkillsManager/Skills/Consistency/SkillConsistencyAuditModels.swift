@@ -17,6 +17,7 @@ nonisolated enum SkillConsistencyAuditError: Error, Equatable, Sendable {
 nonisolated struct SkillConsistencyAuditPrepared: Sendable {
     let manifest: SkillConsistencyAuditManifest
     let canonicalBytes: Data
+    let discoveryObservations: [SkillDiscoveryObservation]
 }
 
 nonisolated struct SkillConsistencyAuditManifest: Codable, Equatable, Sendable {
