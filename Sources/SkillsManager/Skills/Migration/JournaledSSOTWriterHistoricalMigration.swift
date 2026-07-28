@@ -1,6 +1,69 @@
 import Foundation
 
 extension JournaledSSOTWriter {
+    func historicalMigrationSSOTExpectation(
+        skillID: SkillID,
+        requiresExisting: Bool
+    ) throws -> HistoricalSkillMigrationSSOTExpectation {
+        try requireAuthority()
+        let target = fileSystem.finalURL(skillID: skillID).standardizedFileURL.path
+        if requiresExisting {
+            return .existing(
+                try historicalMigrationSSOTEvidence(
+                    skillID: skillID,
+                    expectedAbsoluteTarget: target
+                )
+            )
+        }
+        guard try fileSystem.managedRootGuard.itemIdentity(
+            at: fileSystem.finalURL(skillID: skillID)
+        ) == nil else {
+            throw HistoricalSkillMigrationError.stalePreview
+        }
+        return .absent(absoluteTarget: target)
+    }
+
+    func requireHistoricalMigrationSSOTExpectation(
+        _ expectation: HistoricalSkillMigrationSSOTExpectation,
+        skillID: SkillID
+    ) throws -> DistributionCopySourceEvidence? {
+        try requireAuthority()
+        switch expectation {
+        case .absent(let absoluteTarget):
+            guard fileSystem.finalURL(skillID: skillID).standardizedFileURL.path
+                    == absoluteTarget,
+                  try fileSystem.managedRootGuard.itemIdentity(
+                    at: fileSystem.finalURL(skillID: skillID)
+                  ) == nil else {
+                throw HistoricalSkillMigrationError.stalePreview
+            }
+            return nil
+        case .existing(let expected):
+            let current = try historicalMigrationSSOTEvidence(
+                skillID: skillID,
+                expectedAbsoluteTarget: expected.absoluteTarget
+            )
+            guard current == expected else {
+                throw HistoricalSkillMigrationError.stalePreview
+            }
+            return current
+        }
+    }
+
+    func historicalMigrationSSOTEvidence(
+        skillID: SkillID,
+        expectedAbsoluteTarget: String
+    ) throws -> DistributionCopySourceEvidence {
+        try requireAuthority()
+        let evidence = try copyDistribution.fileSystem.copySource(
+            for: skillID
+        ).decisionEvidence()
+        guard evidence.absoluteTarget == expectedAbsoluteTarget else {
+            throw HistoricalSkillMigrationError.stalePreview
+        }
+        return evidence
+    }
+
     func historicalMigrationPlan(
         skillID: SkillID,
         scope: DistributionBindingScope,
@@ -110,7 +173,12 @@ extension JournaledSSOTWriter {
         try recoverAll()
         try recoverIndependentUpdateBackups()
         try copyDistribution.recoverAll()
+        let currentSSOT = try historicalMigrationSSOTEvidence(
+            skillID: request.skillID,
+            expectedAbsoluteTarget: request.ssotEvidence.absoluteTarget
+        )
         guard skill.skillID == request.skillID,
+              currentSSOT == request.ssotEvidence,
               let domain = try journal.storedDomain(request.skillID),
               domain.payload.skill == skill,
               domain.payload.skill.contentFingerprint == request.source.fingerprint,

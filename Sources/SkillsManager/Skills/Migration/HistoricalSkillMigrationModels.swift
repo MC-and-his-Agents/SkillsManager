@@ -29,6 +29,8 @@ nonisolated struct HistoricalSkillMigrationPreview: Sendable {
     let targetLocator: String
     let backupID: SkillBackupID
     let operationID: SSOTOperationID
+    let ssotAbsoluteTarget: String
+    let ssotIdentity: ManagedItemIdentity?
     let canonicalAudit: Data
     let canonicalPlan: Data
 }
@@ -60,9 +62,29 @@ nonisolated struct HistoricalSkillMigrationRequest: Sendable {
     let source: HistoricalSkillMigrationSource
     let plan: DistributionPlan
     let canonicalPlan: Data
+    let ssotEvidence: DistributionCopySourceEvidence
     let backupID: SkillBackupID
     let operationID: SSOTOperationID
     let createdAtMilliseconds: Int64
+}
+
+nonisolated enum HistoricalSkillMigrationSSOTExpectation: Sendable {
+    case absent(absoluteTarget: String)
+    case existing(DistributionCopySourceEvidence)
+
+    var absoluteTarget: String {
+        switch self {
+        case .absent(let value): value
+        case .existing(let evidence): evidence.absoluteTarget
+        }
+    }
+
+    var identity: ManagedItemIdentity? {
+        if case .existing(let evidence) = self {
+            return evidence.ssotIdentity
+        }
+        return nil
+    }
 }
 
 nonisolated struct HistoricalSkillMigrationExistingBackup: Sendable {

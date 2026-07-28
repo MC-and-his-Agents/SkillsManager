@@ -1,5 +1,9 @@
 import Foundation
 
+nonisolated struct DistributionCopyExecutorHooks: Sendable {
+    var afterDatabaseCommit: @Sendable () throws -> Void = {}
+}
+
 /// Copy-aware action-backed operations share the existing planner, journal,
 /// stores, and descriptor-backed distribution file system.
 nonisolated final class DistributionCopyExecutor {
@@ -11,11 +15,13 @@ nonisolated final class DistributionCopyExecutor {
     let fileSystem: DistributionSymlinkFileSystem
     let backupFileSystem: SkillBackupFileSystem?
     let nowMilliseconds: () -> Int64
+    let hooks: DistributionCopyExecutorHooks
 
     init(
         connection: SQLiteConnection,
         fileSystem: DistributionSymlinkFileSystem,
         backupFileSystem: SkillBackupFileSystem? = nil,
+        hooks: DistributionCopyExecutorHooks = .init(),
         nowMilliseconds: @escaping () -> Int64 = {
             Int64(Date().timeIntervalSince1970 * 1_000)
         }
@@ -27,6 +33,7 @@ nonisolated final class DistributionCopyExecutor {
         backupStore = try SkillBackupStore(connection: connection)
         self.fileSystem = fileSystem
         self.backupFileSystem = backupFileSystem
+        self.hooks = hooks
         self.nowMilliseconds = nowMilliseconds
     }
 
@@ -322,6 +329,7 @@ nonisolated final class DistributionCopyExecutor {
             operationID: operationID,
             timestamp: timestamp
         )
+        try hooks.afterDatabaseCommit()
         try finishCommitted(
             skillID: skillID,
             operationID: operationID,

@@ -10,6 +10,7 @@ actor HistoricalSkillMigrationService {
         let sourceEvidence: DistributionCopyEvidence
         let plan: DistributionPlan
         let canonicalPlan: Data
+        let ssotExpectation: HistoricalSkillMigrationSSOTExpectation
         let skillID: SkillID
         let backupID: SkillBackupID
         let operationID: SSOTOperationID
@@ -96,6 +97,10 @@ actor HistoricalSkillMigrationService {
                     ?? observation.matchedSkillID else {
                 throw HistoricalSkillMigrationError.invalidSelection
             }
+            let ssotExpectation = try await writer.historicalMigrationSSOTExpectation(
+                skillID: skillID,
+                requiresExisting: importPreview?.action != .importNew
+            )
             let source = HistoricalSkillMigrationSource(
                 discoveryScope: root.scope,
                 scope: scope,
@@ -130,6 +135,7 @@ actor HistoricalSkillMigrationService {
                 sourceEvidence: sourceCapture.evidence,
                 plan: plan,
                 canonicalPlan: canonicalPlan,
+                ssotExpectation: ssotExpectation,
                 skillID: skillID,
                 backupID: existing?.backup.backupID ?? SkillBackupID(),
                 operationID: existing?.operationID ?? SSOTOperationID(),
@@ -150,6 +156,8 @@ actor HistoricalSkillMigrationService {
                 targetLocator: entry.canonicalLocator,
                 backupID: pending.backupID,
                 operationID: pending.operationID,
+                ssotAbsoluteTarget: ssotExpectation.absoluteTarget,
+                ssotIdentity: ssotExpectation.identity,
                 canonicalAudit: pending.auditBytes,
                 canonicalPlan: canonicalPlan
             )
@@ -203,6 +211,10 @@ actor HistoricalSkillMigrationService {
         guard currentSource.evidence == pending.sourceEvidence else {
             throw HistoricalSkillMigrationError.sourceChanged
         }
+        let existingSSOT = try await writer.requireHistoricalMigrationSSOTExpectation(
+            pending.ssotExpectation,
+            skillID: pending.skillID
+        )
         let skill: ManagedSkillRecord
         if let importPreview = pending.importPreview {
             let imported = try await importService.execute(importPreview.token)
@@ -218,6 +230,18 @@ actor HistoricalSkillMigrationService {
             }
             skill = managed
         }
+        let ssotEvidence: DistributionCopySourceEvidence
+        if let existingSSOT {
+            ssotEvidence = existingSSOT
+        } else {
+            ssotEvidence = try await writer.historicalMigrationSSOTEvidence(
+                skillID: pending.skillID,
+                expectedAbsoluteTarget: pending.ssotExpectation.absoluteTarget
+            )
+        }
+        guard ssotEvidence.contentFingerprint == skill.contentFingerprint else {
+            throw HistoricalSkillMigrationError.sourceChanged
+        }
         return try await writer.performHistoricalMigration(
             skill: skill,
             request: HistoricalSkillMigrationRequest(
@@ -225,6 +249,7 @@ actor HistoricalSkillMigrationService {
                 source: pending.source,
                 plan: pending.plan,
                 canonicalPlan: pending.canonicalPlan,
+                ssotEvidence: ssotEvidence,
                 backupID: pending.backupID,
                 operationID: pending.operationID,
                 createdAtMilliseconds: pending.createdAtMilliseconds

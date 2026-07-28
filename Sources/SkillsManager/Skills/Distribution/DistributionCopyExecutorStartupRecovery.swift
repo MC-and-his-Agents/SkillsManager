@@ -107,7 +107,9 @@ nonisolated extension DistributionCopyExecutor {
             return DistributionFilesystemAction(
                 kind: kind,
                 entry: entry,
-                ssotLocator: preflight.absoluteSSOTTarget
+                ssotLocator: DistributionTargetCatalog.current.ssotLocator(
+                    for: operation.skillID
+                )
             )
         }
         return DistributionPlan(

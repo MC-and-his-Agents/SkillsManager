@@ -88,6 +88,39 @@ struct HistoricalSkillMigrationTests {
         #expect(try fixture.isSourceSymlink())
     }
 
+    @Test("claim rejects a same-content SSOT directory replacement after preview")
+    func claimRejectsSSOTIdentityChange() async throws {
+        let fixture = try await HistoricalMigrationFixture(content: "# Existing")
+        let snapshot = try fixture.workspace.snapshot(content: "# Existing")
+        let payload = try fixture.workspace.payload(name: "Existing", snapshot: snapshot)
+        _ = try await fixture.writer.create(payload: payload, sourceSnapshot: snapshot)
+        let prepared = try await fixture.prepare()
+        let service = fixture.service()
+        let preview = try await service.prepare(
+            audit: prepared.audit,
+            observation: prepared.observation,
+            importAction: .claimExisting
+        )
+        let ssot = fixture.workspace.root.appendingPathComponent(
+            payload.skill.skillID.directoryName,
+            isDirectory: true
+        )
+        try FileManager.default.removeItem(at: ssot)
+        try FileManager.default.createDirectory(at: ssot, withIntermediateDirectories: false)
+        try Data("# Existing".utf8).write(
+            to: ssot.appendingPathComponent("SKILL.md"),
+            options: .atomic
+        )
+
+        await #expect(throws: HistoricalSkillMigrationError.stalePreview) {
+            _ = try await service.confirm(preview.token)
+        }
+
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM local_skill_origins") == 0)
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM skill_backups") == 0)
+        #expect(try !fixture.isSourceSymlink())
+    }
+
     @Test("resumes from a managed but undistributed import without duplicating state")
     func resumesAfterImportOnly() async throws {
         let fixture = try await HistoricalMigrationFixture(content: "# Resume")
@@ -204,46 +237,9 @@ struct HistoricalSkillMigrationTests {
         )
     }
 
-    @Test("a clean rollback retries with one existing backup and a new operation")
-    func cleanRollbackRetriesWithoutDuplicateBackup() async throws {
-        let fixture = try await HistoricalMigrationFixture(content: "# Retry")
-        let interruption = HistoricalForwardInterruption()
-        let first = try await fixture.prepareExecutorMigration(
-            hooks: .init(onCheckpoint: interruption.reach)
-        )
-        #expect(throws: HistoricalForwardInterruption.Failure.self) {
-            _ = try first.executor.apply(
-                skillID: first.skillID,
-                plan: first.plan,
-                expectedOldBindings: [],
-                approvedHistoricalMigration: first.approval,
-                operationID: first.operationID,
-                nowMilliseconds: 42
-            )
-        }
-        #expect(try first.operationStore.load(first.operationID).outcome == .rolledBack)
-        let prepared = try await fixture.prepare()
-        #expect(prepared.observation.status == .managed)
-        let service = fixture.service()
-        let preview = try await service.prepare(
-            audit: prepared.audit,
-            observation: prepared.observation,
-            importAction: nil
-        )
-        #expect(preview.operationID != first.operationID)
-
-        let result = try await service.confirm(preview.token)
-
-        #expect(result.backup.backupID == first.approval.backup.backupID)
-        #expect(result.distribution.operationID == preview.operationID)
-        #expect(try fixture.workspace.integer("SELECT count(*) FROM skill_backups") == 1)
-        #expect(try fixture.workspace.integer("SELECT count(*) FROM distribution_operations") == 2)
-        #expect(try fixture.workspace.integer("SELECT count(*) FROM distribution_bindings") == 1)
-        #expect(try fixture.isSourceSymlink())
-    }
 }
 
-private final class HistoricalMigrationFixture: @unchecked Sendable {
+final class HistoricalMigrationFixture: @unchecked Sendable {
     let workspace: WriterWorkspace
     let writer: JournaledSSOTWriter
     let globalRoot: URL
@@ -324,7 +320,8 @@ private final class HistoricalMigrationFixture: @unchecked Sendable {
     }
 
     func prepareExecutorMigration(
-        hooks: DistributionFilesystemTestHooks
+        hooks: DistributionFilesystemTestHooks,
+        executorHooks: DistributionCopyExecutorHooks = .init()
     ) async throws -> HistoricalExecutorPreparation {
         let observation = try await scanObservation()
         let importer = ManagedSkillImportService(writer: writer, nowMilliseconds: { 42 })
@@ -375,23 +372,13 @@ private final class HistoricalMigrationFixture: @unchecked Sendable {
             scope: .global,
             slug: try DefaultDistributionSlug(validating: slug)
         )
-        let connection = try SQLiteConnection(url: workspace.database)
-        let backupFileSystem = try SkillBackupFileSystem(
-            managementRoot: workspace.verifiedManagementRoot,
-            ownership: await writer.ownership
-        )
-        let executor = try DistributionCopyExecutor(
-            connection: connection,
-            fileSystem: DistributionSymlinkFileSystem(
-                homeURL: workspace.distributionHomeURL,
-                hooks: hooks
-            ),
-            backupFileSystem: backupFileSystem,
-            nowMilliseconds: { 42 }
+        let distribution = try await distributionExecutor(
+            hooks: hooks,
+            executorHooks: executorHooks
         )
         return HistoricalExecutorPreparation(
-            executor: executor,
-            operationStore: try DistributionOperationStore(connection: connection),
+            executor: distribution.executor,
+            operationStore: distribution.operationStore,
             skillID: imported.skill.skillID,
             operationID: operationID,
             plan: plan,
@@ -402,9 +389,36 @@ private final class HistoricalMigrationFixture: @unchecked Sendable {
             )
         )
     }
+
+    func distributionExecutor(
+        hooks: DistributionFilesystemTestHooks = .init(),
+        executorHooks: DistributionCopyExecutorHooks = .init()
+    ) async throws -> (
+        executor: DistributionCopyExecutor,
+        operationStore: DistributionOperationStore
+    ) {
+        let connection = try SQLiteConnection(url: workspace.database)
+        let backupFileSystem = try SkillBackupFileSystem(
+            managementRoot: workspace.verifiedManagementRoot,
+            ownership: await writer.ownership
+        )
+        return (
+            try DistributionCopyExecutor(
+                connection: connection,
+                fileSystem: DistributionSymlinkFileSystem(
+                    homeURL: workspace.distributionHomeURL,
+                    hooks: hooks
+                ),
+                backupFileSystem: backupFileSystem,
+                hooks: executorHooks,
+                nowMilliseconds: { 42 }
+            ),
+            try DistributionOperationStore(connection: connection)
+        )
+    }
 }
 
-private struct HistoricalExecutorPreparation {
+struct HistoricalExecutorPreparation {
     let executor: DistributionCopyExecutor
     let operationStore: DistributionOperationStore
     let skillID: SkillID
@@ -445,20 +459,5 @@ private final class HistoricalRollbackMutation: @unchecked Sendable {
         var metadata = stat()
         guard Darwin.lstat(url.path, &metadata) == 0 else { return false }
         return metadata.st_mode & mode_t(S_IFMT) == S_IFDIR
-    }
-}
-
-private final class HistoricalForwardInterruption: @unchecked Sendable {
-    struct Failure: Error {}
-
-    private let lock = NSLock()
-    private var fired = false
-
-    func reach(_ checkpoint: DistributionFilesystemCheckpoint) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        guard checkpoint == .afterCreateSync, !fired else { return }
-        fired = true
-        throw Failure()
     }
 }
