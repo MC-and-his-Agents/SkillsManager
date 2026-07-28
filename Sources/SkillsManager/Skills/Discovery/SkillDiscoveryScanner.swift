@@ -26,6 +26,7 @@ nonisolated struct SkillDiscoveryScanner {
     ) throws -> SkillDiscoveryResult {
         var groups: [ManagedItemIdentity: RootGroup] = [:]
         var diagnostics: [SkillDiscoveryRootDiagnostic] = []
+        var observedRoots: [SkillDiscoveryObservedRoot] = []
 
         for root in sortedRoots(roots) {
             try checkpoint()
@@ -43,17 +44,19 @@ nonisolated struct SkillDiscoveryScanner {
         for group in sortedGroups(groups.values) {
             try checkpoint()
             let scanned = try scan(group, limits: limits, checkpoint: checkpoint)
+            observedRoots.append(contentsOf: scanned.observedRoots)
             candidates.append(contentsOf: scanned.candidates)
             diagnostics.append(contentsOf: scanned.diagnostics)
         }
 
         let observations = SkillDiscoveryClassifier()
             .classify(candidates, catalog: catalog)
-            .sorted(by: observationPrecedes)
+            .sorted(by: skillDiscoveryObservationPrecedes)
         let uniqueDiagnostics = Array(Set(diagnostics))
         return SkillDiscoveryResult(
+            observedRoots: Array(Set(observedRoots)).sorted(by: skillDiscoveryObservedRootPrecedes),
             observations: observations,
-            rootDiagnostics: uniqueDiagnostics.sorted(by: diagnosticPrecedes)
+            rootDiagnostics: uniqueDiagnostics.sorted(by: skillDiscoveryDiagnosticPrecedes)
         )
     }
 
@@ -90,25 +93,28 @@ nonisolated struct SkillDiscoveryScanner {
         limits: SkillContentLimits,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> (
+        observedRoots: [SkillDiscoveryObservedRoot],
         candidates: [SkillDiscoveryCandidate],
         diagnostics: [SkillDiscoveryRootDiagnostic]
     ) {
         let revalidated = revalidate(group.entries)
-        guard !revalidated.entries.isEmpty else { return ([], revalidated.diagnostics) }
+        guard !revalidated.entries.isEmpty else {
+            return ([], [], revalidated.diagnostics)
+        }
         let representative = revalidated.entries[0]
         let descriptor = Darwin.open(
             representative.reference.canonicalURL.path,
             O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
         )
         guard descriptor >= 0 else {
-            return ([], revalidated.diagnostics + revalidated.entries.map {
+            return ([], [], revalidated.diagnostics + revalidated.entries.map {
                 rootDiagnostic($0.root, errno: errno)
             })
         }
         defer { Darwin.close(descriptor) }
 
         guard let before = revision(of: descriptor), before.identity == representative.identity else {
-            return ([], revalidated.diagnostics + revalidated.entries.map {
+            return ([], [], revalidated.diagnostics + revalidated.entries.map {
                 SkillDiscoveryRootDiagnostic(root: $0.root, reason: .rootChanged)
             })
         }
@@ -120,18 +126,18 @@ nonisolated struct SkillDiscoveryScanner {
                 displayPath: representative.reference.canonicalURL.path
             )
         } catch let error as SkillContentSnapshotError {
-            return ([], revalidated.diagnostics + revalidated.entries.map {
+            return ([], [], revalidated.diagnostics + revalidated.entries.map {
                 rootDiagnostic($0.root, snapshotError: error)
             })
         } catch {
-            return ([], revalidated.diagnostics + revalidated.entries.map {
+            return ([], [], revalidated.diagnostics + revalidated.entries.map {
                 SkillDiscoveryRootDiagnostic(root: $0.root, reason: .rootReadFailed)
             })
         }
 
         let roots = sortedRoots(revalidated.entries.map(\.root))
         var candidates: [SkillDiscoveryCandidate] = []
-        for name in names.sorted(by: pathComponentPrecedes) {
+        for name in names.sorted(by: skillDiscoveryPathComponentPrecedes) {
             try checkpoint()
             if let candidate = try candidate(
                 named: name,
@@ -146,16 +152,19 @@ nonisolated struct SkillDiscoveryScanner {
         }
 
         guard let after = revision(of: descriptor), before == after else {
-            return ([], revalidated.diagnostics + revalidated.entries.map {
+            return ([], [], revalidated.diagnostics + revalidated.entries.map {
                     SkillDiscoveryRootDiagnostic(root: $0.root, reason: .rootChanged)
                 })
         }
         let finalValidation = revalidate(revalidated.entries)
         guard !finalValidation.entries.isEmpty else {
-            return ([], revalidated.diagnostics + finalValidation.diagnostics)
+            return ([], [], revalidated.diagnostics + finalValidation.diagnostics)
         }
         let finalRoots = sortedRoots(finalValidation.entries.map(\.root))
         return (
+            finalValidation.entries.map {
+                SkillDiscoveryObservedRoot(root: $0.root, identity: $0.identity)
+            },
             candidates.map { replacingRoots(of: $0, with: finalRoots) },
             revalidated.diagnostics + finalValidation.diagnostics
         )
@@ -482,27 +491,4 @@ nonisolated struct SkillDiscoveryScanner {
         }
     }
 
-    private func pathComponentPrecedes(_ lhs: String, _ rhs: String) -> Bool {
-        let left = SkillContentPath.normalizedComponent(lhs)
-        let right = SkillContentPath.normalizedComponent(rhs)
-        return left.utf8.lexicographicallyPrecedes(right.utf8)
-    }
-
-    private func observationPrecedes(
-        _ lhs: SkillDiscoveryObservation,
-        _ rhs: SkillDiscoveryObservation
-    ) -> Bool {
-        let leftScope = lhs.scopes.map(\.sortKey).joined(separator: "\u{0}")
-        let rightScope = rhs.scopes.map(\.sortKey).joined(separator: "\u{0}")
-        if leftScope != rightScope { return leftScope < rightScope }
-        return lhs.relativeLocator.utf8.lexicographicallyPrecedes(rhs.relativeLocator.utf8)
-    }
-
-    private func diagnosticPrecedes(
-        _ lhs: SkillDiscoveryRootDiagnostic,
-        _ rhs: SkillDiscoveryRootDiagnostic
-    ) -> Bool {
-        (lhs.root.scope.sortKey, lhs.root.url.path, lhs.reason.rawValue)
-            < (rhs.root.scope.sortKey, rhs.root.url.path, rhs.reason.rawValue)
-    }
 }

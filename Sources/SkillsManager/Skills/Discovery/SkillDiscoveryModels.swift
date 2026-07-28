@@ -148,6 +148,11 @@ nonisolated struct SkillDiscoveryRootDiagnostic: Hashable, Sendable {
     let reason: SkillDiscoveryReason
 }
 
+nonisolated struct SkillDiscoveryObservedRoot: Hashable, Sendable {
+    let root: SkillDiscoveryRoot
+    let identity: ManagedItemIdentity
+}
+
 nonisolated struct SkillDiscoveryObservation: Hashable, Sendable {
     let roots: [SkillDiscoveryRoot]
     let rootIdentity: ManagedItemIdentity
@@ -172,6 +177,7 @@ nonisolated struct SkillDiscoveryObservation: Hashable, Sendable {
 }
 
 nonisolated struct SkillDiscoveryResult: Sendable {
+    let observedRoots: [SkillDiscoveryObservedRoot]
     let observations: [SkillDiscoveryObservation]
     let rootDiagnostics: [SkillDiscoveryRootDiagnostic]
 }
