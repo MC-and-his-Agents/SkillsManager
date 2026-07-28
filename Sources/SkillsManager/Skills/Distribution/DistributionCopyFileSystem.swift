@@ -15,6 +15,11 @@ nonisolated struct DistributionCopyEvidence: Equatable, Sendable {
     let physicalTreeDigest: CopyPhysicalTreeDigest
 }
 
+nonisolated struct DistributionCopyCapture: Sendable {
+    let snapshot: SkillContentSnapshot
+    let evidence: DistributionCopyEvidence
+}
+
 nonisolated struct DistributionStagedCopy: Equatable, Sendable {
     let temporaryName: String
     let evidence: DistributionCopyEvidence
@@ -34,6 +39,54 @@ nonisolated enum DistributionCopyFilesystemObservation: Equatable, Sendable {
 }
 
 nonisolated extension DistributionSymlinkFileSystem {
+    func captureCopy(
+        _ entry: DistributionTargetEntry,
+        expectedRootIdentity: ManagedItemIdentity,
+        expectedEntryIdentity: ManagedItemIdentity
+    ) throws -> DistributionCopyCapture {
+        let components = try components(for: entry.target.scope)
+        let root = try openDirectory(components: components, createMissing: false)
+        defer { Darwin.close(root.descriptor) }
+        guard root.identity == expectedRootIdentity else {
+            throw DistributionSymlinkFileSystemError.entryChanged
+        }
+        try requireUniqueName(entry.distributionSlug.value, in: root.descriptor)
+        let descriptor = try openCopyDirectory(
+            named: entry.distributionSlug.value,
+            in: root.descriptor,
+            expectedIdentity: expectedEntryIdentity
+        )
+        defer { Darwin.close(descriptor) }
+        let snapshot = try SkillContentSnapshot.capture(
+            directoryDescriptor: descriptor,
+            displayPath: entry.canonicalLocator
+        )
+        _ = try snapshot.readUTF8File(relativePath: "SKILL.md")
+        let physical = try CopyPhysicalTreeSnapshot.captureTarget(
+            directoryDescriptor: descriptor,
+            displayPath: entry.canonicalLocator
+        )
+        try snapshot.requireUnchanged()
+        guard try requiredIdentity(
+            entry.distributionSlug.value,
+            in: root.descriptor
+        ) == expectedEntryIdentity else {
+            throw DistributionSymlinkFileSystemError.entryChanged
+        }
+        try verifyRoot(root, components: components)
+        return DistributionCopyCapture(
+            snapshot: snapshot,
+            evidence: DistributionCopyEvidence(
+                rootIdentity: root.identity,
+                entryIdentity: expectedEntryIdentity,
+                contentFingerprint: try SkillContentFingerprint(
+                    currentDigest: snapshot.fingerprintDigest
+                ),
+                physicalTreeDigest: physical.digest
+            )
+        )
+    }
+
     func copySource(for skillID: SkillID) throws -> DistributionCopySource {
         let ssot = try ssotEvidence(for: skillID)
         let snapshot = try SkillContentSnapshot.capture(

@@ -227,7 +227,7 @@ struct JournaledSSOTWriterUpdateBackupTests {
         }
         let attempted = try workspace.snapshot(content: "attempted")
 
-        await #expect(throws: SSOTWriterCheckpointInterruption.self) {
+        await #expect(throws: CopyForkError.operationInProgress) {
             _ = try await writer!.replaceManagedSkillWithBackup(
                 expected: baseline,
                 replacementPayload: workspace.payload(

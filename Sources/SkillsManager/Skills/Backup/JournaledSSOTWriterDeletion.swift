@@ -322,7 +322,8 @@ extension JournaledSSOTWriter {
         if plan.status == .executable {
             let applied = try applyDistribution(
                 skillID: operation.skillID,
-                plan: plan
+                plan: plan,
+                copyForkAdmissionBypass: operation.operationID
             )
             guard applied.phase == .completed, applied.outcome == .applied else {
                 throw SkillDeletionError.needsRepair

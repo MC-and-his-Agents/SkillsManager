@@ -51,6 +51,40 @@ struct SkillBackupManifestTests {
         )
     }
 
+    @Test("round-trips Fork lineage without changing legacy golden bytes")
+    func forkLineageRoundTrip() throws {
+        let ordinary = try makeManifest()
+        let lineage = try SkillForkLineageRecord(
+            forkSkillID: ordinary.originalSkillID,
+            parentSkillID: SkillID(
+                UUID(uuidString: "ffeeddcc-bbaa-4988-8766-554433221100")!
+            ),
+            forkedFromFingerprint: SkillContentFingerprint(
+                currentDigest: Data(repeating: 0xcd, count: 32)
+            ),
+            createdAtMilliseconds: 9,
+            originType: .localFork
+        )
+        let payload = try SSOTSkillWritePayload(
+            skill: ordinary.payload.skill,
+            forkLineage: lineage
+        )
+        let manifest = try SkillBackupManifestV1(
+            backupID: ordinary.backupID,
+            payload: payload,
+            databaseRevision: ordinary.databaseRevision,
+            distributionSelection: ordinary.distributionSelection,
+            statistics: ordinary.statistics,
+            createdAtMilliseconds: ordinary.createdAtMilliseconds
+        )
+        let encoded = try manifest.encoded()
+        let decoded = try SkillBackupManifestV1.decode(encoded)
+
+        #expect(decoded.payload.forkLineage == lineage)
+        #expect(try decoded.encoded() == encoded)
+        #expect(String(decoding: encoded, as: UTF8.self).contains("\"fork_lineage\""))
+    }
+
     @Test("rejects missing null fields and non-lowercase identities")
     func rejectsNonCanonicalIdentityForms() throws {
         let encoded = try makeManifest().encoded()

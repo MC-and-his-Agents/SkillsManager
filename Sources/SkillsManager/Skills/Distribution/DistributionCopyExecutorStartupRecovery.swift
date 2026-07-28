@@ -3,7 +3,7 @@ import Foundation
 nonisolated extension DistributionCopyExecutor {
     func recoverAll() throws {
         for operation in try operationStore.recoverableOperations()
-        where operation.formatVersion == 2 {
+        where operation.formatVersion == 2 || operation.formatVersion == 3 {
             do {
                 try recover(operation)
             } catch {
@@ -33,7 +33,8 @@ nonisolated extension DistributionCopyExecutor {
         case .prepared, .applying, .rollingBack, .filesystemApplied:
             let oldBindings = try decodePersistedBindings(
                 operation.oldBindings,
-                skillID: operation.skillID
+                skillID: operation.skillID,
+                formatVersion: operation.formatVersion
             )
             let oldLinks = try linkOwnershipStore.load(skillID: operation.skillID)
             if operation.phase == .prepared {
@@ -65,7 +66,8 @@ nonisolated extension DistributionCopyExecutor {
         case .databaseCommitted, .cleaning:
             let desiredBindings = try decodePersistedBindings(
                 operation.newBindings,
-                skillID: operation.skillID
+                skillID: operation.skillID,
+                formatVersion: operation.formatVersion
             )
             let desiredLinks = try linkOwnershipStore.load(skillID: operation.skillID)
             try finishCommitted(
@@ -80,7 +82,7 @@ nonisolated extension DistributionCopyExecutor {
             )
         case .completed:
             throw DistributionSymlinkExecutorError.needsRepair(
-                "v2 recovery reached an invalid phase"
+                "Copy recovery reached an invalid phase"
             )
         }
     }
@@ -91,7 +93,8 @@ nonisolated extension DistributionCopyExecutor {
     ) throws -> DistributionPlan {
         let bindings = try decodeBindingIntents(
             operation.newBindings,
-            skillID: operation.skillID
+            skillID: operation.skillID,
+            formatVersion: operation.formatVersion
         )
         let actions = try preflight.actions.map { value in
             guard let kind = DistributionFilesystemActionKind(
@@ -142,26 +145,58 @@ nonisolated extension DistributionCopyExecutor {
 
     private func decodeBindingIntents(
         _ payload: Data,
-        skillID: SkillID
+        skillID: SkillID,
+        formatVersion: Int
     ) throws -> [DistributionBindingIntent] {
-        try DistributionOperationPayloadCodec.decode(
-            [DistributionBindingWireV2].self,
-            from: payload
-        ).map {
-            try $0.intent(expectedSkillID: skillID)
+        switch formatVersion {
+        case 2:
+            return try DistributionOperationPayloadCodec.decode(
+                [DistributionBindingWireV2].self,
+                from: payload
+            ).map {
+                try $0.intent(expectedSkillID: skillID)
+            }
+        case 3:
+            return try DistributionOperationPayloadCodec.decode(
+                [DistributionBindingWireV3].self,
+                from: payload
+            ).map {
+                try $0.intent(expectedSkillID: skillID)
+            }
+        default:
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "unsupported Copy operation format"
+            )
         }
     }
 
     private func decodePersistedBindings(
         _ payload: Data,
-        skillID: SkillID
+        skillID: SkillID,
+        formatVersion: Int
     ) throws -> [DistributionBinding] {
-        try DistributionOperationPayloadCodec.decode(
-            [DistributionBindingWireV2].self,
-            from: payload
-        ).map {
-            try $0.binding(expectedSkillID: skillID)
-        }.sorted {
+        let bindings: [DistributionBinding]
+        switch formatVersion {
+        case 2:
+            bindings = try DistributionOperationPayloadCodec.decode(
+                [DistributionBindingWireV2].self,
+                from: payload
+            ).map {
+                try $0.binding(expectedSkillID: skillID)
+            }
+        case 3:
+            bindings = try DistributionOperationPayloadCodec.decode(
+                [DistributionBindingWireV3].self,
+                from: payload
+            ).map {
+                try $0.binding(expectedSkillID: skillID)
+            }
+        default:
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "unsupported Copy operation format"
+            )
+        }
+        return bindings.sorted {
             distributionBindingIntentPrecedes($0.intent, $1.intent)
         }
     }

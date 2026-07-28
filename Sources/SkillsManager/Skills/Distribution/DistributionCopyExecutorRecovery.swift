@@ -95,10 +95,11 @@ nonisolated extension DistributionCopyExecutor {
             links: expectedOldLinks
         )
         let terminal = try operationStore.load(operationID)
-        try operationStore.completeV2RolledBack(
+        try operationStore.completeActionBackedRolledBack(
             operationID: operationID,
-            desiredBindings: try DistributionOperationPayloadCodec.encode(
-                plan.bindingReplacement.map(DistributionBindingWireV2.init)
+            desiredBindings: try encodeBindingIntents(
+                plan.bindingReplacement,
+                formatVersion: terminal.formatVersion
             ),
             runtimePayload: terminal.runtimePayload,
             updatedAtMilliseconds: max(timestamp, terminal.updatedAtMilliseconds)

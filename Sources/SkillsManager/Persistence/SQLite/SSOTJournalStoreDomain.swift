@@ -51,6 +51,8 @@ nonisolated extension SSOTJournalStore {
                 throw SSOTJournalStoreError.databaseConflict
             }
             try insertSkill(operation.payload, revision: 0)
+            try SkillForkLineageStore(connection: connection)
+                .insertInCurrentTransaction(operation.payload.forkLineage)
             try replaceSourceAndAliases(operation.payload)
             try ProviderProvenanceStore(connection: connection).replace(
                 skillID: operation.skillID,
@@ -85,6 +87,11 @@ nonisolated extension SSOTJournalStore {
                 expectedRevision: operation.expectedDatabaseRevision,
                 expectedOldFingerprint: operation.oldFingerprint
             )
+            try SkillForkLineageStore(connection: connection)
+                .requireUnchangedInCurrentTransaction(
+                    skillID: operation.skillID,
+                    lineage: operation.payload.forkLineage
+                )
             try replaceSourceAndAliases(operation.payload)
             try ProviderProvenanceStore(connection: connection).replace(
                 skillID: operation.skillID,
@@ -144,7 +151,9 @@ nonisolated extension SSOTJournalStore {
                 providerProvenance: try ProviderProvenanceStore(connection: connection)
                     .load(skillID: skillID),
                 localOrigins: try localOrigins().filter { $0.skillID == skillID },
-                restoredFromSkillID: restoredFromSkillID
+                restoredFromSkillID: restoredFromSkillID,
+                forkLineage: try SkillForkLineageStore(connection: connection)
+                    .load(skillID: skillID)
             ),
             revision: revision
         )
@@ -175,6 +184,18 @@ nonisolated extension SSOTJournalStore {
             throw SSOTJournalStoreError.databaseConflict
         }
         let activeDistributionCount = activeDistribution.int64(at: 0)
+        let activeCopyFork = try connection.prepare(
+            """
+            SELECT count(*) FROM copy_fork_operations
+            WHERE (parent_skill_id = ? OR child_skill_id = ?)
+              AND (outcome IS NULL OR outcome = 'needsRepair')
+            """
+        )
+        try activeCopyFork.bind(skillID.bytes, at: 1)
+        try activeCopyFork.bind(skillID.bytes, at: 2)
+        guard try activeCopyFork.step() else {
+            throw SSOTJournalStoreError.databaseConflict
+        }
         guard let actual = try loadStoredDomain(skillID: skillID),
               actual.revision == expected.revision,
               try canonicalDomainPayload(actual.payload)
@@ -182,7 +203,8 @@ nonisolated extension SSOTJournalStore {
               try DistributionBindingStore(connection: connection).load(skillID: skillID).isEmpty,
               try DistributionLinkOwnershipStore(connection: connection).load(skillID: skillID)
                 .isEmpty,
-              activeDistributionCount == 0 else {
+              activeDistributionCount == 0,
+              activeCopyFork.int64(at: 0) == 0 else {
             throw SSOTJournalStoreError.databaseConflict
         }
         for sql in [
@@ -439,7 +461,8 @@ private nonisolated func canonicalDomainPayload(
         providerAliases: payload.providerAliases,
         providerProvenance: payload.providerProvenance,
         localOrigins: payload.localOrigins,
-        restoredFromSkillID: payload.restoredFromSkillID
+        restoredFromSkillID: payload.restoredFromSkillID,
+        forkLineage: payload.forkLineage
     ))
 }
 

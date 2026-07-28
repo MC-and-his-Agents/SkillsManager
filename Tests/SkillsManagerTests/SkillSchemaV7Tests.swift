@@ -13,11 +13,11 @@ struct SkillSchemaV7Tests {
             try createV7MigrationFixture(version: version, at: location.database)
 
             let migrated = try SkillSchemaMigrator.open(at: location.database)
-            #expect(try migrated.querySingleInt("PRAGMA user_version") == 12)
+            #expect(try migrated.querySingleInt("PRAGMA user_version") == 13)
             #expect(try migrated.querySingleInt(
                 "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-            ) == 12)
-            #expect(try migrated.userTableNames() == SkillSchemaV12.tableNames)
+            ) == 13)
+            #expect(try migrated.userTableNames() == SkillSchemaV13.tableNames)
         }
     }
 
@@ -85,8 +85,8 @@ struct SkillSchemaV7Tests {
             accessMode: .readOnly
         )
         #expect(reader.accessMode == .readOnly)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == 12)
-        #expect(try reader.userTableNames() == SkillSchemaV12.tableNames)
+        #expect(try reader.querySingleInt("PRAGMA user_version") == 13)
+        #expect(try reader.userTableNames() == SkillSchemaV13.tableNames)
     }
 
     @Test("raw v7 rejects operation format version 2")
@@ -141,7 +141,7 @@ struct SkillSchemaV7Tests {
         )))
 
         #expect(v7SQLIsRejected(connection, v7OperationInsert(skillID: v7UnknownSkill)))
-        #expect(v7SQLIsRejected(connection, v7OperationInsert(formatVersion: 3)))
+        #expect(v7SQLIsRejected(connection, v7OperationInsert(formatVersion: 4)))
         #expect(v7SQLIsRejected(connection, v7OperationInsert(phase: "unknown")))
         #expect(v7SQLIsRejected(connection, v7OperationInsert(outcome: "unknown")))
         #expect(v7SQLIsRejected(connection, v7OperationInsert(forwardCursor: -1)))

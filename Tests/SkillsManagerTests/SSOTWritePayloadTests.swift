@@ -19,6 +19,7 @@ struct SSOTWritePayloadTests {
         #expect(decoded.providerAliases == payload.providerAliases)
         #expect(decoded.providerProvenance == payload.providerProvenance)
         #expect(decoded.localOrigins == payload.localOrigins)
+        #expect(decoded.forkLineage == nil)
     }
 
     @Test("decodes legacy v1 payloads without local origins")
@@ -133,8 +134,8 @@ struct SSOTWritePayloadTests {
                 with: SSOTWritePayloadCodec.encode(payload)
             ) as? [String: Any]
         )
-        futureEnvelope["version"] = 5
-        #expect(throws: SSOTWritePayloadError.unsupportedVersion(5)) {
+        futureEnvelope["version"] = 6
+        #expect(throws: SSOTWritePayloadError.unsupportedVersion(6)) {
             _ = try SSOTWritePayloadCodec.decode(
                 JSONSerialization.data(withJSONObject: futureEnvelope)
             )
@@ -142,6 +143,62 @@ struct SSOTWritePayloadTests {
         #expect(throws: SSOTWritePayloadError.payloadTooLarge) {
             _ = try SSOTWritePayloadCodec.decode(
                 Data(repeating: 0, count: SSOTWritePayloadCodec.maximumEncodedByteCount + 1)
+            )
+        }
+    }
+
+    @Test("preserves v4 bytes and round-trips required v5 Fork lineage")
+    func forkLineageVersions() throws {
+        let ordinary = try makePayload()
+        let v4 = try SSOTWritePayloadCodec.encode(ordinary)
+        let v4Object = try #require(
+            JSONSerialization.jsonObject(with: v4) as? [String: Any]
+        )
+        #expect(v4Object["version"] as? Int == 4)
+        #expect(v4Object["forkLineage"] == nil)
+        #expect(try SSOTWritePayloadCodec.encode(
+            SSOTWritePayloadCodec.decode(v4)
+        ) == v4)
+
+        let forkID = ordinary.skill.skillID
+        let lineage = try SkillForkLineageRecord(
+            forkSkillID: forkID,
+            parentSkillID: SkillID(
+                UUID(uuidString: "ffeeddcc-bbaa-4988-8766-554433221100")!
+            ),
+            forkedFromFingerprint: SkillContentFingerprint(
+                currentDigest: Data(repeating: 0xcd, count: 32)
+            ),
+            createdAtMilliseconds: 400,
+            originType: .localFork
+        )
+        let fork = try SSOTSkillWritePayload(
+            skill: ordinary.skill,
+            forkLineage: lineage
+        )
+        let v5 = try SSOTWritePayloadCodec.encode(fork)
+        let decoded = try SSOTWritePayloadCodec.decode(v5)
+        let v5Object = try #require(
+            JSONSerialization.jsonObject(with: v5) as? [String: Any]
+        )
+        #expect(v5Object["version"] as? Int == 5)
+        #expect(decoded.forkLineage == lineage)
+        #expect(try SSOTWritePayloadCodec.encode(decoded) == v5)
+
+        for version in 1...4 {
+            var invalid = v5Object
+            invalid["version"] = version
+            #expect(throws: SSOTWritePayloadError.invalidPayload) {
+                _ = try SSOTWritePayloadCodec.decode(
+                    JSONSerialization.data(withJSONObject: invalid)
+                )
+            }
+        }
+        var missingLineage = v5Object
+        missingLineage.removeValue(forKey: "forkLineage")
+        #expect(throws: SSOTWritePayloadError.invalidPayload) {
+            _ = try SSOTWritePayloadCodec.decode(
+                JSONSerialization.data(withJSONObject: missingLineage)
             )
         }
     }

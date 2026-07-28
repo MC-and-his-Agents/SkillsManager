@@ -28,10 +28,23 @@ extension JournaledSSOTWriter {
             throw SkillDeletionError.previewExpired
         }
         let skillID = preview.skillID
+        let selection = try loadDistributionSelection(skillID: skillID)
+        let admission = CopyForkAdmission(connection: connection)
+        try admission.requireAvailable(
+            skillIDs: [skillID]
+        )
+        for binding in selection.bindings {
+            try admission.requireAvailable(
+                skillIDs: [skillID],
+                target: CopyForkTargetReservation(
+                    scopeKey: binding.scope.targetScopeKey,
+                    slugKey: binding.distributionSlug.collisionKey
+                )
+            )
+        }
         guard let domain = try journal.storedDomain(skillID) else {
             throw SkillDeletionError.skillNotFound
         }
-        let selection = try loadDistributionSelection(skillID: skillID)
         let ownership = try DistributionLinkOwnershipStore(connection: connection)
             .load(skillID: skillID)
         guard let ssotIdentity = try fileSystem.managedRootGuard.itemIdentity(
@@ -440,7 +453,8 @@ extension JournaledSSOTWriter {
             try requireAuthority()
             let result = try applyDistribution(
                 skillID: operation.skillID,
-                plan: plan
+                plan: plan,
+                copyForkAdmissionBypass: operation.operationID
             )
             guard result.phase == .completed, result.outcome == .applied else {
                 throw SkillDeletionError.needsRepair

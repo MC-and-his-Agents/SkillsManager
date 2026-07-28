@@ -113,6 +113,7 @@ actor JournaledSSOTWriter {
             hooks: hooks
         )
         try await writer.recoverAll()
+        try await writer.recoverCopyForks()
         try await writer.recoverDeletions()
         try await writer.recoverIndependentUpdateBackups()
         return writer
@@ -208,9 +209,28 @@ actor JournaledSSOTWriter {
 
     func applyDistribution(
         skillID: SkillID,
-        plan: DistributionPlan
+        plan: DistributionPlan,
+        copyForkAdmissionBypass: SSOTOperationID? = nil
     ) throws -> DistributionOperationRecord {
         try requireAuthority()
+        let targets = Set(
+            plan.filesystemActions.map {
+                CopyForkTargetReservation(
+                    scopeKey: $0.entry.target.scope.targetScopeKey,
+                    slugKey: $0.entry.distributionSlug.collisionKey
+                )
+            } + plan.bindingReplacement.map {
+                CopyForkTargetReservation(
+                    scopeKey: $0.scope.targetScopeKey,
+                    slugKey: $0.distributionSlug.collisionKey
+                )
+            }
+        )
+        try requireCopyForkAdmission(
+            skillID: skillID,
+            targets: targets,
+            bypass: copyForkAdmissionBypass
+        )
         let bindingStore = DistributionBindingStore(connection: connection)
         let ownershipStore = DistributionLinkOwnershipStore(connection: connection)
         let oldBindings = try bindingStore.load(skillID: skillID)
@@ -298,6 +318,9 @@ actor JournaledSSOTWriter {
         skillID: SkillID
     ) throws {
         try requireAuthority()
+        try CopyForkAdmission(connection: connection).requireAvailable(
+            skillIDs: [skillID]
+        )
         try ManagedPublishStateStore(connection: connection).save(state, skillID: skillID)
     }
 
@@ -360,6 +383,9 @@ actor JournaledSSOTWriter {
         origins: [LocalSkillOriginRecord]
     ) throws -> ManagedSkillRecord {
         try requireAuthority()
+        try CopyForkAdmission(connection: connection).requireAvailable(
+            skillIDs: [skillID]
+        )
         try recoverAll()
         return try journal.claimLocalOrigins(
             skillID: skillID,
@@ -371,11 +397,16 @@ actor JournaledSSOTWriter {
     func create(
         payload: SSOTSkillWritePayload,
         sourceSnapshot: SkillContentSnapshot,
-        operationID: SSOTOperationID = SSOTOperationID()
+        operationID: SSOTOperationID = SSOTOperationID(),
+        copyForkReservation: SSOTOperationID? = nil
     ) throws -> SSOTJournalRecord {
         guard payload.skill.contentFingerprint.digest == sourceSnapshot.fingerprintDigest else {
             throw JournaledSSOTWriterError.invalidInput
         }
+        try CopyForkAdmission(connection: connection).requireAvailable(
+            skillIDs: [payload.skill.skillID],
+            bypassCopyFork: copyForkReservation
+        )
         try requireProviderProvenanceAvailable(
             payload.providerProvenance,
             existingOwner: nil
@@ -419,6 +450,9 @@ actor JournaledSSOTWriter {
               payload.skill.contentFingerprint.digest == sourceSnapshot.fingerprintDigest else {
             throw JournaledSSOTWriterError.invalidInput
         }
+        try CopyForkAdmission(connection: connection).requireAvailable(
+            skillIDs: [payload.skill.skillID]
+        )
         try requireProviderProvenanceAvailable(
             payload.providerProvenance,
             existingOwner: payload.skill.skillID
@@ -513,6 +547,25 @@ actor JournaledSSOTWriter {
         }
     }
 
+    private func requireCopyForkAdmission(
+        skillID: SkillID,
+        targets: Set<CopyForkTargetReservation>,
+        bypass: SSOTOperationID?
+    ) throws {
+        let admission = CopyForkAdmission(connection: connection)
+        try admission.requireAvailable(
+            skillIDs: [skillID],
+            bypassHostOperation: bypass
+        )
+        for target in targets {
+            try admission.requireAvailable(
+                skillIDs: [skillID],
+                target: target,
+                bypassHostOperation: bypass
+            )
+        }
+    }
+
     private func insertAndExecute(_ record: SSOTJournalRecord) throws {
         try checkpoint(.beforePreparedInsert, record.operationID)
         try requireAuthority()
@@ -556,7 +609,7 @@ actor JournaledSSOTWriter {
         }
     }
 
-    private func initialTimestamp() -> Int64 {
+    func initialTimestamp() -> Int64 {
         max(0, hooks.nowMilliseconds())
     }
 }

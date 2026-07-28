@@ -126,7 +126,8 @@ nonisolated struct DistributionBindingStore {
               copy_content_algorithm_version, copy_content_fingerprint,
               copy_tree_algorithm_version, copy_tree_digest,
               copy_root_identity, copy_entry_identity,
-              copy_applied_operation_id, copy_verified_at_ms,
+              copy_provenance_kind, copy_applied_operation_id,
+              copy_fork_operation_id, copy_verified_at_ms,
               created_at_ms, updated_at_ms
             FROM distribution_bindings WHERE skill_id = ?
             """
@@ -182,15 +183,18 @@ nonisolated struct DistributionBindingStore {
                   slug.collisionKey == slugKey else {
                 throw DistributionBindingStoreError.corruptRecord
             }
-            return try DistributionBinding(
+            let binding = try DistributionBinding(
                 skillID: skillID,
                 scope: scope,
                 distributionSlug: slug,
                 syncMode: syncMode,
                 copyBaseline: try decodeCopyBaseline(statement, syncMode: syncMode),
-                createdAtMilliseconds: statement.int64(at: 14),
-                updatedAtMilliseconds: statement.int64(at: 15)
+                createdAtMilliseconds: statement.int64(at: 16),
+                updatedAtMilliseconds: statement.int64(at: 17)
             )
+            try CopyForkOperationStore(connection: connection)
+                .requireCompletedBindingEvidence(binding)
+            return binding
         } catch let error as DistributionBindingStoreError {
             throw error
         } catch {
@@ -246,7 +250,8 @@ nonisolated struct DistributionBindingStore {
                 copy_content_algorithm_version = ?, copy_content_fingerprint = ?,
                 copy_tree_algorithm_version = ?, copy_tree_digest = ?,
                 copy_root_identity = ?, copy_entry_identity = ?,
-                copy_applied_operation_id = ?, copy_verified_at_ms = ?,
+                copy_provenance_kind = ?, copy_applied_operation_id = ?,
+                copy_fork_operation_id = ?, copy_verified_at_ms = ?,
                 updated_at_ms = ?
             WHERE skill_id = ? AND target_scope_key = ?
             """
@@ -255,9 +260,9 @@ nonisolated struct DistributionBindingStore {
         try statement.bind(binding.distributionSlug.collisionKey, at: 2)
         try statement.bind(binding.syncMode.rawValue, at: 3)
         try bindCopyBaseline(binding.copyBaseline, to: statement, startingAt: 4)
-        try statement.bind(binding.updatedAtMilliseconds, at: 12)
-        try statement.bind(binding.skillID.bytes, at: 13)
-        try statement.bind(binding.scope.targetScopeKey, at: 14)
+        try statement.bind(binding.updatedAtMilliseconds, at: 14)
+        try statement.bind(binding.skillID.bytes, at: 15)
+        try statement.bind(binding.scope.targetScopeKey, at: 16)
         try finishExactlyOne(statement)
     }
 
@@ -270,9 +275,10 @@ nonisolated struct DistributionBindingStore {
               copy_content_algorithm_version, copy_content_fingerprint,
               copy_tree_algorithm_version, copy_tree_digest,
               copy_root_identity, copy_entry_identity,
-              copy_applied_operation_id, copy_verified_at_ms,
+              copy_provenance_kind, copy_applied_operation_id,
+              copy_fork_operation_id, copy_verified_at_ms,
               created_at_ms, updated_at_ms
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
         )
         try statement.bind(binding.skillID.bytes, at: 1)
@@ -287,8 +293,8 @@ nonisolated struct DistributionBindingStore {
         try statement.bind(binding.distributionSlug.collisionKey, at: 6)
         try statement.bind(binding.syncMode.rawValue, at: 7)
         try bindCopyBaseline(binding.copyBaseline, to: statement, startingAt: 8)
-        try statement.bind(binding.createdAtMilliseconds, at: 16)
-        try statement.bind(binding.updatedAtMilliseconds, at: 17)
+        try statement.bind(binding.createdAtMilliseconds, at: 18)
+        try statement.bind(binding.updatedAtMilliseconds, at: 19)
         try finishExactlyOne(statement)
     }
 
@@ -323,7 +329,7 @@ nonisolated struct DistributionBindingStore {
         syncMode: DistributionSyncMode
     ) throws -> DistributionCopyBaseline? {
         if syncMode == .symlink {
-            guard (6...13).allSatisfy({ statement.isNull(at: Int32($0)) }) else {
+            guard (6...15).allSatisfy({ statement.isNull(at: Int32($0)) }) else {
                 throw DistributionBindingStoreError.corruptRecord
             }
             return nil
@@ -334,8 +340,25 @@ nonisolated struct DistributionBindingStore {
               let treeDigest = statement.blob(at: 9),
               let rootIdentity = statement.blob(at: 10),
               let entryIdentity = statement.blob(at: 11),
-              let operationID = statement.blob(at: 12),
-              !statement.isNull(at: 13) else {
+              let provenanceKind = statement.text(at: 12),
+              !statement.isNull(at: 15) else {
+            throw DistributionBindingStoreError.corruptRecord
+        }
+        let provenance: DistributionCopyBaseline.Provenance
+        switch provenanceKind {
+        case "distribution":
+            guard let operationID = statement.blob(at: 13),
+                  statement.isNull(at: 14) else {
+                throw DistributionBindingStoreError.corruptRecord
+            }
+            provenance = .distribution(try SSOTOperationID(bytes: operationID))
+        case "copyFork":
+            guard statement.isNull(at: 13),
+                  let operationID = statement.blob(at: 14) else {
+                throw DistributionBindingStoreError.corruptRecord
+            }
+            provenance = .copyFork(try SSOTOperationID(bytes: operationID))
+        default:
             throw DistributionBindingStoreError.corruptRecord
         }
         return try DistributionCopyBaseline(
@@ -349,8 +372,8 @@ nonisolated struct DistributionBindingStore {
             ),
             rootIdentity: ManagedItemIdentityCodec.decode(rootIdentity),
             entryIdentity: ManagedItemIdentityCodec.decode(entryIdentity),
-            appliedOperationID: SSOTOperationID(bytes: operationID),
-            verifiedAtMilliseconds: statement.int64(at: 13)
+            provenance: provenance,
+            verifiedAtMilliseconds: statement.int64(at: 15)
         )
     }
 
@@ -360,7 +383,7 @@ nonisolated struct DistributionBindingStore {
         startingAt start: Int32
     ) throws {
         guard let baseline else {
-            for index in start..<(start + 8) { try statement.bindNull(at: index) }
+            for index in start..<(start + 10) { try statement.bindNull(at: index) }
             return
         }
         try statement.bind(Int64(baseline.contentFingerprint.algorithmVersion), at: start)
@@ -369,8 +392,17 @@ nonisolated struct DistributionBindingStore {
         try statement.bind(baseline.physicalTreeDigest.digest, at: start + 3)
         try statement.bind(try ManagedItemIdentityCodec.encode(baseline.rootIdentity), at: start + 4)
         try statement.bind(try ManagedItemIdentityCodec.encode(baseline.entryIdentity), at: start + 5)
-        try statement.bind(baseline.appliedOperationID.bytes, at: start + 6)
-        try statement.bind(baseline.verifiedAtMilliseconds, at: start + 7)
+        switch baseline.provenance {
+        case .distribution(let operationID):
+            try statement.bind("distribution", at: start + 6)
+            try statement.bind(operationID.bytes, at: start + 7)
+            try statement.bindNull(at: start + 8)
+        case .copyFork(let operationID):
+            try statement.bind("copyFork", at: start + 6)
+            try statement.bindNull(at: start + 7)
+            try statement.bind(operationID.bytes, at: start + 8)
+        }
+        try statement.bind(baseline.verifiedAtMilliseconds, at: start + 9)
     }
 
     private func finishExactlyOne(_ statement: SQLiteStatement) throws {

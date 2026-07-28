@@ -1,7 +1,7 @@
 import Foundation
 
-/// Copy-aware v2 operations share the existing planner, journal, stores, and
-/// descriptor-backed distribution file system.
+/// Copy-aware action-backed operations share the existing planner, journal,
+/// stores, and descriptor-backed distribution file system.
 nonisolated final class DistributionCopyExecutor {
     let bindingStore: DistributionBindingStore
     let configurationStore: DistributionConfigurationStore
@@ -92,6 +92,7 @@ nonisolated final class DistributionCopyExecutor {
             throw DistributionSymlinkExecutorError.operationInProgress
         }
         let operationID = SSOTOperationID()
+        let formatVersion = operationFormatVersion(for: expectedOldBindings)
         let oldLinks = try linkOwnershipStore.load(skillID: skillID)
         let source = try fileSystem.copySource(for: skillID)
         let preflight = try makePreflight(
@@ -117,12 +118,16 @@ nonisolated final class DistributionCopyExecutor {
             }
         )
         let draft = try DistributionOperationDraft(
-            formatVersion: 2,
+            formatVersion: formatVersion,
             operationID: operationID,
             skillID: skillID,
-            oldBindings: try encodeBindings(expectedOldBindings),
-            newBindings: try DistributionOperationPayloadCodec.encode(
-                plan.bindingReplacement.map(DistributionBindingWireV2.init)
+            oldBindings: try encodeBindings(
+                expectedOldBindings,
+                formatVersion: formatVersion
+            ),
+            newBindings: try encodeBindingIntents(
+                plan.bindingReplacement,
+                formatVersion: formatVersion
             ),
             planPayload: try plan.canonicalJSONData(),
             preflightPayload: try DistributionOperationPayloadCodec.encode(preflight),
@@ -241,9 +246,12 @@ nonisolated final class DistributionCopyExecutor {
             links: desiredLinks
         )
         let current = try operationStore.load(operationID)
-        try operationStore.markFilesystemAppliedV2(
+        try operationStore.markFilesystemAppliedActionBacked(
             operationID: operationID,
-            newBindings: try encodeBindings(desiredBindings),
+            newBindings: try encodeBindings(
+                desiredBindings,
+                formatVersion: current.formatVersion
+            ),
             runtimePayload: try DistributionOperationPayloadCodec.encode(runtime),
             attemptCount: current.attemptCount + 1,
             updatedAtMilliseconds: max(timestamp, current.updatedAtMilliseconds)

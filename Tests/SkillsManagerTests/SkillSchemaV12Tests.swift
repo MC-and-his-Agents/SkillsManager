@@ -34,7 +34,7 @@ struct SkillSchemaV12Tests {
             #expect(try operationStore.load(operation.operationID) == operation)
 
             try SkillSchemaMigrator.migrateIfNeeded(connection)
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 12)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 13)
             let binding = try #require(
                 DistributionBindingStore(connection: connection).load(skillID: skillID).first
             )
@@ -126,13 +126,14 @@ struct SkillSchemaV12Tests {
                   copy_content_algorithm_version, copy_content_fingerprint,
                   copy_tree_algorithm_version, copy_tree_digest,
                   copy_root_identity, copy_entry_identity,
-                  copy_applied_operation_id, copy_verified_at_ms,
+                  copy_provenance_kind, copy_applied_operation_id,
+                  copy_verified_at_ms,
                   created_at_ms, updated_at_ms
                 ) VALUES (
                   X'\(skillID.bytes.hex)', 'agent', 'claude', 'agent:claude',
                   'copy', 'copy', 'copy',
                   1, zeroblob(32), 1, zeroblob(32),
-                  zeroblob(32), zeroblob(32),
+                  zeroblob(32), zeroblob(32), 'distribution',
                   X'11112222333344445555666677778888', 1, 1, 1
                 )
                 """

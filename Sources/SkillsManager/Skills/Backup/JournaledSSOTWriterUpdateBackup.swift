@@ -69,6 +69,9 @@ extension JournaledSSOTWriter {
                 == sourceSnapshot.fingerprintDigest else {
             throw JournaledSSOTWriterError.invalidInput
         }
+        try CopyForkAdmission(connection: connection).requireAvailable(
+            skillIDs: [skillID]
+        )
         try recoverAll()
         try recoverIndependentUpdateBackups()
         try requireNoUpdateBackupRepair(skillID)
