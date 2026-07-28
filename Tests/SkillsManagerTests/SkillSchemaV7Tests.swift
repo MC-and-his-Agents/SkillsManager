@@ -13,11 +13,11 @@ struct SkillSchemaV7Tests {
             try createV7MigrationFixture(version: version, at: location.database)
 
             let migrated = try SkillSchemaMigrator.open(at: location.database)
-            #expect(try migrated.querySingleInt("PRAGMA user_version") == 11)
+            #expect(try migrated.querySingleInt("PRAGMA user_version") == 12)
             #expect(try migrated.querySingleInt(
                 "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-            ) == 11)
-            #expect(try migrated.userTableNames() == SkillSchemaV11.tableNames)
+            ) == 12)
+            #expect(try migrated.userTableNames() == SkillSchemaV12.tableNames)
         }
     }
 
@@ -85,8 +85,19 @@ struct SkillSchemaV7Tests {
             accessMode: .readOnly
         )
         #expect(reader.accessMode == .readOnly)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == 11)
-        #expect(try reader.userTableNames() == SkillSchemaV11.tableNames)
+        #expect(try reader.querySingleInt("PRAGMA user_version") == 12)
+        #expect(try reader.userTableNames() == SkillSchemaV12.tableNames)
+    }
+
+    @Test("raw v7 rejects operation format version 2")
+    func rawV7RejectsFormatVersion2() throws {
+        let location = try v7DatabaseLocation("raw-format-version")
+        defer { try? FileManager.default.removeItem(at: location.root) }
+        try createV7MigrationFixture(version: 7, at: location.database)
+
+        let connection = try SQLiteConnection(url: location.database)
+        try connection.execute(v7SkillInsert())
+        #expect(v7SQLIsRejected(connection, v7OperationInsert(formatVersion: 2)))
     }
 
     @Test("v8 backfills explicit configuration for existing bindings")
@@ -130,7 +141,7 @@ struct SkillSchemaV7Tests {
         )))
 
         #expect(v7SQLIsRejected(connection, v7OperationInsert(skillID: v7UnknownSkill)))
-        #expect(v7SQLIsRejected(connection, v7OperationInsert(formatVersion: 2)))
+        #expect(v7SQLIsRejected(connection, v7OperationInsert(formatVersion: 3)))
         #expect(v7SQLIsRejected(connection, v7OperationInsert(phase: "unknown")))
         #expect(v7SQLIsRejected(connection, v7OperationInsert(outcome: "unknown")))
         #expect(v7SQLIsRejected(connection, v7OperationInsert(forwardCursor: -1)))

@@ -22,8 +22,8 @@ struct SkillSchemaV5Tests {
         #expect(try rolledBack.userTableNames() == SkillSchemaV4.tableNames)
 
         let migrated = try SkillSchemaMigrator.open(at: location.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 11)
-        #expect(try migrated.userTableNames() == SkillSchemaV11.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 12)
+        #expect(try migrated.userTableNames() == SkillSchemaV12.tableNames)
     }
 
     @Test("enforces scope shapes, Skill FK, and position uniqueness")

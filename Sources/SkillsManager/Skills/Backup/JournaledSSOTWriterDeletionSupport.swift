@@ -59,21 +59,28 @@ extension JournaledSSOTWriter {
             selection: selection,
             ownership: ownership
         )
-        let plan = try distribution.dryRun(
+        let expectationPayload = try expectation.canonicalData()
+        let mode = selection.bindings.first?.syncMode ?? .symlink
+        let plan = try distributionPlan(
             skillID: skillID,
-            currentBindings: selection.bindings,
-            desiredScope: .disabled,
+            desiredConfiguration: DistributionDesiredConfiguration(
+                scope: .disabled,
+                syncMode: mode
+            ),
             desiredConfigured: selection.isExplicitlyConfigured,
             requiredAdapterCodes: []
         )
-        guard plan.status != .blocked else { throw SkillDeletionError.conflict }
+        guard plan.status != .blocked else {
+            throw SkillDeletionError.conflict
+        }
+        let distributionPlanPayload = try plan.canonicalJSONData()
         let draft = try SkillDeletionOperationDraft(
             operationID: operationID,
             skillID: skillID,
             backupID: backupID,
             domainPayload: SSOTWritePayloadCodec.encode(domain.payload),
-            expectationPayload: expectation.canonicalData(),
-            distributionPlan: plan.canonicalJSONData(),
+            expectationPayload: expectationPayload,
+            distributionPlan: distributionPlanPayload,
             ssotIdentity: ssotIdentity,
             quarantineLocator: operationItemName(operationID),
             createdAtMilliseconds: createdAt
@@ -414,30 +421,26 @@ extension JournaledSSOTWriter {
         _ operation: SkillDeletionOperationRecord
     ) throws {
         let expected = try deletionExpectation(operation)
-        let current = try loadDistributionSelection(skillID: operation.skillID)
-        let currentOwnership = try DistributionLinkOwnershipStore(connection: connection)
-            .load(skillID: operation.skillID)
-        let desired: DistributionDesiredScope
+        let desired: DistributionDesiredConfiguration
         do {
-            desired = try expected.selection.desiredScope(for: operation.skillID)
+            desired = try expected.selection.desiredConfiguration(
+                for: operation.skillID
+            )
         } catch {
             throw SkillDeletionError.needsRepair
         }
-        let plan = try distribution.dryRun(
+        let plan = try distributionPlan(
             skillID: operation.skillID,
-            currentBindings: current.bindings,
-            desiredScope: desired,
+            desiredConfiguration: desired,
             desiredConfigured: expected.selection.isExplicitlyConfigured,
-            requiredAdapterCodes: desired.requiredAdapterCodes
+            requiredAdapterCodes: desired.scope.requiredAdapterCodes
         )
         guard plan.status != .blocked else { throw SkillDeletionError.needsRepair }
         if plan.status == .executable {
             try requireAuthority()
-            let result = try distribution.apply(
+            let result = try applyDistribution(
                 skillID: operation.skillID,
-                plan: plan,
-                expectedOldBindings: current.bindings,
-                expectedOldOwnership: currentOwnership
+                plan: plan
             )
             guard result.phase == .completed, result.outcome == .applied else {
                 throw SkillDeletionError.needsRepair

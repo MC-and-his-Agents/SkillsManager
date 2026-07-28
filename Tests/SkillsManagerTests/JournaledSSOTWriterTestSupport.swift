@@ -9,16 +9,23 @@ final class WriterWorkspace: @unchecked Sendable {
     let root: URL
     let source: URL
     let database: URL
+    let distributionHomeURL: URL
     let verifiedManagementRoot: VerifiedSSOTRoot
     let verifiedRoot: VerifiedSSOTRoot
 
-    init() throws {
+    init(distributionEnabled: Bool = false) throws {
         workspace = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        managementRoot = workspace.appendingPathComponent("management", isDirectory: true)
+        managementRoot = workspace.appendingPathComponent(
+            distributionEnabled ? ".SkillsManager" : "management",
+            isDirectory: true
+        )
         root = managementRoot.appendingPathComponent("skills", isDirectory: true)
         source = workspace.appendingPathComponent("source", isDirectory: true)
         database = managementRoot.appendingPathComponent("manager.sqlite")
+        distributionHomeURL = distributionEnabled
+            ? workspace
+            : FileManager.default.homeDirectoryForCurrentUser
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: false)
         guard Darwin.chmod(managementRoot.path, 0o700) == 0 else {
@@ -56,6 +63,7 @@ final class WriterWorkspace: @unchecked Sendable {
             managementRoot: verifiedManagementRoot,
             ssotRoot: verifiedRoot,
             databaseURL: database,
+            distributionHomeURL: distributionHomeURL,
             hooks: hooks
         )
     }

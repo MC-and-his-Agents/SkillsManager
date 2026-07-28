@@ -31,6 +31,7 @@ nonisolated final class SafeSourceTree: @unchecked Sendable {
     struct DirectoryRecord: Sendable {
         let steps: [DirectoryStep]
         let relativePath: String
+        let safePermissions: mode_t
     }
 
     private let rootDescriptor: Int32
@@ -275,6 +276,11 @@ extension SkillContentSnapshot {
                     failureCleanupAdmission: failureCleanupAdmission
                 )
             }
+            try Self.applyDestinationDirectoryPermissions(
+                sourceDirectories,
+                rootDescriptor: rootDescriptor,
+                checkpoint: checkpoint
+            )
             try sourceTree.verifyDirectories(sourceDirectories, checkpoint: checkpoint)
         } catch let cleanupRequired as SSOTPartialCopyCleanupRequired {
             throw cleanupRequired
@@ -302,6 +308,33 @@ extension SkillContentSnapshot {
                 rootDescriptor: rootDescriptor,
                 displayPath: directory.relativePath
             )
+            Darwin.close(descriptor)
+        }
+    }
+
+    private nonisolated static func applyDestinationDirectoryPermissions(
+        _ directories: [SafeSourceTree.DirectoryRecord],
+        rootDescriptor: Int32,
+        checkpoint: SkillCancellationCheckpoint
+    ) throws {
+        for directory in directories.reversed() {
+            try checkpoint()
+            let components = directory.relativePath
+                .split(separator: "/", omittingEmptySubsequences: false)
+                .map(String.init)
+            let descriptor = try openDestinationDirectory(
+                components,
+                rootDescriptor: rootDescriptor,
+                displayPath: directory.relativePath
+            )
+            guard Darwin.fchmod(descriptor, directory.safePermissions) == 0 else {
+                let code = errno
+                Darwin.close(descriptor)
+                throw SkillContentSnapshotError.fileSystemFailure(
+                    path: directory.relativePath,
+                    code: code
+                )
+            }
             Darwin.close(descriptor)
         }
     }

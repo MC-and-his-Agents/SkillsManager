@@ -2,6 +2,15 @@ import Darwin
 import Foundation
 
 nonisolated struct SkillContentFileEnumerator {
+    struct TraversalPolicy: Sendable {
+        static let content = Self(includeExcluded: false, rejectHardlinks: false)
+        static let copySource = Self(includeExcluded: false, rejectHardlinks: true)
+        static let copyTarget = Self(includeExcluded: true, rejectHardlinks: true)
+
+        let includeExcluded: Bool
+        let rejectHardlinks: Bool
+    }
+
     enum EntryKind {
         case directory
         case regularFile
@@ -30,6 +39,12 @@ nonisolated struct SkillContentFileEnumerator {
     }
 
     let limits: SkillContentLimits
+    let policy: TraversalPolicy
+
+    init(limits: SkillContentLimits, policy: TraversalPolicy = .content) {
+        self.limits = limits
+        self.policy = policy
+    }
 
     nonisolated func files(
         in sourceTree: SafeSourceTree,
@@ -89,7 +104,8 @@ nonisolated struct SkillContentFileEnumerator {
             guard kind != .unsupported else {
                 throw SkillContentSnapshotError.unsupportedEntry(path: relativePath)
             }
-            if SkillContentExclusions.contains(normalizedName, isDirectory: kind == .directory) {
+            if !policy.includeExcluded,
+               SkillContentExclusions.contains(normalizedName, isDirectory: kind == .directory) {
                 continue
             }
             guard components.count <= limits.maximumPathDepth else {
@@ -107,7 +123,12 @@ nonisolated struct SkillContentFileEnumerator {
                 }
                 let identity = SafeSourceTree.Identity(childMetadata)
                 let childSteps = directorySteps + [.init(name: rawName, identity: identity)]
-                directories.append(.init(steps: childSteps, relativePath: relativePath))
+                directories.append(.init(
+                    steps: childSteps,
+                    relativePath: relativePath,
+                    safePermissions: childMetadata.st_mode
+                        & mode_t(S_IRWXU | S_IRWXG | S_IRWXO)
+                ))
                 let childDescriptor = try SafeSourceTree.openDirectory(
                     named: rawName,
                     in: directoryDescriptor,
@@ -150,6 +171,9 @@ nonisolated struct SkillContentFileEnumerator {
     ) throws {
         guard metadata.st_size >= 0 else {
             throw SkillContentSnapshotError.fileChanged(path: relativePath)
+        }
+        guard !policy.rejectHardlinks || metadata.st_nlink == 1 else {
+            throw SkillContentSnapshotError.unsupportedEntry(path: relativePath)
         }
         let byteCount = UInt64(metadata.st_size)
         guard byteCount <= limits.maximumFileByteCount else {

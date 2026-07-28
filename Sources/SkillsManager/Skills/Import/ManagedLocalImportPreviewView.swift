@@ -139,6 +139,16 @@ struct ManagedLocalImportPreviewView: View {
             ("Create managed link", "link.badge.plus")
         case .removeSymlink:
             ("Remove managed link", "link.badge.minus")
+        case .createCopy:
+            ("Create managed copy", "folder.badge.plus")
+        case .refreshCopy:
+            ("Refresh managed copy", "arrow.triangle.2.circlepath")
+        case .removeCopy:
+            ("Remove managed copy", "folder.badge.minus")
+        case .replaceSymlinkWithCopy:
+            ("Replace link with copy", "folder")
+        case .replaceCopyWithSymlink:
+            ("Replace copy with link", "link")
         }
     }
 }

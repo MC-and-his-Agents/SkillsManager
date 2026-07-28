@@ -18,6 +18,12 @@ nonisolated enum DistributionFilesystemCheckpoint: Equatable, Sendable {
     case beforeCleanup
     case afterCleanupBeforeSync
     case afterCleanupSync
+    case beforeCopyStage
+    case afterCopyStageBeforeSync
+    case afterCopyStageSync
+    case beforeCopyPromote
+    case afterCopyPromoteBeforeSync
+    case afterCopyPromoteSync
 }
 
 nonisolated struct DistributionFilesystemTestHooks: Sendable {
@@ -85,7 +91,7 @@ nonisolated enum DistributionSymlinkFileSystemError: LocalizedError, Equatable {
 /// Descriptor-backed file operations. Journal decisions belong to the executor.
 nonisolated final class DistributionSymlinkFileSystem {
     private let homeURL: URL
-    private let hooks: DistributionFilesystemTestHooks
+    let hooks: DistributionFilesystemTestHooks
 
     init(homeURL: URL, hooks: DistributionFilesystemTestHooks = .init()) throws {
         guard homeURL.isFileURL, homeURL.path.hasPrefix("/"), homeURL.path != "/" else {
@@ -371,17 +377,17 @@ nonisolated final class DistributionSymlinkFileSystem {
         try verifyRoot(handle, components: components)
     }
 
-    private struct DirectoryHandle {
+    struct DirectoryHandle {
         let descriptor: Int32
         let identity: ManagedItemIdentity
     }
 
-    private enum RootAvailability {
+    enum RootAvailability {
         case missing
         case unavailable
     }
 
-    private func classifyUnavailableRoot(
+    func classifyUnavailableRoot(
         _ components: [String]
     ) throws -> RootAvailability {
         var current = try openHome()
@@ -407,7 +413,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         return .unavailable
     }
 
-    private func openDirectory(
+    func openDirectory(
         components: [String],
         createMissing: Bool
     ) throws -> DirectoryHandle {
@@ -464,7 +470,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         }
     }
 
-    private func verifyRoot(_ handle: DirectoryHandle, components: [String]) throws {
+    func verifyRoot(_ handle: DirectoryHandle, components: [String]) throws {
         let reopened = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(reopened.descriptor) }
         guard reopened.identity == handle.identity else {
@@ -503,7 +509,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         return descriptor
     }
 
-    private func components(for scope: DistributionBindingScope) throws -> [String] {
+    func components(for scope: DistributionBindingScope) throws -> [String] {
         let relativePath: String = switch scope {
         case .global:
             ".agents/skills"
@@ -521,7 +527,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         return components
     }
 
-    private func requireUniqueName(_ name: String, in descriptor: Int32) throws {
+    func requireUniqueName(_ name: String, in descriptor: Int32) throws {
         let key = SkillContentPath.collisionKey(for: name)
         let matches = try directoryNames(descriptor).filter {
             !$0.hasPrefix(".skillsmanager-distribution-")
@@ -532,7 +538,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         }
     }
 
-    private func directoryNames(_ descriptor: Int32) throws -> [String] {
+    func directoryNames(_ descriptor: Int32) throws -> [String] {
         let duplicate = Darwin.fcntl(descriptor, F_DUPFD_CLOEXEC, 0)
         guard duplicate >= 0 else { throw posix("duplicate distribution root") }
         guard let directory = Darwin.fdopendir(duplicate) else {
@@ -574,7 +580,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         }
     }
 
-    private func requiredIdentity(
+    func requiredIdentity(
         _ name: String,
         in descriptor: Int32
     ) throws -> ManagedItemIdentity {
@@ -584,7 +590,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         return identity
     }
 
-    private func identityIfPresent(
+    func identityIfPresent(
         _ name: String,
         in descriptor: Int32
     ) throws -> ManagedItemIdentity? {
@@ -610,7 +616,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         ".skillsmanager-distribution-\(operationID.uuidString.lowercased())-\(actionIndex)"
     }
 
-    private func posix(_ operation: String) -> DistributionSymlinkFileSystemError {
+    func posix(_ operation: String) -> DistributionSymlinkFileSystemError {
         .posix(operation: operation, code: errno)
     }
 }

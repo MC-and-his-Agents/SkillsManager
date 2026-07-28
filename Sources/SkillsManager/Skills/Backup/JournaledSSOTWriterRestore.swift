@@ -376,43 +376,27 @@ extension JournaledSSOTWriter {
         _ selection: SkillBackupDistributionSelection,
         skillID: SkillID
     ) throws {
-        let current = try loadDistributionSelection(skillID: skillID)
-        let ownership = try DistributionLinkOwnershipStore(connection: connection)
-            .load(skillID: skillID)
-        let desired = try desiredScope(selection.bindingIntents)
-        let plan = try distribution.dryRun(
+        let desired = try distributionDesiredConfiguration(
+            selection.bindingIntents,
+            skillID: skillID
+        )
+        let plan = try distributionPlan(
             skillID: skillID,
-            currentBindings: current.bindings,
-            desiredScope: desired,
+            desiredConfiguration: desired,
             desiredConfigured: selection.isExplicitlyConfigured,
-            requiredAdapterCodes: desired.requiredAdapterCodes
+            requiredAdapterCodes: desired.scope.requiredAdapterCodes
         )
         guard plan.status != .blocked else { throw SkillDeletionError.conflict }
         try requireAuthority()
         if plan.status == .executable {
-            let operation = try distribution.apply(
+            let operation = try applyDistribution(
                 skillID: skillID,
-                plan: plan,
-                expectedOldBindings: current.bindings,
-                expectedOldOwnership: ownership
+                plan: plan
             )
             guard operation.phase == .completed, operation.outcome == .applied else {
                 throw SkillDeletionError.needsRepair
             }
         }
-    }
-
-    private func desiredScope(
-        _ intents: [DistributionBindingIntent]
-    ) throws -> DistributionDesiredScope {
-        guard let slug = intents.first?.distributionSlug else { return .disabled }
-        guard intents.allSatisfy({ $0.distributionSlug == slug }) else {
-            throw SkillDeletionError.conflict
-        }
-        if intents.count == 1, intents[0].scope == .global { return .global(slug) }
-        let agents = Set(intents.compactMap(\.scope.adapter))
-        guard agents.count == intents.count else { throw SkillDeletionError.conflict }
-        return .agents(agents, slug)
     }
 
     private func persistRestoreResult(_ result: SkillRestoreResult) throws {

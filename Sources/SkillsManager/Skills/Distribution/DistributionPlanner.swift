@@ -11,11 +11,36 @@ nonisolated struct DistributionPlanner {
         observations: [DistributionTargetEntry: DistributionTargetObservation],
         catalog: DistributionTargetCatalog = .current
     ) -> DistributionPlan {
+        plan(
+            skillID: skillID,
+            currentBindings: currentBindings,
+            currentConfigured: currentConfigured,
+            desiredConfiguration: DistributionDesiredConfiguration(
+                scope: desiredScope,
+                syncMode: .symlink
+            ),
+            desiredConfigured: desiredConfigured,
+            requiredAdapterCodes: requiredAdapterCodes,
+            observations: observations,
+            catalog: catalog
+        )
+    }
+
+    func plan(
+        skillID: SkillID,
+        currentBindings: [DistributionBinding],
+        currentConfigured: Bool = true,
+        desiredConfiguration: DistributionDesiredConfiguration,
+        desiredConfigured: Bool = true,
+        requiredAdapterCodes: Set<String>,
+        observations: [DistributionTargetEntry: DistributionTargetObservation],
+        catalog: DistributionTargetCatalog = .current
+    ) -> DistributionPlan {
         let current = currentBindings.map(\.intent).sorted(by: distributionBindingIntentPrecedes)
         var conflicts = validateCurrent(current, skillID: skillID)
         let desiredResult = desiredBindings(
             skillID: skillID,
-            scope: desiredScope,
+            configuration: desiredConfiguration,
             requiredAdapterCodes: requiredAdapterCodes,
             catalog: catalog
         )
@@ -70,7 +95,7 @@ nonisolated struct DistributionPlanner {
             status: .executable,
             filesystemActions: actions,
             bindingsChanged: bindingsChanged,
-            bindingReplacement: bindingsChanged ? desired : [],
+            bindingReplacement: (!actions.isEmpty || bindingsChanged) ? desired : [],
             configurationChanged: configurationChanged,
             expectedOldConfigured: currentConfigured,
             desiredConfigured: desiredConfigured,
@@ -87,6 +112,8 @@ nonisolated struct DistributionPlanner {
         let hasAgent = scopes.contains { $0.adapter != nil }
         guard bindings.allSatisfy({ $0.skillID == skillID }),
               Set(scopes).count == scopes.count,
+              Set(bindings.map(\.distributionSlug)).count <= 1,
+              Set(bindings.map(\.syncMode)).count <= 1,
               !(hasGlobal && hasAgent) else {
             return [validationConflict(.invalidDesiredScope)]
         }
@@ -95,7 +122,7 @@ nonisolated struct DistributionPlanner {
 
     private func desiredBindings(
         skillID: SkillID,
-        scope: DistributionDesiredScope,
+        configuration: DistributionDesiredConfiguration,
         requiredAdapterCodes: Set<String>,
         catalog: DistributionTargetCatalog
     ) -> (bindings: [DistributionBindingIntent], conflicts: [DistributionPlanConflict]) {
@@ -105,7 +132,7 @@ nonisolated struct DistributionPlanner {
             validationConflict(.unsupportedAdapter, targetScopeKey: "agent:\($0)")
         }
 
-        switch scope {
+        switch configuration.scope {
         case .disabled:
             if !requiredAdapterCodes.isEmpty {
                 conflicts.append(validationConflict(.invalidDesiredScope))
@@ -127,7 +154,8 @@ nonisolated struct DistributionPlanner {
                 [DistributionBindingIntent(
                     skillID: skillID,
                     scope: .global,
-                    distributionSlug: slug
+                    distributionSlug: slug,
+                    syncMode: configuration.syncMode
                 )],
                 conflicts
             )
@@ -141,7 +169,8 @@ nonisolated struct DistributionPlanner {
                 DistributionBindingIntent(
                     skillID: skillID,
                     scope: .agent($0),
-                    distributionSlug: slug
+                    distributionSlug: slug,
+                    syncMode: configuration.syncMode
                 )
             }
             for binding in bindings where catalog.target(for: binding.scope) == nil {
@@ -207,24 +236,43 @@ nonisolated struct DistributionPlanner {
     ) -> (actions: [DistributionFilesystemAction], conflicts: [DistributionPlanConflict]) {
         switch (candidate.current != nil, candidate.desired != nil) {
         case (false, true):
+            guard let desired = candidate.desired else { return ([], []) }
             return evaluateAddition(
                 candidate.entry,
+                mode: desired.syncMode,
                 skillID: skillID,
                 observation: observation,
                 ssotLocator: ssotLocator
             )
         case (true, false):
+            guard let current = candidate.current else { return ([], []) }
             return evaluateRemoval(
                 candidate.entry,
+                mode: current.syncMode,
                 skillID: skillID,
                 observation: observation,
                 ssotLocator: ssotLocator
             )
         case (true, true):
+            guard let current = candidate.current, let desired = candidate.desired else {
+                return ([], [])
+            }
+            if current.syncMode != desired.syncMode {
+                return evaluateModeTransition(
+                    candidate.entry,
+                    currentMode: current.syncMode,
+                    desiredMode: desired.syncMode,
+                    skillID: skillID,
+                    observation: observation,
+                    ssotLocator: ssotLocator
+                )
+            }
             return evaluateRetention(
                 candidate.entry,
+                mode: current.syncMode,
                 skillID: skillID,
-                observation: observation
+                observation: observation,
+                ssotLocator: ssotLocator
             )
         case (false, false):
             return ([], [])
@@ -233,6 +281,7 @@ nonisolated struct DistributionPlanner {
 
     private func evaluateAddition(
         _ entry: DistributionTargetEntry,
+        mode: DistributionSyncMode,
         skillID: SkillID,
         observation: DistributionTargetObservation,
         ssotLocator: String
@@ -240,11 +289,14 @@ nonisolated struct DistributionPlanner {
         switch observation {
         case .missing:
             return ([DistributionFilesystemAction(
-                kind: .createSymlink,
+                kind: mode == .symlink ? .createSymlink : .createCopy,
                 entry: entry,
                 ssotLocator: ssotLocator
             )], [])
         case .managed(let owner, let directoryName):
+            guard mode == .symlink else {
+                return ([], [conflict(.managedTargetMismatch, entry: entry)])
+            }
             if owner != skillID {
                 return ([], [conflict(.slugOccupied, entry: entry)])
             }
@@ -252,6 +304,8 @@ nonisolated struct DistributionPlanner {
                 return ([], [conflict(.managedTargetMismatch, entry: entry)])
             }
             return ([], [])
+        case .copy(let copy):
+            return ([], [copyConflict(.copyBaselineInvalid, entry: entry, copy: copy)])
         case .unknownObject:
             return ([], [conflict(.unknownObject, entry: entry)])
         case .unavailable:
@@ -261,10 +315,19 @@ nonisolated struct DistributionPlanner {
 
     private func evaluateRemoval(
         _ entry: DistributionTargetEntry,
+        mode: DistributionSyncMode,
         skillID: SkillID,
         observation: DistributionTargetObservation,
         ssotLocator: String
     ) -> (actions: [DistributionFilesystemAction], conflicts: [DistributionPlanConflict]) {
+        if mode == .copy {
+            return evaluateCopyMutation(
+                entry,
+                observation: observation,
+                safeAction: .removeCopy,
+                ssotLocator: ssotLocator
+            )
+        }
         switch observation {
         case .missing:
             return ([], [conflict(.currentBindingMissing, entry: entry)])
@@ -277,6 +340,8 @@ nonisolated struct DistributionPlanner {
                 entry: entry,
                 ssotLocator: ssotLocator
             )], [])
+        case .copy:
+            return ([], [conflict(.managedTargetMismatch, entry: entry)])
         case .unknownObject:
             return ([], [conflict(.unknownObject, entry: entry)])
         case .unavailable:
@@ -286,9 +351,18 @@ nonisolated struct DistributionPlanner {
 
     private func evaluateRetention(
         _ entry: DistributionTargetEntry,
+        mode: DistributionSyncMode,
         skillID: SkillID,
-        observation: DistributionTargetObservation
+        observation: DistributionTargetObservation,
+        ssotLocator: String
     ) -> (actions: [DistributionFilesystemAction], conflicts: [DistributionPlanConflict]) {
+        if mode == .copy {
+            return evaluateCopyRetention(
+                entry,
+                observation: observation,
+                ssotLocator: ssotLocator
+            )
+        }
         switch observation {
         case .missing:
             return ([], [conflict(.currentBindingMissing, entry: entry)])
@@ -297,10 +371,114 @@ nonisolated struct DistributionPlanner {
                 return ([], [conflict(.managedTargetMismatch, entry: entry)])
             }
             return ([], [])
+        case .copy:
+            return ([], [conflict(.managedTargetMismatch, entry: entry)])
         case .unknownObject:
             return ([], [conflict(.unknownObject, entry: entry)])
         case .unavailable:
             return ([], [conflict(.targetUnavailable, entry: entry)])
+        }
+    }
+
+    private func evaluateModeTransition(
+        _ entry: DistributionTargetEntry,
+        currentMode: DistributionSyncMode,
+        desiredMode: DistributionSyncMode,
+        skillID: SkillID,
+        observation: DistributionTargetObservation,
+        ssotLocator: String
+    ) -> (actions: [DistributionFilesystemAction], conflicts: [DistributionPlanConflict]) {
+        switch (currentMode, desiredMode) {
+        case (.symlink, .copy):
+            guard case .managed(let owner, let directoryName) = observation,
+                  owner == skillID, directoryName == skillID.directoryName else {
+                return ([], [conflict(.managedTargetMismatch, entry: entry)])
+            }
+            return ([DistributionFilesystemAction(
+                kind: .replaceSymlinkWithCopy,
+                entry: entry,
+                ssotLocator: ssotLocator
+            )], [])
+        case (.copy, .symlink):
+            return evaluateCopyMutation(
+                entry,
+                observation: observation,
+                safeAction: .replaceCopyWithSymlink,
+                ssotLocator: ssotLocator
+            )
+        default:
+            return ([], [conflict(.invalidDesiredScope, entry: entry)])
+        }
+    }
+
+    private func evaluateCopyRetention(
+        _ entry: DistributionTargetEntry,
+        observation: DistributionTargetObservation,
+        ssotLocator: String
+    ) -> (actions: [DistributionFilesystemAction], conflicts: [DistributionPlanConflict]) {
+        guard case .copy(let copy) = observation else {
+            return ([], [copyStateConflict(entry: entry, observation: observation)])
+        }
+        switch copy.state {
+        case .inSync:
+            return ([], [])
+        case .sourceChanged:
+            return ([DistributionFilesystemAction(
+                kind: .refreshCopy,
+                entry: entry,
+                ssotLocator: ssotLocator
+            )], [])
+        default:
+            return ([], [copyConflict(reason(for: copy.state), entry: entry, copy: copy)])
+        }
+    }
+
+    private func evaluateCopyMutation(
+        _ entry: DistributionTargetEntry,
+        observation: DistributionTargetObservation,
+        safeAction: DistributionFilesystemActionKind,
+        ssotLocator: String
+    ) -> (actions: [DistributionFilesystemAction], conflicts: [DistributionPlanConflict]) {
+        guard case .copy(let copy) = observation else {
+            return ([], [copyStateConflict(entry: entry, observation: observation)])
+        }
+        switch copy.state {
+        case .inSync, .sourceChanged:
+            return ([DistributionFilesystemAction(
+                kind: safeAction,
+                entry: entry,
+                ssotLocator: ssotLocator
+            )], [])
+        default:
+            return ([], [copyConflict(reason(for: copy.state), entry: entry, copy: copy)])
+        }
+    }
+
+    private func copyStateConflict(
+        entry: DistributionTargetEntry,
+        observation: DistributionTargetObservation
+    ) -> DistributionPlanConflict {
+        switch observation {
+        case .missing:
+            conflict(.copyTargetMissing, entry: entry)
+        case .unavailable:
+            conflict(.targetUnavailable, entry: entry)
+        default:
+            conflict(.copyBaselineInvalid, entry: entry)
+        }
+    }
+
+    private func reason(
+        for state: DistributionCopyObservationState
+    ) -> DistributionConflictReason {
+        switch state {
+        case .inSync, .sourceChanged: .copyBaselineInvalid
+        case .contentDrift: .copyContentDrift
+        case .physicalDrift: .copyPhysicalDrift
+        case .rootReplaced: .copyRootReplaced
+        case .targetReplaced: .copyTargetReplaced
+        case .targetMissing: .copyTargetMissing
+        case .baselineInvalid: .copyBaselineInvalid
         }
     }
 
@@ -314,6 +492,21 @@ nonisolated struct DistributionPlanner {
             targetRank: entry.target.rank,
             slugKey: entry.slugKey,
             canonicalLocator: entry.canonicalLocator
+        )
+    }
+
+    private func copyConflict(
+        _ reason: DistributionConflictReason,
+        entry: DistributionTargetEntry,
+        copy: DistributionCopyObservation
+    ) -> DistributionPlanConflict {
+        DistributionPlanConflict(
+            reason: reason,
+            targetScopeKey: entry.target.scope.targetScopeKey,
+            targetRank: entry.target.rank,
+            slugKey: entry.slugKey,
+            canonicalLocator: entry.canonicalLocator,
+            copyEvidence: copy.evidence
         )
     }
 

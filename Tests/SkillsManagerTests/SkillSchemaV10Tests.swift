@@ -27,8 +27,8 @@ struct SkillSchemaV10Tests {
 
             try SkillSchemaMigrator.migrateIfNeeded(connection)
 
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 11)
-            #expect(try connection.userTableNames() == SkillSchemaV11.tableNames)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 12)
+            #expect(try connection.userTableNames() == SkillSchemaV12.tableNames)
             let reader = try SkillSchemaMigrator.open(at: databaseURL, accessMode: .readOnly)
             #expect(reader.accessMode == .readOnly)
         }

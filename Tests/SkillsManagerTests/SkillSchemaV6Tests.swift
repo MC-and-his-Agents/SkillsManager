@@ -13,11 +13,11 @@ struct SkillSchemaV6Tests {
             try createV6MigrationFixture(version: version, at: location.database)
 
             let migrated = try SkillSchemaMigrator.open(at: location.database)
-            #expect(try migrated.querySingleInt("PRAGMA user_version") == 11)
+            #expect(try migrated.querySingleInt("PRAGMA user_version") == 12)
             #expect(try migrated.querySingleInt(
                 "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-            ) == 11)
-            #expect(try migrated.userTableNames() == SkillSchemaV11.tableNames)
+            ) == 12)
+            #expect(try migrated.userTableNames() == SkillSchemaV12.tableNames)
         }
     }
 
@@ -63,8 +63,8 @@ struct SkillSchemaV6Tests {
             accessMode: .readOnly
         )
         #expect(reader.accessMode == .readOnly)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == 11)
-        #expect(try reader.userTableNames() == SkillSchemaV11.tableNames)
+        #expect(try reader.querySingleInt("PRAGMA user_version") == 12)
+        #expect(try reader.userTableNames() == SkillSchemaV12.tableNames)
     }
 
     @Test("distribution binding constraints fail closed")
