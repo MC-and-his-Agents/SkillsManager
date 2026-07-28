@@ -64,16 +64,21 @@ struct SkillDistributionView: View {
                 )
             }
 
+            modeSelection
             agentSelection
 
             if model.willConvertGlobalToDedicated {
                 Label(
-                    "Applying this selection will replace the global link with Agent-specific links.",
+                    "Applying this selection will replace the global target with Agent-specific targets.",
                     systemImage: "arrow.triangle.branch"
                 )
                 .foregroundStyle(.secondary)
             } else if model.draftUsesGlobalTarget {
-                Text("The compatible Agent set uses one link in ~/.agents/skills.")
+                Text(
+                    model.selectedSyncMode == .symlink
+                        ? "The compatible Agent set uses one link in ~/.agents/skills."
+                        : "The compatible Agent set uses one Copy in ~/.agents/skills."
+                )
                     .foregroundStyle(.secondary)
             }
 
@@ -88,11 +93,36 @@ struct SkillDistributionView: View {
                     Text("Current targets")
                         .font(.headline)
                     ForEach(model.currentTargets) { target in
-                        Text(target.locator)
-                            .font(.callout.monospaced())
-                            .textSelection(.enabled)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(target.syncMode.displayName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(target.locator)
+                                .font(.callout.monospaced())
+                                .textSelection(.enabled)
+                        }
+                        .accessibilityElement(children: .combine)
                     }
                 }
+            }
+
+            if let lineage = model.forkLineage {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Independent local Fork", systemImage: "arrow.triangle.branch")
+                        .font(.headline)
+                    Text("Based on \(lineage.parentLabel)")
+                    Text("Source \(lineage.fingerprintLabel)")
+                        .font(.caption.monospaced())
+                    Text(
+                        Date(
+                            timeIntervalSince1970:
+                                Double(lineage.createdAtMilliseconds) / 1_000
+                        ).formatted(date: .abbreviated, time: .shortened)
+                    )
+                    .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
             }
 
             if let message = model.successMessage {
@@ -116,7 +146,7 @@ struct SkillDistributionView: View {
             .accessibilityLabel(
                 model.isPreparingPreview ? "Preparing distribution preview" : "Preview changes"
             )
-            .accessibilityHint("Shows planned link changes before anything is written.")
+            .accessibilityHint("Shows planned distribution changes before anything is written.")
 
             Button("Remove from all Agents…") {
                 model.removeFromAllAgents()
@@ -124,11 +154,38 @@ struct SkillDistributionView: View {
             }
             .disabled(model.selectedAgents.isEmpty || !model.canPreparePreview)
             .accessibilityHint(
-                "Previews removal of managed distribution links. The managed Skill is retained."
+                "Previews removal of managed distribution targets. The managed Skill is retained."
             )
-            Text("This removes only managed distribution links. The Skill remains in the managed library.")
+            Text("This removes only managed distribution targets. The Skill remains in the managed library.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    private var modeSelection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Mode")
+                .font(.headline)
+            Picker(
+                "Distribution mode",
+                selection: Binding(
+                    get: { model.selectedSyncMode },
+                    set: { model.setSyncMode($0) }
+                )
+            ) {
+                Text("Symlink").tag(DistributionSyncMode.symlink)
+                Text("Copy").tag(DistributionSyncMode.copy)
+            }
+            .pickerStyle(.segmented)
+            .disabled(model.isApplying)
+            .accessibilityValue(model.selectedSyncMode.displayName)
+            Text(
+                model.selectedSyncMode == .symlink
+                    ? "Agents use the managed Skill directly."
+                    : "Each target receives a managed Copy."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
     }
 
@@ -272,6 +329,36 @@ private struct SkillDistributionPreviewView: View {
                         .textSelection(.enabled)
                 }
                 .accessibilityElement(children: .combine)
+            }
+
+            ForEach(preview.driftDecisions) { decision in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Local changes at \(decision.locator)")
+                        .font(.headline)
+                    Text(
+                        "Discard restores the managed Skill and cannot be undone. "
+                            + "Choose Fork to preserve the local content independently."
+                    )
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    HStack {
+                        Button("Discard local changes", role: .destructive) {
+                            Task { await model.discardLocalChanges(decision) }
+                        }
+                        .disabled(model.isApplying)
+                        .accessibilityHint(
+                            "Replaces this Copy with the current managed Skill."
+                        )
+                        Button("Keep as independent Fork") {
+                            Task { await model.keepAsFork(decision) }
+                        }
+                        .disabled(model.isApplying)
+                        .accessibilityHint(
+                            "Preserves the local content as a separately managed Skill."
+                        )
+                    }
+                }
+                .padding(.top, 6)
             }
         }
     }

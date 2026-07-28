@@ -2,22 +2,6 @@ import Foundation
 import Observation
 @MainActor
 @Observable final class SkillDistributionViewModel {
-    enum LoadState: Equatable {
-        case blocked(String)
-        case empty
-        case loading
-        case ready(Status)
-        case failed(Problem)
-    }
-
-    enum Status: Equatable {
-        case notConfigured
-        case inSync
-        case drifted
-        case needsRepair
-        case operationInProgress
-    }
-
     private(set) var loadState: LoadState = .blocked("Preparing the managed library…")
     private(set) var activeSkillID: SkillID?
     private(set) var activeDisplayName = ""
@@ -25,11 +9,16 @@ import Observation
     private(set) var currentTargets: [TargetRow] = []
     private(set) var currentEnabledAgents: Set<SkillPlatform> = []
     private(set) var selectedAgents: Set<SkillPlatform> = []
+    private(set) var currentSyncMode: DistributionSyncMode = .symlink
+    private(set) var selectedSyncMode: DistributionSyncMode = .symlink
     private(set) var isExplicitlyConfigured = false
     private(set) var distributionSlug: DefaultDistributionSlug?
+    private(set) var forkLineage: ForkLineageRow?
     private(set) var pendingPreview: PendingPreview?
     private(set) var problem: Problem?
     private(set) var successMessage: String?
+    private(set) var requestedForkChildSkillID: SkillID?
+    private(set) var publishedForkSelectionGeneration: UInt64 = 0
     private(set) var isRefreshing = false
     private(set) var isPreparingPreview = false
     private(set) var isApplying = false
@@ -37,7 +26,7 @@ import Observation
     private var dependencies: SkillDistributionDependencies?
     private var runtimeReady = false
     private var runtimeBlockMessage = "Preparing the managed library…"
-    private var refreshGeneration: UInt64 = 0
+    private(set) var refreshGeneration: UInt64 = 0
 
     var canPreparePreview: Bool {
         guard runtimeReady, activeSkillID != nil,
@@ -51,46 +40,6 @@ import Observation
         }
         return true
     }
-    var globalReaders: [SkillPlatform] {
-        DistributionTargetCatalog.current.globalReaders
-    }
-
-    var hasUnappliedDraft: Bool {
-        selectedAgents != currentEnabledAgents
-    }
-
-    var willConvertGlobalToDedicated: Bool {
-        currentBindings.contains { $0.scope == .global }
-            && !selectedAgents.isEmpty
-            && selectedAgents != Set(globalReaders)
-    }
-
-    var draftUsesGlobalTarget: Bool {
-        selectedAgents == Set(globalReaders)
-    }
-
-    var agentRows: [AgentRow] {
-        guard let distributionSlug else { return [] }
-        let usesGlobal = selectedAgents == Set(globalReaders)
-        return SkillPlatform.allCases.compactMap { platform in
-            let scope: DistributionBindingScope = usesGlobal && platform.readsGlobalDistributionTarget
-                ? .global
-                : .agent(platform)
-            return DistributionTargetCatalog.current.entry(
-                for: scope,
-                slug: distributionSlug
-            ).map {
-                AgentRow(
-                    platform: platform,
-                    locator: $0.canonicalLocator,
-                    readsGlobalTarget: platform.readsGlobalDistributionTarget,
-                    isCurrentlyEnabled: currentEnabledAgents.contains(platform),
-                    isSelected: selectedAgents.contains(platform)
-                )
-            }
-        }
-    }
-
     @discardableResult
     func activate(dependencies: SkillDistributionDependencies) -> Bool {
         let needsRefresh = !runtimeReady
@@ -172,10 +121,12 @@ import Observation
         do {
             let selection = try await dependencies.loadSelection(skillID)
             let reconcile = try await dependencies.reconcile(skillID)
+            let lineage = try await dependencies.loadForkLineage(skillID)
             guard generation == refreshGeneration, activeSkillID == skillID else { return }
             try publish(
                 selection: selection,
                 reconcile: reconcile,
+                lineage: lineage,
                 skillID: skillID,
                 displayName: displayName
             )
@@ -200,6 +151,14 @@ import Observation
         successMessage = nil
     }
 
+    func setSyncMode(_ mode: DistributionSyncMode) {
+        guard !isApplying else { return }
+        selectedSyncMode = mode
+        pendingPreview = nil
+        problem = nil
+        successMessage = nil
+    }
+
     func removeFromAllAgents() {
         guard !isApplying else { return }
         selectedAgents = []
@@ -212,7 +171,7 @@ import Observation
         guard canPreparePreview,
               let dependencies,
               let skillID = activeSkillID,
-              let desiredScope = desiredScope(),
+              let desiredConfiguration = desiredConfiguration(),
               let distributionSlug else {
             return
         }
@@ -224,27 +183,46 @@ import Observation
         let agents = selectedAgents
         let requiredAdapterCodes = requiredCodes(agents)
         do {
-            let plan = try await dependencies.plan(skillID, desiredScope, requiredAdapterCodes)
+            let plan = try await dependencies.plan(
+                skillID,
+                desiredConfiguration,
+                requiredAdapterCodes
+            )
             let canonicalPlan = try plan.canonicalJSONData()
             guard generation == refreshGeneration,
                   activeSkillID == skillID,
                   selectedAgents == agents,
+                  selectedSyncMode == desiredConfiguration.syncMode,
+                  self.distributionSlug == distributionSlug else {
+                return
+            }
+            let driftDecisions = try await eligibleDriftDecisions(
+                plan: plan,
+                skillID: skillID,
+                dependencies: dependencies
+            )
+            guard generation == refreshGeneration,
+                  activeSkillID == skillID,
+                  selectedAgents == agents,
+                  selectedSyncMode == desiredConfiguration.syncMode,
                   self.distributionSlug == distributionSlug else {
                 return
             }
             pendingPreview = PendingPreview(
                 generation: generation,
                 skillID: skillID,
-                desiredScope: desiredScope,
+                desiredConfiguration: desiredConfiguration,
                 requiredAdapterCodes: requiredAdapterCodes,
                 plan: plan,
                 canonicalPlan: canonicalPlan,
-                rows: previewRows(plan: plan, slug: distributionSlug)
+                rows: previewRows(plan: plan, slug: distributionSlug),
+                driftDecisions: driftDecisions
             )
         } catch {
             guard generation == refreshGeneration,
                   activeSkillID == skillID,
                   selectedAgents == agents,
+                  selectedSyncMode == desiredConfiguration.syncMode,
                   self.distributionSlug == distributionSlug else {
                 return
             }
@@ -276,7 +254,7 @@ import Observation
         do {
             let currentPlan = try await dependencies.plan(
                 preview.skillID,
-                preview.desiredScope,
+                preview.desiredConfiguration,
                 preview.requiredAdapterCodes
             )
             guard previewIsCurrent(preview) else {
@@ -327,14 +305,88 @@ import Observation
         }
     }
 
+    func discardLocalChanges(_ decision: DriftDecision) async {
+        guard beginDecision(decision), let dependencies else { return }
+        defer { isApplying = false }
+        do {
+            let operation = try await dependencies.discardCopyDrift(decision.preview)
+            guard activeSkillID == decision.preview.forkPreview.parentSkillID else { return }
+            pendingPreview = nil
+            guard operation.phase == .completed, operation.outcome == .applied else {
+                await refreshPreservingFeedback(skillID: decision.preview.forkPreview.parentSkillID)
+                problem = .operationDidNotComplete
+                return
+            }
+            await refreshPreservingFeedback(skillID: decision.preview.forkPreview.parentSkillID)
+            successMessage = "Local Copy changes were discarded and restored from the managed Skill."
+        } catch {
+            await finishDecisionFailure(error, decision: decision)
+        }
+    }
+
+    func keepAsFork(_ decision: DriftDecision) async {
+        guard beginDecision(decision), let dependencies else { return }
+        defer { isApplying = false }
+        do {
+            let result = try await dependencies.createCopyFork(decision.preview)
+            guard activeSkillID == result.parentSkillID else { return }
+            pendingPreview = nil
+            await refreshPreservingFeedback(skillID: result.parentSkillID)
+            successMessage = "An independent local Fork was created."
+            requestedForkChildSkillID = result.childSkillID
+            publishedForkSelectionGeneration &+= 1
+        } catch {
+            await finishDecisionFailure(error, decision: decision)
+        }
+    }
+
+    func reportForkSelectionFailure(_ childSkillID: SkillID) {
+        guard requestedForkChildSkillID == childSkillID else { return }
+        problem = .forkCreatedButNotLocated
+    }
+
+    func acknowledgeForkSelection(_ childSkillID: SkillID) {
+        guard requestedForkChildSkillID == childSkillID else { return }
+        requestedForkChildSkillID = nil
+    }
+
+    private func beginDecision(_ decision: DriftDecision) -> Bool {
+        guard !isApplying,
+              let preview = pendingPreview,
+              previewIsCurrent(preview),
+              preview.driftDecisions.contains(where: { $0.id == decision.id }) else {
+            return false
+        }
+        isApplying = true
+        problem = nil
+        successMessage = nil
+        return true
+    }
+
+    private func finishDecisionFailure(
+        _ error: Error,
+        decision: DriftDecision
+    ) async {
+        guard activeSkillID == decision.preview.forkPreview.parentSkillID else {
+            return
+        }
+        pendingPreview = nil
+        let mapped = Self.problem(for: error)
+        await refreshPreservingFeedback(
+            skillID: decision.preview.forkPreview.parentSkillID
+        )
+        problem = mapped
+    }
+
     private func publish(
         selection: DistributionSelectionReadback,
         reconcile: DistributionReconcileResult,
+        lineage: SkillForkLineageReadback?,
         skillID: SkillID,
         displayName: String
     ) throws {
         let bindings = selection.bindings
-        guard bindings.allSatisfy({ $0.skillID == skillID && $0.syncMode == .symlink }) else {
+        guard bindings.allSatisfy({ $0.skillID == skillID }) else {
             throw SkillDistributionStateError.invalidPersistedBindings
         }
         let slugs = Set(bindings.map(\.distributionSlug))
@@ -353,6 +405,9 @@ import Observation
             candidateFrom: SkillDisplayName(displayName)
         )
         currentBindings = bindings
+        let configuration = try selection.desiredConfiguration(for: skillID)
+        currentSyncMode = configuration.syncMode
+        selectedSyncMode = configuration.syncMode
         isExplicitlyConfigured = selection.isExplicitlyConfigured
         distributionSlug = slug
         currentTargets = bindings.compactMap { binding in
@@ -360,9 +415,14 @@ import Observation
                 for: binding.scope,
                 slug: binding.distributionSlug
             ).map {
-                TargetRow(scopeKey: binding.scope.targetScopeKey, locator: $0.canonicalLocator)
+                TargetRow(
+                    scopeKey: binding.scope.targetScopeKey,
+                    locator: $0.canonicalLocator,
+                    syncMode: binding.syncMode
+                )
             }
         }
+        forkLineage = lineage.map(ForkLineageRow.init)
 
         currentEnabledAgents = hasGlobal ? Set(globalReaders) : agents
         selectedAgents = bindings.isEmpty && !selection.isExplicitlyConfigured
@@ -378,72 +438,9 @@ import Observation
         )
     }
 
-    private func desiredScope() -> DistributionDesiredScope? {
-        guard let distributionSlug else { return nil }
-        if selectedAgents.isEmpty { return .disabled }
-        if selectedAgents == Set(globalReaders) { return .global(distributionSlug) }
-        return .agents(selectedAgents, distributionSlug)
-    }
-
-    private func requiredCodes(_ agents: Set<SkillPlatform>) -> Set<String> {
-        Set(agents.map(\.storageKey))
-    }
-
-    private func previewRows(
-        plan: DistributionPlan,
-        slug: DefaultDistributionSlug
-    ) -> [PreviewRow] {
-        if plan.status == .noOp {
-            return currentBindings.compactMap { binding in
-                DistributionTargetCatalog.current.entry(for: binding.scope, slug: slug).map {
-                    PreviewRow(
-                        kind: .noChange,
-                        scopeKey: binding.scope.targetScopeKey,
-                        locator: $0.canonicalLocator
-                    )
-                }
-            }
-        }
-
-        var rows = plan.filesystemActions.map { action in
-            PreviewRow(
-                kind: action.kind == .removeSymlink ? .remove : .create,
-                scopeKey: action.entry.target.scope.targetScopeKey,
-                locator: action.entry.canonicalLocator
-            )
-        }
-        let actionScopeKeys = Set(
-            plan.filesystemActions.map(\.entry.target.scope.targetScopeKey)
-        )
-        rows.append(contentsOf: plan.bindingReplacement.compactMap { intent in
-            guard !actionScopeKeys.contains(intent.scope.targetScopeKey) else {
-                return nil
-            }
-            return DistributionTargetCatalog.current.entry(
-                for: intent.scope,
-                slug: intent.distributionSlug
-            ).map {
-                PreviewRow(
-                    kind: currentBindings.contains(where: { $0.intent == intent })
-                        ? .noChange
-                        : .binding,
-                    scopeKey: intent.scope.targetScopeKey,
-                    locator: $0.canonicalLocator
-                )
-            }
-        })
-        if rows.isEmpty, plan.configurationChanged {
-            rows.append(PreviewRow(
-                kind: .configuration,
-                scopeKey: "configuration",
-                locator: "Skills Manager database"
-            ))
-        }
-        return rows
-    }
-
     private func refreshPreservingFeedback(skillID: SkillID) async {
         let draft = selectedAgents
+        let mode = selectedSyncMode
         await refresh(
             skillID: skillID,
             displayName: activeDisplayName,
@@ -451,27 +448,7 @@ import Observation
         )
         if activeSkillID == skillID, case .ready = loadState {
             selectedAgents = draft
-        }
-    }
-
-    private func previewIsCurrent(_ preview: PendingPreview) -> Bool {
-        preview.generation == refreshGeneration
-            && activeSkillID == preview.skillID
-            && desiredScopeMatches(preview.desiredScope)
-            && requiredCodes(selectedAgents) == preview.requiredAdapterCodes
-    }
-
-    private func desiredScopeMatches(_ expected: DistributionDesiredScope) -> Bool {
-        guard let current = desiredScope() else { return false }
-        return switch (current, expected) {
-        case (.disabled, .disabled):
-            true
-        case (.global(let lhs), .global(let rhs)):
-            lhs == rhs
-        case (.agents(let lhsAgents, let lhsSlug), .agents(let rhsAgents, let rhsSlug)):
-            lhsAgents == rhsAgents && lhsSlug == rhsSlug
-        default:
-            false
+            selectedSyncMode = mode
         }
     }
 
@@ -482,8 +459,11 @@ import Observation
         currentTargets = []
         currentEnabledAgents = []
         selectedAgents = []
+        currentSyncMode = .symlink
+        selectedSyncMode = .symlink
         isExplicitlyConfigured = false
         distributionSlug = nil
+        forkLineage = nil
         pendingPreview = nil
         isRefreshing = false
     }

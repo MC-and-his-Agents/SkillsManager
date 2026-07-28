@@ -43,6 +43,13 @@ nonisolated struct CopyForkResult: Equatable, Sendable {
     let scope: DistributionBindingScope
 }
 
+nonisolated struct CopyDriftDecisionPreview: Equatable, Sendable {
+    let parentRevision: Int64
+    let binding: DistributionBinding
+    let observedEvidence: DistributionCopyEvidence
+    let forkPreview: CopyForkPreview
+}
+
 nonisolated enum CopyForkOperationPhase: String, Sendable {
     case reserved
     case childCreated

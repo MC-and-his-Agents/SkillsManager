@@ -146,8 +146,10 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             case (.copy, nil): .removeCopy
             case (.symlink, .copy): .replaceSymlinkWithCopy
             case (.copy, .symlink): .replaceCopyWithSymlink
-            case (.copy, .copy): actionKinds[key] == .refreshCopy
-                ? .refreshCopy : nil
+            case (.copy, .copy):
+                actionKinds[key] == .refreshCopy
+                    || actionKinds[key] == .discardCopyDrift
+                    ? actionKinds[key] : nil
             case (.symlink, .symlink): nil
             case (nil, nil): nil
             }
@@ -220,9 +222,13 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             return intent.scope == scope
                 && intent.distributionSlug == planSlug
         }
+        let actionKind = DistributionFilesystemActionKind(rawValue: action.kind)
         let oldCopyMatches = if let evidence = action.oldCopy,
                                 let baseline = oldBinding?.copyBaseline {
-            evidence.content == baseline.content
+            (actionKind == .discardCopyDrift
+                ? evidence.content.algorithmVersion == baseline.content.algorithmVersion
+                    && evidence.content.digest != baseline.content.digest
+                : evidence.content == baseline.content)
                 && evidence.physicalTree == baseline.physicalTree
                 && evidence.rootIdentity == baseline.rootIdentity
                 && evidence.entryIdentity == baseline.entryIdentity
@@ -266,7 +272,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         case .createCopy:
             action.oldCopy == nil && action.oldLink == nil
                 && action.stagingName == copyStage && action.quarantineName == nil
-        case .refreshCopy:
+        case .refreshCopy, .discardCopyDrift:
             action.oldCopy != nil && action.oldLink == nil
                 && action.stagingName == copyStage
                 && action.quarantineName == copyQuarantine
@@ -324,10 +330,12 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         }
         let actionKind = DistributionFilesystemActionKind(rawValue: kind)
         let copyCreator = actionKind == .createCopy || actionKind == .refreshCopy
+            || actionKind == .discardCopyDrift
             || actionKind == .replaceSymlinkWithCopy
         let linkCreator = actionKind == .createSymlink
             || actionKind == .replaceCopyWithSymlink
-        let copyRemoval = actionKind == .refreshCopy || actionKind == .removeCopy
+        let copyRemoval = actionKind == .refreshCopy
+            || actionKind == .discardCopyDrift || actionKind == .removeCopy
             || actionKind == .replaceCopyWithSymlink
         let linkRemoval = actionKind == .removeSymlink
             || actionKind == .replaceSymlinkWithCopy
@@ -350,7 +358,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         case .createSymlink: action.createdLink != nil
         case .removeSymlink: action.quarantinedLink != nil
         case .createCopy: action.createdCopy != nil
-        case .refreshCopy:
+        case .refreshCopy, .discardCopyDrift:
             action.createdCopy != nil && action.quarantinedCopy != nil
         case .removeCopy: action.quarantinedCopy != nil
         case .replaceSymlinkWithCopy:
@@ -369,9 +377,11 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         return switch pending {
         case .stageCopy, .promoteCopy:
             kind == .createCopy || kind == .refreshCopy
+                || kind == .discardCopyDrift
                 || kind == .replaceSymlinkWithCopy
         case .quarantineCopy:
-            kind == .refreshCopy || kind == .removeCopy
+            kind == .refreshCopy || kind == .discardCopyDrift
+                || kind == .removeCopy
                 || kind == .replaceCopyWithSymlink
         case .quarantineSymlink:
             kind == .removeSymlink || kind == .replaceSymlinkWithCopy

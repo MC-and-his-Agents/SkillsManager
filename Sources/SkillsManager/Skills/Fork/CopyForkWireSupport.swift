@@ -147,6 +147,15 @@ nonisolated func withStableCopyForkErrors<T>(_ body: () throws -> T) throws -> T
         throw interruption
     } catch let stable as CopyForkError {
         throw stable
+    } catch let error as DistributionSymlinkExecutorError {
+        switch error {
+        case .conflict, .blocked:
+            throw CopyForkError.previewExpired
+        case .operationInProgress:
+            throw CopyForkError.operationInProgress
+        case .needsRepair:
+            throw CopyForkError.needsRepair
+        }
     } catch let error as DistributionSymlinkFileSystemError {
         switch error {
         case .unavailable: throw CopyForkError.targetUnavailable

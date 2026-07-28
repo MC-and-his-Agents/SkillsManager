@@ -213,6 +213,11 @@ actor JournaledSSOTWriter {
         copyForkAdmissionBypass: SSOTOperationID? = nil
     ) throws -> DistributionOperationRecord {
         try requireAuthority()
+        guard !plan.filesystemActions.contains(where: {
+            $0.kind == .discardCopyDrift
+        }) else {
+            throw DistributionSymlinkExecutorError.conflict
+        }
         let targets = Set(
             plan.filesystemActions.map {
                 CopyForkTargetReservation(

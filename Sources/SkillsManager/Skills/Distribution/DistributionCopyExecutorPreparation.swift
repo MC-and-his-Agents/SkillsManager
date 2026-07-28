@@ -187,7 +187,8 @@ nonisolated extension DistributionCopyExecutor {
         expectedOldBindings: [DistributionBinding],
         expectedOldLinks: [DistributionLinkOwnership],
         source: DistributionCopySource,
-        operationID: SSOTOperationID
+        operationID: SSOTOperationID,
+        approvedCopyDrift: DistributionCopyEvidence? = nil
     ) throws -> DistributionOperationPreflightV2 {
         guard try configurationStore.load(skillID: skillID)
                 == plan.expectedOldConfigured,
@@ -208,7 +209,8 @@ nonisolated extension DistributionCopyExecutor {
                 oldBindings: expectedOldBindings,
                 oldLinks: expectedOldLinks,
                 source: source,
-                operationID: operationID
+                operationID: operationID,
+                approvedCopyDrift: approvedCopyDrift
             )
         }
         return DistributionOperationPreflightV2(
@@ -237,7 +239,8 @@ nonisolated extension DistributionCopyExecutor {
         oldBindings: [DistributionBinding],
         oldLinks: [DistributionLinkOwnership],
         source: DistributionCopySource,
-        operationID: SSOTOperationID
+        operationID: SSOTOperationID,
+        approvedCopyDrift: DistributionCopyEvidence?
     ) throws -> DistributionOperationPreflightActionV2 {
         let old = oldBindings.first {
             $0.scope == action.entry.target.scope
@@ -257,7 +260,8 @@ nonisolated extension DistributionCopyExecutor {
         try requirePreflightObservation(
             action.kind,
             observation: observation,
-            skillID: skillID
+            skillID: skillID,
+            approvedCopyDrift: approvedCopyDrift
         )
         let root = try fileSystem.existingRoot(for: action.entry.target.scope)
         return try DistributionOperationPreflightActionV2(
@@ -266,16 +270,11 @@ nonisolated extension DistributionCopyExecutor {
             targetScopeKey: action.entry.target.scope.targetScopeKey,
             slug: action.entry.distributionSlug.value,
             rootIdentity: root.map(ManagedItemIdentityCodec.encode),
-            oldCopy: old?.copyBaseline.map {
-                try DistributionCopyEvidenceWireV2(
-                    DistributionCopyEvidence(
-                        rootIdentity: $0.rootIdentity,
-                        entryIdentity: $0.entryIdentity,
-                        contentFingerprint: $0.contentFingerprint,
-                        physicalTreeDigest: $0.physicalTreeDigest
-                    )
-                )
-            },
+            oldCopy: try preflightOldCopy(
+                action: action,
+                old: old,
+                approvedCopyDrift: approvedCopyDrift
+            ),
             oldLink: oldLink.map {
                 try DistributionLinkEvidenceWireV2(
                     DistributionSymlinkEvidence(
@@ -351,7 +350,8 @@ nonisolated extension DistributionCopyExecutor {
     private func requirePreflightObservation(
         _ kind: DistributionFilesystemActionKind,
         observation: DistributionTargetObservation,
-        skillID: SkillID
+        skillID: SkillID,
+        approvedCopyDrift: DistributionCopyEvidence?
     ) throws {
         switch kind {
         case .createSymlink, .createCopy:
@@ -368,6 +368,18 @@ nonisolated extension DistributionCopyExecutor {
         case .refreshCopy:
             guard case .copy(let copy) = observation,
                   copy.state == .sourceChanged else {
+                throw DistributionSymlinkExecutorError.conflict
+            }
+        case .discardCopyDrift:
+            guard let approvedCopyDrift,
+                  case .copy(let copy) = observation,
+                  copy.state == .contentDrift,
+                  copy.evidence.observedRootIdentity == approvedCopyDrift.rootIdentity,
+                  copy.evidence.observedEntryIdentity == approvedCopyDrift.entryIdentity,
+                  copy.evidence.observedContentFingerprint
+                    == approvedCopyDrift.contentFingerprint,
+                  copy.evidence.observedPhysicalTreeDigest
+                    == approvedCopyDrift.physicalTreeDigest else {
                 throw DistributionSymlinkExecutorError.conflict
             }
         case .removeCopy, .replaceCopyWithSymlink:
@@ -413,7 +425,8 @@ nonisolated extension DistributionCopyExecutor {
                 operationID: operationID.uuid,
                 actionIndex: actionIndex
             )
-        case .refreshCopy, .removeCopy, .replaceCopyWithSymlink:
+        case .refreshCopy, .discardCopyDrift,
+             .removeCopy, .replaceCopyWithSymlink:
             DistributionSymlinkFileSystem.copyTemporaryName(
                 operationID: operationID.uuid,
                 actionIndex: actionIndex,
@@ -421,6 +434,27 @@ nonisolated extension DistributionCopyExecutor {
             )
         case .createSymlink, .createCopy:
             ""
+        }
+    }
+
+    private func preflightOldCopy(
+        action: DistributionFilesystemAction,
+        old: DistributionBinding?,
+        approvedCopyDrift: DistributionCopyEvidence?
+    ) throws -> DistributionCopyEvidenceWireV2? {
+        if action.kind == .discardCopyDrift {
+            guard let approvedCopyDrift else {
+                throw DistributionSymlinkExecutorError.conflict
+            }
+            return try DistributionCopyEvidenceWireV2(approvedCopyDrift)
+        }
+        return try old?.copyBaseline.map {
+            try DistributionCopyEvidenceWireV2(DistributionCopyEvidence(
+                rootIdentity: $0.rootIdentity,
+                entryIdentity: $0.entryIdentity,
+                contentFingerprint: $0.contentFingerprint,
+                physicalTreeDigest: $0.physicalTreeDigest
+            ))
         }
     }
 
@@ -446,7 +480,7 @@ nonisolated extension DistributionCopyExecutor {
 nonisolated extension DistributionFilesystemActionKind {
     var removesExisting: Bool {
         switch self {
-        case .removeSymlink, .refreshCopy, .removeCopy,
+        case .removeSymlink, .refreshCopy, .discardCopyDrift, .removeCopy,
              .replaceSymlinkWithCopy, .replaceCopyWithSymlink:
             true
         case .createSymlink, .createCopy:

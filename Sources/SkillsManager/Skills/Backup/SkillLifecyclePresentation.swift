@@ -19,7 +19,7 @@ extension SkillLifecycleViewModel {
             case .previewExpired:
                 "The preview expired because the managed state changed. Review it again."
             case .conflict:
-                "The Skill or its distribution changed. Refresh before trying again."
+                "The Skill or its distribution changed. Resolve Copy changes in Distribution, then refresh before deleting."
             case .permissionDenied:
                 "Skills Manager does not have permission to complete this operation."
             case .unavailable:

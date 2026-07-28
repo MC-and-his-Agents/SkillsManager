@@ -6,41 +6,10 @@ extension JournaledSSOTWriter {
         parentSkillID: SkillID,
         scope: DistributionBindingScope
     ) throws -> CopyForkPreview {
-        try withStableCopyForkErrors {
-            try requireAuthority()
-            let context = try copyForkContext(parentSkillID: parentSkillID, scope: scope)
-            try CopyForkAdmission(connection: connection).requireAvailable(
-                skillIDs: [parentSkillID],
-                target: context.target
-            )
-            let capture = try captureContentOnlyDrift(
-                entry: context.entry,
-                baseline: context.baseline
-            )
-            let operationID = SSOTOperationID()
-            let childSkillID = SkillID()
-            let createdAt = initialTimestamp()
-            let wire = try copyForkWire(
-                operationID: operationID,
-                childWriteOperationID: SSOTOperationID(),
-                parentSkillID: parentSkillID,
-                childSkillID: childSkillID,
-                parentRevision: context.domain.revision,
-                binding: context.binding,
-                evidence: capture.evidence,
-                parent: context.domain.payload.skill,
-                createdAt: createdAt
-            )
-            return CopyForkPreview(
-                operationID: operationID,
-                parentSkillID: parentSkillID,
-                childSkillID: childSkillID,
-                scope: scope,
-                distributionSlug: context.binding.distributionSlug,
-                contentFingerprint: capture.evidence.contentFingerprint,
-                token: try wire.canonicalData()
-            )
-        }
+        try copyDriftDecisionPreview(
+            parentSkillID: parentSkillID,
+            scope: scope
+        ).forkPreview
     }
 
     func createCopyFork(_ preview: CopyForkPreview) throws -> CopyForkResult {
@@ -256,7 +225,7 @@ extension JournaledSSOTWriter {
     }
 }
 
-private nonisolated struct CopyForkContext {
+nonisolated struct CopyForkContext {
     let domain: StoredSkillDomainSnapshot
     let bindings: [DistributionBinding]
     let binding: DistributionBinding
@@ -271,7 +240,7 @@ private nonisolated struct CopyForkContext {
     }
 }
 
-private extension JournaledSSOTWriter {
+extension JournaledSSOTWriter {
     func copyForkContext(
         parentSkillID: SkillID,
         scope: DistributionBindingScope
@@ -323,6 +292,9 @@ private extension JournaledSSOTWriter {
         )
     }
 
+}
+
+private extension JournaledSSOTWriter {
     func copyForkPayload(
         operation: CopyForkOperationRecord,
         wire: CopyForkPreviewWire
