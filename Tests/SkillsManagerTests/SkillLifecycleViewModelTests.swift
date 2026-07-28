@@ -175,16 +175,16 @@ struct SkillLifecycleViewModelTests {
         let model = SkillLifecycleViewModel()
         model.activate(dependencies: lifecycleDependencies(
             restorePreview: { backupID in
-                await probe.recordRestorePreview(backupID)
-                try await Task.sleep(for: .milliseconds(30))
+                await probe.holdRestorePreview(backupID)
                 return backupID == first.backupID ? first : second
             }
         ))
 
         let preparation = Task { await model.prepareRestore(firstItem) }
-        try await Task.sleep(for: .milliseconds(5))
+        await probe.waitUntilRestorePreviewStarts()
         await model.prepareRestore(secondItem)
         model.blockRuntime(message: "Unavailable")
+        await probe.releaseRestorePreview()
         await preparation.value
 
         #expect(await probe.restorePreviewIDs == [first.backupID])
@@ -223,6 +223,9 @@ private actor LifecycleCallProbe {
     private(set) var deleteCount = 0
     private(set) var restoreModes: [Bool] = []
     private(set) var restorePreviewIDs: [SkillBackupID] = []
+    private var restorePreviewStartedContinuation: CheckedContinuation<Void, Never>?
+    private var restorePreviewReleaseContinuation: CheckedContinuation<Void, Never>?
+    private var restorePreviewReleased = false
 
     func recordDelete() {
         deleteCount += 1
@@ -232,8 +235,24 @@ private actor LifecycleCallProbe {
         restoreModes.append(restoreDistribution)
     }
 
-    func recordRestorePreview(_ backupID: SkillBackupID) {
+    func holdRestorePreview(_ backupID: SkillBackupID) async {
         restorePreviewIDs.append(backupID)
+        restorePreviewStartedContinuation?.resume()
+        restorePreviewStartedContinuation = nil
+        guard !restorePreviewReleased else { return }
+        guard restorePreviewReleaseContinuation == nil else { return }
+        await withCheckedContinuation { restorePreviewReleaseContinuation = $0 }
+    }
+
+    func waitUntilRestorePreviewStarts() async {
+        guard restorePreviewIDs.isEmpty else { return }
+        await withCheckedContinuation { restorePreviewStartedContinuation = $0 }
+    }
+
+    func releaseRestorePreview() {
+        restorePreviewReleased = true
+        restorePreviewReleaseContinuation?.resume()
+        restorePreviewReleaseContinuation = nil
     }
 }
 
