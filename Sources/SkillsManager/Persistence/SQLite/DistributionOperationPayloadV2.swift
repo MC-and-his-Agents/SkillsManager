@@ -37,11 +37,31 @@ nonisolated struct DistributionCopyBaselineWireV2: Codable, Equatable, Sendable 
     let verifiedAtMilliseconds: Int64
 
     init(_ baseline: DistributionCopyBaseline) throws {
+        guard case .distribution(let operationID) = baseline.provenance else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
         content = DistributionFingerprintWireV2(baseline.contentFingerprint)
         physicalTree = DistributionTreeDigestWireV2(baseline.physicalTreeDigest)
         rootIdentity = try ManagedItemIdentityCodec.encode(baseline.rootIdentity)
         entryIdentity = try ManagedItemIdentityCodec.encode(baseline.entryIdentity)
-        appliedOperationID = baseline.appliedOperationID.bytes
+        appliedOperationID = operationID.bytes
+        verifiedAtMilliseconds = baseline.verifiedAtMilliseconds
+    }
+
+    static func validationProjection(
+        of baseline: DistributionCopyBaseline
+    ) throws -> Self {
+        try Self(validationProjectionOf: baseline)
+    }
+
+    private init(
+        validationProjectionOf baseline: DistributionCopyBaseline
+    ) throws {
+        content = DistributionFingerprintWireV2(baseline.contentFingerprint)
+        physicalTree = DistributionTreeDigestWireV2(baseline.physicalTreeDigest)
+        rootIdentity = try ManagedItemIdentityCodec.encode(baseline.rootIdentity)
+        entryIdentity = try ManagedItemIdentityCodec.encode(baseline.entryIdentity)
+        appliedOperationID = baseline.provenance.operationID.bytes
         verifiedAtMilliseconds = baseline.verifiedAtMilliseconds
     }
 
@@ -85,6 +105,35 @@ nonisolated struct DistributionBindingWireV2: Codable, Equatable, Sendable {
     }
 
     init(_ binding: DistributionBinding) throws {
+        try self.init(
+            binding,
+            copyBaseline: binding.copyBaseline.map {
+                try DistributionCopyBaselineWireV2($0)
+            }
+        )
+    }
+
+    static func validationProjection(
+        of binding: DistributionBinding
+    ) throws -> Self {
+        try Self(validationProjectionOf: binding)
+    }
+
+    private init(
+        validationProjectionOf binding: DistributionBinding
+    ) throws {
+        try self.init(
+            binding,
+            copyBaseline: binding.copyBaseline.map {
+                try DistributionCopyBaselineWireV2.validationProjection(of: $0)
+            }
+        )
+    }
+
+    private init(
+        _ binding: DistributionBinding,
+        copyBaseline: DistributionCopyBaselineWireV2?
+    ) throws {
         skillID = binding.skillID.directoryName
         switch binding.scope {
         case .global:
@@ -96,7 +145,7 @@ nonisolated struct DistributionBindingWireV2: Codable, Equatable, Sendable {
         }
         slug = binding.distributionSlug.value
         syncMode = binding.syncMode.rawValue
-        copyBaseline = try binding.copyBaseline.map(DistributionCopyBaselineWireV2.init)
+        self.copyBaseline = copyBaseline
         createdAtMilliseconds = binding.createdAtMilliseconds
         updatedAtMilliseconds = binding.updatedAtMilliseconds
     }
@@ -267,11 +316,41 @@ nonisolated enum DistributionOperationPayloadV2Validator {
         } else {
             try validateDesiredBindings(new, skillID: skillID)
         }
+        try validateActionPayloads(
+            operationID: operationID,
+            skillID: skillID,
+            oldBindings: old,
+            newBindings: new,
+            planData: planData,
+            preflightData: preflightData,
+            runtimeData: runtimeData,
+            phase: phase,
+            outcome: outcome,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor
+        )
+    }
+
+    static func validateActionPayloads(
+        operationID: SSOTOperationID,
+        skillID: SkillID,
+        oldBindings: [DistributionBindingWireV2],
+        newBindings: [DistributionBindingWireV2],
+        planData: Data,
+        preflightData: Data,
+        runtimeData: Data,
+        phase: DistributionOperationPhase,
+        outcome: DistributionOperationOutcome?,
+        forwardCursor: Int64,
+        rollbackCursor: Int64,
+        cleanupCursor: Int64
+    ) throws {
         let plan = try validatePlanV2(
             planData,
             skillID: skillID,
-            oldBindings: old,
-            newBindings: new
+            oldBindings: oldBindings,
+            newBindings: newBindings
         )
         let actionKinds = plan.filesystemActions.map(\.action)
         let preflight = try DistributionOperationPayloadCodec.decode(
@@ -301,7 +380,7 @@ nonisolated enum DistributionOperationPayloadV2Validator {
                 action,
                 planAction: plan.filesystemActions[index],
                 skillID: skillID,
-                oldBindings: old,
+                oldBindings: oldBindings,
                 operationID: operationID
             )
         }
@@ -434,7 +513,7 @@ nonisolated enum DistributionOperationPayloadV2Validator {
         }
     }
 
-    private static func validateBindingSet(
+    static func validateBindingSet(
         _ intents: [DistributionBindingIntent]
     ) throws {
         guard Set(intents.map(\.scope.targetScopeKey)).count == intents.count,

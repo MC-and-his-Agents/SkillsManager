@@ -136,6 +136,19 @@ nonisolated func managedInstallKnownProblem(
             .needsRepair
         }
     }
+    if let error = error as? CopyForkError {
+        return switch error {
+        case .operationInProgress:
+            .operationInProgress
+        case .needsRepair:
+            .needsRepair
+        case .permissionDenied:
+            .permissionDenied
+        case .notCopy, .notContentOnlyDrift, .previewExpired,
+             .unsafeContent, .targetUnavailable, .bindingConflict:
+            nil
+        }
+    }
     if let error = error as? SSOTWriterOwnershipError {
         switch error {
         case .busy:

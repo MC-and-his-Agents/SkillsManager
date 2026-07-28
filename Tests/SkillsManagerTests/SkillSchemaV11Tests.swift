@@ -33,7 +33,7 @@ struct SkillSchemaV11Tests {
             ) == "unresolved")
 
             try SkillSchemaMigrator.migrateIfNeeded(connection)
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 12)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 13)
             #expect(try ManagedPublishStateStore(connection: connection).load(skillID: skillID)
                 == SQLitePublishState(
                     lastPublishedHash: "old",

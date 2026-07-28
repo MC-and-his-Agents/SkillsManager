@@ -13,6 +13,7 @@ nonisolated extension SkillBackupManifestV1 {
         let aliases: [AliasWire]
         let providerProvenance: [ProvenanceWire]
         let localOrigins: [OriginWire]
+        let forkLineage: ForkLineageWire?
         let distributionSelection: SelectionWire
         let content: ContentWire
 
@@ -23,6 +24,7 @@ nonisolated extension SkillBackupManifestV1 {
             case createdAtMilliseconds = "created_at_ms"
             case databaseRevision = "database_revision"
             case distributionSelection = "distribution_selection"
+            case forkLineage = "fork_lineage"
             case localOrigins = "local_origins"
             case originalSkillID = "original_skill_id"
             case providerProvenance = "provider_provenance"
@@ -51,6 +53,7 @@ nonisolated extension SkillBackupManifestV1 {
             localOrigins = manifest.payload.localOrigins.map(OriginWire.init).sorted {
                 $0.sortKey < $1.sortKey
             }
+            forkLineage = manifest.payload.forkLineage.map(ForkLineageWire.init)
             distributionSelection = SelectionWire(manifest.distributionSelection)
             content = ContentWire(
                 fingerprint: manifest.contentFingerprint,
@@ -80,6 +83,10 @@ nonisolated extension SkillBackupManifestV1 {
                 forKey: .providerProvenance
             ) ?? []
             localOrigins = try container.decode([OriginWire].self, forKey: .localOrigins)
+            forkLineage = try container.decodeIfPresent(
+                ForkLineageWire.self,
+                forKey: .forkLineage
+            )
             distributionSelection = try container.decode(
                 SelectionWire.self,
                 forKey: .distributionSelection
@@ -106,6 +113,7 @@ nonisolated extension SkillBackupManifestV1 {
                 try container.encode(providerProvenance, forKey: .providerProvenance)
             }
             try container.encode(localOrigins, forKey: .localOrigins)
+            try container.encodeIfPresent(forkLineage, forKey: .forkLineage)
             try container.encode(distributionSelection, forKey: .distributionSelection)
             try container.encode(content, forKey: .content)
         }
@@ -132,7 +140,8 @@ nonisolated extension SkillBackupManifestV1 {
                 localOrigins: originRecords,
                 restoredFromSkillID: try restoredFromSkillID.map {
                     SkillID(try lowerUUID($0))
-                }
+                },
+                forkLineage: try forkLineage?.record(forkSkillID: skill.skillID)
             )
             let selection = try distributionSelection.selection(skillID: skill.skillID)
             guard Set(aliases.map(\.sortKey)).count == aliases.count,
@@ -147,6 +156,46 @@ nonisolated extension SkillBackupManifestV1 {
                 distributionSelection: selection,
                 statistics: content.statistics,
                 createdAtMilliseconds: createdAtMilliseconds
+            )
+        }
+    }
+
+    struct ForkLineageWire: Codable {
+        let parentSkillID: String
+        let forkedFromAlgorithmVersion: Int
+        let forkedFromHash: String
+        let createdAtMilliseconds: Int64
+        let originType: String
+
+        enum CodingKeys: String, CodingKey {
+            case parentSkillID = "parent_skill_id"
+            case forkedFromAlgorithmVersion = "forked_from_algorithm_version"
+            case forkedFromHash = "forked_from_hash"
+            case createdAtMilliseconds = "created_at_ms"
+            case originType = "origin_type"
+        }
+
+        init(_ lineage: SkillForkLineageRecord) {
+            parentSkillID = lineage.parentSkillID.uuid.uuidString.lowercased()
+            forkedFromAlgorithmVersion = lineage.forkedFromFingerprint.algorithmVersion
+            forkedFromHash = lowerHex(lineage.forkedFromFingerprint.digest)
+            createdAtMilliseconds = lineage.createdAtMilliseconds
+            originType = lineage.originType.rawValue
+        }
+
+        func record(forkSkillID: SkillID) throws -> SkillForkLineageRecord {
+            guard let origin = SkillForkOriginType(rawValue: originType) else {
+                throw SkillBackupManifestError.invalidManifest
+            }
+            return try SkillForkLineageRecord(
+                forkSkillID: forkSkillID,
+                parentSkillID: SkillID(try lowerUUID(parentSkillID)),
+                forkedFromFingerprint: SkillContentFingerprint(
+                    algorithmVersion: forkedFromAlgorithmVersion,
+                    digest: try lowerHexData(forkedFromHash)
+                ),
+                createdAtMilliseconds: createdAtMilliseconds,
+                originType: origin
             )
         }
     }

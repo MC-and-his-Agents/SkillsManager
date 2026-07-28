@@ -302,10 +302,50 @@ nonisolated extension DistributionCopyExecutor {
         )
     }
 
-    func encodeBindings(_ bindings: [DistributionBinding]) throws -> Data {
-        try DistributionOperationPayloadCodec.encode(
-            bindings.map(DistributionBindingWireV2.init)
-        )
+    func operationFormatVersion(
+        for bindings: [DistributionBinding]
+    ) -> Int {
+        bindings.contains {
+            guard let baseline = $0.copyBaseline else { return false }
+            if case .copyFork = baseline.provenance { return true }
+            return false
+        } ? 3 : 2
+    }
+
+    func encodeBindings(
+        _ bindings: [DistributionBinding],
+        formatVersion: Int
+    ) throws -> Data {
+        switch formatVersion {
+        case 2:
+            return try DistributionOperationPayloadCodec.encode(
+                bindings.map { try DistributionBindingWireV2($0) }
+            )
+        case 3:
+            return try DistributionOperationPayloadCodec.encode(
+                bindings.map { try DistributionBindingWireV3($0) }
+            )
+        default:
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    func encodeBindingIntents(
+        _ intents: [DistributionBindingIntent],
+        formatVersion: Int
+    ) throws -> Data {
+        switch formatVersion {
+        case 2:
+            return try DistributionOperationPayloadCodec.encode(
+                intents.map { DistributionBindingWireV2($0) }
+            )
+        case 3:
+            return try DistributionOperationPayloadCodec.encode(
+                intents.map { DistributionBindingWireV3($0) }
+            )
+        default:
+            throw DistributionOperationStoreError.invalidRecord
+        }
     }
 
     private func requirePreflightObservation(

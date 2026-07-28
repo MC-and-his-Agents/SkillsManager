@@ -28,6 +28,9 @@ extension JournaledSSOTWriter {
             throw SkillDeletionError.previewExpired
         }
         let skillID = preview.skillID
+        try CopyForkAdmission(connection: connection).requireAvailable(
+            skillIDs: [skillID]
+        )
         guard let domain = try journal.storedDomain(skillID) else {
             throw SkillDeletionError.skillNotFound
         }
@@ -440,7 +443,8 @@ extension JournaledSSOTWriter {
             try requireAuthority()
             let result = try applyDistribution(
                 skillID: operation.skillID,
-                plan: plan
+                plan: plan,
+                copyForkAdmissionBypass: operation.operationID
             )
             guard result.phase == .completed, result.outcome == .applied else {
                 throw SkillDeletionError.needsRepair

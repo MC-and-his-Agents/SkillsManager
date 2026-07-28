@@ -184,6 +184,17 @@ private nonisolated func stableDistributionError(
     _ error: Error,
     context: SkillLifecycleErrorContext
 ) -> SkillDeletionError? {
+    if let fork = error as? CopyForkError {
+        return switch fork {
+        case .operationInProgress: .operationInProgress
+        case .needsRepair: .needsRepair
+        case .permissionDenied: .permissionDenied
+        case .targetUnavailable: .unavailable
+        case .notCopy, .notContentOnlyDrift, .previewExpired,
+             .unsafeContent, .bindingConflict:
+            .conflict
+        }
+    }
     if let executor = error as? DistributionSymlinkExecutorError {
         return switch executor {
         case .needsRepair: .needsRepair
@@ -331,9 +342,97 @@ nonisolated struct SkillDeletionExpectation: Sendable {
             let adapter: String?
             let slug: String
             let syncMode: String
-            let copyBaseline: DistributionCopyBaselineWireV2?
+            let copyBaseline: CopyBaseline?
             let createdAtMilliseconds: Int64
             let updatedAtMilliseconds: Int64
+        }
+
+        struct CopyBaseline: Codable {
+            let content: DistributionFingerprintWireV2
+            let physicalTree: DistributionTreeDigestWireV2
+            let rootIdentity: Data
+            let entryIdentity: Data
+            let appliedOperationID: Data?
+            let copyForkOperationID: Data?
+            let provenanceKind: String?
+            let verifiedAtMilliseconds: Int64
+
+            enum CodingKeys: String, CodingKey {
+                case content
+                case physicalTree
+                case rootIdentity
+                case entryIdentity
+                case appliedOperationID
+                case copyForkOperationID
+                case provenanceKind
+                case verifiedAtMilliseconds
+            }
+
+            init(_ baseline: DistributionCopyBaseline) throws {
+                content = DistributionFingerprintWireV2(baseline.contentFingerprint)
+                physicalTree = DistributionTreeDigestWireV2(baseline.physicalTreeDigest)
+                rootIdentity = try ManagedItemIdentityCodec.encode(baseline.rootIdentity)
+                entryIdentity = try ManagedItemIdentityCodec.encode(baseline.entryIdentity)
+                switch baseline.provenance {
+                case .distribution(let operationID):
+                    appliedOperationID = operationID.bytes
+                    copyForkOperationID = nil
+                    provenanceKind = nil
+                case .copyFork(let operationID):
+                    appliedOperationID = nil
+                    copyForkOperationID = operationID.bytes
+                    provenanceKind = "copyFork"
+                }
+                verifiedAtMilliseconds = baseline.verifiedAtMilliseconds
+            }
+
+            func baseline() throws -> DistributionCopyBaseline {
+                let provenance: DistributionCopyBaseline.Provenance
+                switch provenanceKind {
+                case nil:
+                    guard let appliedOperationID, copyForkOperationID == nil else {
+                        throw SkillDeletionError.backupCorrupt
+                    }
+                    provenance = .distribution(
+                        try SSOTOperationID(bytes: appliedOperationID)
+                    )
+                case "copyFork":
+                    guard appliedOperationID == nil, let copyForkOperationID else {
+                        throw SkillDeletionError.backupCorrupt
+                    }
+                    provenance = .copyFork(
+                        try SSOTOperationID(bytes: copyForkOperationID)
+                    )
+                default:
+                    throw SkillDeletionError.backupCorrupt
+                }
+                return try DistributionCopyBaseline(
+                    contentFingerprint: content.fingerprint(),
+                    physicalTreeDigest: physicalTree.treeDigest(),
+                    rootIdentity: ManagedItemIdentityCodec.decode(rootIdentity),
+                    entryIdentity: ManagedItemIdentityCodec.decode(entryIdentity),
+                    provenance: provenance,
+                    verifiedAtMilliseconds: verifiedAtMilliseconds
+                )
+            }
+
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(content, forKey: .content)
+                try container.encode(physicalTree, forKey: .physicalTree)
+                try container.encode(rootIdentity, forKey: .rootIdentity)
+                try container.encode(entryIdentity, forKey: .entryIdentity)
+                try container.encodeIfPresent(appliedOperationID, forKey: .appliedOperationID)
+                try container.encodeIfPresent(
+                    copyForkOperationID,
+                    forKey: .copyForkOperationID
+                )
+                try container.encodeIfPresent(provenanceKind, forKey: .provenanceKind)
+                try container.encode(
+                    verifiedAtMilliseconds,
+                    forKey: .verifiedAtMilliseconds
+                )
+            }
         }
 
         struct Ownership: Codable {
@@ -361,9 +460,7 @@ nonisolated struct SkillDeletionExpectation: Sendable {
                         adapter: $0.scope.adapter?.storageKey,
                         slug: $0.distributionSlug.value,
                         syncMode: $0.syncMode.rawValue,
-                        copyBaseline: try $0.copyBaseline.map(
-                            DistributionCopyBaselineWireV2.init
-                        ),
+                        copyBaseline: try $0.copyBaseline.map(CopyBaseline.init),
                         createdAtMilliseconds: $0.createdAtMilliseconds,
                         updatedAtMilliseconds: $0.updatedAtMilliseconds
                     )

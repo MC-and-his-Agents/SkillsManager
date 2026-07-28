@@ -286,7 +286,7 @@ struct DistributionCopyExecutorTests {
         #expect(throws: SQLiteStoreError.self) {
             try fixture.connection.execute(
                 """
-                UPDATE distribution_operations SET format_version = 3
+                UPDATE distribution_operations SET format_version = 4
                 WHERE operation_id = X'\(completed.operationID.bytes.hexString)'
                 """
             )

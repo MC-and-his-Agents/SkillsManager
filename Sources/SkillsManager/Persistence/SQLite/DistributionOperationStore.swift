@@ -1261,7 +1261,7 @@ nonisolated final class DistributionOperationStore {
         try finishMutation(statement)
     }
 
-    func markFilesystemAppliedV2(
+    func markFilesystemAppliedActionBacked(
         operationID: SSOTOperationID,
         newBindings: Data,
         runtimePayload: Data,
@@ -1270,7 +1270,7 @@ nonisolated final class DistributionOperationStore {
     ) throws {
         let current = try loadOperation(operationID)
         let actionCount = try filesystemActionCount(in: current.planPayload)
-        guard current.formatVersion == 2,
+        guard current.formatVersion == 2 || current.formatVersion == 3,
               current.phase == .applying,
               attemptCount >= current.attemptCount,
               updatedAtMilliseconds >= current.updatedAtMilliseconds else {
@@ -1293,7 +1293,7 @@ nonisolated final class DistributionOperationStore {
             outcome: nil
         )
         try validateDistributionPayloads(
-            formatVersion: 2,
+            formatVersion: current.formatVersion,
             operationID: current.operationID,
             skillID: current.skillID,
             oldBindingsData: current.oldBindings,
@@ -1313,7 +1313,7 @@ nonisolated final class DistributionOperationStore {
             SET phase = 'filesystemApplied', new_bindings = ?, runtime_payload = ?,
                 forward_cursor = ?, rollback_cursor = 0, cleanup_cursor = 0,
                 attempt_count = ?, last_error = NULL, updated_at_ms = ?
-            WHERE operation_id = ? AND format_version = 2
+            WHERE operation_id = ? AND format_version = ?
               AND phase = 'applying' AND outcome IS NULL
             """
         )
@@ -1323,6 +1323,7 @@ nonisolated final class DistributionOperationStore {
         try statement.bind(attemptCount, at: 4)
         try statement.bind(updatedAtMilliseconds, at: 5)
         try statement.bind(operationID.bytes, at: 6)
+        try statement.bind(Int64(current.formatVersion), at: 7)
         try finishMutation(statement)
     }
 
@@ -1413,14 +1414,14 @@ nonisolated final class DistributionOperationStore {
         try finishMutation(statement)
     }
 
-    func completeV2RolledBack(
+    func completeActionBackedRolledBack(
         operationID: SSOTOperationID,
         desiredBindings: Data,
         runtimePayload: Data,
         updatedAtMilliseconds: Int64
     ) throws {
         let current = try loadOperation(operationID)
-        guard current.formatVersion == 2,
+        guard current.formatVersion == 2 || current.formatVersion == 3,
               current.phase == .rollingBack,
               current.rollbackCursor >= current.forwardCursor,
               updatedAtMilliseconds >= current.updatedAtMilliseconds else {
@@ -1443,7 +1444,7 @@ nonisolated final class DistributionOperationStore {
             outcome: .rolledBack
         )
         try validateDistributionPayloads(
-            formatVersion: 2,
+            formatVersion: current.formatVersion,
             operationID: current.operationID,
             skillID: current.skillID,
             oldBindingsData: current.oldBindings,
@@ -1463,7 +1464,7 @@ nonisolated final class DistributionOperationStore {
             SET phase = 'completed', outcome = 'rolledBack',
                 new_bindings = ?, runtime_payload = ?,
                 updated_at_ms = MAX(updated_at_ms, ?)
-            WHERE operation_id = ? AND format_version = 2
+            WHERE operation_id = ? AND format_version = ?
               AND phase = 'rollingBack' AND outcome IS NULL
             """
         )
@@ -1471,6 +1472,7 @@ nonisolated final class DistributionOperationStore {
         try statement.bind(runtimePayload, at: 2)
         try statement.bind(updatedAtMilliseconds, at: 3)
         try statement.bind(operationID.bytes, at: 4)
+        try statement.bind(Int64(current.formatVersion), at: 5)
         try finishMutation(statement)
     }
 
@@ -1605,6 +1607,21 @@ private nonisolated func validateDistributionPayloads(
             rollbackCursor: rollbackCursor,
             cleanupCursor: cleanupCursor
         )
+    case 3:
+        try DistributionOperationPayloadV3Validator.validate(
+            operationID: operationID,
+            skillID: skillID,
+            oldBindingsData: oldBindingsData,
+            newBindingsData: newBindingsData,
+            planData: planData,
+            preflightData: preflightData,
+            runtimeData: runtimeData,
+            phase: phase,
+            outcome: outcome,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor
+        )
     default:
         throw DistributionOperationStoreError.corruptRecord
     }
@@ -1632,6 +1649,16 @@ private nonisolated func validateDistributionRuntime(
             phase: phase
         )
     case 2:
+        try DistributionOperationPayloadV2Validator.validateRuntime(
+            runtimeData,
+            planData: planData,
+            preflightData: preflightData,
+            forwardCursor: forwardCursor,
+            rollbackCursor: rollbackCursor,
+            cleanupCursor: cleanupCursor,
+            phase: phase
+        )
+    case 3:
         try DistributionOperationPayloadV2Validator.validateRuntime(
             runtimeData,
             planData: planData,

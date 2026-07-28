@@ -13,11 +13,11 @@ struct SkillSchemaV6Tests {
             try createV6MigrationFixture(version: version, at: location.database)
 
             let migrated = try SkillSchemaMigrator.open(at: location.database)
-            #expect(try migrated.querySingleInt("PRAGMA user_version") == 12)
+            #expect(try migrated.querySingleInt("PRAGMA user_version") == 13)
             #expect(try migrated.querySingleInt(
                 "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-            ) == 12)
-            #expect(try migrated.userTableNames() == SkillSchemaV12.tableNames)
+            ) == 13)
+            #expect(try migrated.userTableNames() == SkillSchemaV13.tableNames)
         }
     }
 
@@ -63,8 +63,8 @@ struct SkillSchemaV6Tests {
             accessMode: .readOnly
         )
         #expect(reader.accessMode == .readOnly)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == 12)
-        #expect(try reader.userTableNames() == SkillSchemaV12.tableNames)
+        #expect(try reader.querySingleInt("PRAGMA user_version") == 13)
+        #expect(try reader.userTableNames() == SkillSchemaV13.tableNames)
     }
 
     @Test("distribution binding constraints fail closed")
@@ -276,4 +276,6 @@ func removeV6ObjectsForLegacyFixture(_ connection: SQLiteConnection) throws {
     try connection.execute("DROP TABLE distribution_link_ownership")
     try connection.execute("DROP TABLE distribution_operations")
     try connection.execute("DROP TABLE distribution_bindings")
+    try connection.execute("DROP TABLE copy_fork_operations")
+    try connection.execute("DROP TABLE skill_fork_lineage")
 }

@@ -16,11 +16,23 @@ nonisolated struct CopyPhysicalTreeDigest: Hashable, Sendable {
 }
 
 nonisolated struct DistributionCopyBaseline: Hashable, Sendable {
+    enum Provenance: Hashable, Sendable {
+        case distribution(SSOTOperationID)
+        case copyFork(SSOTOperationID)
+
+        var operationID: SSOTOperationID {
+            switch self {
+            case .distribution(let operationID), .copyFork(let operationID):
+                operationID
+            }
+        }
+    }
+
     let contentFingerprint: SkillContentFingerprint
     let physicalTreeDigest: CopyPhysicalTreeDigest
     let rootIdentity: ManagedItemIdentity
     let entryIdentity: ManagedItemIdentity
-    let appliedOperationID: SSOTOperationID
+    let provenance: Provenance
     let verifiedAtMilliseconds: Int64
 
     init(
@@ -31,6 +43,24 @@ nonisolated struct DistributionCopyBaseline: Hashable, Sendable {
         appliedOperationID: SSOTOperationID,
         verifiedAtMilliseconds: Int64
     ) throws {
+        try self.init(
+            contentFingerprint: contentFingerprint,
+            physicalTreeDigest: physicalTreeDigest,
+            rootIdentity: rootIdentity,
+            entryIdentity: entryIdentity,
+            provenance: .distribution(appliedOperationID),
+            verifiedAtMilliseconds: verifiedAtMilliseconds
+        )
+    }
+
+    init(
+        contentFingerprint: SkillContentFingerprint,
+        physicalTreeDigest: CopyPhysicalTreeDigest,
+        rootIdentity: ManagedItemIdentity,
+        entryIdentity: ManagedItemIdentity,
+        provenance: Provenance,
+        verifiedAtMilliseconds: Int64
+    ) throws {
         guard verifiedAtMilliseconds >= 0 else {
             throw DistributionBindingError.invalidCopyBaseline
         }
@@ -38,7 +68,9 @@ nonisolated struct DistributionCopyBaseline: Hashable, Sendable {
         self.physicalTreeDigest = physicalTreeDigest
         self.rootIdentity = rootIdentity
         self.entryIdentity = entryIdentity
-        self.appliedOperationID = appliedOperationID
+        self.provenance = provenance
         self.verifiedAtMilliseconds = verifiedAtMilliseconds
     }
+
+    var appliedOperationID: SSOTOperationID { provenance.operationID }
 }

@@ -39,6 +39,7 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
     let providerProvenance: [ProviderProvenanceRecord]
     let localOrigins: [LocalSkillOriginRecord]
     let restoredFromSkillID: SkillID?
+    let forkLineage: SkillForkLineageRecord?
 
     init(
         skill: ManagedSkillRecord,
@@ -46,7 +47,8 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
         providerAliases: [ProviderAliasRecord] = [],
         providerProvenance: [ProviderProvenanceRecord] = [],
         localOrigins: [LocalSkillOriginRecord] = [],
-        restoredFromSkillID: SkillID? = nil
+        restoredFromSkillID: SkillID? = nil,
+        forkLineage: SkillForkLineageRecord? = nil
     ) throws {
         guard source?.skillID == nil || source?.skillID == skill.skillID else {
             throw SSOTWritePayloadError.sourceSkillMismatch
@@ -88,6 +90,10 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
         guard Set(positions).count == positions.count else {
             throw SSOTWritePayloadError.duplicateLocalOrigin
         }
+        guard forkLineage?.forkSkillID == nil
+                || forkLineage?.forkSkillID == skill.skillID else {
+            throw SSOTWritePayloadError.forkLineageSkillMismatch
+        }
         self.skill = skill
         self.source = source
         self.providerAliases = providerAliases.sorted {
@@ -103,6 +109,7 @@ nonisolated struct SSOTSkillWritePayload: Sendable {
                 < ($1.scope.sortKey, $1.collisionKey, $1.rawLocator)
         }
         self.restoredFromSkillID = restoredFromSkillID
+        self.forkLineage = forkLineage
     }
 }
 
@@ -120,6 +127,7 @@ nonisolated enum SSOTWritePayloadError: LocalizedError, Equatable {
     case localOriginSkillMismatch
     case duplicateLocalOrigin
     case tooManyLocalOrigins
+    case forkLineageSkillMismatch
 
     var errorDescription: String? {
         switch self {
@@ -141,13 +149,15 @@ nonisolated enum SSOTWritePayloadError: LocalizedError, Equatable {
             "A local Skill origin belongs to another Skill or content fingerprint."
         case .duplicateLocalOrigin: "The Skill write payload contains a duplicate local origin."
         case .tooManyLocalOrigins: "The Skill write payload contains too many local origins."
+        case .forkLineageSkillMismatch:
+            "The Fork lineage belongs to another Skill."
         }
     }
 }
 
 nonisolated enum SSOTWritePayloadCodec {
     static let maximumEncodedByteCount = 128 * 1_024
-    private static let currentVersion = 4
+    private static let currentVersion = 5
 
     static func encode(_ payload: SSOTSkillWritePayload) throws -> Data {
         let data = try JSONEncoder.skillsManager.encode(Envelope(payload))
@@ -176,6 +186,11 @@ nonisolated enum SSOTWritePayloadCodec {
         guard envelope.version >= 4
                 ? envelope.providerProvenance != nil
                 : envelope.providerProvenance?.isEmpty != false else {
+            throw SSOTWritePayloadError.invalidPayload
+        }
+        guard envelope.version == 5
+                ? envelope.forkLineage != nil
+                : envelope.forkLineage == nil else {
             throw SSOTWritePayloadError.invalidPayload
         }
         do {
@@ -250,6 +265,14 @@ nonisolated enum SSOTWritePayloadCodec {
             }
         }
 
+        struct ForkLineage: Codable {
+            let parentSkillID: UUID
+            let forkedFromAlgorithmVersion: Int
+            let forkedFromHash: Data
+            let createdAtMilliseconds: Int64
+            let originType: String
+        }
+
         let version: Int
         let skillID: UUID
         let displayName: String
@@ -264,9 +287,10 @@ nonisolated enum SSOTWritePayloadCodec {
         let providerProvenance: [Provenance]?
         let localOrigins: [LocalOrigin]?
         let restoredFromSkillID: UUID?
+        let forkLineage: ForkLineage?
 
         init(_ payload: SSOTSkillWritePayload) {
-            version = currentVersion
+            version = payload.forkLineage == nil ? 4 : currentVersion
             skillID = payload.skill.skillID.uuid
             displayName = payload.skill.displayName.value
             distributionSlug = payload.skill.defaultDistributionSlug.value
@@ -315,6 +339,15 @@ nonisolated enum SSOTWritePayloadCodec {
                 )
             }
             restoredFromSkillID = payload.restoredFromSkillID?.uuid
+            forkLineage = payload.forkLineage.map {
+                ForkLineage(
+                    parentSkillID: $0.parentSkillID.uuid,
+                    forkedFromAlgorithmVersion: $0.forkedFromFingerprint.algorithmVersion,
+                    forkedFromHash: $0.forkedFromFingerprint.digest,
+                    createdAtMilliseconds: $0.createdAtMilliseconds,
+                    originType: $0.originType.rawValue
+                )
+            }
         }
 
         func payload() throws -> SSOTSkillWritePayload {
@@ -379,13 +412,29 @@ nonisolated enum SSOTWritePayloadCodec {
                     confirmedAtMilliseconds: origin.confirmedAtMilliseconds
                 )
             }
+            let lineage = try forkLineage.map { lineage in
+                guard let originType = SkillForkOriginType(rawValue: lineage.originType) else {
+                    throw SSOTWritePayloadError.invalidPayload
+                }
+                return try SkillForkLineageRecord(
+                    forkSkillID: skillID,
+                    parentSkillID: SkillID(lineage.parentSkillID),
+                    forkedFromFingerprint: SkillContentFingerprint(
+                        algorithmVersion: lineage.forkedFromAlgorithmVersion,
+                        digest: lineage.forkedFromHash
+                    ),
+                    createdAtMilliseconds: lineage.createdAtMilliseconds,
+                    originType: originType
+                )
+            }
             return try SSOTSkillWritePayload(
                 skill: skill,
                 source: sourceRecord,
                 providerAliases: aliasRecords,
                 providerProvenance: provenanceRecords,
                 localOrigins: localOriginRecords,
-                restoredFromSkillID: restoredFromSkillID.map(SkillID.init)
+                restoredFromSkillID: restoredFromSkillID.map(SkillID.init),
+                forkLineage: lineage
             )
         }
     }

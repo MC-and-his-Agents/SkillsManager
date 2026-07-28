@@ -81,6 +81,22 @@ extension JournaledSSOTWriter {
             guard try restorePreview(preview.backupID).token == preview.token else {
                 throw SkillDeletionError.previewExpired
             }
+            try CopyForkAdmission(connection: connection).requireAvailable(
+                skillIDs: [preview.targetSkillID]
+            )
+            if restoreDistribution {
+                let (_, manifest, _) = try validatedManifest(preview.backupID)
+                let admission = CopyForkAdmission(connection: connection)
+                for intent in manifest.distributionSelection.bindingIntents {
+                    try admission.requireAvailable(
+                        skillIDs: [preview.targetSkillID],
+                        target: CopyForkTargetReservation(
+                            scopeKey: intent.scope.targetScopeKey,
+                            slugKey: intent.distributionSlug.collisionKey
+                        )
+                    )
+                }
+            }
             return try performRestoreBackup(
                 preview.backupID,
                 restoreDistribution: restoreDistribution
@@ -235,6 +251,15 @@ extension JournaledSSOTWriter {
             skill: skill,
             warnings: &warnings
         )
+        let forkLineage = try original.forkLineage.map {
+            try SkillForkLineageRecord(
+                forkSkillID: targetSkillID,
+                parentSkillID: $0.parentSkillID,
+                forkedFromFingerprint: $0.forkedFromFingerprint,
+                createdAtMilliseconds: $0.createdAtMilliseconds,
+                originType: $0.originType
+            )
+        }
         return (
             try SSOTSkillWritePayload(
                 skill: skill,
@@ -243,7 +268,8 @@ extension JournaledSSOTWriter {
                 providerProvenance: provenance,
                 localOrigins: origins,
                 restoredFromSkillID: targetSkillID == original.skill.skillID
-                    ? original.restoredFromSkillID : original.skill.skillID
+                    ? original.restoredFromSkillID : original.skill.skillID,
+                forkLineage: forkLineage
             ),
             warnings.sorted()
         )

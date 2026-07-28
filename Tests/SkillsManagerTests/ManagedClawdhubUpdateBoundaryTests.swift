@@ -11,11 +11,24 @@ struct ManagedClawdhubUpdateBoundaryTests {
             SSOTOperationFileSystemError.posix(operation: "stage", code: EACCES),
             SSOTDurabilityError.posix(operation: "sync", code: EPERM),
             SkillBackupFileSystemError.posix(operation: "backup", code: EACCES),
+            CopyForkError.permissionDenied,
         ]
 
         for error in errors {
             #expect(managedInstallKnownProblem(for: error) == .permissionDenied)
         }
+    }
+
+    @Test("Copy Fork admission uses stable install operation semantics")
+    func copyForkAdmissionErrors() {
+        #expect(
+            managedInstallKnownProblem(for: CopyForkError.operationInProgress)
+                == .operationInProgress
+        )
+        #expect(
+            managedInstallKnownProblem(for: CopyForkError.needsRepair)
+                == .needsRepair
+        )
     }
 
     @Test("a damaged update backup blocks preparation with repair semantics")
