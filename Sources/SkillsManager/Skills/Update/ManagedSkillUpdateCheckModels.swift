@@ -53,6 +53,11 @@ nonisolated struct ManagedSkillUpdateCandidate: Equatable, Sendable {
     let contentFingerprint: SkillContentFingerprint
 }
 
+nonisolated struct ManagedSkillPreparedCandidate: Sendable {
+    let candidate: ManagedSkillUpdateCandidate
+    let payload: SkillImportWorker.ImportCandidatePayload
+}
+
 nonisolated struct ManagedSkillUpdateCopyState: Equatable, Sendable {
     let scopeKey: String
     let state: DistributionCopyObservationState

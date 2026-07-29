@@ -62,6 +62,29 @@ struct UpdateCheckStoreTests {
         }
     }
 
+    @Test("transaction rollback also restores a deleted snapshot")
+    func rollbackRestoresDeletedSnapshot() throws {
+        try withUpdateCheckDatabase { connection in
+            let skillID = try insertUpdateCheckSkill(connection)
+            let store = UpdateCheckStore(connection: connection)
+            let original = try StoredSkillUpdateCheck(
+                skillID: skillID,
+                status: .remoteChanged,
+                checkedAtMilliseconds: 4,
+                payload: Data([4])
+            )
+            try store.upsert(original)
+
+            #expect(throws: InjectedFailure.stop) {
+                try store.transaction {
+                    try store.deleteInCurrentTransaction(skillID: skillID)
+                    throw InjectedFailure.stop
+                }
+            }
+            #expect(try store.load(skillID: skillID) == original)
+        }
+    }
+
     @Test("rejects invalid payloads and corrupt stored rows")
     func rejectsInvalidAndCorruptRecords() throws {
         try withUpdateCheckDatabase { connection in

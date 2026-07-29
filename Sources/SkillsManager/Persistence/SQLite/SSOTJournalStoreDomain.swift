@@ -97,6 +97,8 @@ nonisolated extension SSOTJournalStore {
                 skillID: operation.skillID,
                 records: operation.payload.providerProvenance
             )
+            try UpdateCheckStore(connection: connection)
+                .deleteInCurrentTransaction(skillID: operation.skillID)
             try recordDatabaseCommitted(
                 operationID: operationID,
                 updatedAtMilliseconds: updatedAtMilliseconds

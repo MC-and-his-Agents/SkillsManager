@@ -34,7 +34,9 @@ actor ManagedSkillUpdateCheckService {
         let candidate: ManagedSkillUpdateCandidate?
         let capabilityReason: String?
         do {
-            candidate = try await remoteCandidate(for: initial.domain)
+            let prepared = try await prepareCandidate(for: initial.domain)
+            candidate = prepared.candidate
+            await cleanup(prepared)
             capabilityReason = nil
         } catch ManagedSkillUpdateCheckProblem.unavailable {
             candidate = nil
@@ -78,9 +80,9 @@ actor ManagedSkillUpdateCheckService {
         return snapshot
     }
 
-    private func remoteCandidate(
+    func prepareCandidate(
         for domain: StoredSkillDomainSnapshot
-    ) async throws -> ManagedSkillUpdateCandidate {
+    ) async throws -> ManagedSkillPreparedCandidate {
         if let source = domain.payload.source {
             return try await githubCandidate(source)
         }
@@ -93,9 +95,26 @@ actor ManagedSkillUpdateCheckService {
         return try await clawdhubCandidate(provenance[0])
     }
 
+    func cleanup(_ prepared: ManagedSkillPreparedCandidate) async {
+        if let lease = prepared.payload.temporaryRoot {
+            await importWorker.cleanupTemporaryRoot(lease)
+        }
+    }
+
+    func recordValidatedCandidate(
+        skillID: SkillID,
+        candidate: ManagedSkillUpdateCandidate
+    ) async throws -> ManagedSkillUpdateCheckSnapshot {
+        try await writer.recordValidatedUpdateCheck(
+            skillID: skillID,
+            candidate: candidate,
+            checkedAtMilliseconds: max(0, nowMilliseconds())
+        )
+    }
+
     private func clawdhubCandidate(
         _ provenance: ProviderProvenanceRecord
-    ) async throws -> ManagedSkillUpdateCandidate {
+    ) async throws -> ManagedSkillPreparedCandidate {
         let slug = provenance.identity.identifier
         guard let rawVersion = try await remote.fetchLatestVersion(slug),
               !rawVersion.isEmpty else {
@@ -124,16 +143,15 @@ actor ManagedSkillUpdateCheckService {
             throw error
         }
         do {
-            let candidate = ManagedSkillUpdateCandidate(
-                locator: .clawdhub(slug: slug, version: version),
-                contentFingerprint: try SkillContentFingerprint(
-                    currentDigest: payload.snapshot.fingerprintDigest
-                )
+            return ManagedSkillPreparedCandidate(
+                candidate: ManagedSkillUpdateCandidate(
+                    locator: .clawdhub(slug: slug, version: version),
+                    contentFingerprint: try SkillContentFingerprint(
+                        currentDigest: payload.snapshot.fingerprintDigest
+                    )
+                ),
+                payload: payload
             )
-            if let lease = payload.temporaryRoot {
-                await importWorker.cleanupTemporaryRoot(lease)
-            }
-            return candidate
         } catch {
             if let lease = payload.temporaryRoot {
                 await importWorker.cleanupTemporaryRoot(lease)
@@ -144,7 +162,7 @@ actor ManagedSkillUpdateCheckService {
 
     private func githubCandidate(
         _ source: SkillSourceRecord
-    ) async throws -> ManagedSkillUpdateCandidate {
+    ) async throws -> ManagedSkillPreparedCandidate {
         let resolved: SkillsShResolvedGitHubUpdateSource
         do {
             resolved = try await github.resolveExisting(
@@ -195,21 +213,20 @@ actor ManagedSkillUpdateCheckService {
             throw error
         }
         do {
-            let candidate = ManagedSkillUpdateCandidate(
-                locator: .github(
-                    repositoryURL: resolved.repositoryURL,
-                    subpath: resolved.subpath,
-                    revision: try SourceRevision(resolved.commitSHA),
-                    downloadURL: try PublicDownloadURL(resolved.archiveURL.absoluteString)
+            return ManagedSkillPreparedCandidate(
+                candidate: ManagedSkillUpdateCandidate(
+                    locator: .github(
+                        repositoryURL: resolved.repositoryURL,
+                        subpath: resolved.subpath,
+                        revision: try SourceRevision(resolved.commitSHA),
+                        downloadURL: try PublicDownloadURL(resolved.archiveURL.absoluteString)
+                    ),
+                    contentFingerprint: try SkillContentFingerprint(
+                        currentDigest: payload.snapshot.fingerprintDigest
+                    )
                 ),
-                contentFingerprint: try SkillContentFingerprint(
-                    currentDigest: payload.snapshot.fingerprintDigest
-                )
+                payload: payload
             )
-            if let lease = payload.temporaryRoot {
-                await importWorker.cleanupTemporaryRoot(lease)
-            }
-            return candidate
         } catch {
             if let lease = payload.temporaryRoot {
                 await importWorker.cleanupTemporaryRoot(lease)
@@ -218,7 +235,7 @@ actor ManagedSkillUpdateCheckService {
         }
     }
 
-    private nonisolated static func problem(
+    nonisolated static func problem(
         for error: Error
     ) -> ManagedSkillUpdateCheckProblem {
         if let problem = error as? ManagedSkillUpdateCheckProblem {

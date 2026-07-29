@@ -443,7 +443,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             consistencyModel.blockRuntime(
                 message: "The managed library is not ready. Resolve its startup diagnostics first."
             )
-            updateCheckModel.blockRuntime(
+            await updateCheckModel.blockRuntime(
                 message: "The managed library is not ready. Resolve its startup diagnostics first."
             )
             return
@@ -461,7 +461,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             consistencyModel.blockRuntime(
                 message: "The managed library session is unavailable."
             )
-            updateCheckModel.blockRuntime(
+            await updateCheckModel.blockRuntime(
                 message: "The managed library session is unavailable."
             )
             return
