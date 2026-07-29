@@ -6,6 +6,8 @@ nonisolated enum SafeSkillArchiveError: LocalizedError, Equatable {
     case tooManyEntries, tooManyFiles, tooManyDirectories, pathTooDeep(String)
     case fileTooLarge(String), archiveTooLarge
     case invalidChecksum(String), invalidSize(String)
+    case invalidRepositorySubtree
+    case repositorySubtreeMismatch(String)
 
     var errorDescription: String? {
         switch self {
@@ -22,6 +24,10 @@ nonisolated enum SafeSkillArchiveError: LocalizedError, Equatable {
         case .archiveTooLarge: "The archive exceeds the allowed size."
         case .invalidChecksum(let path), .invalidSize(let path):
             "The archive entry failed integrity validation: \(path)"
+        case .invalidRepositorySubtree:
+            "The repository subtree expectation is invalid."
+        case .repositorySubtreeMismatch(let path):
+            "The archive does not match the verified repository subtree: \(path)"
         }
     }
 }

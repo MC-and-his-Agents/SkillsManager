@@ -2,12 +2,13 @@ import Darwin
 import Foundation
 
 actor ManagedInstallService {
-    private struct Pending: Sendable {
+    struct Pending: Sendable {
         let preview: ManagedLocalImportPreview
         let operationID: SSOTOperationID
         let backupID: SkillBackupID
         let candidate: SkillImportWorker.ImportCandidatePayload
         let providerInput: ManagedInstallProviderInput?
+        let preparedSource: ManagedPreparedSource?
         let expectedBaseline: ManagedSkillUpdateBaseline?
         let canonicalPlan: Data
     }
@@ -19,7 +20,7 @@ actor ManagedInstallService {
         case failed(ManagedLocalImportProblem)
     }
 
-    private let dependencies: ManagedInstallDependencies
+    let dependencies: ManagedInstallDependencies
     private var states: [ManagedLocalImportToken: State] = [:]
 
     init(dependencies: ManagedInstallDependencies) {
@@ -60,14 +61,34 @@ actor ManagedInstallService {
         )
     }
 
+    func prepareSourceBacked(
+        candidate: SkillImportWorker.ImportCandidatePayload,
+        sourceInput: ManagedSourceInstallInput,
+        scope: ManagedLocalImportScope
+    ) async throws -> ManagedLocalImportPreview {
+        try await prepare(
+            candidate: candidate,
+            displayName: sourceInput.displayName,
+            distributionSlug: sourceInput.distributionSlug,
+            scope: scope,
+            providerInput: nil,
+            sourceInput: sourceInput,
+            allowsBlockedCreate: true
+        )
+    }
+
     private func prepare(
         candidate: SkillImportWorker.ImportCandidatePayload,
         displayName rawDisplayName: String,
         distributionSlug: DefaultDistributionSlug?,
         scope: ManagedLocalImportScope,
         providerInput: ManagedInstallProviderInput?,
+        sourceInput: ManagedSourceInstallInput? = nil,
         allowsBlockedCreate: Bool
     ) async throws -> ManagedLocalImportPreview {
+        guard providerInput == nil || sourceInput == nil else {
+            throw ManagedLocalImportProblem.invalidCandidate
+        }
         guard candidate.snapshot.fingerprint == candidate.fingerprint else {
             throw ManagedLocalImportProblem.invalidCandidate
         }
@@ -76,6 +97,7 @@ actor ManagedInstallService {
         var skillID = SkillID()
         var disposition: ManagedLocalImportPreview.Disposition = .createNew
         var expectedBaseline: ManagedSkillUpdateBaseline?
+        var preparedSource: ManagedPreparedSource?
         var resolvedScope = try scope.desiredScope(slug: slug)
         if let providerInput,
            let existing = try await dependencies.provenanceReadback(providerInput.identity) {
@@ -104,6 +126,19 @@ actor ManagedInstallService {
                 input: providerInput,
                 candidate: candidate
             )
+        } else if let sourceInput {
+            let prepared = try await prepareSourceInput(
+                sourceInput,
+                candidate: candidate,
+                requestedScope: resolvedScope
+            )
+            skillID = prepared.skillID
+            displayName = prepared.displayName
+            slug = prepared.slug
+            resolvedScope = prepared.scope
+            disposition = prepared.disposition
+            expectedBaseline = prepared.baseline
+            preparedSource = prepared.source
         }
         let plan = try await dependencies.plan(
             skillID,
@@ -118,7 +153,8 @@ actor ManagedInstallService {
             desiredScope: resolvedScope,
             plan: plan,
             disposition: disposition,
-            allowsBlockedCreate: allowsBlockedCreate
+            allowsBlockedCreate: allowsBlockedCreate,
+            source: sourceInput?.preview
         )
         states[preview.token] = .pending(Pending(
             preview: preview,
@@ -126,6 +162,7 @@ actor ManagedInstallService {
             backupID: SkillBackupID(),
             candidate: candidate,
             providerInput: providerInput,
+            preparedSource: preparedSource,
             expectedBaseline: expectedBaseline,
             canonicalPlan: try plan.canonicalJSONData()
         ))
@@ -168,7 +205,18 @@ actor ManagedInstallService {
         } catch {
             throw ManagedLocalImportProblem.sourceChanged
         }
+        if let preparedSource = pending.preparedSource {
+            let revision = try await preparedSource.input.refreshHead()
+            guard revision == preparedSource.input.revision,
+                  try await unchangedSourceAdmission(preparedSource.admission, pending: pending) else {
+                throw ManagedLocalImportProblem.previewExpired
+            }
+        }
         let preview = pending.preview
+        let confirmedPlan = try await plan(for: preview)
+        guard try confirmedPlan.canonicalJSONData() == pending.canonicalPlan else {
+            throw ManagedLocalImportProblem.previewExpired
+        }
         switch preview.disposition {
         case .alreadyManaged:
             guard try await unchangedExistingPayload(pending) else {
@@ -179,11 +227,25 @@ actor ManagedInstallService {
             guard try await unchangedExistingPayload(pending) else {
                 throw ManagedLocalImportProblem.providerConflict
             }
-            guard let baseline = pending.expectedBaseline,
-                  let providerInput = pending.providerInput else {
+            guard let baseline = pending.expectedBaseline else {
+                throw ManagedLocalImportProblem.previewExpired
+            }
+            if let preparedSource = pending.preparedSource {
+                return try await ManagedRemoteUpdateService(
+                    dependencies: dependencies
+                ).execute(
+                    preview: preview,
+                    baseline: baseline,
+                    preparedSource: preparedSource,
+                    candidate: pending.candidate,
+                    operationID: pending.operationID,
+                    backupID: pending.backupID
+                )
+            }
+            guard let providerInput = pending.providerInput else {
                 throw ManagedLocalImportProblem.providerConflict
             }
-            return try await ManagedClawdhubUpdateService(
+            return try await ManagedRemoteUpdateService(
                 dependencies: dependencies
             ).execute(
                 preview: preview,
@@ -195,10 +257,6 @@ actor ManagedInstallService {
             )
         case .createNew:
             break
-        }
-        let currentPlan = try await plan(for: preview)
-        guard try currentPlan.canonicalJSONData() == pending.canonicalPlan else {
-            throw ManagedLocalImportProblem.previewExpired
         }
 
         let timestamp = max(0, dependencies.nowMilliseconds())
@@ -213,41 +271,73 @@ actor ManagedInstallService {
             updatedAtMilliseconds: timestamp
         )
         let provenance = try pending.providerInput.map { try $0.record(skillID: preview.skillID) }
+        let source = pending.preparedSource.map {
+            SkillSourceRecord(
+                sourceID: $0.sourceID,
+                skillID: preview.skillID,
+                repositoryURL: $0.input.repositoryURL,
+                subpath: $0.input.subpath,
+                revision: $0.input.revision,
+                downloadURL: $0.input.downloadURL
+            )
+        }
+        let aliases = pending.preparedSource.map {
+            [ProviderAliasRecord(sourceID: $0.sourceID, identity: $0.input.alias)]
+        } ?? []
         let payload = try SSOTSkillWritePayload(
             skill: skill,
+            source: source,
+            providerAliases: aliases,
             providerProvenance: provenance.map { [$0] } ?? []
         )
-        let createState = await create(
-            payload: payload,
-            snapshot: pending.candidate.snapshot,
-            operationID: pending.operationID
-        )
+        let createState: CreateState
+        if let preparedSource = pending.preparedSource {
+            createState = await createSourceBacked(
+                payload: payload,
+                snapshot: pending.candidate.snapshot,
+                operationID: pending.operationID,
+                admission: preparedSource.admission
+            )
+        } else {
+            createState = await create(
+                payload: payload,
+                snapshot: pending.candidate.snapshot,
+                operationID: pending.operationID
+            )
+        }
         switch createState {
         case .committed:
             break
         case .failed(let problem):
-            if let duplicate = try await duplicateResult(pending) {
+            if pending.preparedSource == nil,
+               let duplicate = try await duplicateResult(pending) {
                 return duplicate
             }
             throw problem
         case .indeterminate:
-            if let duplicate = try await duplicateResult(pending) {
+            if pending.preparedSource == nil,
+               let duplicate = try await duplicateResult(pending) {
                 return duplicate
             }
             return result(preview, status: .managementIndeterminate)
         }
 
-        if currentPlan.status == .blocked {
+        if confirmedPlan.status == .blocked {
             return result(preview, status: .managedUndistributed)
         }
-        let postCreatePlan = try await plan(for: preview)
-        guard try postCreatePlan.canonicalJSONData() == pending.canonicalPlan else {
-            return result(preview, status: .managedUndistributed)
+        let postCreatePlan: DistributionPlan
+        do {
+            postCreatePlan = try await plan(for: preview)
+            guard try postCreatePlan.canonicalJSONData() == pending.canonicalPlan else {
+                return result(preview, status: .managedDistributionIndeterminate)
+            }
+        } catch {
+            return result(preview, status: .managedDistributionIndeterminate)
         }
         return try await distribute(preview, plan: postCreatePlan)
     }
 
-    private enum CreateState: Equatable {
+    enum CreateState: Equatable {
         case committed
         case failed(ManagedLocalImportProblem)
         case indeterminate
@@ -284,7 +374,7 @@ actor ManagedInstallService {
         }
     }
 
-    private func createState(_ record: SSOTJournalRecord) -> CreateState {
+    func createState(_ record: SSOTJournalRecord) -> CreateState {
         if record.state.outcome == .needsRepair || record.state.cleanupState == .needsRepair {
             return .failed(.needsRepair)
         }
@@ -301,7 +391,7 @@ actor ManagedInstallService {
         }
     }
 
-    private func problem(for error: Error) -> ManagedLocalImportProblem {
+    func problem(for error: Error) -> ManagedLocalImportProblem {
         managedInstallKnownProblem(for: error) ?? .failed(error.localizedDescription)
     }
 
@@ -355,16 +445,6 @@ actor ManagedInstallService {
         )
     }
 
-    private func unchangedExistingPayload(_ pending: Pending) async throws -> Bool {
-        guard let expectedPayload = pending.expectedBaseline?.domain.payload,
-              let current = try await dependencies.domainReadback(
-                pending.preview.skillID
-              ) else {
-            return false
-        }
-        return try canonicalPayload(current) == canonicalPayload(expectedPayload)
-    }
-
     private func duplicateResult(
         _ pending: Pending
     ) async throws -> ManagedLocalImportResult? {
@@ -391,25 +471,7 @@ actor ManagedInstallService {
         )
     }
 
-    private func remoteDisposition(
-        existing: ProviderProvenanceRecord,
-        payload: SSOTSkillWritePayload,
-        input: ManagedInstallProviderInput,
-        candidate: SkillImportWorker.ImportCandidatePayload
-    ) throws -> ManagedLocalImportPreview.Disposition {
-        guard existing.identifierKey == input.identifierKey,
-              payload.providerProvenance.contains(existing) else {
-            throw ManagedLocalImportProblem.providerConflict
-        }
-        let candidateFingerprint = try SkillContentFingerprint(
-            currentDigest: candidate.snapshot.fingerprintDigest
-        )
-        return existing.version == input.version
-            && payload.skill.contentFingerprint == candidateFingerprint
-            ? .alreadyManaged : .updateRequired
-    }
-
-    private func canonicalPayload(_ payload: SSOTSkillWritePayload) throws -> Data {
+    func canonicalPayload(_ payload: SSOTSkillWritePayload) throws -> Data {
         try SSOTWritePayloadCodec.encode(payload)
     }
 

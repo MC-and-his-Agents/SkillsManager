@@ -86,6 +86,48 @@ actor SkillImportWorker {
         }
     }
 
+    func validateZip(
+        _ zipURL: URL,
+        repositorySubpath: RepositorySubpath,
+        expectedBlobs: [SafeSkillArchive.RepositoryBlobExpectation],
+        afterExtraction: @Sendable (TemporaryItemLease) throws -> Void = { _ in }
+    ) throws -> ImportCandidatePayload {
+        let archiveLease = try TemporaryItemLease.captureFile(at: zipURL)
+        let temporary = try TemporaryItemLease.createDirectory(
+            in: FileManager.default.temporaryDirectory,
+            prefix: "skillsmanager-import-"
+        )
+        do {
+            do {
+                try SafeSkillArchive().extractRepositorySubtree(
+                    archiveAt: archiveLease.url,
+                    expectedArchiveIdentity: archiveLease.identity,
+                    repositorySubpath: repositorySubpath,
+                    expectedBlobs: expectedBlobs,
+                    toDirectoryDescriptor: temporary.handle.descriptor,
+                    checkpoint: { try Task.checkCancellation() }
+                )
+            } catch let error as SafeSkillArchiveError {
+                throw SkillImportValidationError.archiveRejected(error.localizedDescription)
+            }
+            try afterExtraction(temporary.lease)
+            let package = try AnchoredSkillPackageLocator.locate(
+                in: temporary.handle.descriptor,
+                displayPath: temporary.lease.url.path
+            )
+            let skillName = repositorySubpath.value.split(separator: "/").last.map(String.init)
+            return try makePayload(
+                package: package,
+                skillName: skillName,
+                temporaryRoot: temporary.lease,
+                checkpoint: { try Task.checkCancellation() }
+            )
+        } catch {
+            removeTemporaryRoot(temporary.lease)
+            throw error
+        }
+    }
+
     func cleanupTemporaryRoot(_ lease: TemporaryItemLease) {
         removeTemporaryRoot(lease)
     }
@@ -123,6 +165,7 @@ actor SkillImportWorker {
 
     private func makePayload(
         package: AnchoredSkillPackage,
+        skillName: String? = nil,
         temporaryRoot: TemporaryItemLease,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> ImportCandidatePayload {
@@ -134,7 +177,7 @@ actor SkillImportWorker {
             )
             return try makePayload(
                 rootURL: package.rootURL,
-                skillName: package.skillName,
+                skillName: skillName ?? package.skillName,
                 snapshot: snapshot,
                 sourceAnchor: .snapshot,
                 temporaryRoot: temporaryRoot,

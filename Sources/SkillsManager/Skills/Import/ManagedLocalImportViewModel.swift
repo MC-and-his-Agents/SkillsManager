@@ -61,6 +61,20 @@ import Observation
         }
     }
 
+    func prepareSourceBacked(
+        candidate: SkillImportWorker.ImportCandidatePayload,
+        sourceInput: ManagedSourceInstallInput,
+        scope: ManagedLocalImportScope
+    ) async {
+        await prepare { service in
+            try await service.prepareSourceBacked(
+                candidate: candidate,
+                sourceInput: sourceInput,
+                scope: scope
+            )
+        }
+    }
+
     private func prepare(
         operation: (ManagedInstallService) async throws -> ManagedLocalImportPreview
     ) async {

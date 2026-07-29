@@ -39,8 +39,17 @@ nonisolated struct ManagedLocalImportPreview: Identifiable, Sendable {
     let plan: DistributionPlan
     let disposition: Disposition
     let allowsBlockedCreate: Bool
+    let source: ManagedInstallSourcePreview?
 
     var id: ManagedLocalImportToken { token }
+}
+
+nonisolated struct ManagedInstallSourcePreview: Equatable, Sendable {
+    let repositoryURL: NormalizedRepositoryURL
+    let subpath: RepositorySubpath
+    let revision: SourceRevision
+    let downloadURL: PublicDownloadURL
+    let alias: ProviderAliasIdentity
 }
 
 nonisolated enum ManagedLocalImportResultStatus: Equatable, Sendable {
@@ -75,6 +84,9 @@ nonisolated enum ManagedLocalImportProblem: LocalizedError, Equatable, Sendable 
     case sourceChanged
     case tokenExpired
     case providerConflict
+    case providerAliasConflict
+    case sourceUpdateUnsupportedLocalOrigins
+    case aliasLimitReached
     case failed(String)
     case updateFailed(String)
 
@@ -104,6 +116,12 @@ nonisolated enum ManagedLocalImportProblem: LocalizedError, Equatable, Sendable 
             "The import preview expired. Prepare a new preview."
         case .providerConflict:
             "The Clawdhub source record conflicts with another managed Skill."
+        case .providerAliasConflict:
+            "This skills.sh result is already linked to a different managed source."
+        case .sourceUpdateUnsupportedLocalOrigins:
+            "This managed Skill also has local origins and cannot be safely updated from skills.sh."
+        case .aliasLimitReached:
+            "This managed Skill has reached the Provider alias limit."
         case .failed(let detail):
             "Import failed: \(detail)"
         case .updateFailed(let detail):
@@ -134,6 +152,16 @@ nonisolated func managedInstallKnownProblem(
             .previewExpired
         case .backupNeedsRepair:
             .needsRepair
+        }
+    }
+    if let error = error as? SourceInstallAdmissionError {
+        return switch error {
+        case .previewExpired:
+            .previewExpired
+        case .providerAliasConflict:
+            .providerAliasConflict
+        case .invalidInput:
+            nil
         }
     }
     if let error = error as? CopyForkError {
@@ -221,6 +249,33 @@ nonisolated struct ManagedInstallProviderInput: Sendable {
     }
 }
 
+nonisolated struct ManagedSourceInstallInput: Sendable {
+    let displayName: String
+    let distributionSlug: DefaultDistributionSlug
+    let repositoryURL: NormalizedRepositoryURL
+    let subpath: RepositorySubpath
+    let revision: SourceRevision
+    let downloadURL: PublicDownloadURL
+    let alias: ProviderAliasIdentity
+    let refreshHead: @Sendable () async throws -> SourceRevision
+
+    var preview: ManagedInstallSourcePreview {
+        ManagedInstallSourcePreview(
+            repositoryURL: repositoryURL,
+            subpath: subpath,
+            revision: revision,
+            downloadURL: downloadURL,
+            alias: alias
+        )
+    }
+}
+
+nonisolated struct ManagedPreparedSource: Sendable {
+    let input: ManagedSourceInstallInput
+    let sourceID: SourceID
+    let admission: SourceInstallAdmissionExpectation
+}
+
 nonisolated struct ManagedInstallDependencies: Sendable {
     let plan: @Sendable (
         SkillID,
@@ -237,6 +292,13 @@ nonisolated struct ManagedInstallDependencies: Sendable {
     let provenanceReadback: @Sendable (
         ProviderAliasIdentity
     ) async throws -> ProviderProvenanceRecord?
+    let sourceReadback: @Sendable (
+        NormalizedRepositoryURL,
+        RepositorySubpath
+    ) async throws -> StoredSkillDomainSnapshot?
+    let aliasOwnerReadback: @Sendable (
+        ProviderAliasIdentity
+    ) async throws -> ProviderAliasSourceOwner?
     let updateBaseline: @Sendable (SkillID) async throws -> ManagedSkillUpdateBaseline
     let replaceWithBackup: @Sendable (
         ManagedSkillUpdateBaseline,
@@ -244,6 +306,20 @@ nonisolated struct ManagedInstallDependencies: Sendable {
         SkillContentSnapshot,
         SSOTOperationID,
         SkillBackupID
+    ) async throws -> ManagedSkillUpdateWriteResult
+    let createSourceBacked: @Sendable (
+        SSOTSkillWritePayload,
+        SkillContentSnapshot,
+        SSOTOperationID,
+        SourceInstallAdmissionExpectation
+    ) async throws -> SSOTJournalRecord
+    let replaceSourceBackedWithBackup: @Sendable (
+        ManagedSkillUpdateBaseline,
+        SSOTSkillWritePayload,
+        SkillContentSnapshot,
+        SSOTOperationID,
+        SkillBackupID,
+        SourceInstallAdmissionExpectation
     ) async throws -> ManagedSkillUpdateWriteResult
     let apply: @Sendable (SkillID, DistributionPlan) async throws -> DistributionOperationRecord
     let reconcile: @Sendable (SkillID) async throws -> DistributionReconcileResult
@@ -272,6 +348,10 @@ nonisolated struct ManagedInstallDependencies: Sendable {
             operationReadback: { try await writer.ssotOperationReadback($0) },
             domainReadback: { try await writer.storedDomainReadback($0)?.payload },
             provenanceReadback: { try await writer.providerProvenance($0) },
+            sourceReadback: {
+                try await writer.sourceDomainReadback(repositoryURL: $0, subpath: $1)
+            },
+            aliasOwnerReadback: { try await writer.providerAliasOwnerReadback($0) },
             updateBaseline: { try await writer.managedSkillUpdateBaseline($0) },
             replaceWithBackup: { baseline, payload, snapshot, operationID, backupID in
                 try await writer.replaceManagedSkillWithBackup(
@@ -280,6 +360,25 @@ nonisolated struct ManagedInstallDependencies: Sendable {
                     sourceSnapshot: snapshot,
                     operationID: operationID,
                     backupID: backupID
+                )
+            },
+            createSourceBacked: { payload, snapshot, operationID, admission in
+                try await writer.createSourceBacked(
+                    payload: payload,
+                    sourceSnapshot: snapshot,
+                    operationID: operationID,
+                    admission: admission
+                )
+            },
+            replaceSourceBackedWithBackup: {
+                baseline, payload, snapshot, operationID, backupID, admission in
+                try await writer.replaceSourceBackedWithBackup(
+                    expected: baseline,
+                    replacementPayload: payload,
+                    sourceSnapshot: snapshot,
+                    operationID: operationID,
+                    backupID: backupID,
+                    admission: admission
                 )
             },
             apply: distribution.apply,
