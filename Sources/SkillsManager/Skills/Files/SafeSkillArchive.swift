@@ -1,3 +1,4 @@
+import CryptoKit
 import Darwin
 import Foundation
 import ZIPFoundation
@@ -27,8 +28,8 @@ nonisolated struct SafeSkillArchive {
             )
         }
     }
-    private enum EntryKind { case file, directory }
-    private struct ValidatedEntry {
+    enum EntryKind { case file, directory }
+    struct ValidatedEntry {
         let entry: Entry
         let components: [String]
         let kind: EntryKind
@@ -124,7 +125,7 @@ nonisolated struct SafeSkillArchive {
         }
     }
 
-    private func duplicateEmptyDestination(_ descriptor: Int32) throws -> Int32 {
+    func duplicateEmptyDestination(_ descriptor: Int32) throws -> Int32 {
         var status = stat()
         guard Darwin.fstat(descriptor, &status) == 0,
               status.st_mode & S_IFMT == S_IFDIR else {
@@ -164,10 +165,11 @@ nonisolated struct SafeSkillArchive {
         }
         return descriptor
     }
-    private func validate(
+    func validate(
         entries: [Entry],
         rawKinds: [ZIPCentralDirectory.Kind],
-        checkpoint: SkillCancellationCheckpoint
+        checkpoint: SkillCancellationCheckpoint,
+        enforceContentLimits: Bool = true
     ) throws -> [ValidatedEntry] {
         guard entries.count == rawKinds.count else { throw SafeSkillArchiveError.invalidArchive }
         guard entries.count <= limits.maximumEntryCount else { throw SafeSkillArchiveError.tooManyEntries }
@@ -183,7 +185,7 @@ nonisolated struct SafeSkillArchive {
             let normalized = components.map(SkillContentPath.normalizedComponent)
             let keys = normalized.map(SkillContentPath.collisionKey(for:))
             let key = keys.joined(separator: "/")
-            guard components.count <= limits.content.maximumPathDepth else {
+            if enforceContentLimits, components.count > limits.content.maximumPathDepth {
                 throw SafeSkillArchiveError.pathTooDeep(entry.path)
             }
             if let existing = paths[key] {
@@ -204,10 +206,12 @@ nonisolated struct SafeSkillArchive {
                     directoryKeys.insert(keys[..<end].joined(separator: "/"))
                 }
             }
-            guard directoryKeys.count <= limits.content.maximumDirectoryCount else {
-                throw SafeSkillArchiveError.tooManyDirectories
+            if enforceContentLimits {
+                guard directoryKeys.count <= limits.content.maximumDirectoryCount else {
+                    throw SafeSkillArchiveError.tooManyDirectories
+                }
+                try addSize(of: entry, kind: kind, fileCount: &fileCount, total: &totalSize)
             }
-            try addSize(of: entry, kind: kind, fileCount: &fileCount, total: &totalSize)
             result.append(ValidatedEntry(entry: entry, components: components, kind: kind))
         }
         try validateParentKinds(in: paths)
@@ -309,14 +313,16 @@ nonisolated struct SafeSkillArchive {
             }
         }
     }
-    private func extractFile(
+    func extractFile(
         _ item: ValidatedEntry,
         from archive: Archive,
         rollbackJournal: SafeSkillArchiveRollbackJournal,
         actualTotalSize: inout UInt64,
-        checkpoint: SkillCancellationCheckpoint
+        checkpoint: SkillCancellationCheckpoint,
+        outputComponents: [String]? = nil,
+        expectedGitBlobSHA: String? = nil
     ) throws {
-        var parentComponents = item.components
+        var parentComponents = outputComponents ?? item.components
         let name = parentComponents.removeLast()
         let parent = try rollbackJournal.openDirectory(parentComponents, create: true)
         defer { Darwin.close(parent) }
@@ -346,6 +352,11 @@ nonisolated struct SafeSkillArchive {
             }
         }
         var fileSize: UInt64 = 0
+        var gitBlobHasher = expectedGitBlobSHA.map { _ in
+            var hasher = Insecure.SHA1()
+            hasher.update(data: Data("blob \(item.entry.uncompressedSize)\0".utf8))
+            return hasher
+        }
         let checksum = try archive.extract(item.entry) { data in
             try checkpoint()
             try addExtractedBytes(
@@ -354,6 +365,7 @@ nonisolated struct SafeSkillArchive {
                 fileSize: &fileSize,
                 totalSize: &actualTotalSize
             )
+            gitBlobHasher?.update(data: data)
             try Self.writeAll(data, to: descriptor, checkpoint: checkpoint)
         }
         guard checksum == item.entry.checksum else {
@@ -362,9 +374,18 @@ nonisolated struct SafeSkillArchive {
         guard fileSize == item.entry.uncompressedSize else {
             throw SafeSkillArchiveError.invalidSize(item.entry.path)
         }
+        if let expectedGitBlobSHA {
+            guard let hasher = gitBlobHasher else {
+                throw SafeSkillArchiveError.invalidArchive
+            }
+            let actual = Data(hasher.finalize()).map { String(format: "%02x", $0) }.joined()
+            guard actual == expectedGitBlobSHA else {
+                throw SafeSkillArchiveError.repositorySubtreeMismatch(item.entry.path)
+            }
+        }
         try applySafeAttributes(of: item.entry, to: descriptor)
         try rollbackJournal.recordCompletedFile(
-            components: item.components,
+            components: outputComponents ?? item.components,
             descriptor: descriptor,
             parentDescriptor: parent
         )

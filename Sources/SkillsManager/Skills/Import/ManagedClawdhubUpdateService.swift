@@ -1,6 +1,6 @@
 import Foundation
 
-struct ManagedClawdhubUpdateService: Sendable {
+struct ManagedRemoteUpdateService: Sendable {
     private enum WriteState {
         case committed
         case failed(ManagedLocalImportProblem)
@@ -27,7 +27,38 @@ struct ManagedClawdhubUpdateService: Sendable {
             replacement: replacement,
             snapshot: candidate.snapshot,
             operationID: operationID,
-            backupID: backupID
+            backupID: backupID,
+            sourceAdmission: nil
+        ) {
+        case .committed:
+            return await reconciledResult(preview)
+        case .failed(let problem):
+            throw problem
+        case .indeterminate:
+            return result(preview, status: .updateIndeterminate)
+        }
+    }
+
+    func execute(
+        preview: ManagedLocalImportPreview,
+        baseline: ManagedSkillUpdateBaseline,
+        preparedSource: ManagedPreparedSource,
+        candidate: SkillImportWorker.ImportCandidatePayload,
+        operationID: SSOTOperationID,
+        backupID: SkillBackupID
+    ) async throws -> ManagedLocalImportResult {
+        let replacement = try sourceReplacementPayload(
+            baseline: baseline,
+            preparedSource: preparedSource,
+            snapshot: candidate.snapshot
+        )
+        switch await replaceWithBackup(
+            baseline: baseline,
+            replacement: replacement,
+            snapshot: candidate.snapshot,
+            operationID: operationID,
+            backupID: backupID,
+            sourceAdmission: preparedSource.admission
         ) {
         case .committed:
             return await reconciledResult(preview)
@@ -43,16 +74,29 @@ struct ManagedClawdhubUpdateService: Sendable {
         replacement: SSOTSkillWritePayload,
         snapshot: SkillContentSnapshot,
         operationID: SSOTOperationID,
-        backupID: SkillBackupID
+        backupID: SkillBackupID,
+        sourceAdmission: SourceInstallAdmissionExpectation?
     ) async -> WriteState {
         do {
-            let write = try await dependencies.replaceWithBackup(
-                baseline,
-                replacement,
-                snapshot,
-                operationID,
-                backupID
-            )
+            let write: ManagedSkillUpdateWriteResult
+            if let sourceAdmission {
+                write = try await dependencies.replaceSourceBackedWithBackup(
+                    baseline,
+                    replacement,
+                    snapshot,
+                    operationID,
+                    backupID,
+                    sourceAdmission
+                )
+            } else {
+                write = try await dependencies.replaceWithBackup(
+                    baseline,
+                    replacement,
+                    snapshot,
+                    operationID,
+                    backupID
+                )
+            }
             return state(write.replacement)
         } catch let updateError {
             do {
@@ -151,6 +195,65 @@ struct ManagedClawdhubUpdateService: Sendable {
             providerProvenance: updatedProvenance,
             localOrigins: old.localOrigins,
             restoredFromSkillID: old.restoredFromSkillID
+        )
+    }
+
+    private func sourceReplacementPayload(
+        baseline: ManagedSkillUpdateBaseline,
+        preparedSource: ManagedPreparedSource,
+        snapshot: SkillContentSnapshot
+    ) throws -> SSOTSkillWritePayload {
+        let old = baseline.domain.payload
+        guard old.localOrigins.isEmpty else {
+            throw ManagedLocalImportProblem.sourceUpdateUnsupportedLocalOrigins
+        }
+        guard let oldSource = old.source,
+              oldSource.sourceID == preparedSource.sourceID,
+              oldSource.repositoryURL == preparedSource.input.repositoryURL,
+              oldSource.subpath == preparedSource.input.subpath,
+              old.skill.updatedAtMilliseconds < Int64.max else {
+            throw ManagedLocalImportProblem.previewExpired
+        }
+        var aliases = old.providerAliases
+        if !aliases.contains(where: { $0.identity == preparedSource.input.alias }) {
+            guard aliases.count < SSOTSkillWritePayload.maximumProviderAliasCount else {
+                throw ManagedLocalImportProblem.aliasLimitReached
+            }
+            aliases.append(ProviderAliasRecord(
+                sourceID: oldSource.sourceID,
+                identity: preparedSource.input.alias
+            ))
+        }
+        let updatedSkill = try ManagedSkillRecord(
+            skillID: old.skill.skillID,
+            displayName: old.skill.displayName,
+            defaultDistributionSlug: old.skill.defaultDistributionSlug,
+            contentFingerprint: SkillContentFingerprint(
+                currentDigest: snapshot.fingerprintDigest
+            ),
+            status: old.skill.status,
+            createdAtMilliseconds: old.skill.createdAtMilliseconds,
+            updatedAtMilliseconds: max(
+                old.skill.updatedAtMilliseconds + 1,
+                max(0, dependencies.nowMilliseconds())
+            )
+        )
+        return try SSOTSkillWritePayload(
+            skill: updatedSkill,
+            source: SkillSourceRecord(
+                sourceID: oldSource.sourceID,
+                skillID: old.skill.skillID,
+                repositoryURL: oldSource.repositoryURL,
+                subpath: oldSource.subpath,
+                revision: preparedSource.input.revision,
+                version: oldSource.version,
+                downloadURL: preparedSource.input.downloadURL
+            ),
+            providerAliases: aliases,
+            providerProvenance: old.providerProvenance,
+            localOrigins: [],
+            restoredFromSkillID: old.restoredFromSkillID,
+            forkLineage: old.forkLineage
         )
     }
 

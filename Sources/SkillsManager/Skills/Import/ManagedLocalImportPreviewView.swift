@@ -16,9 +16,13 @@ struct ManagedLocalImportPreviewView: View {
                 : "The Skill will be added to the managed library before distribution.")
                 .foregroundStyle(.secondary)
 
+            if let source = preview.source {
+                sourceDetails(source)
+            }
+
             if preview.disposition == .alreadyManaged {
                 Label(
-                    "This Clawdhub Skill is already managed. Change its Agent access from the Skill details.",
+                    "This Skill is already managed. Change its Agent access from the Skill details.",
                     systemImage: "checkmark.circle"
                 )
             } else if preview.disposition == .updateRequired {
@@ -50,6 +54,34 @@ struct ManagedLocalImportPreviewView: View {
                 dismiss()
             }
         }
+    }
+
+    private func sourceDetails(_ source: ManagedInstallSourcePreview) -> some View {
+        GroupBox("Verified source") {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                sourceRow("Repository", source.repositoryURL.value)
+                sourceRow("Subpath", source.subpath.value)
+                sourceRow("Revision", source.revision.value)
+                sourceRow("Archive", source.downloadURL.value)
+                sourceRow(
+                    "Provider alias",
+                    "\(source.alias.provider): \(source.alias.identifier)"
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private func sourceRow(_ title: String, _ value: String) -> some View {
+        GridRow {
+            Text(title)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.callout.monospaced())
+                .textSelection(.enabled)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var actionList: some View {

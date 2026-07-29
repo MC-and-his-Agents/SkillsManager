@@ -123,54 +123,73 @@ struct SkillsShSearchSidebarView: View {
 
 struct SkillsShSearchDetailView: View {
     @Environment(SkillsShSearchStore.self) private var store
+    @State private var installItem: SkillsShSearchItem?
 
     var body: some View {
-        if let item = store.selectedItem {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(item.name)
-                        .font(.largeTitle.bold())
+        Group {
+            if let item = store.selectedItem {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(item.name)
+                            .font(.largeTitle.bold())
 
-                    HStack(spacing: 6) {
-                        TagView(text: item.source)
-                        TagView(text: "\(item.installs.formatted()) installs")
-                    }
+                        HStack(spacing: 6) {
+                            TagView(text: item.source)
+                            TagView(text: "\(item.installs.formatted()) installs")
+                        }
 
-                    Label {
-                        Text(
-                            "Temporarily unavailable for installation. The repository path "
-                                + "and immutable revision have not been verified yet."
+                        Label {
+                            Text(
+                                "Before installation, Skills Manager verifies a unique "
+                                    + "repository subpath and immutable GitHub revision."
+                            )
+                        } icon: {
+                            Image(systemName: "lock.shield")
+                        }
+                        .foregroundStyle(.secondary)
+                        .accessibilityElement(children: .combine)
+
+                        Label {
+                            Text(
+                                "Experimental source: this undocumented skills.sh interface "
+                                    + "may become unavailable."
+                            )
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle")
+                        }
+                        .foregroundStyle(.secondary)
+                        .accessibilityElement(children: .combine)
+
+                        Button("Resolve and Install…") {
+                            installItem = item
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityHint(
+                            "Verifies the public GitHub source before showing an install preview"
                         )
-                    } icon: {
-                        Image(systemName: "lock.shield")
                     }
-                    .foregroundStyle(.secondary)
-                    .accessibilityElement(children: .combine)
-
-                    Label {
-                        Text(
-                            "Experimental source: this undocumented skills.sh interface "
-                                + "may become unavailable."
-                        )
-                    } icon: {
-                        Image(systemName: "exclamationmark.triangle")
-                    }
-                    .foregroundStyle(.secondary)
-                    .accessibilityElement(children: .combine)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-            }
-            .navigationTitle(item.name)
-            .navigationSubtitle("skills.sh · Experimental")
-        } else {
-            ContentUnavailableView(
-                "Select a skill",
-                systemImage: "magnifyingglass",
-                description: Text(
-                    "Choose an experimental skills.sh result. Installation is not available yet."
+                .navigationTitle(item.name)
+                .navigationSubtitle("skills.sh · Experimental")
+            } else {
+                ContentUnavailableView(
+                    "Select a skill",
+                    systemImage: "magnifyingglass",
+                    description: Text("Choose an experimental skills.sh result.")
                 )
+            }
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { installItem != nil },
+                set: { if !$0 { installItem = nil } }
             )
+        ) {
+            if let installItem {
+                ManagedSkillsShInstallView(item: installItem)
+            }
         }
     }
 }
@@ -185,7 +204,7 @@ private struct SkillsShSearchRow: View {
             Text(item.source)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("\(item.installs.formatted()) installs · Not installable yet")
+            Text("\(item.installs.formatted()) installs · Experimental source")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -193,7 +212,7 @@ private struct SkillsShSearchRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             "\(item.name), \(item.installs.formatted()) installs, source \(item.source), "
-                + "temporarily unavailable for installation"
+                + "experimental source"
         )
     }
 }

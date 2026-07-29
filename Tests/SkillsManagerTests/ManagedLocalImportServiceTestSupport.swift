@@ -98,8 +98,22 @@ actor ManagedLocalImportProbe {
             provenanceReadback: { identity in
                 await self.provenanceReadback(identity: identity)
             },
+            sourceReadback: { _, _ in nil },
+            aliasOwnerReadback: { _ in nil },
             updateBaseline: { try await self.updateBaseline(skillID: $0) },
             replaceWithBackup: { baseline, payload, _, operationID, backupID in
+                try await self.replace(
+                    baseline: baseline,
+                    payload: payload,
+                    operationID: operationID,
+                    backupID: backupID
+                )
+            },
+            createSourceBacked: { payload, _, operationID, _ in
+                try await self.create(payload: payload, operationID: operationID)
+            },
+            replaceSourceBackedWithBackup: {
+                baseline, payload, _, operationID, backupID, _ in
                 try await self.replace(
                     baseline: baseline,
                     payload: payload,
@@ -315,6 +329,62 @@ actor ManagedLocalImportProbe {
         }
         return false
     }
+}
+
+func writerDependencies(
+    _ writer: JournaledSSOTWriter,
+    planProbe: ManagedLocalImportProbe
+) -> ManagedInstallDependencies {
+    let probe = planProbe.dependencies()
+    return ManagedInstallDependencies(
+        plan: probe.plan,
+        create: { payload, snapshot, operationID in
+            try await writer.create(
+                payload: payload,
+                sourceSnapshot: snapshot,
+                operationID: operationID
+            )
+        },
+        operationReadback: { try await writer.ssotOperationReadback($0) },
+        domainReadback: { try await writer.storedDomainReadback($0)?.payload },
+        provenanceReadback: { try await writer.providerProvenance($0) },
+        sourceReadback: {
+            try await writer.sourceDomainReadback(repositoryURL: $0, subpath: $1)
+        },
+        aliasOwnerReadback: { try await writer.providerAliasOwnerReadback($0) },
+        updateBaseline: { try await writer.managedSkillUpdateBaseline($0) },
+        replaceWithBackup: { baseline, payload, snapshot, operationID, backupID in
+            try await writer.replaceManagedSkillWithBackup(
+                expected: baseline,
+                replacementPayload: payload,
+                sourceSnapshot: snapshot,
+                operationID: operationID,
+                backupID: backupID
+            )
+        },
+        createSourceBacked: { payload, snapshot, operationID, admission in
+            try await writer.createSourceBacked(
+                payload: payload,
+                sourceSnapshot: snapshot,
+                operationID: operationID,
+                admission: admission
+            )
+        },
+        replaceSourceBackedWithBackup: {
+            baseline, payload, snapshot, operationID, backupID, admission in
+            try await writer.replaceSourceBackedWithBackup(
+                expected: baseline,
+                replacementPayload: payload,
+                sourceSnapshot: snapshot,
+                operationID: operationID,
+                backupID: backupID,
+                admission: admission
+            )
+        },
+        apply: probe.apply,
+        reconcile: probe.reconcile,
+        nowMilliseconds: probe.nowMilliseconds
+    )
 }
 
 private func importJournalRecord(

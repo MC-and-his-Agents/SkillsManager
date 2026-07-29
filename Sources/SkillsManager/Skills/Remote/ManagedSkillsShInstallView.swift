@@ -1,23 +1,22 @@
 import SwiftUI
 
-struct ManagedClawdhubInstallView: View {
+struct ManagedSkillsShInstallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SkillStore.self) private var store
-    @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
 
-    let skill: RemoteSkill
-    @Binding var isInstalling: Bool
-    @Binding var didInstall: Bool
-    @Binding var errorMessage: String?
+    let item: SkillsShSearchItem
 
     @State private var model = ManagedLocalImportViewModel()
     @State private var distributionMode: ManagedInstallDistributionMode = .global
     @State private var selectedAgents: Set<SkillPlatform> = [.codex]
     @State private var candidate: SkillImportWorker.ImportCandidatePayload?
     @State private var activeTask: Task<Void, Never>?
-    @State private var isDownloading = false
+    @State private var isResolving = false
+    @State private var errorMessage: String?
+
+    private let client = SkillsShGitHubSourceClient.live()
     private let importWorker = SkillImportWorker()
 
     var body: some View {
@@ -31,28 +30,23 @@ struct ManagedClawdhubInstallView: View {
                     selectedAgents: $selectedAgents,
                     isDisabled: isWorking
                 )
-                if isDownloading {
-                    ProgressView("Downloading and validating…")
+                if isResolving {
+                    ProgressView("Resolving and validating GitHub source…")
                 }
                 if let problem = model.problem {
-                    Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                    problemLabel(problem.localizedDescription)
                 } else if let errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                    problemLabel(errorMessage)
                 }
                 Spacer()
                 actions
             }
         }
         .padding(20)
-        .frame(minWidth: 560, minHeight: 400)
+        .frame(minWidth: 620, minHeight: 440)
         .sheet(item: previewBinding) { preview in
-            ManagedLocalImportPreviewView(
-                preview: preview,
-                onConfirm: confirmInstall
-            )
-            .environment(model)
+            ManagedLocalImportPreviewView(preview: preview, onConfirm: confirmInstall)
+                .environment(model)
         }
         .task {
             model.activate(writer: store.persistence)
@@ -70,22 +64,20 @@ struct ManagedClawdhubInstallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Install or Update Skill")
+            Text("Resolve and Install Skill")
                 .font(.title.bold())
-            Text("Add \(skill.displayName) to the managed library or safely update it.")
-                .foregroundStyle(.secondary)
-            Text(sourceSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Source \(sourceSummary)")
+            Text(
+                "Skills Manager will verify \(item.source), find one matching SKILL.md, "
+                    + "and pin the install to an immutable GitHub commit."
+            )
+            .foregroundStyle(.secondary)
+            Label(
+                "Experimental skills.sh index; GitHub resolution may be unavailable or rate limited.",
+                systemImage: "exclamationmark.triangle"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
-    }
-
-    private var sourceSummary: String {
-        guard let version = skill.latestVersion else {
-            return "Clawdhub · \(skill.slug)"
-        }
-        return "Clawdhub · \(skill.slug) · \(version)"
     }
 
     private var actions: some View {
@@ -98,7 +90,7 @@ struct ManagedClawdhubInstallView: View {
 
             Spacer()
 
-            Button("Review…") {
+            Button("Resolve and Review…") {
                 prepareInstall()
             }
             .buttonStyle(.borderedProminent)
@@ -114,7 +106,7 @@ struct ManagedClawdhubInstallView: View {
     }
 
     private var isWorking: Bool {
-        isDownloading || model.isWorking
+        isResolving || model.isWorking
     }
 
     private var previewBinding: Binding<ManagedLocalImportPreview?> {
@@ -130,26 +122,44 @@ struct ManagedClawdhubInstallView: View {
             await cleanupCandidate()
             model.reset()
             errorMessage = nil
-            isDownloading = true
-            isInstalling = true
-            didInstall = false
-            defer {
-                isDownloading = false
-                isInstalling = false
-            }
+            isResolving = true
+            defer { isResolving = false }
             do {
-                let archive = try await remoteStore.client.download(
-                    skill.slug,
-                    skill.latestVersion
-                )
+                let resolved = try await client.resolve(item.id, item.source, item.skillID)
+                let downloaded = try await client.download(resolved)
+                try Task.checkCancellation()
+                let archive = try await Task.detached {
+                    try persistSkillsShArchive(data: downloaded.data)
+                }.value
                 let payload: SkillImportWorker.ImportCandidatePayload
                 do {
-                    payload = try await importWorker.validateZip(archive.url)
+                    payload = try await importWorker.validateZip(
+                        archive.url,
+                        repositorySubpath: resolved.subpath,
+                        expectedBlobs: try resolved.blobs.map {
+                            guard let byteCount = UInt64(exactly: $0.size) else {
+                                throw SkillsShGitHubSourceError.contractChanged
+                            }
+                            return try SafeSkillArchive.RepositoryBlobExpectation(
+                                relativePath: $0.relativePath,
+                                mode: $0.mode,
+                                byteCount: byteCount,
+                                gitBlobSHA: $0.gitBlobSHA
+                            )
+                        }
+                    )
                 } catch {
-                    cleanup(archive)
+                    try? archive.removeIfOwned()
                     throw error
                 }
-                cleanup(archive)
+                do {
+                    try archive.removeIfOwned()
+                } catch {
+                    if let temporaryRoot = payload.temporaryRoot {
+                        await importWorker.cleanupTemporaryRoot(temporaryRoot)
+                    }
+                    throw error
+                }
                 guard !Task.isCancelled else {
                     if let temporaryRoot = payload.temporaryRoot {
                         await importWorker.cleanupTemporaryRoot(temporaryRoot)
@@ -157,17 +167,32 @@ struct ManagedClawdhubInstallView: View {
                     return
                 }
                 candidate = payload
-                await model.prepareClawdhub(
+                let revision = try SourceRevision(resolved.commitSHA)
+                let sourceInput = ManagedSourceInstallInput(
+                    displayName: item.name,
+                    distributionSlug: resolved.defaultDistributionSlug,
+                    repositoryURL: resolved.repositoryURL,
+                    subpath: resolved.subpath,
+                    revision: revision,
+                    downloadURL: try PublicDownloadURL(resolved.archiveURL.absoluteString),
+                    alias: try ProviderAliasIdentity(
+                        provider: "skills.sh",
+                        identifier: resolved.providerAliasIdentifier
+                    ),
+                    refreshHead: {
+                        try SourceRevision(try await client.currentCommitSHA(resolved))
+                    }
+                )
+                await model.prepareSourceBacked(
                     candidate: payload,
-                    skill: skill,
+                    sourceInput: sourceInput,
                     scope: distributionMode == .global ? .global : .agents(selectedAgents)
                 )
                 if model.problem != nil {
                     await cleanupCandidate()
                 }
-            } catch is CancellationError {
-                return
             } catch {
+                if Task.isCancelled { return }
                 model.reset()
                 errorMessage = error.localizedDescription
             }
@@ -177,19 +202,21 @@ struct ManagedClawdhubInstallView: View {
     private func confirmInstall() {
         activeTask?.cancel()
         activeTask = Task {
-            isInstalling = true
-            defer { isInstalling = false }
             await model.confirm {
                 await store.loadSkills()
                 await discoveryModel.refresh()
                 await cleanupCandidate()
             }
-            if model.result != nil {
-                didInstall = true
-            } else if let problem = model.problem {
+            if let problem = model.problem {
                 errorMessage = problem.localizedDescription
             }
         }
+    }
+
+    private func problemLabel(_ message: String) -> some View {
+        Label(message, systemImage: "exclamationmark.triangle")
+            .foregroundStyle(.orange)
+            .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
@@ -209,17 +236,8 @@ struct ManagedClawdhubInstallView: View {
     }
 
     private func cancelAndDismiss() {
-        let task = activeTask
-        activeTask = nil
-        let temporaryRoot = candidate?.temporaryRoot
-        candidate = nil
-        Task {
-            await importWorker.cleanupTemporaryRoot(
-                temporaryRoot,
-                afterCancelling: task
-            )
-            dismiss()
-        }
+        cancelAndCleanup()
+        dismiss()
     }
 
     private func cancelAndCleanup() {
@@ -242,16 +260,19 @@ struct ManagedClawdhubInstallView: View {
             await importWorker.cleanupTemporaryRoot(temporaryRoot)
         }
     }
+}
 
-    private func cleanup(_ archive: DownloadedSkillArchive) {
-        do {
-            try archive.removeIfOwned()
-        } catch {
-            NSLog(
-                "Skills Manager preserved an unverified downloaded archive at %@: %@",
-                archive.url.path,
-                error.localizedDescription
-            )
-        }
+private nonisolated func persistSkillsShArchive(
+    data: Data
+) throws -> DownloadedSkillArchive {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(
+        "skillsmanager-skillssh-\(UUID().uuidString.lowercased()).zip"
+    )
+    do {
+        try data.write(to: url, options: [.atomic])
+        return try DownloadedSkillArchive.takeOwnership(of: url)
+    } catch {
+        try? FileManager.default.removeItem(at: url)
+        throw error
     }
 }

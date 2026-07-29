@@ -427,39 +427,6 @@ struct ManagedClawdhubInstallServiceTests {
     }
 }
 
-private func writerDependencies(
-    _ writer: JournaledSSOTWriter,
-    planProbe: ManagedLocalImportProbe
-) -> ManagedInstallDependencies {
-    let probe = planProbe.dependencies()
-    return ManagedInstallDependencies(
-        plan: probe.plan,
-        create: { payload, snapshot, operationID in
-            try await writer.create(
-                payload: payload,
-                sourceSnapshot: snapshot,
-                operationID: operationID
-            )
-        },
-        operationReadback: { try await writer.ssotOperationReadback($0) },
-        domainReadback: { try await writer.storedDomainReadback($0)?.payload },
-        provenanceReadback: { try await writer.providerProvenance($0) },
-        updateBaseline: { try await writer.managedSkillUpdateBaseline($0) },
-        replaceWithBackup: { baseline, payload, snapshot, operationID, backupID in
-            try await writer.replaceManagedSkillWithBackup(
-                expected: baseline,
-                replacementPayload: payload,
-                sourceSnapshot: snapshot,
-                operationID: operationID,
-                backupID: backupID
-            )
-        },
-        apply: probe.apply,
-        reconcile: probe.reconcile,
-        nowMilliseconds: probe.nowMilliseconds
-    )
-}
-
 func remoteSkill(slug: String = "demo", version: String? = "1.0.0") -> RemoteSkill {
     RemoteSkill(
         id: slug,
