@@ -81,7 +81,11 @@ struct ManagedSkillUpdateAdmissionTests {
         )
         defer { fixture.remote.cleanup() }
         let admission = ManagedSkillUpdateAdmission()
-        let single = SkillUpdateCheckViewModel(admission: admission)
+        let releaseGate = SkillBatchUpdateTestGate()
+        let single = SkillUpdateCheckViewModel(
+            admission: admission,
+            afterConfirmAdmissionRelease: { await releaseGate.wait() }
+        )
         single.activate(writer: fixture.writer, remote: fixture.remote.client)
         await single.refresh(skillID: fixture.skillID)
         let snapshot = try await fixture.checks.check(fixture.skillID)
@@ -93,7 +97,12 @@ struct ManagedSkillUpdateAdmissionTests {
 
         #expect(await admission.acquire(fixture.skillID) == nil)
         gate.release()
+        await releaseGate.waitUntilReached()
+        let latestSelection = SkillID()
+        await single.refresh(skillID: latestSelection)
+        await releaseGate.release()
         await confirmation.value
+        #expect(single.activeSkillID == latestSelection)
         let lease = try #require(await admission.acquire(fixture.skillID))
         await admission.release(lease)
     }

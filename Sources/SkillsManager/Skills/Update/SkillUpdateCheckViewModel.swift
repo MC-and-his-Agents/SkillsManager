@@ -25,14 +25,20 @@ import Observation
     private var service: ManagedSkillUpdateCheckService?
     private var updateService: ManagedSkillUpdateExecutionService?
     private let admission: ManagedSkillUpdateAdmission
+    private let afterConfirmAdmissionRelease: @MainActor @Sendable () async -> Void
     private var admissionLease: ManagedSkillUpdateAdmissionLease?
     private var hasDeferredRefresh = false
     private var deferredRefreshSkillID: SkillID?
     private var generation: UInt64 = 0
     private var runtimeBlockMessage = "Preparing the managed library…"
 
-    init(admission: ManagedSkillUpdateAdmission = ManagedSkillUpdateAdmission()) {
+    init(
+        admission: ManagedSkillUpdateAdmission = ManagedSkillUpdateAdmission(),
+        afterConfirmAdmissionRelease:
+            @escaping @MainActor @Sendable () async -> Void = {}
+    ) {
         self.admission = admission
+        self.afterConfirmAdmissionRelease = afterConfirmAdmissionRelease
     }
 
     func activate(writer: JournaledSSOTWriter, remote: RemoteSkillClient) {
@@ -194,18 +200,21 @@ import Observation
             self.pendingUpdate = nil
             updateSelections = [:]
             shouldRefresh = true
-            refreshSkillID = hasDeferredRefresh ? deferredRefreshSkillID : result.skillID
+            refreshSkillID = result.skillID
             updateResult = result.status
         } catch {
             self.pendingUpdate = nil
             updateSelections = [:]
             updateProblem = Self.updateProblem(for: error)
-            shouldRefresh = hasDeferredRefresh
+        }
+        await releaseAdmission()
+        await afterConfirmAdmissionRelease()
+        if hasDeferredRefresh {
+            shouldRefresh = true
             refreshSkillID = deferredRefreshSkillID
         }
         hasDeferredRefresh = false
         deferredRefreshSkillID = nil
-        await releaseAdmission()
         isUpdating = false
         if shouldRefresh {
             await refresh(skillID: refreshSkillID)
