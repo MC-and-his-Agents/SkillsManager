@@ -26,6 +26,8 @@ import Observation
     private var updateService: ManagedSkillUpdateExecutionService?
     private let admission: ManagedSkillUpdateAdmission
     private var admissionLease: ManagedSkillUpdateAdmissionLease?
+    private var hasDeferredRefresh = false
+    private var deferredRefreshSkillID: SkillID?
     private var generation: UInt64 = 0
     private var runtimeBlockMessage = "Preparing the managed library…"
 
@@ -60,6 +62,11 @@ import Observation
     }
 
     func refresh(skillID: SkillID?) async {
+        if isUpdating {
+            hasDeferredRefresh = true
+            deferredRefreshSkillID = skillID
+            return
+        }
         if let pendingUpdate,
            pendingUpdate.skillID != skillID,
            let updateService {
@@ -169,6 +176,8 @@ import Observation
               let updateService else { return }
         isUpdating = true
         updateProblem = nil
+        var shouldRefresh = false
+        var refreshSkillID: SkillID?
         do {
             let selections = pendingUpdate.copyChoices.compactMap { choice in
                 updateSelections[choice.scopeKey].map {
@@ -184,15 +193,23 @@ import Observation
             )
             self.pendingUpdate = nil
             updateSelections = [:]
-            await refresh(skillID: result.skillID)
+            shouldRefresh = true
+            refreshSkillID = hasDeferredRefresh ? deferredRefreshSkillID : result.skillID
             updateResult = result.status
         } catch {
             self.pendingUpdate = nil
             updateSelections = [:]
             updateProblem = Self.updateProblem(for: error)
+            shouldRefresh = hasDeferredRefresh
+            refreshSkillID = deferredRefreshSkillID
         }
+        hasDeferredRefresh = false
+        deferredRefreshSkillID = nil
         await releaseAdmission()
         isUpdating = false
+        if shouldRefresh {
+            await refresh(skillID: refreshSkillID)
+        }
     }
 
     func cancelUpdate() async {

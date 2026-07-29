@@ -1,3 +1,4 @@
+import Dispatch
 import Testing
 
 @testable import SkillsManager
@@ -66,5 +67,52 @@ struct ManagedSkillUpdateAdmissionTests {
         #expect(batch.items.first?.finalResult == .needsAttention)
         #expect(await probe.prepareCount == 0)
         await single.cancelUpdate()
+    }
+
+    @Test("selection changes during confirm keep the shared lease until terminal")
+    @MainActor
+    func selectionChangeDuringConfirmKeepsLease() async throws {
+        let gate = SkillUpdateConfirmationGate()
+        var hooks = JournaledSSOTWriterHooks()
+        hooks.afterUpdateBackupPublished = gate.reach
+        let fixture = try await makeExecutionFixture(
+            remoteMarkdown: "# Remote",
+            hooks: hooks
+        )
+        defer { fixture.remote.cleanup() }
+        let admission = ManagedSkillUpdateAdmission()
+        let single = SkillUpdateCheckViewModel(admission: admission)
+        single.activate(writer: fixture.writer, remote: fixture.remote.client)
+        await single.refresh(skillID: fixture.skillID)
+        let snapshot = try await fixture.checks.check(fixture.skillID)
+        await single.prepareUpdate(snapshot)
+
+        let confirmation = Task { await single.confirmUpdate() }
+        await Task.detached { gate.waitUntilReached() }.value
+        await single.refresh(skillID: SkillID())
+
+        #expect(await admission.acquire(fixture.skillID) == nil)
+        gate.release()
+        await confirmation.value
+        let lease = try #require(await admission.acquire(fixture.skillID))
+        await admission.release(lease)
+    }
+}
+
+private final class SkillUpdateConfirmationGate: @unchecked Sendable {
+    private let reached = DispatchSemaphore(value: 0)
+    private let resume = DispatchSemaphore(value: 0)
+
+    func reach(_: SkillBackupID) {
+        reached.signal()
+        resume.wait()
+    }
+
+    func waitUntilReached() {
+        reached.wait()
+    }
+
+    func release() {
+        resume.signal()
     }
 }

@@ -138,20 +138,25 @@ private struct SkillBatchUpdateRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 10) {
                 selection
-                Image(systemName: presentation.systemImage)
-                    .foregroundStyle(iconStyle)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.displayName)
-                        .font(.headline)
-                        .lineLimit(1)
-                    Text(presentation.title)
-                    if let detail = presentation.detail {
-                        Text(detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: presentation.systemImage)
+                        .foregroundStyle(iconStyle)
+                        .frame(width: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.displayName)
+                            .font(.headline)
+                            .lineLimit(1)
+                        Text(presentation.title)
+                        if let detail = presentation.detail {
+                            Text(detail)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(item.displayName)
+                .accessibilityValue(presentation.accessibilityValue)
                 Spacer()
                 if item.allowsRetry {
                     Button("Retry") {
@@ -161,9 +166,6 @@ private struct SkillBatchUpdateRow: View {
                     .accessibilityLabel("Recheck \(item.displayName)")
                 }
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(item.displayName)
-            .accessibilityValue(presentation.accessibilityValue)
 
             if item.phase == .decisionRequired {
                 ForEach(item.scopes) { scope in

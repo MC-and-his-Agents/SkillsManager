@@ -237,12 +237,10 @@ struct SkillSplitView: View {
                         || libraryRuntime.readiness != .ready
                         || batchUpdateModel.operationActive
                 )
-                .help(
-                    store.skills.isEmpty
-                        ? "Import a managed Skill before checking for batch updates."
-                        : "Check all managed Skills for updates."
-                )
+                .help(batchUpdateHelp)
                 .accessibilityLabel("Open Batch Updates")
+                .accessibilityValue(batchUpdateHelp)
+                .accessibilityHint(batchUpdateHelp)
             }
         }
 
@@ -287,6 +285,19 @@ struct SkillSplitView: View {
                 .labelStyle(.iconOnly)
             }
         }
+    }
+
+    private var batchUpdateHelp: String {
+        if libraryRuntime.readiness != .ready {
+            return "Batch updates are unavailable until the managed library is ready."
+        }
+        if store.skills.isEmpty {
+            return "Import a managed Skill before checking for batch updates."
+        }
+        if batchUpdateModel.operationActive {
+            return "A batch update is already running."
+        }
+        return "Check all managed Skills for updates."
     }
 
     private var searchPrompt: String {
