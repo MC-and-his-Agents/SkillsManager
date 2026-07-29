@@ -117,7 +117,22 @@ nonisolated enum SkillSchemaInspection {
     }
 
     static func expectedV9SchemaFingerprint() throws -> Data {
-        try expectedSchemaFingerprint(
+        try expectedV9SchemaFingerprint(v9Statements: SkillSchemaV9.statements)
+    }
+
+    static func expectedEarlyV9SchemaFingerprint() throws -> Data {
+        let v9Statements = SkillSchemaV9.statements.map {
+            $0 == SkillSchemaV9.backupImmutableSnapshotTriggerSQL
+                ? SkillSchemaV9.earlyBackupImmutableSnapshotTriggerSQL
+                : $0
+        }
+        return try expectedV9SchemaFingerprint(v9Statements: v9Statements)
+    }
+
+    private static func expectedV9SchemaFingerprint(
+        v9Statements: [String]
+    ) throws -> Data {
+        return try expectedSchemaFingerprint(
             objectNames: SkillSchemaV9.fingerprintedObjectNames,
             statements: SkillSchemaV1.statements
                 + SkillSchemaV2.statements
@@ -127,7 +142,7 @@ nonisolated enum SkillSchemaInspection {
                 + SkillSchemaV6.statements
                 + SkillSchemaV7.statements
                 + SkillSchemaV8.statements
-                + SkillSchemaV9.statements
+                + v9Statements
                 + [SkillSchemaV9.expectedSkillsTableSQL],
             version: 9
         )

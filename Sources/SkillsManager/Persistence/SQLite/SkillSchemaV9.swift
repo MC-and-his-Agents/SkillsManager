@@ -1,3 +1,9 @@
+nonisolated enum SkillSchemaV9CompatibilityCheckpoint: Equatable, Sendable {
+    case beforeTriggerDrop
+    case afterTriggerDrop
+    case afterTriggerCreate
+}
+
 nonisolated enum SkillSchemaV9 {
     static let version = 9
 
@@ -47,6 +53,39 @@ nonisolated enum SkillSchemaV9 {
         "skill_deletion_operations_immutable_snapshot",
         "skill_deletion_operations_lifecycle",
     ]).sorted()
+
+    static let backupImmutableSnapshotTriggerSQL = """
+        CREATE TRIGGER skill_backups_immutable_snapshot
+        BEFORE UPDATE ON skill_backups
+        WHEN NEW.backup_id IS NOT OLD.backup_id
+          OR NEW.format_version IS NOT OLD.format_version
+          OR NEW.original_skill_id IS NOT OLD.original_skill_id
+          OR NEW.locator IS NOT OLD.locator
+          OR NEW.directory_identity IS NOT OLD.directory_identity
+          OR NEW.manifest_digest IS NOT OLD.manifest_digest
+          OR NEW.fingerprint_algorithm_version IS NOT OLD.fingerprint_algorithm_version
+          OR NEW.content_fingerprint IS NOT OLD.content_fingerprint
+          OR NEW.created_at_ms IS NOT OLD.created_at_ms
+          OR (OLD.restored_skill_id IS NOT NULL
+            AND NEW.restored_skill_id IS NOT OLD.restored_skill_id)
+        BEGIN
+          SELECT RAISE(ABORT, 'Skill backup immutable snapshot changed');
+        END
+        """
+
+    static let earlyBackupImmutableSnapshotTriggerSQL =
+        backupImmutableSnapshotTriggerSQL.replacingOccurrences(
+            of: """
+              OR (OLD.restored_skill_id IS NOT NULL
+                AND NEW.restored_skill_id IS NOT OLD.restored_skill_id)
+            """,
+            with: """
+              OR (OLD.restored_skill_id IS NOT NULL
+                AND NEW.restored_skill_id IS NOT OLD.restored_skill_id)
+              OR (OLD.restore_result_json IS NOT NULL
+                AND NEW.restore_result_json IS NOT OLD.restore_result_json)
+            """
+        )
 
     static let statements = [
         """
@@ -130,24 +169,7 @@ nonisolated enum SkillSchemaV9 {
           ON skill_backups(prune_quarantine_locator)
           WHERE prune_quarantine_locator IS NOT NULL
         """,
-        """
-        CREATE TRIGGER skill_backups_immutable_snapshot
-        BEFORE UPDATE ON skill_backups
-        WHEN NEW.backup_id IS NOT OLD.backup_id
-          OR NEW.format_version IS NOT OLD.format_version
-          OR NEW.original_skill_id IS NOT OLD.original_skill_id
-          OR NEW.locator IS NOT OLD.locator
-          OR NEW.directory_identity IS NOT OLD.directory_identity
-          OR NEW.manifest_digest IS NOT OLD.manifest_digest
-          OR NEW.fingerprint_algorithm_version IS NOT OLD.fingerprint_algorithm_version
-          OR NEW.content_fingerprint IS NOT OLD.content_fingerprint
-          OR NEW.created_at_ms IS NOT OLD.created_at_ms
-          OR (OLD.restored_skill_id IS NOT NULL
-            AND NEW.restored_skill_id IS NOT OLD.restored_skill_id)
-        BEGIN
-          SELECT RAISE(ABORT, 'Skill backup immutable snapshot changed');
-        END
-        """,
+        backupImmutableSnapshotTriggerSQL,
         """
         CREATE TRIGGER skill_backups_lifecycle
         BEFORE UPDATE ON skill_backups
@@ -306,6 +328,37 @@ nonisolated enum SkillSchemaV9 {
 }
 
 nonisolated extension SkillSchemaMigrator {
+    static func normalizeKnownV9Schema(
+        _ connection: SQLiteConnection,
+        checkpoint: (SkillSchemaV9CompatibilityCheckpoint) throws -> Void
+    ) throws {
+        guard try requiresV9TriggerNormalization(connection) else { return }
+
+        try checkpoint(.beforeTriggerDrop)
+        try connection.execute("DROP TRIGGER skill_backups_immutable_snapshot")
+        try checkpoint(.afterTriggerDrop)
+        try connection.execute(SkillSchemaV9.backupImmutableSnapshotTriggerSQL)
+        try checkpoint(.afterTriggerCreate)
+    }
+
+    static func requiresV9TriggerNormalization(
+        _ connection: SQLiteConnection
+    ) throws -> Bool {
+        try validateV9Structure(connection)
+        try validateV2CleanupRows(connection)
+        let fingerprint = try SkillSchemaInspection.schemaFingerprint(
+            connection,
+            objectNames: SkillSchemaV9.fingerprintedObjectNames
+        )
+        if fingerprint == (try SkillSchemaInspection.expectedV9SchemaFingerprint()) {
+            return false
+        }
+        guard fingerprint == (try SkillSchemaInspection.expectedEarlyV9SchemaFingerprint()) else {
+            throw SQLiteStoreError.invalidState("schema v9 SQL fingerprint does not match")
+        }
+        return true
+    }
+
     static func applyV9Migration(
         _ connection: SQLiteConnection,
         beforeCommit: () throws -> Void
@@ -322,6 +375,17 @@ nonisolated extension SkillSchemaMigrator {
     }
 
     static func validateV9(_ connection: SQLiteConnection) throws {
+        try validateV9Structure(connection)
+        guard try SkillSchemaInspection.schemaFingerprint(
+                connection,
+                objectNames: SkillSchemaV9.fingerprintedObjectNames
+              ) == SkillSchemaInspection.expectedV9SchemaFingerprint() else {
+            throw SQLiteStoreError.invalidState("schema v9 SQL fingerprint does not match")
+        }
+        try validateV2CleanupRows(connection)
+    }
+
+    private static func validateV9Structure(_ connection: SQLiteConnection) throws {
         guard try connection.userTableNames() == SkillSchemaV9.tableNames,
               try connection.querySingleInt("PRAGMA user_version")
                 == Int64(SkillSchemaV9.version) else {
@@ -374,12 +438,5 @@ nonisolated extension SkillSchemaMigrator {
               ) == Int64(SkillSchemaV9.tableNames.count) else {
             throw SQLiteStoreError.invalidState("schema v9 tables must all be STRICT")
         }
-        guard try SkillSchemaInspection.schemaFingerprint(
-                connection,
-                objectNames: SkillSchemaV9.fingerprintedObjectNames
-              ) == SkillSchemaInspection.expectedV9SchemaFingerprint() else {
-            throw SQLiteStoreError.invalidState("schema v9 SQL fingerprint does not match")
-        }
-        try validateV2CleanupRows(connection)
     }
 }

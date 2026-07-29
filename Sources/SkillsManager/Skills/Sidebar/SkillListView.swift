@@ -64,7 +64,10 @@ struct SkillListView: View {
                         }
                     }
                 } label: {
-                    Label("Reload", systemImage: "arrow.clockwise")
+                    Label(
+                        source == .local ? "Reload managed Skills" : "Reload latest Skills",
+                        systemImage: "arrow.clockwise"
+                    )
                 }
                 .labelStyle(.iconOnly)
             }
@@ -139,7 +142,7 @@ struct SkillListView: View {
         let hasAnySkills = !mine.isEmpty || !clawdhub.isEmpty
 
         if !hasAnySkills {
-            Text("No skills yet.")
+            Text("No managed Skills yet. Use Discovery to find and import existing Skills.")
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 8)
         } else {

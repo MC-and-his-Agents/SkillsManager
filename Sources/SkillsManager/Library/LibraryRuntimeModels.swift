@@ -157,6 +157,44 @@ nonisolated struct LibraryRuntimeDiagnostic: Equatable, Sendable {
             return false
         }
     }
+
+    var userFacingMessage: String {
+        switch code {
+        case .databaseMissing:
+            "The managed database is missing. Restore it before continuing."
+        case .ssotMissing:
+            "The managed Skill library is missing. Restore it before continuing."
+        case .schemaMismatch:
+            "The managed database is incompatible. Keep it unchanged and update or repair "
+                + "Skills Manager before retrying."
+        case .legacyMigrationBlocked:
+            "The previous library could not be migrated safely. Keep it unchanged and retry."
+        case .journalNeedsRepair:
+            "An interrupted library operation needs repair before changes can continue."
+        case .orphanSSOTDirectory:
+            "The managed library contains an unregistered Skill directory that needs review."
+        case .unknownSSOTEntry:
+            "The managed library contains an unknown entry that needs review."
+        case .databaseSkillMissingDirectory:
+            "A managed Skill is missing from storage. Restore it before continuing."
+        case .contentFingerprintDrift:
+            "Managed Skill content changed outside Skills Manager and needs review."
+        case .rootIdentityChanged:
+            "The managed library folder changed while in use. Restore it and restart the app."
+        case .permissionDenied:
+            "Skills Manager cannot access its library. Check permissions for ~/.SkillsManager "
+                + "and retry."
+        case .databaseBusy:
+            "The managed database is in use. Close other Skills Manager instances and retry."
+        case .cleanupDebt:
+            "A previous cleanup is incomplete and will be retried."
+        case .legacyArchiveChanged:
+            "The archived previous library changed and needs review."
+        case .unrecoverable:
+            "The managed library could not start safely. Keep its data unchanged and report "
+                + "this diagnostic."
+        }
+    }
 }
 
 nonisolated enum LibraryStartupOutcome: String, Sendable {
@@ -178,6 +216,11 @@ nonisolated struct LibraryStartupResult: Sendable {
     private(set) var readiness: LibraryRuntimeReadiness = .blocked
     private(set) var diagnostics: [LibraryRuntimeDiagnostic] = []
     private(set) var outcome: LibraryStartupOutcome?
+
+    var blockingMessage: String {
+        diagnostics.first(where: \.blocking)?.userFacingMessage
+            ?? "The managed library is not ready. Retry after startup completes."
+    }
 
     func apply(_ result: LibraryStartupResult) {
         phase = result.phase
