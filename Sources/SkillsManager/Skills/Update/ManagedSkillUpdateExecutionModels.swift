@@ -64,6 +64,7 @@ nonisolated enum ManagedSkillUpdateExecutionProblem: LocalizedError, Equatable, 
     case stale
     case invalidDecisions
     case unsafeCopyState
+    case operationInProgress
     case permissionDenied
     case providerUnavailable
     case needsRepair
@@ -81,6 +82,8 @@ nonisolated enum ManagedSkillUpdateExecutionProblem: LocalizedError, Equatable, 
             "Choose how to handle every modified Copy before updating."
         case .unsafeCopyState:
             "A Copy target changed in a way that cannot be updated safely."
+        case .operationInProgress:
+            "This Skill is already being prepared or updated."
         case .permissionDenied:
             "Skills Manager does not have permission to complete this update."
         case .providerUnavailable:

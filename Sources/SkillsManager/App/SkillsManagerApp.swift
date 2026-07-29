@@ -13,7 +13,8 @@ struct SkillsManagerApp: App {
     @State private var store: SkillStore
     @State private var discoveryModel = SkillDiscoveryViewModel()
     @State private var distributionModel = SkillDistributionViewModel()
-    @State private var updateCheckModel = SkillUpdateCheckViewModel()
+    @State private var updateCheckModel: SkillUpdateCheckViewModel
+    @State private var batchUpdateModel: SkillBatchUpdateViewModel
     @State private var lifecycleModel = SkillLifecycleViewModel()
     @State private var consistencyModel = SkillConsistencyViewModel()
     @State private var libraryRuntime = LibraryRuntimeState()
@@ -24,8 +25,15 @@ struct SkillsManagerApp: App {
 
     init() {
         let pathStore = CustomPathStore()
+        let updateAdmission = ManagedSkillUpdateAdmission()
         _customPathStore = State(initialValue: pathStore)
         _store = State(initialValue: SkillStore(customPathStore: pathStore))
+        _updateCheckModel = State(
+            initialValue: SkillUpdateCheckViewModel(admission: updateAdmission)
+        )
+        _batchUpdateModel = State(
+            initialValue: SkillBatchUpdateViewModel(admission: updateAdmission)
+        )
     }
 
     var body: some Scene {
@@ -38,6 +46,7 @@ struct SkillsManagerApp: App {
                 .environment(discoveryModel)
                 .environment(distributionModel)
                 .environment(updateCheckModel)
+                .environment(batchUpdateModel)
                 .environment(lifecycleModel)
                 .environment(consistencyModel)
                 .environment(libraryRuntime)

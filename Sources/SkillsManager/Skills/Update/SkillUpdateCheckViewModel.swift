@@ -24,27 +24,38 @@ import Observation
 
     private var service: ManagedSkillUpdateCheckService?
     private var updateService: ManagedSkillUpdateExecutionService?
+    private let admission: ManagedSkillUpdateAdmission
+    private var admissionLease: ManagedSkillUpdateAdmissionLease?
     private var generation: UInt64 = 0
     private var runtimeBlockMessage = "Preparing the managed library…"
 
+    init(admission: ManagedSkillUpdateAdmission = ManagedSkillUpdateAdmission()) {
+        self.admission = admission
+    }
+
     func activate(writer: JournaledSSOTWriter, remote: RemoteSkillClient) {
+        guard service == nil, updateService == nil else { return }
         service = ManagedSkillUpdateCheckService(writer: writer, remote: remote)
         updateService = ManagedSkillUpdateExecutionService(writer: writer, remote: remote)
     }
 
     func blockRuntime(message: String) async {
-        if let pendingUpdate, let updateService {
+        let updateOperationActive = isPreparingUpdate || isUpdating
+        if !updateOperationActive, let pendingUpdate, let updateService {
             await updateService.cancel(pendingUpdate.token)
+        }
+        if !updateOperationActive {
+            await releaseAdmission()
         }
         service = nil
         updateService = nil
         runtimeBlockMessage = message
         generation &+= 1
         isChecking = false
-        isPreparingUpdate = false
-        isUpdating = false
-        pendingUpdate = nil
-        updateSelections = [:]
+        if !updateOperationActive {
+            pendingUpdate = nil
+            updateSelections = [:]
+        }
         loadState = .blocked(message)
     }
 
@@ -55,6 +66,7 @@ import Observation
             await updateService.cancel(pendingUpdate.token)
             self.pendingUpdate = nil
             updateSelections = [:]
+            await releaseAdmission()
         }
         generation &+= 1
         let requestGeneration = generation
@@ -104,25 +116,34 @@ import Observation
     }
 
     func prepareUpdate(_ snapshot: ManagedSkillUpdateCheckSnapshot) async {
-        guard !isPreparingUpdate, !isUpdating, let updateService else { return }
+        guard !isPreparingUpdate,
+              !isUpdating,
+              pendingUpdate == nil,
+              admissionLease == nil,
+              let updateService else { return }
+        guard let lease = await admission.acquire(snapshot.skillID) else {
+            updateProblem = .operationInProgress
+            return
+        }
+        admissionLease = lease
+        let requestGeneration = generation
         isPreparingUpdate = true
         updateProblem = nil
         updateResult = nil
-        if let pendingUpdate {
-            await updateService.cancel(pendingUpdate.token)
-        }
-        pendingUpdate = nil
         updateSelections = [:]
         do {
             let preview = try await updateService.prepare(snapshot)
-            guard activeSkillID == preview.skillID else {
+            guard generation == requestGeneration,
+                  activeSkillID == preview.skillID else {
                 await updateService.cancel(preview.token)
+                await releaseAdmission()
                 isPreparingUpdate = false
                 return
             }
             pendingUpdate = preview
         } catch {
             updateProblem = Self.updateProblem(for: error)
+            await releaseAdmission()
         }
         isPreparingUpdate = false
     }
@@ -170,6 +191,7 @@ import Observation
             updateSelections = [:]
             updateProblem = Self.updateProblem(for: error)
         }
+        await releaseAdmission()
         isUpdating = false
     }
 
@@ -178,6 +200,7 @@ import Observation
         await updateService.cancel(pendingUpdate.token)
         self.pendingUpdate = nil
         updateSelections = [:]
+        await releaseAdmission()
     }
 
     func selectedDecision(
@@ -199,5 +222,11 @@ import Observation
     ) -> ManagedSkillUpdateExecutionProblem {
         if let problem = error as? ManagedSkillUpdateExecutionProblem { return problem }
         return .failed
+    }
+
+    private func releaseAdmission() async {
+        guard let admissionLease else { return }
+        self.admissionLease = nil
+        await admission.release(admissionLease)
     }
 }

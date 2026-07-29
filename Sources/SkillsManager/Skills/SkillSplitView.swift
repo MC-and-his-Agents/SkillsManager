@@ -6,6 +6,7 @@ struct SkillSplitView: View {
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillsShSearchStore.self) private var skillsShStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
+    @Environment(SkillBatchUpdateViewModel.self) private var batchUpdateModel
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
     @Environment(SkillConsistencyViewModel.self) private var consistencyModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
@@ -15,6 +16,7 @@ struct SkillSplitView: View {
     @State private var showingAddPath = false
     @State private var showingBackups = false
     @State private var showingConsistency = false
+    @State private var showingBatchUpdates = false
     @State private var source: SkillSource = .local
     @State private var downloadErrorMessage: String?
     @State private var isDownloadingRemote = false
@@ -79,6 +81,10 @@ struct SkillSplitView: View {
                 }
                 .environment(consistencyModel)
             }
+            .sheet(isPresented: $showingBatchUpdates) {
+                SkillBatchUpdateView()
+                    .environment(batchUpdateModel)
+            }
             .sheet(item: $installSkill) { skill in
                 ManagedClawdhubInstallView(
                     skill: skill,
@@ -109,6 +115,13 @@ struct SkillSplitView: View {
             }
             .onChange(of: lifecycleModel.publishedMutationGeneration) { _, _ in
                 Task { await refreshManagedRemoteSkill() }
+            }
+            .onChange(of: batchUpdateModel.state) { _, newValue in
+                guard newValue == .completed else { return }
+                Task {
+                    await store.loadSkills()
+                    await discoveryModel.refresh()
+                }
             }
     }
 
@@ -200,6 +213,36 @@ struct SkillSplitView: View {
                         ? "Skill Backups"
                         : "Skill Backups, \(lifecycleModel.availableBackupCount) available"
                 )
+            }
+        }
+
+        if source == .local {
+            ToolbarItem(id: "batch-updates") {
+                Button {
+                    batchUpdateModel.configure(
+                        store.skills.map {
+                            SkillBatchUpdateCatalogItem(
+                                skillID: $0.managedSkillID,
+                                displayName: $0.displayName
+                            )
+                        }
+                    )
+                    showingBatchUpdates = true
+                } label: {
+                    Label("Batch Updates", systemImage: "arrow.down.circle")
+                        .labelStyle(.iconOnly)
+                }
+                .disabled(
+                    store.skills.isEmpty
+                        || libraryRuntime.readiness != .ready
+                        || batchUpdateModel.operationActive
+                )
+                .help(
+                    store.skills.isEmpty
+                        ? "Import a managed Skill before checking for batch updates."
+                        : "Check all managed Skills for updates."
+                )
+                .accessibilityLabel("Open Batch Updates")
             }
         }
 
@@ -363,6 +406,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillDistributionViewModel.self) private var distributionModel
     @Environment(SkillUpdateCheckViewModel.self) private var updateCheckModel
+    @Environment(SkillBatchUpdateViewModel.self) private var batchUpdateModel
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
     @Environment(SkillConsistencyViewModel.self) private var consistencyModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
@@ -447,6 +491,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             await updateCheckModel.blockRuntime(
                 message: message
             )
+            batchUpdateModel.blockRuntime(message: message)
             return
         }
         guard let writer = store.persistence else {
@@ -463,6 +508,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 message: "The managed library session is unavailable."
             )
             await updateCheckModel.blockRuntime(
+                message: "The managed library session is unavailable."
+            )
+            batchUpdateModel.blockRuntime(
                 message: "The managed library session is unavailable."
             )
             return
@@ -483,6 +531,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
         lifecycleModel.activate(dependencies: .live(writer: writer))
         consistencyModel.activate(dependencies: .live(writer: writer))
         updateCheckModel.activate(writer: writer, remote: remoteStore.client)
+        batchUpdateModel.activate(writer: writer, remote: remoteStore.client)
         await refreshManagedSelection()
         await consistencyModel.refreshIfLoaded()
     }
