@@ -4,6 +4,7 @@ import SwiftUI
 struct SkillSplitView: View {
     @Environment(SkillStore.self) private var store
     @Environment(RemoteSkillStore.self) private var remoteStore
+    @Environment(SkillsShSearchStore.self) private var skillsShStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
     @Environment(SkillConsistencyViewModel.self) private var consistencyModel
@@ -143,6 +144,13 @@ struct SkillSplitView: View {
                 items: filteredDiscoveryItems,
                 source: $source
             )
+        case .skillsSh:
+            SkillsShSearchSidebarView(
+                searchText: searchText,
+                onRetrySearch: scheduleSkillsShSearch,
+                onLoadMore: loadMoreSkillsShResults,
+                source: $source
+            )
         }
     }
 
@@ -155,24 +163,28 @@ struct SkillSplitView: View {
             SkillDiscoveryDetailView()
         case .clawdhub:
             RemoteSkillDetailView()
+        case .skillsSh:
+            SkillsShSearchDetailView()
         }
     }
 
     @ToolbarContentBuilder
     private func toolbarContent() -> some CustomizableToolbarContent {
-        ToolbarItem(id: "consistency") {
-            Button {
-                showingConsistency = true
-            } label: {
-                Label("Consistency Audit", systemImage: "checkmark.shield")
-                    .labelStyle(.iconOnly)
+        if source != .skillsSh {
+            ToolbarItem(id: "consistency") {
+                Button {
+                    showingConsistency = true
+                } label: {
+                    Label("Consistency Audit", systemImage: "checkmark.shield")
+                        .labelStyle(.iconOnly)
+                }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .help("Consistency Audit")
+                .accessibilityLabel("Open consistency audit")
             }
-            .keyboardShortcut("a", modifiers: [.command, .shift])
-            .help("Consistency Audit")
-            .accessibilityLabel("Open consistency audit")
         }
 
-        if source != .clawdhub {
+        if source != .clawdhub && source != .skillsSh {
             ToolbarItem(id: "backups") {
                 Button {
                     showingBackups = true
@@ -209,7 +221,7 @@ struct SkillSplitView: View {
 
         }
 
-        if source != .discovery {
+        if source != .discovery && source != .skillsSh {
             ToolbarItem(id: "open") {
                 openFolderItem
             }
@@ -239,6 +251,7 @@ struct SkillSplitView: View {
         case .local: "Filter skills"
         case .discovery: "Filter discovered skills"
         case .clawdhub: "Search Clawdhub"
+        case .skillsSh: "Search skills.sh"
         }
     }
 
@@ -325,12 +338,28 @@ struct SkillSplitView: View {
         managedRemoteSkillID = provenance?.skillID
     }
 
+    private func scheduleSkillsShSearch() {
+        searchTask?.cancel()
+        skillsShStore.cancel()
+        searchTask = Task {
+            await skillsShStore.search(query: searchText)
+        }
+    }
+
+    private func loadMoreSkillsShResults() {
+        searchTask?.cancel()
+        searchTask = Task {
+            await skillsShStore.loadNextPage()
+        }
+    }
+
 }
 
 private struct SkillSplitLifecycleModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(SkillStore.self) private var store
     @Environment(RemoteSkillStore.self) private var remoteStore
+    @Environment(SkillsShSearchStore.self) private var skillsShStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillDistributionViewModel.self) private var distributionModel
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
@@ -360,25 +389,19 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 Task { await refreshManagedSelection() }
             }
             .onChange(of: source) { _, newValue in
-                if newValue != .clawdhub {
-                    searchTask?.cancel()
-                    searchTask = nil
-                }
+                searchTask?.cancel()
+                searchTask = nil
+                skillsShStore.cancel()
                 if newValue == .local {
                     Task { await store.loadSelectedSkill() }
                 }
+                scheduleRemoteSearch(for: newValue, query: searchText)
             }
             .onChange(of: distributionModel.publishedForkSelectionGeneration) { _, _ in
                 Task { await selectRequestedFork() }
             }
             .onChange(of: searchText) { _, newValue in
-                guard source == .clawdhub else { return }
-                searchTask?.cancel()
-                searchTask = Task {
-                    try? await Task.sleep(for: .milliseconds(300))
-                    guard !Task.isCancelled else { return }
-                    await remoteStore.search(query: newValue)
-                }
+                scheduleRemoteSearch(for: source, query: newValue)
             }
             .onChange(of: libraryRuntime.readiness) { _, _ in
                 Task { await synchronizeDiscoveryRuntime() }
@@ -452,6 +475,26 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
         consistencyModel.activate(dependencies: .live(writer: writer))
         await refreshManagedSelection()
         await consistencyModel.refreshIfLoaded()
+    }
+
+    private func scheduleRemoteSearch(for source: SkillSource, query: String) {
+        guard source == .clawdhub || source == .skillsSh else { return }
+        searchTask?.cancel()
+        if source == .skillsSh {
+            skillsShStore.cancel()
+        }
+        searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            switch source {
+            case .clawdhub:
+                await remoteStore.search(query: query)
+            case .skillsSh:
+                await skillsShStore.search(query: query)
+            case .local, .discovery:
+                break
+            }
+        }
     }
 
     private func refreshManagedSelection() async {

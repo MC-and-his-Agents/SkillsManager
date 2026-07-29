@@ -10,7 +10,7 @@ struct ManagedSkillSelection: Equatable, Sendable {
         switch source {
         case .local: local
         case .discovery: discovery
-        case .clawdhub: nil
+        case .clawdhub, .skillsSh: nil
         }
     }
 }

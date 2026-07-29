@@ -17,6 +17,7 @@ struct SkillsManagerApp: App {
     @State private var consistencyModel = SkillConsistencyViewModel()
     @State private var libraryRuntime = LibraryRuntimeState()
     @State private var remoteStore = RemoteSkillStore(client: .live())
+    @State private var skillsShStore = SkillsShSearchStore(client: .live())
     @State private var runtimeBootstrap = AppLibraryRuntimeBootstrap()
     private let startupCoordinator = LibraryStartupCoordinator()
 
@@ -31,6 +32,7 @@ struct SkillsManagerApp: App {
             SkillSplitView()
                 .environment(store)
                 .environment(remoteStore)
+                .environment(skillsShStore)
                 .environment(customPathStore)
                 .environment(discoveryModel)
                 .environment(distributionModel)
