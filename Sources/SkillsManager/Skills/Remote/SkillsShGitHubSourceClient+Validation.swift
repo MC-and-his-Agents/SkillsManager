@@ -98,6 +98,52 @@ nonisolated extension SkillsShGitHubContract {
         return (try RepositorySubpath(targetPath), blobs)
     }
 
+    static func exactTarget(
+        in entries: [TreeEntry],
+        subpath: RepositorySubpath
+    ) throws -> [SkillsShGitHubBlob] {
+        let targetComponents = try pathComponents(subpath.value)
+        let targetKey = targetComponents.map(SkillContentPath.collisionKey).joined(separator: "/")
+        let skillPathKey = targetKey + "/" + SkillContentPath.collisionKey(for: "SKILL.md")
+        let matches = entries.filter {
+            $0.type == "blob"
+                && ($0.mode == "100644" || $0.mode == "100755")
+                && $0.components.map(SkillContentPath.collisionKey).joined(separator: "/")
+                    == skillPathKey
+        }
+        guard matches.count == 1 else {
+            throw SkillsShGitHubSourceError.noUniqueSkillMatch
+        }
+        let actualTargetComponents = Array(matches[0].components.dropLast())
+        let actualTargetPath = actualTargetComponents.joined(separator: "/")
+        guard entries.contains(where: {
+            $0.path == actualTargetPath && $0.type == "tree" && $0.mode == "040000"
+        }) else {
+            throw SkillsShGitHubSourceError.contractChanged
+        }
+
+        var blobs: [SkillsShGitHubBlob] = []
+        for entry in entries
+            where entry.path.hasPrefix(actualTargetPath + "/") {
+            if entry.type == "tree", entry.mode == "040000" { continue }
+            guard entry.type == "blob",
+                  entry.mode == "100644" || entry.mode == "100755",
+                  let size = entry.size else {
+                throw SkillsShGitHubSourceError.contractChanged
+            }
+            blobs.append(SkillsShGitHubBlob(
+                relativePath: entry.components
+                    .dropFirst(actualTargetComponents.count)
+                    .joined(separator: "/"),
+                mode: entry.mode,
+                size: size,
+                gitBlobSHA: entry.sha
+            ))
+        }
+        blobs.sort { $0.relativePath.utf8.lexicographicallyPrecedes($1.relativePath.utf8) }
+        return blobs
+    }
+
     static func apiRequest(
         path: [String],
         queryItems: [URLQueryItem] = []
@@ -161,7 +207,9 @@ nonisolated extension SkillsShGitHubContract {
 
     static func validCodeloadURL(
         _ url: URL,
-        source: SkillsShResolvedGitHubSource
+        owner: String,
+        repository: String,
+        commitSHA: String
     ) -> Bool {
         guard !url.absoluteString.contains("%"),
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -177,10 +225,10 @@ nonisolated extension SkillsShGitHubContract {
         let path = components.path.split(separator: "/", omittingEmptySubsequences: false)
         return path.count == 5
             && path[0].isEmpty
-            && asciiEqual(String(path[1]), source.owner)
-            && asciiEqual(String(path[2]), source.repository)
+            && asciiEqual(String(path[1]), owner)
+            && asciiEqual(String(path[2]), repository)
             && path[3] == "legacy.zip"
-            && path[4] == Substring(source.commitSHA)
+            && path[4] == Substring(commitSHA)
     }
 
     static func pathComponents(_ path: String) throws -> [String] {

@@ -27,12 +27,29 @@ nonisolated struct DownloadedSkillArchive: Sendable {
     }
 }
 
-struct RemoteSkillClient {
-    var fetchLatest: (_ limit: Int) async throws -> [RemoteSkill]
-    var search: (_ query: String, _ limit: Int) async throws -> [RemoteSkill]
-    var download: (_ slug: String, _ version: String?) async throws -> DownloadedSkillArchive
-    var fetchDetail: (_ slug: String) async throws -> RemoteSkillOwner?
-    var fetchLatestVersion: (_ slug: String) async throws -> String?
+nonisolated enum RemoteSkillClientError: Error, Equatable, LocalizedError, Sendable {
+    case rateLimited
+    case providerUnavailable
+    case invalidResponse
+
+    var errorDescription: String? {
+        switch self {
+        case .rateLimited: "Clawdhub rate limited this request."
+        case .providerUnavailable: "Clawdhub is temporarily unavailable."
+        case .invalidResponse: "Clawdhub returned an invalid response."
+        }
+    }
+}
+
+nonisolated struct RemoteSkillClient: Sendable {
+    var fetchLatest: @Sendable (_ limit: Int) async throws -> [RemoteSkill]
+    var search: @Sendable (_ query: String, _ limit: Int) async throws -> [RemoteSkill]
+    var download: @Sendable (
+        _ slug: String,
+        _ version: String?
+    ) async throws -> DownloadedSkillArchive
+    var fetchDetail: @Sendable (_ slug: String) async throws -> RemoteSkillOwner?
+    var fetchLatestVersion: @Sendable (_ slug: String) async throws -> String?
 }
 
 extension RemoteSkillClient {
@@ -180,9 +197,16 @@ nonisolated func checkedDownloadedArchive(
 
 nonisolated private func validate(response: URLResponse) throws {
     guard let http = response as? HTTPURLResponse else {
-        throw URLError(.badServerResponse)
+        throw RemoteSkillClientError.invalidResponse
     }
-    guard (200..<300).contains(http.statusCode) else {
-        throw URLError(.badServerResponse)
+    switch http.statusCode {
+    case 200..<300:
+        return
+    case 429:
+        throw RemoteSkillClientError.rateLimited
+    case 500..<600:
+        throw RemoteSkillClientError.providerUnavailable
+    default:
+        throw RemoteSkillClientError.invalidResponse
     }
 }

@@ -13,6 +13,7 @@ struct SkillsManagerApp: App {
     @State private var store: SkillStore
     @State private var discoveryModel = SkillDiscoveryViewModel()
     @State private var distributionModel = SkillDistributionViewModel()
+    @State private var updateCheckModel = SkillUpdateCheckViewModel()
     @State private var lifecycleModel = SkillLifecycleViewModel()
     @State private var consistencyModel = SkillConsistencyViewModel()
     @State private var libraryRuntime = LibraryRuntimeState()
@@ -36,6 +37,7 @@ struct SkillsManagerApp: App {
                 .environment(customPathStore)
                 .environment(discoveryModel)
                 .environment(distributionModel)
+                .environment(updateCheckModel)
                 .environment(lifecycleModel)
                 .environment(consistencyModel)
                 .environment(libraryRuntime)

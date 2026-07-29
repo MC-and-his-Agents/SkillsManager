@@ -129,7 +129,7 @@ struct ManagedSkillsShInstallView: View {
                 let downloaded = try await client.download(resolved)
                 try Task.checkCancellation()
                 let archive = try await Task.detached {
-                    try persistSkillsShArchive(data: downloaded.data)
+                    try persistDownloadedSkillArchive(data: downloaded.data)
                 }.value
                 let payload: SkillImportWorker.ImportCandidatePayload
                 do {
@@ -262,7 +262,7 @@ struct ManagedSkillsShInstallView: View {
     }
 }
 
-private nonisolated func persistSkillsShArchive(
+nonisolated func persistDownloadedSkillArchive(
     data: Data
 ) throws -> DownloadedSkillArchive {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(

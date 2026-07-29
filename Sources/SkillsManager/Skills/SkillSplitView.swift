@@ -362,6 +362,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
     @Environment(SkillsShSearchStore.self) private var skillsShStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillDistributionViewModel.self) private var distributionModel
+    @Environment(SkillUpdateCheckViewModel.self) private var updateCheckModel
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
     @Environment(SkillConsistencyViewModel.self) private var consistencyModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
@@ -423,6 +424,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 Task {
                     await discoveryModel.refresh()
                     await consistencyModel.refreshIfLoaded()
+                    await updateCheckModel.refreshCurrent()
                 }
             }
     }
@@ -441,6 +443,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             consistencyModel.blockRuntime(
                 message: "The managed library is not ready. Resolve its startup diagnostics first."
             )
+            updateCheckModel.blockRuntime(
+                message: "The managed library is not ready. Resolve its startup diagnostics first."
+            )
             return
         }
         guard let writer = store.persistence else {
@@ -454,6 +459,9 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
                 message: "The managed library session is unavailable."
             )
             consistencyModel.blockRuntime(
+                message: "The managed library session is unavailable."
+            )
+            updateCheckModel.blockRuntime(
                 message: "The managed library session is unavailable."
             )
             return
@@ -473,6 +481,7 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
         distributionModel.activate(dependencies: .live(writer: writer))
         lifecycleModel.activate(dependencies: .live(writer: writer))
         consistencyModel.activate(dependencies: .live(writer: writer))
+        updateCheckModel.activate(writer: writer, remote: remoteStore.client)
         await refreshManagedSelection()
         await consistencyModel.refreshIfLoaded()
     }
@@ -505,6 +514,8 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
             lifecycleModel: lifecycleModel,
             isCurrent: { selection == managedSelection }
         )
+        guard selection == managedSelection else { return }
+        await updateCheckModel.refresh(skillID: selection?.skillID)
     }
 
     private func selectRequestedFork() async {

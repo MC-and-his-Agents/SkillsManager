@@ -1,6 +1,6 @@
 import Foundation
 
-struct RemoteSkillAPI {
+nonisolated struct RemoteSkillAPI {
     struct SkillListResponse: Decodable {
         let items: [SkillListItem]
     }

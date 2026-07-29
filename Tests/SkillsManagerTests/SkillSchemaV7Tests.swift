@@ -13,11 +13,11 @@ struct SkillSchemaV7Tests {
             try createV7MigrationFixture(version: version, at: location.database)
 
             let migrated = try SkillSchemaMigrator.open(at: location.database)
-            #expect(try migrated.querySingleInt("PRAGMA user_version") == 13)
+            #expect(try migrated.querySingleInt("PRAGMA user_version") == 14)
             #expect(try migrated.querySingleInt(
                 "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-            ) == 13)
-            #expect(try migrated.userTableNames() == SkillSchemaV13.tableNames)
+            ) == 14)
+            #expect(try migrated.userTableNames() == SkillSchemaV14.tableNames)
         }
     }
 
@@ -85,8 +85,8 @@ struct SkillSchemaV7Tests {
             accessMode: .readOnly
         )
         #expect(reader.accessMode == .readOnly)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == 13)
-        #expect(try reader.userTableNames() == SkillSchemaV13.tableNames)
+        #expect(try reader.querySingleInt("PRAGMA user_version") == 14)
+        #expect(try reader.userTableNames() == SkillSchemaV14.tableNames)
     }
 
     @Test("raw v7 rejects operation format version 2")

@@ -1,6 +1,6 @@
 import Foundation
 
-struct RemoteSkill: Identifiable, Hashable {
+nonisolated struct RemoteSkill: Identifiable, Hashable, Sendable {
     let id: String
     let slug: String
     let displayName: String
@@ -11,7 +11,7 @@ struct RemoteSkill: Identifiable, Hashable {
     let stars: Int?
 }
 
-struct RemoteSkillOwner: Hashable {
+nonisolated struct RemoteSkillOwner: Hashable, Sendable {
     let handle: String?
     let displayName: String?
     let imageURL: String?
