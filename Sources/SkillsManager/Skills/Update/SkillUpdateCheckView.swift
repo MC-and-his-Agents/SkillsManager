@@ -143,7 +143,9 @@ private struct SkillUpdateConfirmationView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Update \(preview.displayName)")
                 .font(.title2.bold())
-            LabeledContent("Source", value: preview.sourceDescription)
+            LabeledContent("Current source", value: preview.currentSourceDescription)
+            LabeledContent("Candidate source", value: preview.candidateSourceDescription)
+            LabeledContent("Distribution", value: preview.distributionDescription)
             Text("The current managed content will be backed up before it is replaced.")
                 .foregroundStyle(.secondary)
 

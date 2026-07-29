@@ -54,6 +54,18 @@ extension JournaledSSOTWriter {
         )
     }
 
+    func managedSkillUpdateBaseline(
+        _ skillID: SkillID,
+        expectedCanonicalReadback: Data
+    ) throws -> ManagedSkillUpdateBaseline {
+        let baseline = try managedSkillUpdateBaseline(skillID)
+        guard try updateCheckReadback(skillID: skillID).canonicalData
+                == expectedCanonicalReadback else {
+            throw ManagedSkillUpdateBackupError.baselineDrift
+        }
+        return baseline
+    }
+
     func replaceManagedSkillWithBackup(
         expected: ManagedSkillUpdateBaseline,
         replacementPayload: SSOTSkillWritePayload,

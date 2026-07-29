@@ -170,23 +170,28 @@ extension ManagedSkillUpdateExecutionService {
             )
         }
         if copyMutationAttempted {
-            if let current = try? await writer.updateCheckReadback(skillID: skillID) {
-                if current.distributionStatus == .needsRepair {
-                    return result(skillID: skillID, status: .needsRepair, backupID: backupID)
-                }
-                if current.canonicalData != expectedUnupdated.canonicalData {
-                    return result(
-                        skillID: skillID,
-                        status: .copyDecisionsAppliedUpdateNotCompleted,
-                        backupID: backupID
-                    )
-                }
+            guard let current = try? await writer.updateCheckReadback(skillID: skillID) else {
+                return result(
+                    skillID: skillID,
+                    status: .updateIndeterminate,
+                    backupID: backupID
+                )
             }
-            return result(
-                skillID: skillID,
-                status: .updateIndeterminate,
-                backupID: backupID
-            )
+            if current.distributionStatus == .needsRepair {
+                return result(skillID: skillID, status: .needsRepair, backupID: backupID)
+            }
+            if current.canonicalData != expectedUnupdated.canonicalData {
+                return result(
+                    skillID: skillID,
+                    status: .copyDecisionsAppliedUpdateNotCompleted,
+                    backupID: backupID
+                )
+            }
+            if error is CancellationError
+                || (error as? ManagedSkillUpdateCheckProblem) == .cancelled {
+                return result(skillID: skillID, status: .cancelled)
+            }
+            throw Self.problem(for: error)
         }
         if error is CancellationError
             || (error as? ManagedSkillUpdateCheckProblem) == .cancelled {

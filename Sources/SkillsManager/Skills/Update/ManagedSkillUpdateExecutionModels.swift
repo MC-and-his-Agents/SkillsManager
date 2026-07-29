@@ -25,7 +25,9 @@ nonisolated struct ManagedSkillUpdateExecutionPreview: Identifiable, Sendable {
     let token: ManagedSkillUpdateExecutionToken
     let skillID: SkillID
     let displayName: String
-    let sourceDescription: String
+    let currentSourceDescription: String
+    let candidateSourceDescription: String
+    let distributionDescription: String
     let currentFingerprint: SkillContentFingerprint
     let candidate: ManagedSkillUpdateCandidate
     let copyChoices: [ManagedSkillUpdateCopyChoice]

@@ -13,15 +13,23 @@ actor ManagedSkillUpdateExecutionService {
     let checks: ManagedSkillUpdateCheckService
     let distribution: SkillDistributionDependencies
     let remoteUpdate: ManagedRemoteUpdateService
+    private let beforePrepareFinalReadback:
+        @Sendable (ManagedSkillPreparedCandidate) async throws -> Void
+    private let beforeReplacementBaseline: @Sendable () async throws -> Void
     private var pending: [ManagedSkillUpdateExecutionToken: Pending] = [:]
     private var consumed: Set<ManagedSkillUpdateExecutionToken> = []
 
     init(
         writer: JournaledSSOTWriter,
         remote: RemoteSkillClient,
-        github: SkillsShGitHubSourceClient = .live()
+        github: SkillsShGitHubSourceClient = .live(),
+        beforePrepareFinalReadback:
+            @escaping @Sendable (ManagedSkillPreparedCandidate) async throws -> Void = { _ in },
+        beforeReplacementBaseline: @escaping @Sendable () async throws -> Void = {}
     ) {
         self.writer = writer
+        self.beforePrepareFinalReadback = beforePrepareFinalReadback
+        self.beforeReplacementBaseline = beforeReplacementBaseline
         checks = ManagedSkillUpdateCheckService(
             writer: writer,
             remote: remote,
@@ -48,7 +56,7 @@ actor ManagedSkillUpdateExecutionService {
             throw ManagedSkillUpdateExecutionProblem.noUpdate
         }
         let selection = try await writer.loadDistributionSelection(skillID: snapshot.skillID)
-        _ = try selection.desiredConfiguration(for: snapshot.skillID)
+        let configuration = try selection.desiredConfiguration(for: snapshot.skillID)
         let copyPreviews = try await prepareCopyPreviews(
             snapshot: snapshot,
             selection: selection
@@ -63,10 +71,15 @@ actor ManagedSkillUpdateExecutionService {
             await checks.cleanup(prepared)
             throw ManagedSkillUpdateExecutionProblem.stale
         }
-        let final = try await writer.updateCheckReadback(skillID: snapshot.skillID)
-        guard final.canonicalData == readback.canonicalData else {
+        do {
+            try await beforePrepareFinalReadback(prepared)
+            let final = try await writer.updateCheckReadback(skillID: snapshot.skillID)
+            guard final.canonicalData == readback.canonicalData else {
+                throw ManagedSkillUpdateExecutionProblem.stale
+            }
+        } catch {
             await checks.cleanup(prepared)
-            throw ManagedSkillUpdateExecutionProblem.stale
+            throw Self.problem(for: error)
         }
         let token = ManagedSkillUpdateExecutionToken()
         let choices = copyPreviews.values.sorted {
@@ -86,7 +99,12 @@ actor ManagedSkillUpdateExecutionService {
             token: token,
             skillID: snapshot.skillID,
             displayName: readback.domain.payload.skill.displayName.value,
-            sourceDescription: candidate.locator.updateDisplayName,
+            currentSourceDescription: currentSourceDescription(
+                readback.domain.payload,
+                candidate: candidate
+            ),
+            candidateSourceDescription: candidate.locator.updateDisplayName,
+            distributionDescription: distributionDescription(configuration),
             currentFingerprint: readback.domain.payload.skill.contentFingerprint,
             candidate: candidate,
             copyChoices: choices
@@ -211,8 +229,11 @@ actor ManagedSkillUpdateExecutionService {
         backupID: SkillBackupID
     ) async throws -> ManagedSkillUpdateExecutionResult {
         let skillID = value.preview.skillID
-        let baseline = try await writer.managedSkillUpdateBaseline(skillID)
-        try requireBaseline(baseline, matches: expected)
+        try await beforeReplacementBaseline()
+        let baseline = try await writer.managedSkillUpdateBaseline(
+            skillID,
+            expectedCanonicalReadback: expected.canonicalData
+        )
         let configuration = try baseline.distributionSelection
             .desiredConfiguration(for: skillID)
         let plan = try await distribution.plan(
@@ -421,15 +442,39 @@ actor ManagedSkillUpdateExecutionService {
         }
     }
 
-    private func requireBaseline(
-        _ baseline: ManagedSkillUpdateBaseline,
-        matches readback: ManagedSkillUpdateCheckReadback
-    ) throws {
-        guard baseline.domain.revision == readback.domain.revision,
-              try SSOTWritePayloadCodec.encode(baseline.domain.payload)
-                == SSOTWritePayloadCodec.encode(readback.domain.payload),
-              baseline.finalIdentity == readback.liveSSOTIdentity else {
-            throw ManagedSkillUpdateExecutionProblem.stale
+    private func currentSourceDescription(
+        _ payload: SSOTSkillWritePayload,
+        candidate: ManagedSkillUpdateCandidate
+    ) -> String {
+        switch candidate.locator {
+        case .clawdhub(let slug, _):
+            let version = payload.providerProvenance.first {
+                $0.identity.provider == "clawdhub"
+                    && $0.identity.identifier == slug
+            }?.version?.value ?? "unknown version"
+            return "Clawdhub \(slug) \(version)"
+        case .github:
+            guard let source = payload.source else { return "Unknown GitHub revision" }
+            let revision = source.revision?.value ?? "unknown revision"
+            return "\(source.repositoryURL.value)/\(source.subpath.value)"
+                + " @ \(revision.prefix(12))"
         }
     }
+
+    private func distributionDescription(
+        _ configuration: DistributionDesiredConfiguration
+    ) -> String {
+        let scope = switch configuration.scope {
+        case .disabled:
+            "Disabled"
+        case .global:
+            "Global"
+        case .agents(let platforms, _):
+            "Agents: " + platforms.sorted {
+                $0.storageKey.utf8.lexicographicallyPrecedes($1.storageKey.utf8)
+            }.map(\.rawValue).joined(separator: ", ")
+        }
+        return "\(scope) · \(configuration.syncMode.displayName)"
+    }
+
 }

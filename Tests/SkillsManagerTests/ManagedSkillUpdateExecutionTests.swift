@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-import ZIPFoundation
 
 @testable import SkillsManager
 
@@ -17,6 +16,9 @@ struct ManagedSkillUpdateExecutionTests {
         )
 
         let preview = try await service.prepare(snapshot)
+        #expect(preview.currentSourceDescription == "Clawdhub demo 1.0.0")
+        #expect(preview.candidateSourceDescription == "Clawdhub demo 2.0.0")
+        #expect(preview.distributionDescription == "Disabled · Symlink")
         let result = try await service.confirm(preview.token, selections: [])
 
         #expect(result.status == .updated)
@@ -39,6 +41,70 @@ struct ManagedSkillUpdateExecutionTests {
             _ = try await service.prepare(snapshot)
         }
         #expect(try fixture.workspace.integer("SELECT count(*) FROM skill_backups") == 0)
+    }
+
+    @Test("prepare releases its temporary candidate when final readback fails")
+    func prepareFailureCleansTemporaryCandidate() async throws {
+        let fixture = try await makeExecutionFixture(remoteMarkdown: "# Remote")
+        defer { fixture.remote.cleanup() }
+        let snapshot = try await fixture.checks.check(fixture.skillID)
+        let capture = TemporaryRootCapture()
+        let service = ManagedSkillUpdateExecutionService(
+            writer: fixture.writer,
+            remote: fixture.remote.client,
+            beforePrepareFinalReadback: { prepared in
+                guard let url = prepared.payload.temporaryRoot?.url else {
+                    throw ManagedUpdateExecutionInterruption()
+                }
+                await capture.record(url)
+                throw ManagedUpdateExecutionInterruption()
+            }
+        )
+
+        await #expect(throws: ManagedSkillUpdateExecutionProblem.failed) {
+            _ = try await service.prepare(snapshot)
+        }
+        let temporaryURL = try #require(await capture.url)
+        #expect(!FileManager.default.fileExists(atPath: temporaryURL.path))
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM skill_backups") == 0)
+    }
+
+    @Test("distribution changes in the replacement reentry window fail before backup")
+    func replacementRebindsApprovedDistribution() async throws {
+        let fixture = try await makeExecutionFixture(
+            remoteMarkdown: "# Remote",
+            distributionEnabled: true
+        )
+        defer { fixture.remote.cleanup() }
+        let snapshot = try await fixture.checks.check(fixture.skillID)
+        let writer = fixture.writer
+        let skillID = fixture.skillID
+        let service = ManagedSkillUpdateExecutionService(
+            writer: writer,
+            remote: fixture.remote.client,
+            beforeReplacementBaseline: {
+                let slug = try DefaultDistributionSlug(validating: "demo")
+                let plan = try await writer.distributionPlan(
+                    skillID: skillID,
+                    desiredConfiguration: DistributionDesiredConfiguration(
+                        scope: .global(slug),
+                        syncMode: .symlink
+                    ),
+                    requiredAdapterCodes: globalReaderCodes
+                )
+                _ = try await writer.applyDistribution(skillID: skillID, plan: plan)
+            }
+        )
+        let preview = try await service.prepare(snapshot)
+
+        await #expect(throws: ManagedSkillUpdateExecutionProblem.stale) {
+            _ = try await service.confirm(preview.token, selections: [])
+        }
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM skill_backups") == 0)
+        #expect(try await managedMarkdown(fixture) == "# Original")
+        let selection = try await writer.loadDistributionSelection(skillID: skillID)
+        #expect(selection.bindings.first?.syncMode == .symlink)
+        #expect(selection.bindings.first?.scope == .global)
     }
 
     @Test("a changed remote candidate expires the confirmation")
@@ -234,6 +300,70 @@ struct ManagedSkillUpdateExecutionTests {
         )
     }
 
+    @Test("mixed Copy decisions advance each scope before updating the parent")
+    func updatesAfterMixedCopyDecisions() async throws {
+        let fixture = try await makeExecutionFixture(
+            remoteMarkdown: "# Remote",
+            copy: true,
+            copyPlatforms: [.codex, .claude]
+        )
+        defer { fixture.remote.cleanup() }
+        let selection = try await fixture.writer.loadDistributionSelection(
+            skillID: fixture.skillID
+        )
+        let codex = try #require(selection.bindings.first {
+            $0.scope == .agent(.codex)
+        })
+        let claude = try #require(selection.bindings.first {
+            $0.scope == .agent(.claude)
+        })
+        let codexURL = try #require(fixture.copyURLs[codex.scope.targetScopeKey])
+        let claudeURL = try #require(fixture.copyURLs[claude.scope.targetScopeKey])
+        try Data("# Codex Copy".utf8).write(to: codexURL.appendingPathComponent("SKILL.md"))
+        try Data("# Claude Fork".utf8).write(to: claudeURL.appendingPathComponent("SKILL.md"))
+        let snapshot = try await fixture.checks.check(fixture.skillID)
+        let service = ManagedSkillUpdateExecutionService(
+            writer: fixture.writer,
+            remote: fixture.remote.client
+        )
+        let preview = try await service.prepare(snapshot)
+        #expect(preview.copyChoices.count == 2)
+
+        let result = try await service.confirm(
+            preview.token,
+            selections: [
+                ManagedSkillUpdateDecisionSelection(
+                    scopeKey: codex.scope.targetScopeKey,
+                    decision: .discard
+                ),
+                ManagedSkillUpdateDecisionSelection(
+                    scopeKey: claude.scope.targetScopeKey,
+                    decision: .fork
+                ),
+            ]
+        )
+
+        #expect(result.status == .updated)
+        #expect(try await managedMarkdown(fixture) == "# Remote")
+        #expect(try String(
+            contentsOf: codexURL.appendingPathComponent("SKILL.md"),
+            encoding: .utf8
+        ) == "# Remote")
+        #expect(try String(
+            contentsOf: claudeURL.appendingPathComponent("SKILL.md"),
+            encoding: .utf8
+        ) == "# Claude Fork")
+        let parent = try await fixture.writer.loadDistributionSelection(
+            skillID: fixture.skillID
+        )
+        #expect(parent.bindings.map(\.scope) == [.agent(.codex)])
+        let catalog = try await fixture.writer.managedLocalCatalogReadback()
+        let child = try #require(catalog.skills.first {
+            $0.skill.skillID != fixture.skillID
+        })
+        #expect(child.bindings.map(\.scope) == [.agent(.claude)])
+    }
+
     @Test("a selected cancel leaves Copy drift and managed content untouched")
     func cancelIsZeroWrite() async throws {
         let fixture = try await makeExecutionFixture(
@@ -295,160 +425,30 @@ struct ManagedSkillUpdateExecutionTests {
         #expect(try fixture.workspace.integer("SELECT count(*) FROM skill_backups") == 0)
         #expect(try await managedMarkdown(fixture) == "# Original")
     }
-}
 
-private struct ManagedUpdateExecutionFixture {
-    let workspace: WriterWorkspace
-    let writer: JournaledSSOTWriter
-    let skillID: SkillID
-    let checks: ManagedSkillUpdateCheckService
-    let remote: MutableExecutionRemote
-    let copyURL: URL?
-}
-
-private func makeExecutionFixture(
-    remoteMarkdown: String,
-    copy: Bool = false,
-    hooks: JournaledSSOTWriterHooks = .init()
-) async throws -> ManagedUpdateExecutionFixture {
-    let workspace = try WriterWorkspace(distributionEnabled: copy)
-    let writer = try await workspace.openWriter(hooks: hooks)
-    let source = try workspace.snapshot(content: "# Original")
-    let skillID = SkillID()
-    let identity = try ProviderAliasIdentity(provider: "clawdhub", identifier: "demo")
-    let payload = try SSOTSkillWritePayload(
-        skill: workspace.payload(
-            skillID: skillID,
-            name: "Demo",
-            snapshot: source
-        ).skill,
-        providerProvenance: [
-            try ProviderProvenanceRecord(
-                skillID: skillID,
-                identity: identity,
-                identifierKey: try DefaultDistributionSlug(
-                    validating: "demo"
-                ).collisionKey,
-                version: try SourceVersion("1.0.0")
-            ),
-        ]
-    )
-    _ = try await writer.create(payload: payload, sourceSnapshot: source)
-    var copyURL: URL?
-    if copy {
-        let slug = payload.skill.defaultDistributionSlug
-        let plan = try await writer.distributionPlan(
-            skillID: skillID,
-            desiredConfiguration: DistributionDesiredConfiguration(
-                scope: .global(slug),
-                syncMode: .copy
-            ),
-            requiredAdapterCodes: globalReaderCodes
+    @Test("a zero-write Copy preflight failure is not reported as applied")
+    func zeroWriteCopyFailureKeepsOriginalProblem() async throws {
+        let fixture = try await makeExecutionFixture(remoteMarkdown: "# Remote")
+        defer { fixture.remote.cleanup() }
+        let service = ManagedSkillUpdateExecutionService(
+            writer: fixture.writer,
+            remote: fixture.remote.client
         )
-        _ = try await writer.applyDistribution(skillID: skillID, plan: plan)
-        copyURL = workspace.workspace
-            .appendingPathComponent(".agents/skills", isDirectory: true)
-            .appendingPathComponent(slug.value, isDirectory: true)
-    }
-    let archive = try executionArchive(markdown: remoteMarkdown)
-    let remote = MutableExecutionRemote(version: "2.0.0", archiveURL: archive)
-    return ManagedUpdateExecutionFixture(
-        workspace: workspace,
-        writer: writer,
-        skillID: skillID,
-        checks: ManagedSkillUpdateCheckService(
-            writer: writer,
-            remote: remote.client
-        ),
-        remote: remote,
-        copyURL: copyURL
-    )
-}
-
-private func managedMarkdown(
-    _ fixture: ManagedUpdateExecutionFixture
-) async throws -> String {
-    try String(
-        contentsOf: fixture.workspace.root
-            .appendingPathComponent(fixture.skillID.directoryName)
-            .appendingPathComponent("SKILL.md"),
-        encoding: .utf8
-    )
-}
-
-private func executionArchive(markdown: String) throws -> URL {
-    let url = FileManager.default.temporaryDirectory
-        .appendingPathComponent("managed-update-\(UUID().uuidString).zip")
-    let archive = try Archive(url: url, accessMode: .create)
-    let contents = Data(markdown.utf8)
-    try archive.addEntry(
-        with: "demo/SKILL.md",
-        type: .file,
-        uncompressedSize: Int64(contents.count),
-        permissions: 0o644
-    ) { position, size in
-        let start = Int(position)
-        return contents.subdata(in: start..<min(start + size, contents.count))
-    }
-    return url
-}
-
-private final class MutableExecutionRemote: @unchecked Sendable {
-    private let lock = NSLock()
-    private var version: String
-    private var archiveURL: URL
-    private var ownedURLs: [URL]
-
-    init(version: String, archiveURL: URL) {
-        self.version = version
-        self.archiveURL = archiveURL
-        ownedURLs = [archiveURL]
-    }
-
-    var client: RemoteSkillClient {
-        RemoteSkillClient(
-            fetchLatest: { _ in [] },
-            search: { _, _ in [] },
-            download: { [self] _, _ in
-                lock.withLock { DownloadedSkillArchive(borrowedAt: archiveURL) }
-            },
-            fetchDetail: { _ in nil },
-            fetchLatestVersion: { [self] _ in lock.withLock { version } }
+        let expected = try await fixture.writer.updateCheckReadback(
+            skillID: fixture.skillID
         )
-    }
 
-    func set(version: String, archiveURL: URL) {
-        lock.withLock {
-            self.version = version
-            self.archiveURL = archiveURL
-            ownedURLs.append(archiveURL)
+        await #expect(throws: ManagedSkillUpdateExecutionProblem.stale) {
+            _ = try await service.classifyFailure(
+                ManagedSkillUpdateExecutionProblem.stale,
+                skillID: fixture.skillID,
+                expectedUnupdated: expected,
+                durableCopyDecision: false,
+                copyMutationAttempted: true,
+                operationID: nil,
+                backupID: nil
+            )
         }
-    }
-
-    func cleanup() {
-        for url in lock.withLock({ ownedURLs }) {
-            try? FileManager.default.removeItem(at: url)
-        }
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM skill_backups") == 0)
     }
 }
-
-private final class UpdateBackupInterruption: @unchecked Sendable {
-    private let lock = NSLock()
-    private var armed = false
-
-    func arm() {
-        lock.withLock { armed = true }
-    }
-
-    func reach(_: SkillBackupID) throws {
-        let shouldStop = lock.withLock {
-            defer { armed = false }
-            return armed
-        }
-        if shouldStop {
-            throw ManagedUpdateExecutionInterruption()
-        }
-    }
-}
-
-private struct ManagedUpdateExecutionInterruption: Error {}

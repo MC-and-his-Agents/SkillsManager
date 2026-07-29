@@ -166,6 +166,8 @@ import Observation
             await refresh(skillID: result.skillID)
             updateResult = result.status
         } catch {
+            self.pendingUpdate = nil
+            updateSelections = [:]
             updateProblem = Self.updateProblem(for: error)
         }
         isUpdating = false
