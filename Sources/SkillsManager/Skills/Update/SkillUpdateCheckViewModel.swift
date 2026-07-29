@@ -24,37 +24,62 @@ import Observation
 
     private var service: ManagedSkillUpdateCheckService?
     private var updateService: ManagedSkillUpdateExecutionService?
+    private let admission: ManagedSkillUpdateAdmission
+    private let afterConfirmAdmissionRelease: @MainActor @Sendable () async -> Void
+    private var admissionLease: ManagedSkillUpdateAdmissionLease?
+    private var hasDeferredRefresh = false
+    private var deferredRefreshSkillID: SkillID?
     private var generation: UInt64 = 0
     private var runtimeBlockMessage = "Preparing the managed library…"
 
+    init(
+        admission: ManagedSkillUpdateAdmission = ManagedSkillUpdateAdmission(),
+        afterConfirmAdmissionRelease:
+            @escaping @MainActor @Sendable () async -> Void = {}
+    ) {
+        self.admission = admission
+        self.afterConfirmAdmissionRelease = afterConfirmAdmissionRelease
+    }
+
     func activate(writer: JournaledSSOTWriter, remote: RemoteSkillClient) {
+        guard service == nil, updateService == nil else { return }
         service = ManagedSkillUpdateCheckService(writer: writer, remote: remote)
         updateService = ManagedSkillUpdateExecutionService(writer: writer, remote: remote)
     }
 
     func blockRuntime(message: String) async {
-        if let pendingUpdate, let updateService {
+        let updateOperationActive = isPreparingUpdate || isUpdating
+        if !updateOperationActive, let pendingUpdate, let updateService {
             await updateService.cancel(pendingUpdate.token)
+        }
+        if !updateOperationActive {
+            await releaseAdmission()
         }
         service = nil
         updateService = nil
         runtimeBlockMessage = message
         generation &+= 1
         isChecking = false
-        isPreparingUpdate = false
-        isUpdating = false
-        pendingUpdate = nil
-        updateSelections = [:]
+        if !updateOperationActive {
+            pendingUpdate = nil
+            updateSelections = [:]
+        }
         loadState = .blocked(message)
     }
 
     func refresh(skillID: SkillID?) async {
+        if isUpdating {
+            hasDeferredRefresh = true
+            deferredRefreshSkillID = skillID
+            return
+        }
         if let pendingUpdate,
            pendingUpdate.skillID != skillID,
            let updateService {
             await updateService.cancel(pendingUpdate.token)
             self.pendingUpdate = nil
             updateSelections = [:]
+            await releaseAdmission()
         }
         generation &+= 1
         let requestGeneration = generation
@@ -104,25 +129,34 @@ import Observation
     }
 
     func prepareUpdate(_ snapshot: ManagedSkillUpdateCheckSnapshot) async {
-        guard !isPreparingUpdate, !isUpdating, let updateService else { return }
+        guard !isPreparingUpdate,
+              !isUpdating,
+              pendingUpdate == nil,
+              admissionLease == nil,
+              let updateService else { return }
+        guard let lease = await admission.acquire(snapshot.skillID) else {
+            updateProblem = .operationInProgress
+            return
+        }
+        admissionLease = lease
+        let requestGeneration = generation
         isPreparingUpdate = true
         updateProblem = nil
         updateResult = nil
-        if let pendingUpdate {
-            await updateService.cancel(pendingUpdate.token)
-        }
-        pendingUpdate = nil
         updateSelections = [:]
         do {
             let preview = try await updateService.prepare(snapshot)
-            guard activeSkillID == preview.skillID else {
+            guard generation == requestGeneration,
+                  activeSkillID == preview.skillID else {
                 await updateService.cancel(preview.token)
+                await releaseAdmission()
                 isPreparingUpdate = false
                 return
             }
             pendingUpdate = preview
         } catch {
             updateProblem = Self.updateProblem(for: error)
+            await releaseAdmission()
         }
         isPreparingUpdate = false
     }
@@ -148,6 +182,8 @@ import Observation
               let updateService else { return }
         isUpdating = true
         updateProblem = nil
+        var shouldRefresh = false
+        var refreshSkillID: SkillID?
         do {
             let selections = pendingUpdate.copyChoices.compactMap { choice in
                 updateSelections[choice.scopeKey].map {
@@ -163,14 +199,26 @@ import Observation
             )
             self.pendingUpdate = nil
             updateSelections = [:]
-            await refresh(skillID: result.skillID)
+            shouldRefresh = true
+            refreshSkillID = result.skillID
             updateResult = result.status
         } catch {
             self.pendingUpdate = nil
             updateSelections = [:]
             updateProblem = Self.updateProblem(for: error)
         }
+        await releaseAdmission()
+        await afterConfirmAdmissionRelease()
+        if hasDeferredRefresh {
+            shouldRefresh = true
+            refreshSkillID = deferredRefreshSkillID
+        }
+        hasDeferredRefresh = false
+        deferredRefreshSkillID = nil
         isUpdating = false
+        if shouldRefresh {
+            await refresh(skillID: refreshSkillID)
+        }
     }
 
     func cancelUpdate() async {
@@ -178,6 +226,7 @@ import Observation
         await updateService.cancel(pendingUpdate.token)
         self.pendingUpdate = nil
         updateSelections = [:]
+        await releaseAdmission()
     }
 
     func selectedDecision(
@@ -199,5 +248,11 @@ import Observation
     ) -> ManagedSkillUpdateExecutionProblem {
         if let problem = error as? ManagedSkillUpdateExecutionProblem { return problem }
         return .failed
+    }
+
+    private func releaseAdmission() async {
+        guard let admissionLease else { return }
+        self.admissionLease = nil
+        await admission.release(admissionLease)
     }
 }
