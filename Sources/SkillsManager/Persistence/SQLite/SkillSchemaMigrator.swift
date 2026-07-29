@@ -20,6 +20,9 @@ nonisolated enum SkillSchemaMigrator {
         beforeV12Commit: () throws -> Void = {},
         beforeV13Commit: () throws -> Void = {},
         beforeV14Commit: () throws -> Void = {},
+        onV9CompatibilityCheckpoint: (
+            SkillSchemaV9CompatibilityCheckpoint
+        ) throws -> Void = { _ in },
         initializeV4: (SQLiteConnection) throws -> Void = { _ in }
     ) throws -> SQLiteConnection {
         let connection = try SQLiteConnection(
@@ -48,6 +51,7 @@ nonisolated enum SkillSchemaMigrator {
                 beforeV12Commit: beforeV12Commit,
                 beforeV13Commit: beforeV13Commit,
                 beforeV14Commit: beforeV14Commit,
+                onV9CompatibilityCheckpoint: onV9CompatibilityCheckpoint,
                 initializeV4: initializeV4
             )
         case .readOnly:
@@ -73,6 +77,9 @@ nonisolated enum SkillSchemaMigrator {
         beforeV12Commit: () throws -> Void = {},
         beforeV13Commit: () throws -> Void = {},
         beforeV14Commit: () throws -> Void = {},
+        onV9CompatibilityCheckpoint: (
+            SkillSchemaV9CompatibilityCheckpoint
+        ) throws -> Void = { _ in },
         initializeV4: (SQLiteConnection) throws -> Void = { _ in }
     ) throws {
         guard connection.accessMode != .readOnly else {
@@ -99,6 +106,7 @@ nonisolated enum SkillSchemaMigrator {
             beforeV12Commit: beforeV12Commit,
             beforeV13Commit: beforeV13Commit,
             beforeV14Commit: beforeV14Commit,
+            onV9CompatibilityCheckpoint: onV9CompatibilityCheckpoint,
             initializeV4: initializeV4
         )
     }
@@ -210,6 +218,9 @@ nonisolated enum SkillSchemaMigrator {
         beforeV12Commit: () throws -> Void,
         beforeV13Commit: () throws -> Void,
         beforeV14Commit: () throws -> Void,
+        onV9CompatibilityCheckpoint: (
+            SkillSchemaV9CompatibilityCheckpoint
+        ) throws -> Void,
         initializeV4: (SQLiteConnection) throws -> Void
     ) throws {
         try connection.execute("BEGIN IMMEDIATE")
@@ -234,6 +245,10 @@ nonisolated enum SkillSchemaMigrator {
             case Int64(SkillSchemaV10.version):
                 try validateV10(connection)
             case Int64(SkillSchemaV9.version):
+                try normalizeKnownV9Schema(
+                    connection,
+                    checkpoint: onV9CompatibilityCheckpoint
+                )
                 try validateV9(connection)
                 try applyV10Migration(connection, beforeCommit: beforeV10Commit)
             case Int64(SkillSchemaV8.version):

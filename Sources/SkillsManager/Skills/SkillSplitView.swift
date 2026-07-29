@@ -431,20 +431,21 @@ private struct SkillSplitLifecycleModifier: ViewModifier {
 
     private func synchronizeDiscoveryRuntime() async {
         guard libraryRuntime.readiness == .ready else {
+            let message = libraryRuntime.blockingMessage
             discoveryModel.blockRuntime(
-                message: "The managed library is not ready. Resolve its startup diagnostics first."
+                message: message
             )
             distributionModel.blockRuntime(
-                message: "The managed library is not ready. Resolve its startup diagnostics first."
+                message: message
             )
             lifecycleModel.blockRuntime(
-                message: "The managed library is not ready. Resolve its startup diagnostics first."
+                message: message
             )
             consistencyModel.blockRuntime(
-                message: "The managed library is not ready. Resolve its startup diagnostics first."
+                message: message
             )
             await updateCheckModel.blockRuntime(
-                message: "The managed library is not ready. Resolve its startup diagnostics first."
+                message: message
             )
             return
         }
