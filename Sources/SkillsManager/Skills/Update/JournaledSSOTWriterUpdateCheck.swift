@@ -131,6 +131,7 @@ extension JournaledSSOTWriter {
             checkedAtMilliseconds: stableSnapshot.checkedAtMilliseconds,
             payload: payload
         )
+        try hooks.beforeUpdateCheckCommit()
         try Task.checkCancellation()
         try UpdateCheckStore(connection: connection).upsert(record)
     }

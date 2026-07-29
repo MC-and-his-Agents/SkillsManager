@@ -141,7 +141,10 @@ struct ManagedSkillUpdateCheckTests {
 
     @Test("cancellation before the writer transaction leaves no stable record")
     func cancelledCommit() async throws {
-        let context = try await makeContext(markdown: "# Local")
+        let gate = UpdateCheckCancellationGate()
+        var hooks = JournaledSSOTWriterHooks()
+        hooks.beforeUpdateCheckCommit = gate.reach
+        let context = try await makeContext(markdown: "# Local", hooks: hooks)
         let token = ManagedSkillUpdateCheckToken()
         let readback = try await context.writer.beginUpdateCheck(
             skillID: context.skillID,
@@ -161,9 +164,7 @@ struct ManagedSkillUpdateCheckTests {
             copyStates: readback.copyStates,
             capabilityReason: "No source"
         )
-        let gate = UpdateCheckCancellationGate()
         let task = Task {
-            await gate.wait()
             try await context.writer.commitUpdateCheck(
                 skillID: context.skillID,
                 token: token,
@@ -171,9 +172,9 @@ struct ManagedSkillUpdateCheckTests {
                 stableSnapshot: snapshot
             )
         }
-        await gate.waitUntilStarted()
+        gate.waitUntilReached()
         task.cancel()
-        await gate.release()
+        gate.release()
 
         await #expect(throws: CancellationError.self) {
             try await task.value
@@ -275,10 +276,11 @@ private struct UpdateCheckContext {
 
 private func makeContext(
     markdown: String,
-    clawdhubSlug: String? = nil
+    clawdhubSlug: String? = nil,
+    hooks: JournaledSSOTWriterHooks = .init()
 ) async throws -> UpdateCheckContext {
     let workspace = try WriterWorkspace()
-    let writer = try await workspace.openWriter()
+    let writer = try await workspace.openWriter(hooks: hooks)
     let sourceSnapshot = try workspace.snapshot(content: markdown)
     let skillID = SkillID()
     let base = try workspace.payload(
@@ -364,21 +366,20 @@ private actor RemoteUpdateRecorder {
     }
 }
 
-private actor UpdateCheckCancellationGate {
-    private var continuation: CheckedContinuation<Void, Never>?
-    private var started = false
+private final class UpdateCheckCancellationGate: @unchecked Sendable {
+    private let reached = DispatchSemaphore(value: 0)
+    private let released = DispatchSemaphore(value: 0)
 
-    func wait() async {
-        started = true
-        await withCheckedContinuation { continuation = $0 }
+    func reach() {
+        reached.signal()
+        released.wait()
     }
 
-    func waitUntilStarted() async {
-        while !started { await Task.yield() }
+    func waitUntilReached() {
+        reached.wait()
     }
 
     func release() {
-        continuation?.resume()
-        continuation = nil
+        released.signal()
     }
 }
