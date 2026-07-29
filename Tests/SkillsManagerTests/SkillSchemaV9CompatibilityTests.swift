@@ -55,12 +55,48 @@ struct SkillSchemaV9CompatibilityTests {
     func rejectsUnknownFingerprint() throws {
         try withEarlyV9Database(unknownFingerprint: true) { databaseURL in
             let before = try historicalSnapshot(at: databaseURL)
+            let storageBefore = try databaseStorageSnapshot(at: databaseURL)
 
             #expect(throws: SQLiteStoreError.self) {
                 _ = try SkillSchemaMigrator.open(at: databaseURL)
             }
 
             #expect(try historicalSnapshot(at: databaseURL) == before)
+            #expect(try databaseStorageSnapshot(at: databaseURL) == storageBefore)
+        }
+    }
+
+    @Test("validates cleanup facts before trigger normalization")
+    func rejectsDirtyCleanupBeforeMutation() throws {
+        try withEarlyV9Database { databaseURL in
+            let connection = try SQLiteConnection(url: databaseURL)
+            try insertCleanupFixtureSkill(connection)
+            try connection.execute(createOperationInsert())
+            try connection.execute("BEGIN IMMEDIATE")
+            do {
+                try connection.execute(rolledBackPendingUpdate())
+                try connection.execute(cleanupDebtInsert())
+                try connection.execute("COMMIT")
+            } catch {
+                try? connection.execute("ROLLBACK")
+                throw error
+            }
+            try connection.execute("PRAGMA foreign_keys = OFF")
+            try connection.execute(
+                "UPDATE skill_operations SET cleanup_state = 'completed', "
+                    + "cleanup_debt_id = NULL, updated_at_ms = 2"
+            )
+            try connection.execute("PRAGMA foreign_keys = ON")
+            var checkpoints: [SkillSchemaV9CompatibilityCheckpoint] = []
+
+            #expect(throws: SQLiteStoreError.self) {
+                _ = try SkillSchemaMigrator.open(
+                    at: databaseURL,
+                    onV9CompatibilityCheckpoint: { checkpoints.append($0) }
+                )
+            }
+
+            #expect(checkpoints.isEmpty)
         }
     }
 
@@ -71,6 +107,24 @@ private struct HistoricalV9Snapshot: Equatable {
     let userVersion: Int64?
     let metadataVersion: Int64?
     let facts: [String]
+}
+
+private struct DatabaseStorageSnapshot: Equatable {
+    let databaseBytes: Data
+    let journalMode: String?
+    let walExists: Bool
+    let sharedMemoryExists: Bool
+}
+
+private func databaseStorageSnapshot(at databaseURL: URL) throws -> DatabaseStorageSnapshot {
+    let connection = try SQLiteConnection(url: databaseURL, accessMode: .readOnly)
+    let fileManager = FileManager.default
+    return DatabaseStorageSnapshot(
+        databaseBytes: try Data(contentsOf: databaseURL),
+        journalMode: try connection.querySingleText("PRAGMA journal_mode"),
+        walExists: fileManager.fileExists(atPath: databaseURL.path + "-wal"),
+        sharedMemoryExists: fileManager.fileExists(atPath: databaseURL.path + "-shm")
+    )
 }
 
 private func historicalSnapshot(at databaseURL: URL) throws -> HistoricalV9Snapshot {
@@ -266,6 +320,21 @@ private func insertHistoricalRows(_ connection: SQLiteConnection) throws {
           X'33333333333343338333333333333333',
           'prepared', 'pending', 'notApplicable', X'7b7d', X'7b7d', X'7b7d',
           X'\(String(repeating: "55", count: 32))', 'quarantine/historical', 0, 1, 2
+        )
+        """
+    )
+}
+
+private func insertCleanupFixtureSkill(_ connection: SQLiteConnection) throws {
+    try connection.execute(
+        """
+        INSERT INTO skills(
+          skill_id, display_name, default_distribution_slug, default_slug_key,
+          fingerprint_algorithm_version, content_fingerprint, status,
+          created_at_ms, updated_at_ms, db_revision
+        ) VALUES (
+          \(v2Blob(v2SkillA)), 'Cleanup Fixture', 'cleanup-fixture',
+          'cleanup-fixture', 1, \(v2Blob(v2Fingerprint)), 'managed', 1, 1, 0
         )
         """
     )

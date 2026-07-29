@@ -33,6 +33,10 @@ nonisolated enum SkillSchemaMigrator {
         switch accessMode {
         case .readWrite, .readWriteExisting:
             try admitSchemaVersion(connection)
+            if try connection.querySingleInt("PRAGMA user_version")
+                == Int64(SkillSchemaV9.version) {
+                _ = try requiresV9TriggerNormalization(connection)
+            }
             try connection.setJournalModeWAL()
             try migrateIfNeeded(
                 connection,

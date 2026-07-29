@@ -332,23 +332,31 @@ nonisolated extension SkillSchemaMigrator {
         _ connection: SQLiteConnection,
         checkpoint: (SkillSchemaV9CompatibilityCheckpoint) throws -> Void
     ) throws {
-        try validateV9Structure(connection)
-        let fingerprint = try SkillSchemaInspection.schemaFingerprint(
-            connection,
-            objectNames: SkillSchemaV9.fingerprintedObjectNames
-        )
-        if fingerprint == (try SkillSchemaInspection.expectedV9SchemaFingerprint()) {
-            return
-        }
-        guard fingerprint == (try SkillSchemaInspection.expectedEarlyV9SchemaFingerprint()) else {
-            throw SQLiteStoreError.invalidState("schema v9 SQL fingerprint does not match")
-        }
+        guard try requiresV9TriggerNormalization(connection) else { return }
 
         try checkpoint(.beforeTriggerDrop)
         try connection.execute("DROP TRIGGER skill_backups_immutable_snapshot")
         try checkpoint(.afterTriggerDrop)
         try connection.execute(SkillSchemaV9.backupImmutableSnapshotTriggerSQL)
         try checkpoint(.afterTriggerCreate)
+    }
+
+    static func requiresV9TriggerNormalization(
+        _ connection: SQLiteConnection
+    ) throws -> Bool {
+        try validateV9Structure(connection)
+        try validateV2CleanupRows(connection)
+        let fingerprint = try SkillSchemaInspection.schemaFingerprint(
+            connection,
+            objectNames: SkillSchemaV9.fingerprintedObjectNames
+        )
+        if fingerprint == (try SkillSchemaInspection.expectedV9SchemaFingerprint()) {
+            return false
+        }
+        guard fingerprint == (try SkillSchemaInspection.expectedEarlyV9SchemaFingerprint()) else {
+            throw SQLiteStoreError.invalidState("schema v9 SQL fingerprint does not match")
+        }
+        return true
     }
 
     static func applyV9Migration(
