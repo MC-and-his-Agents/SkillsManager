@@ -11,6 +11,7 @@ actor JournaledSSOTWriter {
     let copyDistribution: DistributionCopyExecutor
     let backupFileSystem: SkillBackupFileSystem
     let hooks: JournaledSSOTWriterHooks
+    var updateCheckTokens: [SkillID: ManagedSkillUpdateCheckToken] = [:]
 
     private init(
         connection: SQLiteConnection,

@@ -56,6 +56,7 @@ struct SkillMarkdownView: View {
                     .accessibilityAddTraits(.isHeader)
 
                 SkillDistributionView()
+                SkillUpdateCheckView()
                 SkillDeletionView()
             }
             .frame(maxWidth: .infinity, alignment: .leading)

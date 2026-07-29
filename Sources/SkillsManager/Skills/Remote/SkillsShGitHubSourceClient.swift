@@ -21,6 +21,18 @@ nonisolated struct SkillsShResolvedGitHubSource: Equatable, Sendable {
     let defaultDistributionSlug: DefaultDistributionSlug
 }
 
+nonisolated struct SkillsShResolvedGitHubUpdateSource: Equatable, Sendable {
+    let repositoryURL: NormalizedRepositoryURL
+    let owner: String
+    let repository: String
+    let defaultBranch: String
+    let commitSHA: String
+    let treeSHA: String
+    let subpath: RepositorySubpath
+    let blobs: [SkillsShGitHubBlob]
+    let archiveURL: URL
+}
+
 nonisolated struct SkillsShGitHubArchive: Equatable, Sendable {
     let data: Data
     let sourceURL: URL
@@ -29,6 +41,7 @@ nonisolated struct SkillsShGitHubArchive: Equatable, Sendable {
 nonisolated enum SkillsShGitHubSourceError: Error, Equatable, LocalizedError, Sendable {
     case invalidSource
     case repositoryUnavailable
+    case providerUnavailable
     case rateLimited
     case timeout
     case offline
@@ -43,6 +56,7 @@ nonisolated enum SkillsShGitHubSourceError: Error, Equatable, LocalizedError, Se
         switch self {
         case .invalidSource: "The skills.sh GitHub source is invalid."
         case .repositoryUnavailable: "The GitHub repository is unavailable."
+        case .providerUnavailable: "GitHub is temporarily unavailable."
         case .rateLimited: "GitHub rate limited this request."
         case .timeout: "GitHub did not respond in time."
         case .offline: "GitHub is unavailable while the network is offline."
@@ -66,6 +80,13 @@ nonisolated struct SkillsShGitHubSourceClient: Sendable {
     ) async throws -> SkillsShResolvedGitHubSource
     var download: @Sendable (
         _ source: SkillsShResolvedGitHubSource
+    ) async throws -> SkillsShGitHubArchive
+    var resolveExisting: @Sendable (
+        _ repositoryURL: NormalizedRepositoryURL,
+        _ subpath: RepositorySubpath
+    ) async throws -> SkillsShResolvedGitHubUpdateSource
+    var downloadExisting: @Sendable (
+        _ source: SkillsShResolvedGitHubUpdateSource
     ) async throws -> SkillsShGitHubArchive
     var currentCommitSHA: @Sendable (
         _ source: SkillsShResolvedGitHubSource
@@ -101,7 +122,54 @@ nonisolated struct SkillsShGitHubSourceClient: Sendable {
             },
             download: { source in
                 do {
-                    return try await SkillsShGitHubContract.archive(source, load: load)
+                    return try await SkillsShGitHubContract.archive(
+                        owner: source.owner,
+                        repository: source.repository,
+                        commitSHA: source.commitSHA,
+                        archiveURL: source.archiveURL,
+                        load: load
+                    )
+                } catch {
+                    throw SkillsShGitHubContract.stable(error)
+                }
+            },
+            resolveExisting: { repositoryURL, subpath in
+                do {
+                    let input = try SkillsShGitHubContract.existingInput(
+                        repositoryURL: repositoryURL,
+                        subpath: subpath
+                    )
+                    let repository = try await SkillsShGitHubContract.repository(
+                        owner: input.owner,
+                        repository: input.repository,
+                        load: load
+                    )
+                    let commit = try await SkillsShGitHubContract.commit(
+                        owner: input.owner,
+                        repository: input.repository,
+                        defaultBranch: repository.defaultBranch,
+                        load: load
+                    )
+                    return try await SkillsShGitHubContract.updateSource(
+                        input,
+                        canonicalFullName: repository.fullName,
+                        defaultBranch: repository.defaultBranch,
+                        commit: commit,
+                        load: load
+                    )
+                } catch {
+                    throw SkillsShGitHubContract.stable(error)
+                }
+            },
+            downloadExisting: { source in
+                do {
+                    return try await SkillsShGitHubContract.archive(
+                        owner: source.owner,
+                        repository: source.repository,
+                        commitSHA: source.commitSHA,
+                        archiveURL: source.archiveURL,
+                        load: load
+                    )
                 } catch {
                     throw SkillsShGitHubContract.stable(error)
                 }
@@ -237,10 +305,18 @@ nonisolated enum SkillsShGitHubContract {
         _ input: Input,
         load: SkillsShGitHubSourceClient.DataLoader
     ) async throws -> RepositoryResponse {
-        let request = try apiRequest(path: ["repos", input.owner, input.repository])
+        try await repository(owner: input.owner, repository: input.repository, load: load)
+    }
+
+    static func repository(
+        owner: String,
+        repository: String,
+        load: SkillsShGitHubSourceClient.DataLoader
+    ) async throws -> RepositoryResponse {
+        let request = try apiRequest(path: ["repos", owner, repository])
         let response: RepositoryResponse = try await json(request, load: load)
         guard !response.isPrivate,
-              asciiEqual(response.fullName, "\(input.owner)/\(input.repository)"),
+              asciiEqual(response.fullName, "\(owner)/\(repository)"),
               validDefaultBranch(response.defaultBranch) else {
             throw SkillsShGitHubSourceError.repositoryUnavailable
         }
@@ -252,8 +328,22 @@ nonisolated enum SkillsShGitHubContract {
         defaultBranch: String,
         load: SkillsShGitHubSourceClient.DataLoader
     ) async throws -> CommitResponse {
+        try await commit(
+            owner: input.owner,
+            repository: input.repository,
+            defaultBranch: defaultBranch,
+            load: load
+        )
+    }
+
+    static func commit(
+        owner: String,
+        repository: String,
+        defaultBranch: String,
+        load: SkillsShGitHubSourceClient.DataLoader
+    ) async throws -> CommitResponse {
         let request = try apiRequest(path: [
-            "repos", input.owner, input.repository, "commits", defaultBranch,
+            "repos", owner, repository, "commits", defaultBranch,
         ])
         let response: CommitResponse = try await json(request, load: load)
         guard validSHA(response.sha), validSHA(response.commit.tree.sha) else {
@@ -269,17 +359,12 @@ nonisolated enum SkillsShGitHubContract {
         commit: CommitResponse,
         load: SkillsShGitHubSourceClient.DataLoader
     ) async throws -> SkillsShResolvedGitHubSource {
-        let request = try apiRequest(
-            path: ["repos", input.owner, input.repository, "git", "trees", commit.commit.tree.sha],
-            queryItems: [URLQueryItem(name: "recursive", value: "1")]
+        let entries = try await treeEntries(
+            owner: input.owner,
+            repository: input.repository,
+            treeSHA: commit.commit.tree.sha,
+            load: load
         )
-        let response: TreeResponse = try await json(request, load: load)
-        guard !response.truncated else { throw SkillsShGitHubSourceError.treeTruncated }
-        guard response.sha == commit.commit.tree.sha,
-              response.tree.count <= maximumTreeEntries else {
-            throw SkillsShGitHubSourceError.contractChanged
-        }
-        let entries = try validatedEntries(response.tree)
         let (subpath, blobs) = try target(in: entries, skillID: input.skillID)
         let canonical = canonicalFullName.split(separator: "/", omittingEmptySubsequences: false)
         guard canonical.count == 2 else { throw SkillsShGitHubSourceError.contractChanged }
@@ -308,17 +393,44 @@ nonisolated enum SkillsShGitHubContract {
         )
     }
 
+    static func treeEntries(
+        owner: String,
+        repository: String,
+        treeSHA: String,
+        load: SkillsShGitHubSourceClient.DataLoader
+    ) async throws -> [TreeEntry] {
+        let request = try apiRequest(
+            path: ["repos", owner, repository, "git", "trees", treeSHA],
+            queryItems: [URLQueryItem(name: "recursive", value: "1")]
+        )
+        let response: TreeResponse = try await json(request, load: load)
+        guard !response.truncated else { throw SkillsShGitHubSourceError.treeTruncated }
+        guard response.sha == treeSHA,
+              response.tree.count <= maximumTreeEntries else {
+            throw SkillsShGitHubSourceError.contractChanged
+        }
+        return try validatedEntries(response.tree)
+    }
+
     static func archive(
-        _ source: SkillsShResolvedGitHubSource,
+        owner: String,
+        repository: String,
+        commitSHA: String,
+        archiveURL: URL,
         load: SkillsShGitHubSourceClient.DataLoader
     ) async throws -> SkillsShGitHubArchive {
-        let firstRequest = request(url: source.archiveURL, accept: "application/vnd.github+json", timeout: 60)
+        let firstRequest = request(url: archiveURL, accept: "application/vnd.github+json", timeout: 60)
         let (_, firstResponse) = try await load(firstRequest, 0)
-        try validateResponseURL(firstResponse, requestURL: source.archiveURL)
+        try validateResponseURL(firstResponse, requestURL: archiveURL)
         try throwHTTPError(firstResponse, expectedStatus: 302)
         guard let location = firstResponse.value(forHTTPHeaderField: "Location"),
               let codeloadURL = URL(string: location),
-              validCodeloadURL(codeloadURL, source: source) else {
+              validCodeloadURL(
+                codeloadURL,
+                owner: owner,
+                repository: repository,
+                commitSHA: commitSHA
+              ) else {
             throw SkillsShGitHubSourceError.contractChanged
         }
 
@@ -329,7 +441,7 @@ nonisolated enum SkillsShGitHubContract {
         guard baseMIME(secondResponse) == "application/zip" else {
             throw SkillsShGitHubSourceError.contractChanged
         }
-        return SkillsShGitHubArchive(data: data, sourceURL: source.archiveURL)
+        return SkillsShGitHubArchive(data: data, sourceURL: archiveURL)
     }
 
     static func stable(_ error: Error) -> SkillsShGitHubSourceError {

@@ -102,10 +102,29 @@ struct RemoteArchiveOwnershipTests {
                 headerFields: nil
             ))
 
-            #expect(throws: URLError.self) {
+            #expect(throws: RemoteSkillClientError.providerUnavailable) {
                 _ = try checkedDownloadedArchive(at: archiveURL, response: response)
             }
 
+            #expect(!FileManager.default.fileExists(atPath: archiveURL.path))
+        }
+    }
+
+    @Test("HTTP 429 keeps a stable rate-limit error and removes the download")
+    func rateLimitedResponseCleansArchive() throws {
+        try withTemporaryDirectory { root in
+            let archiveURL = root.appendingPathComponent("rate-limited.zip")
+            try Data("temporary download".utf8).write(to: archiveURL)
+            let response = try #require(HTTPURLResponse(
+                url: URL(string: "https://example.invalid/archive.zip")!,
+                statusCode: 429,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+
+            #expect(throws: RemoteSkillClientError.rateLimited) {
+                _ = try checkedDownloadedArchive(at: archiveURL, response: response)
+            }
             #expect(!FileManager.default.fileExists(atPath: archiveURL.path))
         }
     }

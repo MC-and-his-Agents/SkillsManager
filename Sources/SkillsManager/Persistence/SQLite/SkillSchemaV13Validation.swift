@@ -37,7 +37,7 @@ nonisolated extension SkillSchemaMigrator {
         try validateV2CleanupRows(connection)
     }
 
-    private static func validateV13Columns(_ connection: SQLiteConnection) throws {
+    static func validateV13Columns(_ connection: SQLiteConnection) throws {
         guard try SkillSchemaInspection.columnNames(
             connection,
             table: "skill_fork_lineage"
@@ -79,7 +79,7 @@ nonisolated extension SkillSchemaMigrator {
         }
     }
 
-    private static func validateV13CopyProvenanceRows(
+    static func validateV13CopyProvenanceRows(
         _ connection: SQLiteConnection
     ) throws {
         let invalidCount = try connection.querySingleInt(

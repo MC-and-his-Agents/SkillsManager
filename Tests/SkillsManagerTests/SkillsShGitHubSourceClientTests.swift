@@ -194,7 +194,8 @@ struct SkillsShGitHubSourceClientTests {
         var error: SkillsShGitHubSourceError {
             switch self {
             case .forbidden, .limited: .rateLimited
-            case .missing, .unavailable: .repositoryUnavailable
+            case .missing: .repositoryUnavailable
+            case .unavailable: .providerUnavailable
             case .redirected: .contractChanged
             }
         }

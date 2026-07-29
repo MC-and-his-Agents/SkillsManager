@@ -31,8 +31,8 @@ struct SkillSchemaV4Tests {
         #expect(try rolledBack.userTableNames() == SkillSchemaV3.tableNames)
 
         let migrated = try SkillSchemaMigrator.open(at: location.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 13)
-        #expect(try migrated.userTableNames() == SkillSchemaV13.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 14)
+        #expect(try migrated.userTableNames() == SkillSchemaV14.tableNames)
     }
 
     @Test("read-write-existing never creates a missing database")

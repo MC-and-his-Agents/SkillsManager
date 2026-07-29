@@ -276,6 +276,20 @@ nonisolated final class SSOTOperationFileSystem {
         return snapshot
     }
 
+    func captureCurrentFinal(
+        skillID: SkillID,
+        checkpoint: SkillCancellationCheckpoint = {}
+    ) throws -> (identity: ManagedItemIdentity, snapshot: SkillContentSnapshot)? {
+        let url = finalURL(skillID: skillID)
+        guard let identity = try managedRootGuard.itemIdentity(at: url) else {
+            return nil
+        }
+        return (
+            identity,
+            try snapshot(at: url, expectedIdentity: identity, checkpoint: checkpoint)
+        )
+    }
+
     func quarantineFinal(
         skillID: SkillID,
         operationID: UUID,
