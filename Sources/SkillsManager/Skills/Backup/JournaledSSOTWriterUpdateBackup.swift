@@ -81,6 +81,7 @@ extension JournaledSSOTWriter {
             snapshot: oldSnapshot,
             backupID: backupID
         )
+        try hooks.afterUpdateBackupPublished(backupID)
         _ = try validateUpdateBaseline(expected)
         let replacement = try replace(
             payload: replacementPayload,
@@ -140,6 +141,12 @@ extension JournaledSSOTWriter {
                 throw error
             }
         }
+    }
+
+    func updateBackupReadback(_ backupID: SkillBackupID) throws -> SkillBackupRecord? {
+        try requireAuthority()
+        try recoverIndependentUpdateBackups()
+        return try SkillBackupStore(connection: connection).load(backupID)
     }
 
     private func validateUpdateBaseline(

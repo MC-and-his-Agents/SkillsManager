@@ -97,6 +97,22 @@ nonisolated struct UpdateCheckStore {
         }
     }
 
+    func deleteInCurrentTransaction(skillID: SkillID) throws {
+        let statement = try connection.prepare(
+            "DELETE FROM skill_update_checks WHERE skill_id = ?"
+        )
+        try statement.bind(skillID.bytes, at: 1)
+        guard try !statement.step() else {
+            throw UpdateCheckStoreError.conflict
+        }
+        let changes = try connection.querySingleInt("SELECT changes()")
+        guard let changes,
+              changes <= 1,
+              try load(skillID: skillID) == nil else {
+            throw UpdateCheckStoreError.conflict
+        }
+    }
+
     func transaction<T>(_ body: () throws -> T) throws -> T {
         try connection.withImmediateTransaction(body)
     }

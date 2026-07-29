@@ -22,7 +22,8 @@ extension JournaledSSOTWriter {
               snapshot.checkedAtMilliseconds == record.checkedAtMilliseconds else {
             throw UpdateCheckStoreError.corruptRecord
         }
-        return snapshot
+        let current = try updateCheckReadback(skillID: skillID)
+        return try snapshotMatches(snapshot, current: current) ? snapshot : nil
     }
 
     func updateCheckReadback(skillID: SkillID) throws -> ManagedSkillUpdateCheckReadback {
@@ -103,25 +104,7 @@ extension JournaledSSOTWriter {
         }
         let current = try updateCheckReadback(skillID: skillID)
         guard current.canonicalData == expectedCanonicalReadback,
-              stableSnapshot.skillID == skillID,
-              stableSnapshot.domainRevision == current.domain.revision,
-              stableSnapshot.domainPayloadDigest
-                == Data(SHA256.hash(data: try SSOTWritePayloadCodec.encode(
-                    current.domain.payload
-                ))),
-              stableSnapshot.storedFingerprint == current.domain.payload.skill.contentFingerprint,
-              stableSnapshot.liveSSOTIdentity == current.liveSSOTIdentity,
-              stableSnapshot.liveFingerprint == current.liveFingerprint,
-              stableSnapshot.copyStates == current.copyStates,
-              candidateMatchesDomain(
-                stableSnapshot.candidate,
-                payload: current.domain.payload
-              ),
-              stableSnapshot.status == ManagedSkillUpdateCheckStatus.classify(
-                readback: current,
-                candidate: stableSnapshot.candidate
-              ),
-              (stableSnapshot.candidate == nil) == (stableSnapshot.capabilityReason != nil) else {
+              try snapshotMatches(stableSnapshot, current: current) else {
             throw ManagedSkillUpdateCheckProblem.stale
         }
         let payload = try ManagedSkillUpdateCheckCodec.encode(stableSnapshot)
@@ -134,6 +117,61 @@ extension JournaledSSOTWriter {
         try hooks.beforeUpdateCheckCommit()
         try Task.checkCancellation()
         try UpdateCheckStore(connection: connection).upsert(record)
+    }
+
+    func recordValidatedUpdateCheck(
+        skillID: SkillID,
+        candidate: ManagedSkillUpdateCandidate,
+        checkedAtMilliseconds: Int64
+    ) throws -> ManagedSkillUpdateCheckSnapshot {
+        let token = ManagedSkillUpdateCheckToken()
+        let readback = try beginUpdateCheck(skillID: skillID, token: token)
+        let payload = try SSOTWritePayloadCodec.encode(readback.domain.payload)
+        let snapshot = ManagedSkillUpdateCheckSnapshot(
+            skillID: skillID,
+            checkedAtMilliseconds: max(0, checkedAtMilliseconds),
+            status: ManagedSkillUpdateCheckStatus.classify(
+                readback: readback,
+                candidate: candidate
+            ),
+            domainRevision: readback.domain.revision,
+            domainPayloadDigest: Data(SHA256.hash(data: payload)),
+            storedFingerprint: readback.domain.payload.skill.contentFingerprint,
+            liveSSOTIdentity: readback.liveSSOTIdentity,
+            liveFingerprint: readback.liveFingerprint,
+            candidate: candidate,
+            copyStates: readback.copyStates,
+            capabilityReason: nil
+        )
+        try commitUpdateCheck(
+            skillID: skillID,
+            token: token,
+            expectedCanonicalReadback: readback.canonicalData,
+            stableSnapshot: snapshot
+        )
+        return snapshot
+    }
+
+    private func snapshotMatches(
+        _ snapshot: ManagedSkillUpdateCheckSnapshot,
+        current: ManagedSkillUpdateCheckReadback
+    ) throws -> Bool {
+        let payload = try SSOTWritePayloadCodec.encode(current.domain.payload)
+        return snapshot.skillID == current.skillID
+            && snapshot.domainRevision == current.domain.revision
+            && snapshot.domainPayloadDigest
+                == Data(SHA256.hash(data: payload))
+            && snapshot.storedFingerprint
+                == current.domain.payload.skill.contentFingerprint
+            && snapshot.liveSSOTIdentity == current.liveSSOTIdentity
+            && snapshot.liveFingerprint == current.liveFingerprint
+            && snapshot.copyStates == current.copyStates
+            && candidateMatchesDomain(snapshot.candidate, payload: current.domain.payload)
+            && snapshot.status == ManagedSkillUpdateCheckStatus.classify(
+                readback: current,
+                candidate: snapshot.candidate
+            )
+            && (snapshot.candidate == nil) == (snapshot.capabilityReason != nil)
     }
 
     private func candidateMatchesDomain(
