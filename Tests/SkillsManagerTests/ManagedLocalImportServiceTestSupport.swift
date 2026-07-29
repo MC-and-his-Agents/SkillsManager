@@ -18,6 +18,7 @@ actor ManagedLocalImportProbe {
     }
 
     private let planStatuses: [DistributionPlanStatus]
+    private let planFailureIndex: Int?
     private let createDelay: Duration?
     private let createFailure: CreateFailure
     private let replaceDelay: Duration?
@@ -47,6 +48,7 @@ actor ManagedLocalImportProbe {
 
     init(
         planStatuses: [DistributionPlanStatus] = [.executable],
+        planFailureIndex: Int? = nil,
         createDelay: Duration? = nil,
         createFailure: CreateFailure = .none,
         replaceDelay: Duration? = nil,
@@ -68,6 +70,7 @@ actor ManagedLocalImportProbe {
         existingBindings: [DistributionBinding] = []
     ) {
         self.planStatuses = planStatuses
+        self.planFailureIndex = planFailureIndex
         self.createDelay = createDelay
         self.createFailure = createFailure
         self.replaceDelay = replaceDelay
@@ -133,8 +136,12 @@ actor ManagedLocalImportProbe {
         codes: Set<String>
     ) throws -> DistributionPlan {
         requestedAdapterCodes.append(codes)
-        let status = planStatuses[min(planIndex, planStatuses.count - 1)]
+        let currentIndex = planIndex
         planIndex += 1
+        if currentIndex == planFailureIndex {
+            throw ManagedLocalImportProblem.failed("injected plan failure")
+        }
+        let status = planStatuses[min(currentIndex, planStatuses.count - 1)]
         let replacement = intents(skillID: skillID, scope: scope)
         if status == .blocked {
             let slug = try #require(scope.distributionSlug)

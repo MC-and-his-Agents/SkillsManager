@@ -243,6 +243,28 @@ struct ManagedSourceInstallServiceTests {
         }
     }
 
+    @Test("post-commit plan failure remains managed and indeterminate")
+    func planFailureAfterCreate() async throws {
+        try await withImportCandidate { candidate in
+            let state = try SourceInstallReadbackState(revision: "abc123")
+            let probe = ManagedLocalImportProbe(planFailureIndex: 2)
+            let service = ManagedInstallService(
+                dependencies: sourceDependencies(probe, state: state)
+            )
+            let preview = try await service.prepareSourceBacked(
+                candidate: candidate,
+                sourceInput: sourceInput(state: state, revision: "abc123"),
+                scope: .global
+            )
+
+            let result = try await service.execute(preview.token)
+
+            #expect(result.status == .managedDistributionIndeterminate)
+            #expect(await probe.createCount == 1)
+            #expect(await probe.applyCount == 0)
+        }
+    }
+
     @Test("provider provenance alone does not merge a source-backed install")
     func provenanceOnlyDoesNotMerge() async throws {
         try await withImportCandidate { candidate in

@@ -325,9 +325,14 @@ actor ManagedInstallService {
         if confirmedPlan.status == .blocked {
             return result(preview, status: .managedUndistributed)
         }
-        let postCreatePlan = try await plan(for: preview)
-        guard try postCreatePlan.canonicalJSONData() == pending.canonicalPlan else {
-            return result(preview, status: .managedUndistributed)
+        let postCreatePlan: DistributionPlan
+        do {
+            postCreatePlan = try await plan(for: preview)
+            guard try postCreatePlan.canonicalJSONData() == pending.canonicalPlan else {
+                return result(preview, status: .managedDistributionIndeterminate)
+            }
+        } catch {
+            return result(preview, status: .managedDistributionIndeterminate)
         }
         return try await distribute(preview, plan: postCreatePlan)
     }
