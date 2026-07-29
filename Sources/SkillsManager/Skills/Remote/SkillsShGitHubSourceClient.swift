@@ -41,6 +41,7 @@ nonisolated struct SkillsShGitHubArchive: Equatable, Sendable {
 nonisolated enum SkillsShGitHubSourceError: Error, Equatable, LocalizedError, Sendable {
     case invalidSource
     case repositoryUnavailable
+    case providerUnavailable
     case rateLimited
     case timeout
     case offline
@@ -55,6 +56,7 @@ nonisolated enum SkillsShGitHubSourceError: Error, Equatable, LocalizedError, Se
         switch self {
         case .invalidSource: "The skills.sh GitHub source is invalid."
         case .repositoryUnavailable: "The GitHub repository is unavailable."
+        case .providerUnavailable: "GitHub is temporarily unavailable."
         case .rateLimited: "GitHub rate limited this request."
         case .timeout: "GitHub did not respond in time."
         case .offline: "GitHub is unavailable while the network is offline."

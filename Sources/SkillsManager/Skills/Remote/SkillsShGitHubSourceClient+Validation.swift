@@ -190,7 +190,8 @@ nonisolated extension SkillsShGitHubContract {
         guard response.statusCode == expectedStatus else {
             switch response.statusCode {
             case 403, 429: throw SkillsShGitHubSourceError.rateLimited
-            case 404, 500...599: throw SkillsShGitHubSourceError.repositoryUnavailable
+            case 404: throw SkillsShGitHubSourceError.repositoryUnavailable
+            case 500...599: throw SkillsShGitHubSourceError.providerUnavailable
             default: throw SkillsShGitHubSourceError.contractChanged
             }
         }

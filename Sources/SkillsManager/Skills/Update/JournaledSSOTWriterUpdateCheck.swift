@@ -30,7 +30,10 @@ extension JournaledSSOTWriter {
         guard let domain = try journal.storedDomain(skillID) else {
             throw ManagedLocalCatalogError.skillUnavailable
         }
-        let live = try fileSystem.captureCurrentFinal(skillID: skillID)
+        let live = try fileSystem.captureCurrentFinal(
+            skillID: skillID,
+            checkpoint: { try Task.checkCancellation() }
+        )
         let selection = try loadDistributionSelection(skillID: skillID)
         let reconcile = try reconcileDistribution(skillID: skillID)
         let payload = try SSOTWritePayloadCodec.encode(domain.payload)
@@ -73,6 +76,16 @@ extension JournaledSSOTWriter {
                 try SkillContentFingerprint(currentDigest: $0.snapshot.fingerprintDigest)
             },
             distributionStatus: reconcile.status,
+            distributionHasOnlyCopySourceDrift:
+                reconcile.status == .drifted
+                    && reconcile.observations.values.contains {
+                        guard case .copy(let copy) = $0 else { return false }
+                        return copy.state == .sourceChanged
+                    }
+                    && reconcile.observations.values.allSatisfy {
+                        guard case .copy(let copy) = $0 else { return false }
+                        return copy.state == .inSync || copy.state == .sourceChanged
+                    },
             copyStates: copyStates
         )
     }
@@ -118,6 +131,7 @@ extension JournaledSSOTWriter {
             checkedAtMilliseconds: stableSnapshot.checkedAtMilliseconds,
             payload: payload
         )
+        try Task.checkCancellation()
         try UpdateCheckStore(connection: connection).upsert(record)
     }
 

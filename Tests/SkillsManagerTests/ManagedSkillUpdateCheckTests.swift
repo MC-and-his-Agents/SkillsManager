@@ -139,6 +139,92 @@ struct ManagedSkillUpdateCheckTests {
         #expect(try await context.writer.loadUpdateCheck(context.skillID) == nil)
     }
 
+    @Test("cancellation before the writer transaction leaves no stable record")
+    func cancelledCommit() async throws {
+        let context = try await makeContext(markdown: "# Local")
+        let token = ManagedSkillUpdateCheckToken()
+        let readback = try await context.writer.beginUpdateCheck(
+            skillID: context.skillID,
+            token: token
+        )
+        let payload = try SSOTWritePayloadCodec.encode(readback.domain.payload)
+        let snapshot = ManagedSkillUpdateCheckSnapshot(
+            skillID: context.skillID,
+            checkedAtMilliseconds: 1,
+            status: .capabilityUnavailable,
+            domainRevision: readback.domain.revision,
+            domainPayloadDigest: Data(SHA256.hash(data: payload)),
+            storedFingerprint: readback.domain.payload.skill.contentFingerprint,
+            liveSSOTIdentity: readback.liveSSOTIdentity,
+            liveFingerprint: readback.liveFingerprint,
+            candidate: nil,
+            copyStates: readback.copyStates,
+            capabilityReason: "No source"
+        )
+        let gate = UpdateCheckCancellationGate()
+        let task = Task {
+            await gate.wait()
+            try await context.writer.commitUpdateCheck(
+                skillID: context.skillID,
+                token: token,
+                expectedCanonicalReadback: readback.canonicalData,
+                stableSnapshot: snapshot
+            )
+        }
+        await gate.waitUntilStarted()
+        task.cancel()
+        await gate.release()
+
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+        #expect(try await context.writer.loadUpdateCheck(context.skillID) == nil)
+    }
+
+    @Test("Copy source changes do not replace the remote update classification")
+    func copySourceChangedIsOnlyANotice() async throws {
+        let context = try await makeContext(markdown: "# Local")
+        let base = try await context.writer.updateCheckReadback(skillID: context.skillID)
+        let sourceChanged = ManagedSkillUpdateCopyState(
+            scopeKey: "global",
+            state: .sourceChanged,
+            baselineFingerprint: context.fingerprint,
+            observedFingerprint: context.fingerprint,
+            baselineTreeDigest: nil,
+            observedTreeDigest: nil,
+            baselineRootIdentity: nil,
+            observedRootIdentity: nil,
+            baselineEntryIdentity: nil,
+            observedEntryIdentity: nil
+        )
+        let readback = ManagedSkillUpdateCheckReadback(
+            skillID: base.skillID,
+            domain: base.domain,
+            canonicalData: base.canonicalData,
+            liveSSOTIdentity: base.liveSSOTIdentity,
+            liveFingerprint: base.liveFingerprint,
+            distributionStatus: .drifted,
+            distributionHasOnlyCopySourceDrift: true,
+            copyStates: [sourceChanged]
+        )
+        let candidate = ManagedSkillUpdateCandidate(
+            locator: .clawdhub(
+                slug: "demo",
+                version: try SourceVersion("2.0.0")
+            ),
+            contentFingerprint: context.fingerprint
+        )
+
+        #expect(ManagedSkillUpdateCheckStatus.classify(
+            readback: readback,
+            candidate: candidate
+        ) == .upToDate)
+        #expect(ManagedSkillUpdateCheckStatus.classify(
+            readback: readback,
+            candidate: nil
+        ) == .capabilityUnavailable)
+    }
+
     @Test("canonical snapshot codec round-trips Copy notices")
     func codecRoundTrip() throws {
         let skillID = SkillID()
@@ -275,5 +361,24 @@ private actor RemoteUpdateRecorder {
 
     func append(_ value: String) {
         values.append(value)
+    }
+}
+
+private actor UpdateCheckCancellationGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var started = false
+
+    func wait() async {
+        started = true
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func waitUntilStarted() async {
+        while !started { await Task.yield() }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
     }
 }

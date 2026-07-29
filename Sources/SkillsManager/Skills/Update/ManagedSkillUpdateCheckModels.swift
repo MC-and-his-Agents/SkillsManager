@@ -27,7 +27,8 @@ nonisolated extension ManagedSkillUpdateCheckStatus {
         if readback.copyStates.contains(where: \.isTargetDrift) {
             return .copyDrift
         }
-        if readback.distributionStatus == .drifted {
+        if readback.distributionStatus == .drifted,
+           !readback.distributionHasOnlyCopySourceDrift {
             return .conflict
         }
         guard let candidate else { return .capabilityUnavailable }
@@ -84,6 +85,7 @@ nonisolated struct ManagedSkillUpdateCheckReadback: Sendable {
     let liveSSOTIdentity: ManagedItemIdentity?
     let liveFingerprint: SkillContentFingerprint?
     let distributionStatus: DistributionReconcileStatus
+    let distributionHasOnlyCopySourceDrift: Bool
     let copyStates: [ManagedSkillUpdateCopyState]
 }
 

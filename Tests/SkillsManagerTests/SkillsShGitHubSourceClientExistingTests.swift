@@ -122,6 +122,23 @@ struct SkillsShGitHubSourceClientExistingTests {
             SkillsShGitHubArchive(data: zip, sourceURL: resolved.archiveURL))
     }
 
+    @Test("keeps GitHub 5xx transient instead of treating the source as missing")
+    func providerUnavailable() async throws {
+        let client = SkillsShGitHubSourceClient.live { request, _ in
+            (
+                Data(),
+                try existingResponse(request.url, status: 503)
+            )
+        }
+
+        await #expect(throws: SkillsShGitHubSourceError.providerUnavailable) {
+            _ = try await client.resolveExisting(
+                NormalizedRepositoryURL("https://github.com/owner/repo"),
+                RepositorySubpath("skills/demo")
+            )
+        }
+    }
+
     private func client(
         tree: [[String: Any]],
         recorder: ExistingSourceRequestRecorder? = nil

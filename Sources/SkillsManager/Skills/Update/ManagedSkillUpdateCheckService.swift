@@ -157,7 +157,7 @@ actor ManagedSkillUpdateCheckService {
                  .noUniqueSkillMatch:
                 throw ManagedSkillUpdateCheckProblem.unavailable
             case .rateLimited, .timeout, .offline, .network, .cancelled,
-                 .responseTooLarge, .contractChanged:
+                 .providerUnavailable, .responseTooLarge, .contractChanged:
                 throw error
             }
         }
@@ -248,6 +248,7 @@ actor ManagedSkillUpdateCheckService {
             case .offline: .offline
             case .cancelled: .cancelled
             case .network: .providerUnavailable
+            case .providerUnavailable: .providerUnavailable
             case .invalidSource, .noUniqueSkillMatch, .treeTruncated,
                  .contractChanged, .repositoryUnavailable, .responseTooLarge:
                 .unsafeContent
