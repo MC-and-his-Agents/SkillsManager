@@ -45,7 +45,15 @@ if [[ -n "${RELEASE_ARCHES}" ]]; then
 fi
 
 log "==> package app"
-SIGNING_MODE=adhoc ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/Scripts/package_app.sh" release
+if [[ -n "${APP_IDENTITY:-}" ]]; then
+  if [[ "${SIGNING_MODE:-}" == "adhoc" ]]; then
+    fail "APP_IDENTITY cannot be combined with SIGNING_MODE=adhoc."
+  fi
+  SIGNING_MODE=developer-id APP_IDENTITY="${APP_IDENTITY}" ARCHES="${ARCHES_VALUE}" \
+    "${ROOT_DIR}/Scripts/package_app.sh" release
+else
+  SIGNING_MODE=adhoc ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/Scripts/package_app.sh" release
+fi
 
 log "==> launch app"
 if ! open "${APP_BUNDLE}"; then

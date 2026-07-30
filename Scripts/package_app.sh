@@ -77,6 +77,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>${MACOS_MIN_VERSION}</string>
     <key>LSUIElement</key><${LSUI_VALUE}/>
     <key>CFBundleIconFile</key><string>Icon</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>Skills Manager needs access to removable volumes to discover and manage Agent Skills stored there.</string>
     <key>BuildTimestamp</key><string>${BUILD_TIMESTAMP}</string>
     <key>GitCommit</key><string>${GIT_COMMIT}</string>
 ${SPARKLE_PLIST_KEYS}
