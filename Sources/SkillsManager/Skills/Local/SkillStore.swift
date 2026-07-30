@@ -101,6 +101,13 @@ import Observation
                   Set(scannedByDirectory.keys) == expectedDirectories else {
                 throw ManagedLocalCatalogError.inconsistentCatalog
             }
+            let namePairs = catalog.skills.map {
+                ($0.skill.skillID, $0.skill.displayName.value)
+            }
+            guard Set(namePairs.map(\.0)).count == namePairs.count else {
+                throw ManagedLocalCatalogError.inconsistentCatalog
+            }
+            let displayNames = Dictionary(uniqueKeysWithValues: namePairs)
 
             let skills = try catalog.skills.map { item in
                 let directoryName = item.skill.skillID.directoryName
@@ -118,6 +125,12 @@ import Observation
                     displayName: item.skill.displayName.value,
                     description: scannedSkill.description,
                     managedStatus: item.skill.status,
+                    identitySummary: Self.identitySummary(
+                        source: item.source,
+                        forkLineage: item.forkLineage,
+                        providerProvenance: item.providerProvenance,
+                        displayNames: displayNames
+                    ),
                     clawdhubSlug: clawdhub?.identity.identifier,
                     clawdhubVersion: clawdhub?.version?.value,
                     enabledPlatforms: enabledPlatforms,
@@ -304,6 +317,37 @@ import Observation
                 platforms.insert(platform)
             }
         }
+    }
+
+    static func identitySummary(
+        source: SkillSourceRecord?,
+        forkLineage: SkillForkLineageRecord?,
+        providerProvenance: [ProviderProvenanceRecord],
+        displayNames: [SkillID: String]
+    ) -> String {
+        if let forkLineage {
+            return "Fork of "
+                + (displayNames[forkLineage.parentSkillID]
+                    ?? forkLineage.parentSkillID.directoryName)
+        }
+        if let source {
+            guard !source.subpath.value.isEmpty else {
+                return source.repositoryURL.value
+            }
+            return "\(source.repositoryURL.value) · \(source.subpath.value)"
+        }
+        let providers = Set(providerProvenance.map(\.identity.provider))
+            .sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+            .map {
+                switch $0 {
+                case "clawdhub": "Clawdhub"
+                case "skills.sh": "skills.sh"
+                default: $0
+                }
+            }
+        return providers.isEmpty
+            ? "Local"
+            : "Discovered via \(providers.joined(separator: ", "))"
     }
 
 }

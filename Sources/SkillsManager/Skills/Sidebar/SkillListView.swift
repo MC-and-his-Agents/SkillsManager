@@ -87,10 +87,10 @@ struct SkillListView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.vertical, 8)
-        } else if case let .failed(message) = remoteSearchState {
-            Text("Search failed: \(message)")
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 8)
+        } else if case .failed = remoteSearchState {
+            clawdhubUnavailable(retryLabel: "Retry Clawdhub search") {
+                Task { await remoteStore.search(query: remoteQuery) }
+            }
         } else if remoteSearchResults.isEmpty {
             Text("No results yet.")
                 .foregroundStyle(.secondary)
@@ -115,10 +115,10 @@ struct SkillListView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.vertical, 8)
-        } else if case let .failed(message) = remoteLatestState {
-            Text("Latest drops unavailable: \(message)")
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 8)
+        } else if case .failed = remoteLatestState {
+            clawdhubUnavailable(retryLabel: "Retry Clawdhub latest Skills") {
+                Task { await remoteStore.loadLatest() }
+            }
         } else if remoteLatestSkills.isEmpty {
             Text("No skills yet.")
                 .foregroundStyle(.secondary)
@@ -132,6 +132,24 @@ struct SkillListView: View {
                 )
             }
         }
+    }
+
+    private func clawdhubUnavailable(
+        retryLabel: String,
+        retry: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(
+                ClawdhubAvailabilityPresentation.title,
+                systemImage: "exclamationmark.triangle"
+            )
+            Text(ClawdhubAvailabilityPresentation.detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Button("Retry", action: retry)
+                .accessibilityLabel(retryLabel)
+        }
+        .padding(.vertical, 8)
     }
 
     @ViewBuilder

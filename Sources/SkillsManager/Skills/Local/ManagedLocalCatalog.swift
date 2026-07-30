@@ -2,7 +2,9 @@ import Foundation
 
 nonisolated struct ManagedLocalSkillReadback: Sendable {
     let skill: ManagedSkillRecord
+    let source: SkillSourceRecord?
     let providerProvenance: [ProviderProvenanceRecord]
+    let forkLineage: SkillForkLineageRecord?
     let bindings: [DistributionBinding]
 }
 

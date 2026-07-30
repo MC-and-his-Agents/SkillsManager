@@ -3,21 +3,45 @@ import SwiftUI
 struct SkillBatchUpdateView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SkillBatchUpdateViewModel.self) private var model
+    @State private var query = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
             stateBanner
-            List(model.items) { item in
-                SkillBatchUpdateRow(item: item)
+            ScrollViewReader { proxy in
+                List(visibleItems) { item in
+                    SkillBatchUpdateRow(item: item)
+                }
+                .listStyle(.inset)
+                .frame(minHeight: 340)
+                .searchable(text: $query, prompt: "Filter batch updates")
+                .overlay {
+                    if !model.items.isEmpty, visibleItems.isEmpty {
+                        ContentUnavailableView(
+                            "No matching Skills",
+                            systemImage: "magnifyingglass",
+                            description: Text("Clear the filter to restore the complete batch.")
+                        )
+                    }
+                }
+                .onChange(of: model.activeSkillID) { _, skillID in
+                    guard let skillID,
+                          visibleItems.contains(where: { $0.skillID == skillID }) else {
+                        return
+                    }
+                    withAnimation { proxy.scrollTo(skillID, anchor: .center) }
+                }
             }
-            .listStyle(.inset)
-            .frame(minHeight: 340)
             controls
         }
         .padding(20)
         .frame(minWidth: 680, minHeight: 520)
         .interactiveDismissDisabled(!model.controls.canClose)
+    }
+
+    private var visibleItems: [SkillBatchUpdateItem] {
+        SkillBatchUpdatePresentation.filteredItems(model.items, query: query)
     }
 
     private var header: some View {

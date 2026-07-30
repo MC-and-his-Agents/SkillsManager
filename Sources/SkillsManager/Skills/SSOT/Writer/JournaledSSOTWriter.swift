@@ -343,7 +343,9 @@ actor JournaledSSOTWriter {
             }
             return ManagedLocalSkillReadback(
                 skill: domain.payload.skill,
+                source: domain.payload.source,
                 providerProvenance: domain.payload.providerProvenance,
+                forkLineage: domain.payload.forkLineage,
                 bindings: try bindingStore.load(skillID: skillID)
             )
         }

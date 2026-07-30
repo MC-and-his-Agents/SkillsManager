@@ -26,6 +26,15 @@ import Observation
         items.count(where: \.isSelected)
     }
 
+    var activeSkillID: SkillID? {
+        items.first {
+            switch $0.phase {
+            case .checking, .preparing, .updating: true
+            default: false
+            }
+        }?.skillID
+    }
+
     var selectionsComplete: Bool {
         items.filter(\.isSelected).allSatisfy(\.hasCompleteDecisions)
     }

@@ -18,6 +18,12 @@ struct SkillRowView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
 
+            Text(skill.identitySummary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .help(skill.identitySummary)
+
             Text(skill.description)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -40,5 +46,7 @@ struct SkillRowView: View {
             }
         }
         .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(skill.identitySummary)
     }
 }

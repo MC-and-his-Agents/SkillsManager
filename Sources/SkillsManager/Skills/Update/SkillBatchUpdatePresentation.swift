@@ -104,6 +104,15 @@ nonisolated enum SkillBatchUpdatePresentation {
             + values.joined(separator: ", ")
     }
 
+    static func filteredItems(
+        _ items: [SkillBatchUpdateItem],
+        query: String
+    ) -> [SkillBatchUpdateItem] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return items }
+        return items.filter { $0.displayName.localizedCaseInsensitiveContains(query) }
+    }
+
     static func scopeTitle(_ scopeKey: String) -> String {
         if scopeKey == "global" { return "Global shared target" }
         let prefix = "agent:"

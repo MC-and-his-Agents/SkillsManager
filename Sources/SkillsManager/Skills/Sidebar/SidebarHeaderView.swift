@@ -6,15 +6,14 @@ struct SidebarHeaderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Picker("Source", selection: $source) {
-                    ForEach(SkillSource.allCases) { source in
-                        Text(source.rawValue).tag(source)
-                    }
+            Picker("Skill source", selection: $source) {
+                ForEach(SkillSource.allCases) { source in
+                    Text(source.rawValue).tag(source)
                 }
-                .pickerStyle(.segmented)
-                .padding(.trailing, 8)
             }
+            .pickerStyle(.menu)
+            .accessibilityLabel("Skill source")
+            .accessibilityValue(source.rawValue)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(source.sidebarTitle)
