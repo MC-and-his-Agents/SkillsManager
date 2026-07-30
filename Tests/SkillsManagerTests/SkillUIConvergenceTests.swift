@@ -247,7 +247,9 @@ private actor ClawdhubRetryProbe {
 
     var client: RemoteSkillClient {
         RemoteSkillClient(
-            fetchLatest: { limit in try await self.latest(limit: limit) },
+            fetchLatest: { limit, cursor in
+                try await self.latest(limit: limit, cursor: cursor)
+            },
             search: { query, limit in try await self.search(query: query, limit: limit) },
             download: { _, _ in throw RemoteSkillClientError.providerUnavailable },
             fetchDetail: { slug in try await self.detail(slug: slug) },
@@ -255,10 +257,10 @@ private actor ClawdhubRetryProbe {
         )
     }
 
-    private func latest(limit: Int) throws -> [RemoteSkill] {
+    private func latest(limit: Int, cursor: String?) throws -> RemoteSkillPage {
         latestCalls += 1
         if latestCalls == 1 { throw RemoteSkillClientError.providerUnavailable }
-        return []
+        return RemoteSkillPage(items: [], nextCursor: nil)
     }
 
     private func search(query: String, limit: Int) throws -> [RemoteSkill] {

@@ -19,8 +19,6 @@ struct SkillsShSearchSidebarView: View {
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
 
-            experimentalNotice
-
             Section("Search Results") {
                 searchContent
             }
@@ -28,25 +26,11 @@ struct SkillsShSearchSidebarView: View {
         .listStyle(.sidebar)
     }
 
-    private var experimentalNotice: some View {
-        Label {
-            Text(
-                "Experimental source. Search terms are sent to skills.sh using an "
-                    + "undocumented public interface that may become unavailable."
-            )
-            .font(.caption)
-        } icon: {
-            Image(systemName: "exclamationmark.triangle")
-        }
-        .foregroundStyle(.secondary)
-        .accessibilityElement(children: .combine)
-    }
-
     @ViewBuilder
     private var searchContent: some View {
         let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty || store.searchState == .idle {
-            Text("Search skills.sh to discover experimental results.")
+            Text("Search skills.sh to discover Skills.")
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 8)
         } else {
@@ -83,7 +67,7 @@ struct SkillsShSearchSidebarView: View {
         case .canLoadMore:
             Button("Load More", action: onLoadMore)
                 .frame(maxWidth: .infinity)
-                .accessibilityHint("Loads the next page of experimental skills.sh results")
+                .accessibilityHint("Loads more skills.sh results")
         case .finished:
             Text("No more unique results.")
                 .foregroundStyle(.secondary)
@@ -149,17 +133,6 @@ struct SkillsShSearchDetailView: View {
                         .foregroundStyle(.secondary)
                         .accessibilityElement(children: .combine)
 
-                        Label {
-                            Text(
-                                "Experimental source: this undocumented skills.sh interface "
-                                    + "may become unavailable."
-                            )
-                        } icon: {
-                            Image(systemName: "exclamationmark.triangle")
-                        }
-                        .foregroundStyle(.secondary)
-                        .accessibilityElement(children: .combine)
-
                         Button("Resolve and Install…") {
                             installItem = item
                         }
@@ -172,12 +145,12 @@ struct SkillsShSearchDetailView: View {
                     .padding()
                 }
                 .navigationTitle(item.name)
-                .navigationSubtitle("skills.sh · Experimental")
+                .navigationSubtitle("skills.sh")
             } else {
                 ContentUnavailableView(
                     "Select a skill",
                     systemImage: "magnifyingglass",
-                    description: Text("Choose an experimental skills.sh result.")
+                    description: Text("Choose a skills.sh result.")
                 )
             }
         }
@@ -204,15 +177,14 @@ private struct SkillsShSearchRow: View {
             Text(item.source)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("\(item.installs.formatted()) installs · Experimental source")
+            Text("\(item.installs.formatted()) installs")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(item.name), \(item.installs.formatted()) installs, source \(item.source), "
-                + "experimental source"
+            "\(item.name), \(item.installs.formatted()) installs, source \(item.source)"
         )
     }
 }

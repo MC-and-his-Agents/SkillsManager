@@ -5,7 +5,7 @@ import Testing
 @MainActor
 @Suite("skills.sh search store")
 struct SkillsShSearchStoreTests {
-    @Test("trims queries and keeps short pages pageable without using reported count")
+    @Test("trims queries and stops when a page is shorter than the requested limit")
     func initialSearch() async {
         let probe = SearchProbe(outcomes: [
             .page(page(query: "swift", items: [item("one")], reportedCount: 0)),
@@ -19,8 +19,8 @@ struct SkillsShSearchStoreTests {
         ])
         #expect(store.items.map(\.id) == ["one"])
         #expect(store.searchState == .loaded)
-        #expect(store.paginationState == .canLoadMore)
-        #expect(store.nextRequestedOffset == 20)
+        #expect(store.paginationState == .finished)
+        #expect(store.nextRequestedLimit == 40)
     }
 
     @Test("empty queries do not request and invalid input stays typed")
@@ -37,91 +37,82 @@ struct SkillsShSearchStoreTests {
         #expect(await probe.recordedCalls().count == 1)
     }
 
-    @Test("pagination advances by fixed offsets and deduplicates composite identities")
+    @Test("pagination expands limits with zero offset and merges stable identities")
     func paginationAndDeduplication() async {
-        let sameID = SkillsShSearchItem(
-            id: "shared",
-            skillID: "skill",
-            name: "Same id",
-            installs: 1,
-            source: "owner/repo"
+        let firstPage = pageItems(0..<20)
+        var secondPage = pageItems(20..<40)
+        secondPage.insert(
+            SkillsShSearchItem(
+                id: firstPage[0].id,
+                skillID: firstPage[0].skillID,
+                name: "Updated",
+                installs: 99,
+                source: firstPage[0].source
+            ),
+            at: 0
         )
-        let differentSource = SkillsShSearchItem(
-            id: "shared",
-            skillID: "skill",
-            name: "Different source",
-            installs: 2,
-            source: "other/repo"
-        )
-        let differentSkillID = SkillsShSearchItem(
-            id: "shared",
-            skillID: "other-skill",
-            name: "Different skill id",
-            installs: 3,
-            source: "owner/repo"
-        )
+        secondPage.append(contentsOf: pageItems(100..<119))
+        let thirdPage = secondPage + pageItems(40..<50)
         let probe = SearchProbe(outcomes: [
-            .page(page(
-                query: "swift",
-                items: [sameID, sameID, differentSource, differentSkillID],
-                reportedCount: 999
-            )),
-            .page(page(
-                query: "swift",
-                items: [sameID, item("new")],
-                reportedCount: 1
-            )),
-            .page(page(query: "swift", items: [], reportedCount: 100)),
+            .page(page(query: "swift", items: firstPage)),
+            .page(page(query: "swift", items: secondPage)),
+            .page(page(query: "swift", items: thirdPage)),
         ])
         let store = SkillsShSearchStore(client: probe.client)
 
         await store.search(query: "swift")
-        #expect(store.items.count == 3)
+        store.selectedResultID = SkillsShSearchResultID(firstPage[0])
         await store.loadNextPage()
-        #expect(store.items.count == 4)
+        #expect(store.items.count == 59)
+        #expect(store.items[0].name == "Updated")
+        #expect(store.selectedResultID == SkillsShSearchResultID(firstPage[0]))
         #expect(store.paginationState == .canLoadMore)
         await store.loadNextPage()
         #expect(store.paginationState == .finished)
-        #expect(await probe.recordedCalls().map(\.offset) == [0, 20, 40])
+        #expect(await probe.recordedCalls().map(\.limit) == [20, 40, 50])
+        #expect(await probe.recordedCalls().map(\.offset) == [0, 0, 0])
     }
 
     @Test("a fully repeated page ends pagination")
     func repeatedPageStops() async {
-        let repeated = item("same")
+        let repeated = pageItems(0..<20)
         let probe = SearchProbe(outcomes: [
-            .page(page(query: "swift", items: [repeated])),
-            .page(page(query: "swift", items: [repeated])),
+            .page(page(query: "swift", items: repeated)),
+            .page(page(query: "swift", items: repeated)),
         ])
         let store = SkillsShSearchStore(client: probe.client)
 
         await store.search(query: "swift")
         await store.loadNextPage()
 
-        #expect(store.items == [repeated])
+        #expect(store.items == repeated)
         #expect(store.paginationState == .finished)
     }
 
-    @Test("pagination failure preserves results and retries the same offset")
+    @Test("pagination failure preserves results and retries the same limit")
     func paginationRetry() async {
+        let firstPage = pageItems(0..<20)
+        let expandedPage = pageItems(0..<40)
         let probe = SearchProbe(outcomes: [
-            .page(page(query: "swift", items: [item("first")])),
+            .page(page(query: "swift", items: firstPage)),
             .failure(.timeout),
-            .page(page(query: "swift", items: [item("second")])),
+            .page(page(query: "swift", items: expandedPage)),
         ])
         let store = SkillsShSearchStore(client: probe.client)
 
         await store.search(query: "swift")
         await store.loadNextPage()
-        #expect(store.items.map(\.id) == ["first"])
+        #expect(store.items == firstPage)
         #expect(store.paginationState == .failed(.timeout))
-        #expect(store.nextRequestedOffset == 20)
+        #expect(store.nextRequestedLimit == 40)
 
         await store.loadNextPage()
-        #expect(store.items.map(\.id) == ["first", "second"])
-        #expect(await probe.recordedCalls().map(\.offset) == [0, 20, 20])
+        #expect(store.items == expandedPage)
+        #expect(await probe.recordedCalls().map(\.limit) == [20, 40, 40])
+        #expect(await probe.recordedCalls().map(\.offset) == [0, 0, 0])
     }
 
-    @Test("concurrent load more requests do not duplicate the current offset")
+    @Test("concurrent load more requests do not duplicate the current limit")
     func concurrentLoadMore() async {
         let probe = ControlledSearchProbe()
         let store = SkillsShSearchStore(client: probe.client)
@@ -130,7 +121,7 @@ struct SkillsShSearchStoreTests {
         await waitUntil { await probe.hasPending("swift") }
         await probe.resolve(
             "swift",
-            with: page(query: "swift", items: [item("first")])
+            with: page(query: "swift", items: pageItems(0..<20))
         )
         await initial.value
 
@@ -140,12 +131,13 @@ struct SkillsShSearchStoreTests {
         await duplicate.value
         await probe.resolve(
             "swift",
-            with: page(query: "swift", items: [item("second")])
+            with: page(query: "swift", items: pageItems(0..<40))
         )
         await first.value
 
-        #expect(await probe.recordedCalls().map(\.offset) == [0, 20])
-        #expect(store.items.map(\.id) == ["first", "second"])
+        #expect(await probe.recordedCalls().map(\.limit) == [20, 40])
+        #expect(await probe.recordedCalls().map(\.offset) == [0, 0])
+        #expect(store.items.count == 40)
     }
 
     @Test("cache expires exactly at 300 seconds")
@@ -216,7 +208,7 @@ struct SkillsShSearchStoreTests {
         #expect(store.query == "beta")
         #expect(store.items.map(\.id) == ["beta"])
         #expect(store.cachedPageCount == 1)
-        #expect(store.nextRequestedOffset == 20)
+        #expect(store.nextRequestedLimit == 40)
     }
 
     @Test("a stale failure and explicit cancellation remain silent")
@@ -251,9 +243,9 @@ struct SkillsShSearchStoreTests {
 
     @Test("transport cancellation does not leave loading state stuck")
     func transportCancellation() async {
-        let client = SkillsShSearchClient { _, _, offset in
-            if offset == 0 {
-                return page(query: "swift", items: [item("first")])
+        let client = SkillsShSearchClient { _, limit, _ in
+            if limit == 20 {
+                return page(query: "swift", items: pageItems(0..<20))
             }
             throw CancellationError()
         }
@@ -264,7 +256,7 @@ struct SkillsShSearchStoreTests {
 
         #expect(store.searchState == .loaded)
         #expect(store.paginationState == .canLoadMore)
-        #expect(store.items.map(\.id) == ["first"])
+        #expect(store.items.count == 20)
     }
 
     @Test("new results clear a selection that no longer exists")
@@ -419,4 +411,8 @@ private func item(_ id: String) -> SkillsShSearchItem {
         installs: 1,
         source: "owner/repo"
     )
+}
+
+private func pageItems(_ range: Range<Int>) -> [SkillsShSearchItem] {
+    range.map { item(String($0)) }
 }

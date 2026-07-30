@@ -52,7 +52,7 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
             case .network:
                 "skills.sh could not be reached."
             case .redirectRejected:
-                "The experimental search endpoint redirected unexpectedly."
+                "The skills.sh search endpoint redirected unexpectedly."
             case .rateLimited(let seconds):
                 if let seconds {
                     "skills.sh rate limited this request. Try again in \(seconds) seconds."
@@ -64,7 +64,7 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
             case .responseTooLarge:
                 "skills.sh returned more search data than can be handled safely."
             case .contractChanged:
-                "The experimental skills.sh search interface has changed."
+                "The skills.sh search interface has changed."
             }
         }
     }
@@ -82,10 +82,11 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
 
     private struct ActiveRequest: Equatable {
         let generation: UInt
-        let offset: Int
+        let limit: Int
     }
 
     static let pageSize = 20
+    static let maximumLimit = 50
     static let cacheLifetime: TimeInterval = 300
     static let maximumCachedPages = 64
 
@@ -99,7 +100,7 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
     private let now: () -> Date
     private var cache: [CacheKey: CacheEntry] = [:]
     private var generation: UInt = 0
-    private var nextOffset = 0
+    private var currentLimit = 0
     private var activeRequest: ActiveRequest?
 
     init(
@@ -123,7 +124,7 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
         query = trimmed
         items = []
         selectedResultID = nil
-        nextOffset = 0
+        currentLimit = 0
         paginationState = .idle
         activeRequest = nil
 
@@ -135,7 +136,7 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
         searchState = .loading
         await loadPage(
             query: trimmed,
-            offset: 0,
+            limit: Self.pageSize,
             generation: requestGeneration,
             isInitial: true
         )
@@ -149,11 +150,11 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
             return
         }
         let requestGeneration = generation
-        let offset = nextOffset
+        let limit = min(currentLimit + Self.pageSize, Self.maximumLimit)
         paginationState = .loading
         await loadPage(
             query: query,
-            offset: offset,
+            limit: limit,
             generation: requestGeneration,
             isInitial: false
         )
@@ -166,12 +167,16 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
             searchState = items.isEmpty ? .idle : .loaded
         }
         if paginationState == .loading {
-            paginationState = items.isEmpty ? .idle : .canLoadMore
+            paginationState = items.isEmpty || currentLimit >= Self.maximumLimit
+                ? .idle
+                : .canLoadMore
         }
     }
 
     var cachedPageCount: Int { cache.count }
-    var nextRequestedOffset: Int { nextOffset }
+    var nextRequestedLimit: Int {
+        min(currentLimit + Self.pageSize, Self.maximumLimit)
+    }
 
     private var isPaginationRetry: Bool {
         if case .failed = paginationState { return true }
@@ -180,16 +185,16 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
 
     private func loadPage(
         query: String,
-        offset: Int,
+        limit: Int,
         generation requestGeneration: UInt,
         isInitial: Bool
     ) async {
-        let request = ActiveRequest(generation: requestGeneration, offset: offset)
+        let request = ActiveRequest(generation: requestGeneration, limit: limit)
         guard activeRequest == nil || activeRequest?.generation != requestGeneration else {
             return
         }
         activeRequest = request
-        let key = CacheKey(query: query, limit: Self.pageSize, offset: offset)
+        let key = CacheKey(query: query, limit: limit, offset: 0)
 
         do {
             let cached = cachedPage(for: key)
@@ -197,7 +202,7 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
             if let cached {
                 page = cached
             } else {
-                page = try await client.search(query, Self.pageSize, offset)
+                page = try await client.search(query, limit, 0)
             }
             guard isCurrent(request, query: query) else { return }
 
@@ -205,7 +210,7 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
                 store(page, for: key)
             }
             activeRequest = nil
-            apply(page, requestedOffset: offset, isInitial: isInitial)
+            apply(page, requestedLimit: limit, isInitial: isInitial)
         } catch is CancellationError {
             guard isCurrent(request, query: query) else { return }
             activeRequest = nil
@@ -230,27 +235,45 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
 
     private func apply(
         _ page: SkillsShSearchPage,
-        requestedOffset: Int,
+        requestedLimit: Int,
         isInitial: Bool
     ) {
-        var known = isInitial ? Set<SkillsShSearchResultID>() : Set(items.map {
-            SkillsShSearchResultID($0)
-        })
-        let unique = page.items.filter { known.insert(SkillsShSearchResultID($0)).inserted }
-
         if isInitial {
-            items = unique
+            items = []
             searchState = .loaded
-        } else {
-            items.append(contentsOf: unique)
         }
-        nextOffset = requestedOffset + Self.pageSize
-        paginationState = unique.isEmpty ? .finished : .canLoadMore
+        let addedCount = merge(page.items)
+        currentLimit = requestedLimit
+        paginationState = page.items.count < requestedLimit
+            || addedCount == 0
+            || requestedLimit >= Self.maximumLimit
+            ? .finished
+            : .canLoadMore
 
         if let selectedResultID,
            !items.contains(where: { SkillsShSearchResultID($0) == selectedResultID }) {
             self.selectedResultID = nil
         }
+    }
+
+    private func merge(_ incoming: [SkillsShSearchItem]) -> Int {
+        var positions = Dictionary(
+            uniqueKeysWithValues: items.enumerated().map {
+                (SkillsShSearchResultID($1), $0)
+            }
+        )
+        var addedCount = 0
+        for item in incoming {
+            let id = SkillsShSearchResultID(item)
+            if let index = positions[id] {
+                items[index] = item
+            } else {
+                positions[id] = items.count
+                items.append(item)
+                addedCount += 1
+            }
+        }
+        return addedCount
     }
 
     private func isCurrent(_ request: ActiveRequest, query: String) -> Bool {

@@ -36,7 +36,7 @@ nonisolated enum SkillsShSearchError: Error, Equatable, LocalizedError, Sendable
         case .network:
             "skills.sh could not be reached."
         case .redirectRejected:
-            "skills.sh redirected the experimental search endpoint."
+            "skills.sh redirected the search endpoint."
         case .rateLimited(let retryAfterSeconds):
             if let retryAfterSeconds {
                 "skills.sh rate limited this request. Try again in \(retryAfterSeconds) seconds."
@@ -48,7 +48,7 @@ nonisolated enum SkillsShSearchError: Error, Equatable, LocalizedError, Sendable
         case .responseTooLarge:
             "skills.sh returned more search data than can be handled safely."
         case .contractChanged:
-            "The experimental skills.sh search interface has changed."
+            "The skills.sh search interface has changed."
         }
     }
 }

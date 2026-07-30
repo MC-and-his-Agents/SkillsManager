@@ -132,7 +132,7 @@ final class MutableExecutionRemote: @unchecked Sendable {
 
     var client: RemoteSkillClient {
         RemoteSkillClient(
-            fetchLatest: { _ in [] },
+            fetchLatest: { _, _ in RemoteSkillPage(items: [], nextCursor: nil) },
             search: { _, _ in [] },
             download: { [self] _, _ in
                 lock.withLock { DownloadedSkillArchive(borrowedAt: archiveURL) }

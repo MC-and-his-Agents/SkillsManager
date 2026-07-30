@@ -41,8 +41,18 @@ nonisolated enum RemoteSkillClientError: Error, Equatable, LocalizedError, Senda
     }
 }
 
+nonisolated struct RemoteSkillPage: Sendable {
+    let items: [RemoteSkill]
+    let nextCursor: String?
+}
+
 nonisolated struct RemoteSkillClient: Sendable {
-    var fetchLatest: @Sendable (_ limit: Int) async throws -> [RemoteSkill]
+    typealias DataLoader = @Sendable (URL) async throws -> (Data, URLResponse)
+
+    var fetchLatest: @Sendable (
+        _ limit: Int,
+        _ cursor: String?
+    ) async throws -> RemoteSkillPage
     var search: @Sendable (_ query: String, _ limit: Int) async throws -> [RemoteSkill]
     var download: @Sendable (
         _ slug: String,
@@ -65,37 +75,36 @@ extension RemoteSkillClient {
         return URLSession(configuration: config)
     }()
 
-    static func live(baseURL: URL = URL(string: "https://clawdhub.com")!) -> RemoteSkillClient {
+    static func live(
+        baseURL: URL = URL(string: "https://clawhub.ai")!,
+        load: @escaping DataLoader = { try await Self.session.data(from: $0) }
+    ) -> RemoteSkillClient {
         let session = Self.session
 
         return RemoteSkillClient(
-            fetchLatest: { limit in
+            fetchLatest: { limit, cursor in
                 var components = URLComponents(
                     url: baseURL.appendingPathComponent("/api/v1/skills"),
                     resolvingAgainstBaseURL: false
                 )
-                components?.queryItems = [
+                var queryItems = [
                     URLQueryItem(name: "limit", value: String(limit)),
                 ]
+                if let cursor {
+                    queryItems.append(URLQueryItem(name: "cursor", value: cursor))
+                }
+                components?.queryItems = queryItems
                 guard let url = components?.url else {
                     throw URLError(.badURL)
                 }
 
-                let (data, response) = try await session.data(from: url)
+                let (data, response) = try await load(url)
                 try validate(response: response)
                 let decoded = try JSONDecoder().decode(RemoteSkillAPI.SkillListResponse.self, from: data)
-                return decoded.items.map { item in
-                    RemoteSkill(
-                        id: item.slug,
-                        slug: item.slug,
-                        displayName: item.displayName,
-                        summary: item.summary,
-                        latestVersion: item.latestVersion?.version,
-                        updatedAt: Date(timeIntervalSince1970: item.updatedAt / 1000),
-                        downloads: item.stats?.downloads,
-                        stars: item.stats?.stars
-                    )
-                }
+                return RemoteSkillPage(
+                    items: decoded.items.map(remoteSkill),
+                    nextCursor: decoded.nextCursor
+                )
             },
             search: { query, limit in
                 var components = URLComponents(
@@ -110,7 +119,7 @@ extension RemoteSkillClient {
                     throw URLError(.badURL)
                 }
 
-                let (data, response) = try await session.data(from: url)
+                let (data, response) = try await load(url)
                 try validate(response: response)
                 let decoded = try JSONDecoder().decode(RemoteSkillAPI.SearchResponse.self, from: data)
                 return decoded.results.compactMap { result in
@@ -158,7 +167,7 @@ extension RemoteSkillClient {
                     throw URLError(.badURL)
                 }
 
-                let (data, response) = try await session.data(from: url)
+                let (data, response) = try await load(url)
                 try validate(response: response)
                 let decoded = try JSONDecoder().decode(RemoteSkillAPI.SkillDetailResponse.self, from: data)
                 guard let owner = decoded.owner else { return nil }
@@ -172,13 +181,28 @@ extension RemoteSkillClient {
                 let url = baseURL
                     .appendingPathComponent("/api/v1/skills")
                     .appendingPathComponent(slug)
-                let (data, response) = try await session.data(from: url)
+                let (data, response) = try await load(url)
                 try validate(response: response)
                 let decoded = try JSONDecoder().decode(RemoteSkillAPI.SkillResponse.self, from: data)
                 return decoded.latestVersion?.version
             }
         )
     }
+}
+
+nonisolated private func remoteSkill(
+    _ item: RemoteSkillAPI.SkillListItem
+) -> RemoteSkill {
+    RemoteSkill(
+        id: item.slug,
+        slug: item.slug,
+        displayName: item.displayName,
+        summary: item.summary,
+        latestVersion: item.latestVersion?.version,
+        updatedAt: Date(timeIntervalSince1970: item.updatedAt / 1000),
+        downloads: item.stats?.downloads,
+        stars: item.stats?.stars
+    )
 }
 
 nonisolated func checkedDownloadedArchive(

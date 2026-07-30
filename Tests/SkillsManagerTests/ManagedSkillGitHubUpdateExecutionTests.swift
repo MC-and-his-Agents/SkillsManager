@@ -197,7 +197,7 @@ private func githubUpdateResponse(
 
 private func unusedRemoteClient() -> RemoteSkillClient {
     RemoteSkillClient(
-        fetchLatest: { _ in [] },
+        fetchLatest: { _, _ in RemoteSkillPage(items: [], nextCursor: nil) },
         search: { _, _ in [] },
         download: { _, _ in throw URLError(.unsupportedURL) },
         fetchDetail: { _ in nil },
