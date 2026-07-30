@@ -20,6 +20,7 @@ struct Skill: Identifiable, Hashable, Sendable {
     let displayName: String
     let description: String
     let managedStatus: ManagedSkillStatus
+    let identitySummary: String
     let clawdhubSlug: String?
     let clawdhubVersion: String?
     let enabledPlatforms: Set<SkillPlatform>

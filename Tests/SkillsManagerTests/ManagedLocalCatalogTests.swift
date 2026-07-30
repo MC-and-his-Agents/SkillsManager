@@ -65,6 +65,7 @@ struct ManagedLocalCatalogTests {
             == workspace.root.standardizedFileURL)
         #expect(skill.clawdhubSlug == "published-skill")
         #expect(skill.clawdhubVersion == "1.2.3")
+        #expect(skill.identitySummary == "Discovered via Clawdhub")
         #expect(skill.enabledPlatforms.isEmpty)
     }
 

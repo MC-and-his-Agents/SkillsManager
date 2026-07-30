@@ -10,9 +10,9 @@ struct RemoteSkillDetailView: View {
                 switch store.detailState {
                 case .idle, .loading:
                     loadingView(for: skill)
-                case .failed(let message):
-                    errorView(for: skill, message: message)
-                case .loaded, .cachedRefreshing:
+                case .failed:
+                    errorView(for: skill)
+                case .loaded, .cachedRefreshing, .cachedUnavailable:
                     markdownView(for: skill)
                 }
             }
@@ -50,11 +50,16 @@ struct RemoteSkillDetailView: View {
         .padding()
     }
 
-    private func errorView(for skill: RemoteSkill, message: String) -> some View {
+    private func errorView(for skill: RemoteSkill) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             headerView(for: skill)
-            Text("Unable to load SKILL.md: \(message)")
+            Label(
+                ClawdhubAvailabilityPresentation.title,
+                systemImage: "exclamationmark.triangle"
+            )
+            Text(ClawdhubAvailabilityPresentation.detail)
                 .foregroundStyle(.secondary)
+            retryButton
             Spacer()
         }
         .padding()
@@ -64,12 +69,31 @@ struct RemoteSkillDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 headerView(for: skill)
+                if store.detailState == .cachedUnavailable {
+                    HStack {
+                        Label(
+                            ClawdhubAvailabilityPresentation.cachedDetail,
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        Spacer()
+                        retryButton
+                    }
+                    .foregroundStyle(.orange)
+                }
                 Markdown(store.detailMarkdown)
                     .textSelection(.enabled)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
+    }
+
+    private var retryButton: some View {
+        Button("Retry") {
+            Task { await store.loadSelectedSkill() }
+        }
+        .disabled(store.detailState == .loading || store.detailState == .cachedRefreshing)
+        .accessibilityLabel("Retry loading this Skill from Clawdhub")
     }
 
     private func headerView(for skill: RemoteSkill) -> some View {

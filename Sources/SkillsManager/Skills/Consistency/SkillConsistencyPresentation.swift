@@ -86,6 +86,19 @@ nonisolated enum SkillConsistencyPresentation {
         var allowsWrites: Bool { status.allowsWrites }
     }
 
+    static func filteredFindings(
+        _ findings: [Finding],
+        query: String
+    ) -> [Finding] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return findings }
+        return findings.filter {
+            $0.title.localizedCaseInsensitiveContains(query)
+                || $0.detail.localizedCaseInsensitiveContains(query)
+                || $0.locator?.localizedCaseInsensitiveContains(query) == true
+        }
+    }
+
     static func makeSnapshot(_ prepared: SkillConsistencyAuditPrepared) throws -> Snapshot {
         guard try SkillConsistencyAuditManifestCodec.encode(prepared.manifest)
             == prepared.canonicalBytes else {

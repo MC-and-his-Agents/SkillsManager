@@ -15,6 +15,7 @@ import Observation
         case loading
         case loaded
         case cachedRefreshing
+        case cachedUnavailable
         case failed(String)
     }
 
@@ -120,9 +121,9 @@ import Observation
         } catch {
             guard skill.id == selectedSkillID else { return }
 
-            // If we had cached content, silently keep showing it
+            // Keep cached content visible without hiding the failed refresh.
             if detailState == .cachedRefreshing {
-                detailState = .loaded
+                detailState = .cachedUnavailable
             } else {
                 detailState = .failed(error.localizedDescription)
                 detailMarkdown = ""

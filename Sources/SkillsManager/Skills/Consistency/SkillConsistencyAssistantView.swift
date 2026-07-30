@@ -4,6 +4,7 @@ struct SkillConsistencyAssistantView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SkillConsistencyViewModel.self) private var model
     @State private var selectedFindingID: String?
+    @State private var query = ""
 
     let openBackups: () -> Void
 
@@ -51,8 +52,8 @@ struct SkillConsistencyAssistantView: View {
         VStack(spacing: 0) {
             statusHeader
             Divider()
-            if let snapshot = model.snapshot, !snapshot.findings.isEmpty {
-                List(snapshot.findings, selection: $selectedFindingID) { finding in
+            if model.snapshot?.findings.isEmpty == false, !visibleFindings.isEmpty {
+                List(visibleFindings, selection: $selectedFindingID) { finding in
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(finding.title)
@@ -70,6 +71,12 @@ struct SkillConsistencyAssistantView: View {
                     .accessibilityElement(children: .combine)
                 }
                 .listStyle(.sidebar)
+            } else if model.snapshot?.findings.isEmpty == false {
+                ContentUnavailableView(
+                    "No matching findings",
+                    systemImage: "magnifyingglass",
+                    description: Text("Clear the filter to restore the complete audit.")
+                )
             } else {
                 ContentUnavailableView(
                     emptyTitle,
@@ -78,6 +85,7 @@ struct SkillConsistencyAssistantView: View {
                 )
             }
         }
+        .searchable(text: $query, prompt: "Filter audit findings")
     }
 
     private var statusHeader: some View {
@@ -240,12 +248,19 @@ struct SkillConsistencyAssistantView: View {
     }
 
     private var findingIDs: [String] {
-        model.snapshot?.findings.map(\.id) ?? []
+        visibleFindings.map(\.id)
+    }
+
+    private var visibleFindings: [SkillConsistencyPresentation.Finding] {
+        SkillConsistencyPresentation.filteredFindings(
+            model.snapshot?.findings ?? [],
+            query: query
+        )
     }
 
     private var selectedFinding: SkillConsistencyPresentation.Finding? {
         guard let selectedFindingID else { return nil }
-        return model.snapshot?.findings.first { $0.id == selectedFindingID }
+        return visibleFindings.first { $0.id == selectedFindingID }
     }
 
     private var currentProblem: SkillConsistencyViewModel.Problem? {
