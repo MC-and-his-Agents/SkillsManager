@@ -147,6 +147,23 @@ jobs:
             "$evidence_dir/release-verification.txt"
           cp appcast.xml RELEASE_NOTES.md "$evidence_dir/"
 
+      - name: Purge release credentials before app smoke
+        run: |
+          set -euo pipefail
+          security delete-keychain "$RUNNER_TEMP/release.keychain-db"
+          rm -f "$RUNNER_TEMP/developer-id.p12" \
+            "$RUNNER_TEMP/AuthKey.p8" \
+            "$RUNNER_TEMP/sparkle-private-key.txt"
+          [[ ! -e "$RUNNER_TEMP/developer-id.p12" \
+            && ! -e "$RUNNER_TEMP/AuthKey.p8" \
+            && ! -e "$RUNNER_TEMP/sparkle-private-key.txt" ]]
+
+      - name: Smoke notarized candidate
+        run: |
+          set -euo pipefail
+          ./Scripts/smoke_app.sh SkillsManager.app 10 \
+            | tee -a release-evidence/release-verification.txt
+
       - name: Upload candidate evidence
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -347,28 +364,4 @@ jobs:
               "$release_dir/appcast.xml" \
               "$RUNNER_TEMP/release-verification.txt"
 
-          executable=$(plutil -extract CFBundleExecutable raw -o - "$app/Contents/Info.plist")
-          log="$RUNNER_TEMP/skills-manager-smoke.log"
-          "$app/Contents/MacOS/$executable" >"$log" 2>&1 &
-          app_pid=$!
-          cleanup() {
-            kill -TERM "$app_pid" 2>/dev/null || true
-            for _ in {1..5}; do
-              if ! kill -0 "$app_pid" 2>/dev/null; then
-                wait "$app_pid" 2>/dev/null || true
-                return
-              fi
-              sleep 1
-            done
-            kill -KILL "$app_pid" 2>/dev/null || true
-            wait "$app_pid" 2>/dev/null || true
-          }
-          trap cleanup EXIT
-          for _ in {1..10}; do
-            sleep 1
-            if ! kill -0 "$app_pid" 2>/dev/null; then
-              cat "$log" >&2
-              exit 1
-            fi
-          done
-          echo "post_release_smoke=pass"
+          ./Scripts/smoke_app.sh "$app" 10

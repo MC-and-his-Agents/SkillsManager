@@ -83,7 +83,7 @@ struct SkillsShGitHubSourceClientTests {
             #expect(request.httpMethod == "GET")
             #expect(request.value(forHTTPHeaderField: "Accept") == "application/vnd.github+json")
             #expect(request.value(forHTTPHeaderField: "X-GitHub-Api-Version") == "2022-11-28")
-            #expect(request.value(forHTTPHeaderField: "User-Agent") == "SkillsManager/0.1.0")
+            #expect(request.value(forHTTPHeaderField: "User-Agent") == "SkillsManager/0.2.0")
             #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
             #expect(request.timeoutInterval == 10)
             #expect(maximumBytes == 8 * 1_024 * 1_024)

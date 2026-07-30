@@ -12,15 +12,18 @@ This project started independent secondary development from commit [`3f2d809c`](
 
 - Store managed skills in `~/.SkillsManager/skills/`
 - Scan and import unmanaged skills from Codex, Claude Code, OpenCode, and GitHub Copilot directories
-- Distribute with symlinks by default through compatible `~/.agents/skills/` readers, or enable only selected agents
+- Distribute with symlinks by default through compatible `~/.agents/skills/` readers, use copies, or enable only selected agents; preserve an externally edited copy as an independent fork
 - Enable or disable a skill per agent without leaving duplicate global and dedicated copies
 - Back up a managed skill before deletion, then inspect and restore backups
+- Check and apply remote updates for one skill or a batch, with per-item results and failures
+- Audit the SSOT, distribution directories, and historical skills before repairing or migrating them
 - Render `SKILL.md` with Markdown, plus inline reference previews
 - Import skills from a folder or ZIP archive
 - Browse Clawdhub skills with search and latest drops
 - Show Clawdhub author information in the detail view
+- Discover GitHub skills through the experimental skills.sh search index and install only after resolving one unambiguous safe source
 
-This release supports symlink distribution only. Copy/Fork, skills.sh, and batch updates are not available yet.
+The skills.sh integration depends on an undocumented public endpoint that may change, require authentication, or disappear. Its failure does not affect local skills, Clawdhub, or other managed features.
 
 ## Requirements
 

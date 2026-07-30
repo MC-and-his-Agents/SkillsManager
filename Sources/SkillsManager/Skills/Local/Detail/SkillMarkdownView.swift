@@ -228,11 +228,6 @@ struct SkillMarkdownView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if updateAvailable {
-                Text("Managed updates are not available yet.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 
