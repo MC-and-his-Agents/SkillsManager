@@ -3,7 +3,7 @@ import Testing
 
 @testable import SkillsManager
 
-@Suite("skills.sh experimental search client")
+@Suite("skills.sh search client")
 struct SkillsShSearchClientTests {
     enum InvalidRequestFixture: CaseIterable {
         case emptyQuery
@@ -239,7 +239,7 @@ struct SkillsShSearchClientTests {
     }
 
     @Test(
-        "fails the whole page when the experimental contract changes",
+        "fails the whole page when the search contract changes",
         arguments: ContractFailureFixture.allCases
     )
     func contractFailures(_ fixture: ContractFailureFixture) async throws {

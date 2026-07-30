@@ -103,6 +103,13 @@ struct SkillListView: View {
                     onInstall: { onInstallRemoteSkill(skill) }
                 )
             }
+            paginationContent(
+                state: remoteStore.searchPaginationState,
+                loadingLabel: "Loading more search results",
+                retryLabel: "Retry Clawdhub search page"
+            ) {
+                await remoteStore.loadMoreSearch()
+            }
         }
     }
 
@@ -130,6 +137,45 @@ struct SkillListView: View {
                     installedTargets: installedSkillPlatforms.platforms(forSlug: skill.slug),
                     onInstall: { onInstallRemoteSkill(skill) }
                 )
+            }
+            paginationContent(
+                state: remoteStore.latestPaginationState,
+                loadingLabel: "Loading more latest Skills",
+                retryLabel: "Retry Clawdhub latest page"
+            ) {
+                await remoteStore.loadMoreLatest()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func paginationContent(
+        state: RemoteSkillStore.PaginationState,
+        loadingLabel: String,
+        retryLabel: String,
+        action: @escaping () async -> Void
+    ) -> some View {
+        switch state {
+        case .idle, .finished:
+            EmptyView()
+        case .loading:
+            HStack(spacing: 8) {
+                ProgressView()
+                Text(loadingLabel)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 8)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(loadingLabel)
+        case .canLoadMore:
+            Button("Load More") {
+                Task { await action() }
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityHint("Loads more Clawdhub results")
+        case .failed:
+            clawdhubUnavailable(retryLabel: retryLabel) {
+                Task { await action() }
             }
         }
     }

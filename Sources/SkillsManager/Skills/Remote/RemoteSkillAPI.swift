@@ -3,6 +3,7 @@ import Foundation
 nonisolated struct RemoteSkillAPI {
     struct SkillListResponse: Decodable {
         let items: [SkillListItem]
+        let nextCursor: String?
     }
 
     struct SkillListItem: Decodable {

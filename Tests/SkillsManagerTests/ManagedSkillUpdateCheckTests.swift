@@ -46,7 +46,7 @@ struct ManagedSkillUpdateCheckTests {
         let failingService = ManagedSkillUpdateCheckService(
             writer: context.writer,
             remote: RemoteSkillClient(
-                fetchLatest: { _ in [] },
+                fetchLatest: { _, _ in RemoteSkillPage(items: [], nextCursor: nil) },
                 search: { _, _ in [] },
                 download: { _, _ in throw URLError(.timedOut) },
                 fetchDetail: { _ in nil },
@@ -326,7 +326,7 @@ private func remote(
     recorder: RemoteUpdateRecorder? = nil
 ) -> RemoteSkillClient {
     RemoteSkillClient(
-        fetchLatest: { _ in [] },
+        fetchLatest: { _, _ in RemoteSkillPage(items: [], nextCursor: nil) },
         search: { _, _ in [] },
         download: { slug, version in
             if let recorder { await recorder.append("download:\(slug):\(version ?? "nil")") }

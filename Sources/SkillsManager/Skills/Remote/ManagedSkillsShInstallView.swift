@@ -71,12 +71,6 @@ struct ManagedSkillsShInstallView: View {
                     + "and pin the install to an immutable GitHub commit."
             )
             .foregroundStyle(.secondary)
-            Label(
-                "Experimental skills.sh index; GitHub resolution may be unavailable or rate limited.",
-                systemImage: "exclamationmark.triangle"
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
         }
     }
 
