@@ -1,27 +1,31 @@
-# Skills Manager MVP
+# Skills Manager 0.2.0
 
 中文
 
-- 将受管理的 Skills 统一存放在 `~/.SkillsManager/skills/`。
-- 默认通过 Symlink 分发到兼容的全局目录，也可只对指定 Agent 启用。
-- 支持导入已有的未管理 Skill，以及从文件夹、ZIP 或 Clawdhub 安装。
-- 支持按 Agent 启用/停用、删除前自动备份、备份恢复和冲突提示。
-- 管理操作经过统一的 SSOT 写入、SQLite 状态记录和失败恢复流程。
+- 新增 Copy 分发和 drift 保护，可丢弃外部修改或将其保留为独立本地 Fork。
+- 新增实验性的 skills.sh 搜索与安全 GitHub 来源解析；只有唯一 `SKILL.md` 路径和不可变 revision 才允许安装。
+- 新增单个与批量远程更新，支持内容指纹检查、逐项结果、停止、失败重试和更新前备份。
+- 新增一致性审计、Symlink 修复和历史 Skill 迁移，所有写入前均提供稳定预览并在冲突时 fail closed。
+- 收敛 Copy/Fork、来源身份、批量进度、Provider 不可用状态以及键盘和 VoiceOver 体验。
+- 保留 v0.1.0 的 SSOT、导入、按 Agent 分发、删除前备份与恢复能力，并支持从其数据库安全升级。
 
 已知限制
 
-- 当前只支持 Symlink 分发；Copy/Fork 尚未提供。
-- skills.sh、批量更新和 Mac App Store 发布不在本版本范围内。
+- skills.sh 使用未文档化公共接口，可能临时或永久不可用；失败不会影响本地、Clawdhub 或已管理 Skill。
+- Fork 是独立本地 Skill；本版本不提供自动三方合并或 Fork rebase。
+- 本版本不通过 Mac App Store 分发。
 
 English
 
-- Stores managed skills in the single source of truth at `~/.SkillsManager/skills/`.
-- Distributes with symlinks by default, globally where compatible or only to selected agents.
-- Imports unmanaged skills and installs from folders, ZIP archives, or Clawdhub.
-- Supports per-agent enable/disable, automatic backup before deletion, restore, and conflict feedback.
-- Routes managed writes through the SSOT, SQLite state, and recoverable operations.
+- Adds copy distribution with drift protection: discard external edits or preserve them as an independent local fork.
+- Adds experimental skills.sh search with safe GitHub source resolution; installation requires one unique `SKILL.md` path and an immutable revision.
+- Adds single and batch remote updates with content fingerprint checks, per-item results, stop, retry, and pre-update backups.
+- Adds consistency audits, symlink repair, and historical skill migration with stable previews and fail-closed conflicts.
+- Converges Copy/Fork identity, source identity, batch progress, Provider unavailable states, keyboard access, and VoiceOver semantics.
+- Keeps the v0.1.0 SSOT, import, per-agent distribution, backup, and restore workflows, with a safe database upgrade path.
 
 Known limitations
 
-- Symlink is the only distribution mode in this release; Copy/Fork is not available yet.
-- skills.sh, batch updates, and Mac App Store distribution are outside this release.
+- skills.sh uses an undocumented public endpoint that may become temporarily or permanently unavailable; failures do not affect local, Clawdhub, or managed skills.
+- A fork is an independent local skill; automatic three-way merge and fork rebase are not included.
+- This release is not distributed through the Mac App Store.

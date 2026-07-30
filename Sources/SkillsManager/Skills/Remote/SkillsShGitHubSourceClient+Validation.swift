@@ -179,7 +179,7 @@ nonisolated extension SkillsShGitHubContract {
         request.httpMethod = "GET"
         request.setValue(accept, forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-        request.setValue("SkillsManager/0.1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("SkillsManager/0.2.0", forHTTPHeaderField: "User-Agent")
         return request
     }
 
