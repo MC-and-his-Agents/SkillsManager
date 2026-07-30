@@ -120,13 +120,17 @@ import Observation
 
     func search(query: String, limit: Int = 20) async {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let previousResultIDs = Set(searchResults.map(\.id))
         activeSearchQuery = trimmed
         activeSearchToken += 1
         let token = activeSearchToken
+        searchResults = []
+        if selectedSkillID.map(previousResultIDs.contains) == true {
+            selectedSkillID = nil
+        }
         searchPaginationState = .idle
         currentSearchLimit = 0
         guard !trimmed.isEmpty else {
-            searchResults = []
             searchState = .idle
             return
         }

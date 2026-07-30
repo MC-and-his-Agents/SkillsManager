@@ -181,6 +181,52 @@ struct RemoteSkillStorePaginationTests {
 
         #expect(store.searchResults.map(\.id) == ["current"])
     }
+
+    @Test("a new query clears old results while loading and after failure")
+    func newQueryFailureClearsOldResults() async {
+        let probe = ControlledRemoteSearchProbe()
+        let store = RemoteSkillStore(client: probe.client)
+
+        let old = Task { await store.search(query: "old") }
+        await waitForRemoteRequest { await probe.hasPending(query: "old") }
+        await probe.resolve(query: "old", with: [remoteSkill("old")])
+        await old.value
+        store.selectedSkillID = "old"
+
+        let current = Task { await store.search(query: "current") }
+        await waitForRemoteRequest { await probe.hasPending(query: "current") }
+        #expect(store.searchResults.isEmpty)
+        #expect(store.selectedSkillID == nil)
+        #expect(store.searchState == .loading)
+        await probe.reject(query: "current")
+        await current.value
+
+        #expect(store.searchResults.isEmpty)
+        if case .failed = store.searchState {} else {
+            Issue.record("Expected the new query to fail")
+        }
+    }
+
+    @Test("a cancelled new query does not restore old results")
+    func newQueryCancellationKeepsResultsEmpty() async {
+        let probe = ControlledRemoteSearchProbe()
+        let store = RemoteSkillStore(client: probe.client)
+
+        let old = Task { await store.search(query: "old") }
+        await waitForRemoteRequest { await probe.hasPending(query: "old") }
+        await probe.resolve(query: "old", with: [remoteSkill("old")])
+        await old.value
+        store.selectedSkillID = "old"
+
+        let current = Task { await store.search(query: "current") }
+        await waitForRemoteRequest { await probe.hasPending(query: "current") }
+        await probe.cancel(query: "current")
+        await current.value
+
+        #expect(store.searchResults.isEmpty)
+        #expect(store.selectedSkillID == nil)
+        #expect(store.searchState == .idle)
+    }
 }
 
 private actor RemoteURLProbe {
@@ -285,6 +331,18 @@ private actor ControlledRemoteSearchProbe {
     func resolve(query: String, with skills: [RemoteSkill]) {
         guard let index = pending.firstIndex(where: { $0.query == query }) else { return }
         pending.remove(at: index).continuation.resume(returning: skills)
+    }
+
+    func reject(query: String) {
+        guard let index = pending.firstIndex(where: { $0.query == query }) else { return }
+        pending.remove(at: index).continuation.resume(
+            throwing: RemoteSkillClientError.providerUnavailable
+        )
+    }
+
+    func cancel(query: String) {
+        guard let index = pending.firstIndex(where: { $0.query == query }) else { return }
+        pending.remove(at: index).continuation.resume(throwing: CancellationError())
     }
 
     private func search(query: String) async throws -> [RemoteSkill] {
