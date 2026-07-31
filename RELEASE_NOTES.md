@@ -11,7 +11,7 @@
 
 已知限制
 
-- skills.sh 使用未文档化公共接口，可能临时或永久不可用；失败不会影响本地、Clawdhub 或已管理 Skill。
+- skills.sh 使用未文档化公共接口，可能临时或永久不可用；失败不会影响本地、ClawHub 或已管理 Skill。
 - Fork 是独立本地 Skill；本版本不提供自动三方合并或 Fork rebase。
 - 本版本不通过 Mac App Store 分发。
 
@@ -26,6 +26,6 @@ English
 
 Known limitations
 
-- skills.sh uses an undocumented public endpoint that may become temporarily or permanently unavailable; failures do not affect local, Clawdhub, or managed skills.
+- skills.sh uses an undocumented public endpoint that may become temporarily or permanently unavailable; failures do not affect local, ClawHub, or managed skills.
 - A fork is an independent local skill; automatic three-way merge and fork rebase are not included.
 - This release is not distributed through the Mac App Store.

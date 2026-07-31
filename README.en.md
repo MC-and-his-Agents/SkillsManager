@@ -19,11 +19,11 @@ This project started independent secondary development from commit [`3f2d809c`](
 - Audit the SSOT, distribution directories, and historical skills before repairing or migrating them
 - Render `SKILL.md` with Markdown, plus inline reference previews
 - Import skills from a folder or ZIP archive
-- Browse Clawdhub skills with search and latest drops
-- Show Clawdhub author information in the detail view
+- Browse ClawHub skills with search and latest drops
+- Show ClawHub author information in the detail view
 - Discover GitHub skills through the experimental skills.sh search index and install only after resolving one unambiguous safe source
 
-The skills.sh integration depends on an undocumented public endpoint that may change, require authentication, or disappear. Its failure does not affect local skills, Clawdhub, or other managed features.
+The skills.sh integration depends on an undocumented public endpoint that may change, require authentication, or disappear. Its failure does not affect local skills, ClawHub, or other managed features.
 
 ## Requirements
 
@@ -46,4 +46,4 @@ swift run SkillsManager
 ## Credits
 
 - Markdown rendering: [swift-markdown-ui](https://github.com/gonzalezreal/swift-markdown-ui)
-- Remote skill catalog: [Clawdhub](https://clawdhub.com)
+- Remote skill catalog: [ClawHub](https://clawhub.ai/)
