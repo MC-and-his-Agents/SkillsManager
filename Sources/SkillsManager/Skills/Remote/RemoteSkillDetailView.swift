@@ -17,7 +17,7 @@ struct RemoteSkillDetailView: View {
                 }
             }
             .navigationTitle(skill.displayName)
-            .navigationSubtitle("Clawdhub")
+            .navigationSubtitle("ClawHub")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -25,14 +25,14 @@ struct RemoteSkillDetailView: View {
                     } label: {
                         Image(systemName: "globe")
                     }
-                    .help("Open on Clawdhub")
+                    .help("Open on ClawHub")
                 }
             }
         } else {
             ContentUnavailableView(
                 "Select a skill",
                 systemImage: "sparkles",
-                description: Text("Pick a skill from Clawdhub.")
+                description: Text("Pick a skill from ClawHub.")
             )
         }
     }
@@ -93,7 +93,7 @@ struct RemoteSkillDetailView: View {
             Task { await store.loadSelectedSkill() }
         }
         .disabled(store.detailState == .loading || store.detailState == .cachedRefreshing)
-        .accessibilityLabel("Retry loading this Skill from Clawdhub")
+        .accessibilityLabel("Retry loading this Skill from ClawHub")
     }
 
     private func headerView(for skill: RemoteSkill) -> some View {

@@ -55,7 +55,7 @@ struct SkillBatchUpdateConsistencyPresentationTests {
             forkLineage: nil,
             providerProvenance: provenance,
             displayNames: [:]
-        ) == "Discovered via Clawdhub, skills.sh, zeta")
+        ) == "Discovered via ClawHub, skills.sh, zeta")
         #expect(SkillStore.identitySummary(
             source: nil,
             forkLineage: lineage,
@@ -201,7 +201,7 @@ struct RemoteSkillStoreRetryPresentationTests {
         await store.search(query: "swift")
         #expect(store.searchState == .loaded)
         #expect(await probe.searchCalls == 2)
-        #expect(ClawdhubAvailabilityPresentation.title == "Clawdhub unavailable")
+        #expect(ClawdhubAvailabilityPresentation.title == "ClawHub unavailable")
     }
 
     @Test("Cached detail remains visible and truthful across retries")
@@ -235,7 +235,7 @@ struct RemoteSkillStoreRetryPresentationTests {
         #expect(await probe.detailCalls == 2)
         #expect(
             ClawdhubAvailabilityPresentation.cachedDetail
-                == "Clawdhub unavailable — cached content may be out of date."
+                == "ClawHub unavailable — cached content may be out of date."
         )
     }
 }

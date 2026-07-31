@@ -5,7 +5,7 @@ import Testing
 
 @Suite("Managed Skill update execution", .serialized)
 struct ManagedSkillUpdateExecutionTests {
-    @Test("Clawdhub update backs up, replaces, and records an up-to-date snapshot")
+    @Test("ClawHub update backs up, replaces, and records an up-to-date snapshot")
     func updatesClawdhubSkill() async throws {
         let fixture = try await makeExecutionFixture(remoteMarkdown: "# Remote")
         defer { fixture.remote.cleanup() }
@@ -16,8 +16,8 @@ struct ManagedSkillUpdateExecutionTests {
         )
 
         let preview = try await service.prepare(snapshot)
-        #expect(preview.currentSourceDescription == "Clawdhub demo 1.0.0")
-        #expect(preview.candidateSourceDescription == "Clawdhub demo 2.0.0")
+        #expect(preview.currentSourceDescription == "ClawHub demo 1.0.0")
+        #expect(preview.candidateSourceDescription == "ClawHub demo 2.0.0")
         #expect(preview.distributionDescription == "Disabled · Symlink")
         let result = try await service.confirm(preview.token, selections: [])
 

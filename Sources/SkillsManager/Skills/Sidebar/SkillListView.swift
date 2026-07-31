@@ -88,7 +88,7 @@ struct SkillListView: View {
             }
             .padding(.vertical, 8)
         } else if case .failed = remoteSearchState {
-            clawdhubUnavailable(retryLabel: "Retry Clawdhub search") {
+            clawdhubUnavailable(retryLabel: "Retry ClawHub search") {
                 Task { await remoteStore.search(query: remoteQuery) }
             }
         } else if remoteSearchResults.isEmpty {
@@ -106,7 +106,7 @@ struct SkillListView: View {
             paginationContent(
                 state: remoteStore.searchPaginationState,
                 loadingLabel: "Loading more search results",
-                retryLabel: "Retry Clawdhub search page"
+                retryLabel: "Retry ClawHub search page"
             ) {
                 await remoteStore.loadMoreSearch()
             }
@@ -123,7 +123,7 @@ struct SkillListView: View {
             }
             .padding(.vertical, 8)
         } else if case .failed = remoteLatestState {
-            clawdhubUnavailable(retryLabel: "Retry Clawdhub latest Skills") {
+            clawdhubUnavailable(retryLabel: "Retry ClawHub latest Skills") {
                 Task { await remoteStore.loadLatest() }
             }
         } else if remoteLatestSkills.isEmpty {
@@ -141,7 +141,7 @@ struct SkillListView: View {
             paginationContent(
                 state: remoteStore.latestPaginationState,
                 loadingLabel: "Loading more latest Skills",
-                retryLabel: "Retry Clawdhub latest page"
+                retryLabel: "Retry ClawHub latest page"
             ) {
                 await remoteStore.loadMoreLatest()
             }
@@ -172,7 +172,7 @@ struct SkillListView: View {
                 Task { await action() }
             }
             .frame(maxWidth: .infinity)
-            .accessibilityHint("Loads more Clawdhub results")
+            .accessibilityHint("Loads more ClawHub results")
         case .failed:
             clawdhubUnavailable(retryLabel: retryLabel) {
                 Task { await action() }
@@ -214,7 +214,7 @@ struct SkillListView: View {
             Section("Mine") {
                 localRows(for: mine)
             }
-            Section("Clawdhub") {
+            Section("ClawHub") {
                 localRows(for: clawdhub)
             }
         }

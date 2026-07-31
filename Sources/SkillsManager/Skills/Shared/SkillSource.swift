@@ -3,7 +3,7 @@ import Foundation
 enum SkillSource: String, CaseIterable, Identifiable {
     case local = "Local"
     case discovery = "Discovery"
-    case clawdhub = "Clawdhub"
+    case clawdhub = "ClawHub"
     case skillsSh = "skills.sh"
 
     var id: String { rawValue }
@@ -12,7 +12,7 @@ enum SkillSource: String, CaseIterable, Identifiable {
         switch self {
         case .local: "Installed Skills"
         case .discovery: "Skill Discovery"
-        case .clawdhub: "Clawdhub"
+        case .clawdhub: "ClawHub"
         case .skillsSh: "skills.sh Search"
         }
     }

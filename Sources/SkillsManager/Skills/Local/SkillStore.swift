@@ -340,7 +340,7 @@ import Observation
             .sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
             .map {
                 switch $0 {
-                case "clawdhub": "Clawdhub"
+                case "clawdhub": "ClawHub"
                 case "skills.sh": "skills.sh"
                 default: $0
                 }

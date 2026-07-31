@@ -72,7 +72,7 @@ struct SkillMarkdownView: View {
                     } label: {
                         Image(systemName: "globe")
                     }
-                    .help("Open on Clawdhub")
+                    .help("Open on ClawHub")
                 }
             }
         }
@@ -109,7 +109,7 @@ struct SkillMarkdownView: View {
 
     private var publishHeader: some View {
         HStack(spacing: 8) {
-            Text("Clawdhub")
+            Text("ClawHub")
                 .font(.headline)
             Spacer()
             if isCheckingPublish || isCheckingCli {
@@ -125,7 +125,7 @@ struct SkillMarkdownView: View {
             Text("This managed Skill needs repair before it can be published.")
                 .foregroundStyle(.secondary)
         } else if isCheckingCli || isCheckingPublish {
-            Text("Checking Clawdhub status…")
+            Text("Checking ClawHub status…")
                 .foregroundStyle(.secondary)
         } else if !cliStatus.isInstalled {
             publishInstallContent
@@ -138,7 +138,7 @@ struct SkillMarkdownView: View {
 
     private var publishInstallContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Install Bun to run the Clawdhub CLI.")
+            Text("Install Bun to run the ClawHub CLI.")
                 .foregroundStyle(.secondary)
 
             Button("Install Bun") {
@@ -181,12 +181,12 @@ struct SkillMarkdownView: View {
                 Text(needsPublish ? "Changes detected. Publish an update." : "No unpublished changes.")
                     .foregroundStyle(.secondary)
             } else {
-                Text("Not yet published on Clawdhub.")
+                Text("Not yet published on ClawHub.")
                     .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 12) {
-                Button(publishedVersion == nil ? "Publish to Clawdhub" : "Update on Clawdhub") {
+                Button(publishedVersion == nil ? "Publish to ClawHub" : "Update on ClawHub") {
                     publishSheetSkill = skill
                 }
                 .buttonStyle(.borderedProminent)
@@ -213,7 +213,7 @@ struct SkillMarkdownView: View {
     @ViewBuilder
     private var installContent: some View {
         if isCheckingPublish {
-            Text("Checking Clawdhub status…")
+            Text("Checking ClawHub status…")
                 .foregroundStyle(.secondary)
         } else {
             if let installedVersion {

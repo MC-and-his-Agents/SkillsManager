@@ -115,7 +115,7 @@ nonisolated enum ManagedLocalImportProblem: LocalizedError, Equatable, Sendable 
         case .tokenExpired:
             "The import preview expired. Prepare a new preview."
         case .providerConflict:
-            "The Clawdhub source record conflicts with another managed Skill."
+            "The ClawHub source record conflicts with another managed Skill."
         case .providerAliasConflict:
             "This skills.sh result is already linked to a different managed source."
         case .sourceUpdateUnsupportedLocalOrigins:

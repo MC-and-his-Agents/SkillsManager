@@ -452,7 +452,7 @@ actor ManagedSkillUpdateExecutionService {
                 $0.identity.provider == "clawdhub"
                     && $0.identity.identifier == slug
             }?.version?.value ?? "unknown version"
-            return "Clawdhub \(slug) \(version)"
+            return "ClawHub \(slug) \(version)"
         case .github:
             guard let source = payload.source else { return "Unknown GitHub revision" }
             let revision = source.revision?.value ?? "unknown revision"

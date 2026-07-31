@@ -34,9 +34,9 @@ nonisolated enum RemoteSkillClientError: Error, Equatable, LocalizedError, Senda
 
     var errorDescription: String? {
         switch self {
-        case .rateLimited: "Clawdhub rate limited this request."
-        case .providerUnavailable: "Clawdhub is temporarily unavailable."
-        case .invalidResponse: "Clawdhub returned an invalid response."
+        case .rateLimited: "ClawHub rate limited this request."
+        case .providerUnavailable: "ClawHub is temporarily unavailable."
+        case .invalidResponse: "ClawHub returned an invalid response."
         }
     }
 }

@@ -20,7 +20,7 @@ struct PublishSkillSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Publish Skill")
                     .font(.title.bold())
-                Text("Push changes for \(displayName) to Clawdhub.")
+                Text("Push changes for \(displayName) to ClawHub.")
                     .foregroundStyle(.secondary)
             }
 

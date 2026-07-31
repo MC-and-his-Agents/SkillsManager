@@ -7,7 +7,7 @@ import ZIPFoundation
 
 @Suite("Managed Skill update checks", .serialized)
 struct ManagedSkillUpdateCheckTests {
-    @Test("Clawdhub exact version uses complete content fingerprints")
+    @Test("ClawHub exact version uses complete content fingerprints")
     func clawdhubFingerprintTruth() async throws {
         let context = try await makeContext(markdown: "# Original", clawdhubSlug: "demo")
         let unchangedArchive = try writeArchive(markdown: "# Original")
