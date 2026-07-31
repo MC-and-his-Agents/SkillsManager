@@ -373,7 +373,8 @@ func historicalObservation(
     reason: SkillDiscoveryReason? = nil,
     symbolicLinkIdentity: ManagedItemIdentity? = nil,
     matchedSkillID: SkillID? = nil,
-    hasSnapshot: Bool = true
+    hasSnapshot: Bool = true,
+    scope: SkillDiscoveryScope = .global
 ) throws -> SkillDiscoveryObservation {
     let identity = ManagedItemIdentity(
         persistedComponents: .init(
@@ -384,7 +385,7 @@ func historicalObservation(
         )
     )
     let root = SkillDiscoveryRoot(
-        scope: .global,
+        scope: scope,
         url: URL(fileURLWithPath: "/tmp/.agents/skills", isDirectory: true)
     )
     return SkillDiscoveryObservation(

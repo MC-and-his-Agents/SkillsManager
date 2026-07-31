@@ -174,11 +174,31 @@ nonisolated extension SkillConsistencyPresentation {
         manifest.managedSkills.lazy.flatMap(\.bindings).contains { binding in
             observation.relativeLocatorKey == binding.slugKey
                 && observation.roots.contains {
-                    $0.kind == binding.scopeKind
-                        && $0.adapterCode == binding.adapterCode
-                        && $0.customPathID == nil
+                    isDistributionRoot($0, for: binding)
                 }
         }
+    }
+
+    private static func isDistributionRoot(
+        _ root: SkillConsistencyAuditDiscoveryRoot,
+        for binding: SkillConsistencyAuditBinding
+    ) -> Bool {
+        guard root.customPathID == nil else { return false }
+        if binding.scopeKind == SkillDiscoveryScopeKind.global.rawValue {
+            return root.kind == SkillDiscoveryScopeKind.global.rawValue
+                && root.adapterCode == nil
+                && root.pathVariant == nil
+        }
+        guard binding.scopeKind == SkillDiscoveryScopeKind.agent.rawValue,
+              root.kind == SkillDiscoveryScopeKind.agent.rawValue,
+              let adapterCode = binding.adapterCode,
+              root.adapterCode == adapterCode,
+              let platform = SkillPlatform.allCases.first(where: {
+                  $0.storageKey == adapterCode
+              }) else {
+            return false
+        }
+        return root.pathVariant == platform.dedicatedDistributionRelativePath
     }
 
     private static func importActionPrecedes(

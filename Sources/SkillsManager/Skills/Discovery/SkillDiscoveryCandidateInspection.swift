@@ -166,6 +166,9 @@ nonisolated extension SkillDiscoveryScanner {
                 if try isContainerDirectory(
                     descriptor: descriptor,
                     displayPath: name,
+                    expectedSkillDirectories: directChildSkillManifestDirectories(
+                        in: snapshot
+                    ),
                     checkpoint: checkpoint
                 ) {
                     return failedCandidate(
@@ -281,12 +284,25 @@ nonisolated extension SkillDiscoveryScanner {
         }
     }
 
-    private func isContainerDirectory(
+    func directChildSkillManifestDirectories(
+        in snapshot: SkillContentSnapshot
+    ) -> Set<String> {
+        Set(snapshot.files.compactMap { file in
+            let components = file.relativePath.split(separator: "/", omittingEmptySubsequences: false)
+            guard components.count == 2, components[1] == "SKILL.md" else {
+                return nil
+            }
+            return String(components[0])
+        })
+    }
+
+    func isContainerDirectory(
         descriptor: Int32,
         displayPath: String,
+        expectedSkillDirectories: Set<String>,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> Bool {
-        var containsSkill = false
+        var observedSkillDirectories = Set<String>()
         for name in try SafeSourceTree.names(in: descriptor, displayPath: displayPath) {
             try checkpoint()
             var metadata = stat()
@@ -323,7 +339,9 @@ nonisolated extension SkillDiscoveryScanner {
                             path: "\(displayPath)/\(name)/SKILL.md"
                         )
                     }
-                    containsSkill = true
+                    observedSkillDirectories.insert(
+                        SkillContentPath.normalizedComponent(name)
+                    )
                 } else if errno != ENOENT {
                     throw SkillContentSnapshotError.fileSystemFailure(
                         path: "\(displayPath)/\(name)/SKILL.md",
@@ -332,6 +350,9 @@ nonisolated extension SkillDiscoveryScanner {
                 }
             }
         }
-        return containsSkill
+        guard observedSkillDirectories == expectedSkillDirectories else {
+            throw SkillContentSnapshotError.fileChanged(path: displayPath)
+        }
+        return !observedSkillDirectories.isEmpty
     }
 }

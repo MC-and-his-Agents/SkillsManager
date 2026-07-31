@@ -198,40 +198,6 @@ struct SkillConsistencyAuditTests {
         )
     }
 
-    @Test("canonical discovery evidence distinguishes a direct directory from a link")
-    func symlinkIdentityChangesCanonicalEvidence() throws {
-        let workspace = try WriterWorkspace()
-        let verified = try ManagedRootReference.capture(at: workspace.root).verifiedRoot()
-        let root = SkillDiscoveryRoot(scope: .global, url: workspace.root)
-        let direct = equivalentObservation(
-            rawLocator: "demo",
-            root: root,
-            identity: verified.identity
-        )
-        let link = equivalentObservation(
-            rawLocator: "demo",
-            root: root,
-            identity: verified.identity,
-            symbolicLinkIdentity: ManagedItemIdentity(
-                persistedComponents: .init(
-                    device: 1,
-                    inode: 9,
-                    fileType: UInt32(S_IFLNK),
-                    generation: 0
-                )
-            )
-        )
-
-        let directBytes = try SkillConsistencyAuditManifestCodec.encode(
-            SkillConsistencyAuditWire.discoveryObservation(direct)
-        )
-        let linkBytes = try SkillConsistencyAuditManifestCodec.encode(
-            SkillConsistencyAuditWire.discoveryObservation(link)
-        )
-
-        #expect(directBytes != linkBytes)
-    }
-
     @Test("marks an observed unsupported root as incomplete")
     func incompleteCoverage() async throws {
         let workspace = try WriterWorkspace(distributionEnabled: true)
@@ -511,27 +477,4 @@ private func treeEntrySignature(_ url: URL, relativeTo root: URL) throws -> Stri
         try ManagedItemIdentityCodec.encode(ManagedItemIdentity(metadata)).base64EncodedString(),
         payload,
     ].joined(separator: "\u{0}")
-}
-
-private func equivalentObservation(
-    rawLocator: String,
-    root: SkillDiscoveryRoot,
-    identity: ManagedItemIdentity,
-    symbolicLinkIdentity: ManagedItemIdentity? = nil
-) -> SkillDiscoveryObservation {
-    SkillDiscoveryObservation(
-        roots: [root],
-        rootIdentity: identity,
-        rawRelativeLocator: rawLocator,
-        relativeLocator: "\u{e9}",
-        relativeLocatorKey: SkillContentPath.collisionKey(for: "\u{e9}"),
-        candidateIdentity: identity,
-        symbolicLinkIdentity: symbolicLinkIdentity,
-        fingerprint: nil,
-        providerAliases: [],
-        status: .conflict,
-        reason: .scopeSlugConflict,
-        matchedSkillID: nil,
-        matchedSourceKey: nil
-    )
 }

@@ -140,6 +140,23 @@ extension SkillConsistencyViewModelTests {
         #expect(snapshot.findings[0].detail == "The managed link points to a different Skill.")
     }
 
+    @Test("a compatibility root with the same adapter and slug remains independently visible")
+    func compatibilityRootIsNotHiddenByBinding() throws {
+        let base = try repairPrepared(missingScopes: ["agent:codex"])
+        let observation = try historicalObservation(
+            scope: .agent(
+                adapterCode: SkillPlatform.codex.storageKey,
+                pathVariant: ".codex/skills/public"
+            )
+        )
+        let snapshot = try SkillConsistencyPresentation.makeSnapshot(
+            addingDiscovery(observation, to: base)
+        )
+
+        #expect(snapshot.findings.contains { $0.id.hasPrefix("distribution|") })
+        #expect(snapshot.findings.contains { $0.id.hasPrefix("historical|") })
+    }
+
     @Test("container observations do not become audit findings")
     func excludesContainerObservation() throws {
         let observation = try historicalObservation(

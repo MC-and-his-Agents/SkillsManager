@@ -197,4 +197,49 @@ extension SkillDiscoveryScannerTests {
             #expect(observation.reason != .containerDirectory)
         }
     }
+
+    @Test("container inspection rejects manifest additions and removals after snapshot")
+    func containerManifestChangesFailClosed() throws {
+        for removesManifest in [false, true] {
+            try withWorkspace { workspace in
+                let container = workspace.appendingPathComponent("container", isDirectory: true)
+                let child = container.appendingPathComponent("nested", isDirectory: true)
+                try FileManager.default.createDirectory(
+                    at: child,
+                    withIntermediateDirectories: true
+                )
+                let manifest = child.appendingPathComponent("SKILL.md")
+                if removesManifest {
+                    try "# Nested".write(to: manifest, atomically: true, encoding: .utf8)
+                }
+                let descriptor = Darwin.open(
+                    container.path,
+                    O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+                )
+                #expect(descriptor >= 0)
+                defer { Darwin.close(descriptor) }
+                let snapshot = try SkillContentSnapshot.capture(
+                    directoryDescriptor: descriptor,
+                    displayPath: "container"
+                )
+                let scanner = SkillDiscoveryScanner()
+                let expected = scanner.directChildSkillManifestDirectories(in: snapshot)
+
+                if removesManifest {
+                    try FileManager.default.removeItem(at: manifest)
+                } else {
+                    try "# Nested".write(to: manifest, atomically: true, encoding: .utf8)
+                }
+
+                #expect(throws: SkillContentSnapshotError.fileChanged(path: "container")) {
+                    _ = try scanner.isContainerDirectory(
+                        descriptor: descriptor,
+                        displayPath: "container",
+                        expectedSkillDirectories: expected,
+                        checkpoint: {}
+                    )
+                }
+            }
+        }
+    }
 }
