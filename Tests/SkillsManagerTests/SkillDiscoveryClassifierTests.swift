@@ -31,6 +31,70 @@ struct SkillDiscoveryClassifierTests {
         #expect(observations.allSatisfy { $0.reason == .scopeSlugConflict })
     }
 
+    @Test("colliding container names block all of their children")
+    func containerNameCollisionBlocksChildren() {
+        let observations = classify([
+            candidate(name: "Bundle/one", fingerprintByte: 1),
+            candidate(name: "bundle/two", fingerprintByte: 2),
+        ], catalog: .empty)
+
+        #expect(observations.allSatisfy { $0.status == .conflict })
+        #expect(observations.allSatisfy { $0.reason == .scopeSlugConflict })
+    }
+
+    @Test("a colliding top-level Skill blocks a nested candidate")
+    func topLevelNameCollisionBlocksNestedCandidate() {
+        let observations = classify([
+            candidate(name: "Bundle/child", fingerprintByte: 1),
+            candidate(name: "bundle", fingerprintByte: 2),
+        ], catalog: .empty)
+
+        #expect(observations.allSatisfy { $0.status == .conflict })
+        #expect(observations.allSatisfy { $0.reason == .scopeSlugConflict })
+    }
+
+    @Test("a colliding damaged container blocks a nested candidate")
+    func damagedContainerNameCollisionBlocksNestedCandidate() throws {
+        let nested = candidate(name: "Bundle/child", fingerprintByte: 1)
+        let damaged = SkillDiscoveryCandidate(
+            roots: [root(scope: .global)],
+            rootIdentity: ManagedItemIdentity(stat()),
+            rawRelativeLocator: "bundle",
+            relativeLocator: "bundle",
+            relativeLocatorKey: "bundle",
+            candidateIdentity: nil,
+            symbolicLinkIdentity: nil,
+            fingerprint: nil,
+            providerAliases: [],
+            terminalStatus: .damaged,
+            terminalReason: .missingSkillManifest
+        )
+
+        let observations = classify([nested, damaged], catalog: .empty)
+        let nestedObservation = try #require(observations.first {
+            $0.relativeLocator == "Bundle/child"
+        })
+
+        #expect(nestedObservation.status == .conflict)
+        #expect(nestedObservation.reason == .scopeSlugConflict)
+        #expect(ManagedSkillImportService.allowedActions(for: nestedObservation).isEmpty)
+    }
+
+    @Test("colliding child names do not block safe siblings")
+    func childNameCollisionIsIsolated() throws {
+        let observations = classify([
+            candidate(name: "bundle/Demo", fingerprintByte: 1),
+            candidate(name: "bundle/demo", fingerprintByte: 2),
+            candidate(name: "bundle/safe", fingerprintByte: 3),
+        ], catalog: .empty)
+
+        let safe = try #require(observations.first {
+            $0.relativeLocator == "bundle/safe"
+        })
+        #expect(safe.status == .unmanaged)
+        #expect(observations.filter { $0.reason == .scopeSlugConflict }.count == 2)
+    }
+
     @Test("consistent aliases across scopes remain one managed observation")
     func consistentAliasesAreManaged() throws {
         let skill = managedSkill(id: 1, fingerprintByte: 7)

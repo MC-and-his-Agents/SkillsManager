@@ -35,9 +35,9 @@ nonisolated struct LocalSkillOriginRecord: Hashable, Sendable {
         guard Self.valid(scope) else {
             throw LocalSkillOriginError.invalidLocator
         }
-        guard let visibleName = SkillContentPath.visibleDirectoryName(rawLocator),
-              visibleName == normalizedLocator,
-              collisionKey == SkillContentPath.collisionKey(for: normalizedLocator) else {
+        guard let locator = SkillContentLocator(rawLocator),
+              locator.normalizedValue == normalizedLocator,
+              locator.collisionKey == collisionKey else {
             throw LocalSkillOriginError.invalidLocator
         }
         guard confirmedAtMilliseconds >= 0 else {

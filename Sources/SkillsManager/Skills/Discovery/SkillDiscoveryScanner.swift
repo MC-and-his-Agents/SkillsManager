@@ -139,16 +139,15 @@ nonisolated struct SkillDiscoveryScanner {
         var candidates: [SkillDiscoveryCandidate] = []
         for name in names.sorted(by: skillDiscoveryPathComponentPrecedes) {
             try checkpoint()
-            if let candidate = try candidate(
+            candidates.append(contentsOf: try candidate(
                 named: name,
                 roots: roots,
                 rootIdentity: representative.identity,
+                rootRevision: before,
                 in: descriptor,
                 limits: limits,
                 checkpoint: checkpoint
-            ) {
-                candidates.append(candidate)
-            }
+            ))
         }
 
         guard let after = revision(of: descriptor), before == after else {
@@ -174,58 +173,76 @@ nonisolated struct SkillDiscoveryScanner {
         named rawName: String,
         roots: [SkillDiscoveryRoot],
         rootIdentity: ManagedItemIdentity,
+        rootRevision: SkillDiscoveryFileRevision,
         in rootDescriptor: Int32,
         limits: SkillContentLimits,
         checkpoint: SkillCancellationCheckpoint
-    ) throws -> SkillDiscoveryCandidate? {
+    ) throws -> [SkillDiscoveryCandidate] {
         var metadata = stat()
         guard Darwin.fstatat(rootDescriptor, rawName, &metadata, AT_SYMLINK_NOFOLLOW) == 0 else {
-            if errno == ENOENT { return nil }
-            return failedCandidate(
+            if errno == ENOENT { return [] }
+            return [failedCandidate(
                 named: rawName,
                 roots: roots,
                 rootIdentity: rootIdentity,
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: nil
+                ),
                 status: permissionError(errno) ? .permissionDenied : .damaged,
                 reason: permissionError(errno) ? .candidatePermissionDenied : .sourceChanged
-            )
+            )]
         }
         let type = metadata.st_mode & mode_t(S_IFMT)
-        if type == S_IFREG { return nil }
+        if type == S_IFREG { return [] }
         if type == S_IFLNK {
-            return try symbolicLinkCandidate(
+            return [try symbolicLinkCandidate(
                 rawName: rawName,
                 roots: roots,
                 rootIdentity: rootIdentity,
+                rootRevision: rootRevision,
                 metadata: metadata,
                 limits: limits,
                 checkpoint: checkpoint
-            )
+            )]
         }
         guard type == S_IFDIR else {
-            return failedCandidate(
+            return [failedCandidate(
                 named: rawName,
                 roots: roots,
                 rootIdentity: rootIdentity,
                 identity: ManagedItemIdentity(metadata),
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: SkillDiscoveryFileRevision(metadata)
+                ),
                 status: .damaged,
                 reason: .unsupportedEntryType
-            )
+            )]
         }
         guard let name = SkillContentPath.visibleDirectoryName(rawName) else {
-            return failedCandidate(
+            return [failedCandidate(
                 named: rawName,
                 roots: roots,
                 rootIdentity: rootIdentity,
                 identity: ManagedItemIdentity(metadata),
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: SkillDiscoveryFileRevision(metadata)
+                ),
                 status: .damaged,
                 reason: .unsafeContent
-            )
+            )]
         }
         return try directoryCandidate(
             rawName: rawName,
             normalizedName: name,
             roots: roots,
             rootIdentity: rootIdentity,
+            rootRevision: rootRevision,
             metadata: metadata,
             rootDescriptor: rootDescriptor,
             limits: limits,
@@ -238,58 +255,75 @@ nonisolated struct SkillDiscoveryScanner {
         normalizedName name: String,
         roots: [SkillDiscoveryRoot],
         rootIdentity: ManagedItemIdentity,
+        rootRevision: SkillDiscoveryFileRevision,
         metadata: stat,
         rootDescriptor: Int32,
         limits: SkillContentLimits,
         checkpoint: SkillCancellationCheckpoint
-    ) throws -> SkillDiscoveryCandidate {
+    ) throws -> [SkillDiscoveryCandidate] {
         let descriptor = Darwin.openat(
             rootDescriptor,
             rawName,
             O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
         )
         guard descriptor >= 0 else {
-            return failedCandidate(
+            return [failedCandidate(
                 named: name,
                 roots: roots,
                 rootIdentity: rootIdentity,
                 identity: ManagedItemIdentity(metadata),
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: SkillDiscoveryFileRevision(metadata)
+                ),
                 status: permissionError(errno) ? .permissionDenied : .damaged,
                 reason: permissionError(errno) ? .candidatePermissionDenied : .sourceChanged
-            )
+            )]
         }
         defer { Darwin.close(descriptor) }
         guard let opened = revision(of: descriptor),
               opened.identity == ManagedItemIdentity(metadata) else {
-            return failedCandidate(
+            return [failedCandidate(
                 named: name,
                 roots: roots,
                 rootIdentity: rootIdentity,
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: nil
+                ),
                 status: .damaged,
                 reason: .sourceChanged
-            )
+            )]
         }
-        let candidate = try snapshotCandidate(
-            rawName: rawName,
+        let candidates = try candidates(
+            inDirectoryNamed: rawName,
             normalizedName: name,
             roots: roots,
             rootIdentity: rootIdentity,
+            rootRevision: rootRevision,
+            rootDescriptor: rootDescriptor,
             descriptor: descriptor,
             revision: opened,
-            symbolicLinkIdentity: nil,
             limits: limits,
             checkpoint: checkpoint
         )
         guard SkillDiscoveryFileRevision(named: rawName, in: rootDescriptor) == opened else {
-            return failedCandidate(
+            return [failedCandidate(
                 named: name,
                 roots: roots,
                 rootIdentity: rootIdentity,
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: nil
+                ),
                 status: .damaged,
                 reason: .sourceChanged
-            )
+            )]
         }
-        return candidate
+        return candidates
     }
 
     private func revalidate(_ entries: [RootEntry]) -> (
@@ -335,6 +369,7 @@ nonisolated struct SkillDiscoveryScanner {
             relativeLocatorKey: candidate.relativeLocatorKey,
             candidateIdentity: candidate.candidateIdentity,
             symbolicLinkIdentity: candidate.symbolicLinkIdentity,
+            locationRevision: candidate.locationRevision,
             fingerprint: candidate.fingerprint,
             providerAliases: candidate.providerAliases,
             terminalStatus: candidate.terminalStatus,

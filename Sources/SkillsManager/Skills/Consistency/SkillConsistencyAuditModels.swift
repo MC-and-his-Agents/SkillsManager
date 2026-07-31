@@ -151,6 +151,20 @@ nonisolated struct SkillConsistencyAuditProviderAlias: Codable, Equatable, Senda
     let identifier: String
 }
 
+nonisolated struct SkillConsistencyAuditFileRevision: Codable, Equatable, Sendable {
+    let identity: Data
+    let modificationSeconds: Int64
+    let modificationNanoseconds: Int64
+    let statusChangeSeconds: Int64
+    let statusChangeNanoseconds: Int64
+}
+
+nonisolated struct SkillConsistencyAuditLocationRevision: Codable, Equatable, Sendable {
+    let root: SkillConsistencyAuditFileRevision
+    let container: SkillConsistencyAuditFileRevision?
+    let candidate: SkillConsistencyAuditFileRevision?
+}
+
 nonisolated struct SkillConsistencyAuditSourceKey: Codable, Equatable, Sendable {
     let repositoryURL: String
     let subpath: String
@@ -171,6 +185,7 @@ nonisolated struct SkillConsistencyAuditDiscoveryObservation: Codable, Equatable
     let relativeLocatorKey: String
     let candidateIdentity: Data?
     let symbolicLinkIdentity: Data?
+    let locationRevision: SkillConsistencyAuditLocationRevision?
     let fingerprint: SkillConsistencyAuditFingerprint?
     let providerAliases: [SkillConsistencyAuditProviderAlias]
     let status: String

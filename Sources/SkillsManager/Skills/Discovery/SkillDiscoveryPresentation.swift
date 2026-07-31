@@ -84,6 +84,10 @@ extension SkillDiscoveryScope {
 }
 
 extension SkillDiscoveryObservation {
+    var displayName: String {
+        SkillContentLocator(rawRelativeLocator)?.leafName ?? relativeLocator
+    }
+
     var scopeSummary: String {
         Array(Set(scopes.map(\.displayName))).sorted().joined(separator: ", ")
     }

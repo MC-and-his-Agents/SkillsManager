@@ -123,7 +123,7 @@ extension SkillDiscoveryScannerTests {
         }
     }
 
-    @Test("ordinary Skill containers are distinguished from malformed Skills")
+    @Test("ordinary Skill containers expose direct child Skills")
     func containerDirectoriesAreClassified() throws {
         try withWorkspace { workspace in
             let root = workspace.appendingPathComponent("skills", isDirectory: true)
@@ -141,7 +141,7 @@ extension SkillDiscoveryScannerTests {
             ])
 
             #expect(result.observations.contains {
-                $0.relativeLocator == "container" && $0.reason == .containerDirectory
+                $0.relativeLocator == "container/nested" && $0.status == .unmanaged
             })
             #expect(result.observations.contains {
                 $0.relativeLocator == "malformed" && $0.reason == .missingSkillManifest
@@ -149,8 +149,8 @@ extension SkillDiscoveryScannerTests {
         }
     }
 
-    @Test("mixed containers with links remain blocked")
-    func mixedContainerIsNotDowngraded() throws {
+    @Test("a linked child does not hide a safe container sibling")
+    func linkedContainerChildIsIsolated() throws {
         try withWorkspace { workspace in
             let root = workspace.appendingPathComponent("skills", isDirectory: true)
             let container = root.appendingPathComponent("container", isDirectory: true)
@@ -167,14 +167,18 @@ extension SkillDiscoveryScannerTests {
                 SkillDiscoveryRoot(scope: .global, url: root),
             ])
 
-            let observation = try #require(result.observations.first)
-            #expect(observation.reason == .unsupportedEntryType)
-            #expect(observation.reason != .containerDirectory)
+            #expect(result.observations.contains {
+                $0.relativeLocator == "container/nested" && $0.status == .unmanaged
+            })
+            #expect(result.observations.contains {
+                $0.relativeLocator == "container/linked"
+                    && $0.reason == .unsupportedEntryType
+            })
         }
     }
 
-    @Test("mixed containers with unreadable children remain blocked")
-    func unreadableMixedContainerIsNotDowngraded() throws {
+    @Test("an unreadable child does not hide a safe container sibling")
+    func unreadableContainerChildIsIsolated() throws {
         try withWorkspace { workspace in
             let root = workspace.appendingPathComponent("skills", isDirectory: true)
             let container = root.appendingPathComponent("container", isDirectory: true)
@@ -192,54 +196,13 @@ extension SkillDiscoveryScannerTests {
                 SkillDiscoveryRoot(scope: .global, url: root),
             ])
 
-            let observation = try #require(result.observations.first)
-            #expect(observation.reason == .candidatePermissionDenied)
-            #expect(observation.reason != .containerDirectory)
-        }
-    }
-
-    @Test("container inspection rejects manifest additions and removals after snapshot")
-    func containerManifestChangesFailClosed() throws {
-        for removesManifest in [false, true] {
-            try withWorkspace { workspace in
-                let container = workspace.appendingPathComponent("container", isDirectory: true)
-                let child = container.appendingPathComponent("nested", isDirectory: true)
-                try FileManager.default.createDirectory(
-                    at: child,
-                    withIntermediateDirectories: true
-                )
-                let manifest = child.appendingPathComponent("SKILL.md")
-                if removesManifest {
-                    try "# Nested".write(to: manifest, atomically: true, encoding: .utf8)
-                }
-                let descriptor = Darwin.open(
-                    container.path,
-                    O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
-                )
-                #expect(descriptor >= 0)
-                defer { Darwin.close(descriptor) }
-                let snapshot = try SkillContentSnapshot.capture(
-                    directoryDescriptor: descriptor,
-                    displayPath: "container"
-                )
-                let scanner = SkillDiscoveryScanner()
-                let expected = scanner.directChildSkillManifestDirectories(in: snapshot)
-
-                if removesManifest {
-                    try FileManager.default.removeItem(at: manifest)
-                } else {
-                    try "# Nested".write(to: manifest, atomically: true, encoding: .utf8)
-                }
-
-                #expect(throws: SkillContentSnapshotError.fileChanged(path: "container")) {
-                    _ = try scanner.isContainerDirectory(
-                        descriptor: descriptor,
-                        displayPath: "container",
-                        expectedSkillDirectories: expected,
-                        checkpoint: {}
-                    )
-                }
-            }
+            #expect(result.observations.contains {
+                $0.relativeLocator == "container/nested" && $0.status == .unmanaged
+            })
+            #expect(result.observations.contains {
+                $0.relativeLocator == "container/unreadable"
+                    && $0.reason == .candidatePermissionDenied
+            })
         }
     }
 }

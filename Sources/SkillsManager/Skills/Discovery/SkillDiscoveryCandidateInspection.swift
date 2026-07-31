@@ -6,6 +6,7 @@ nonisolated extension SkillDiscoveryScanner {
         rawName: String,
         roots: [SkillDiscoveryRoot],
         rootIdentity: ManagedItemIdentity,
+        rootRevision: SkillDiscoveryFileRevision,
         metadata: stat,
         limits: SkillContentLimits,
         checkpoint: SkillCancellationCheckpoint
@@ -17,6 +18,11 @@ nonisolated extension SkillDiscoveryScanner {
                 roots: roots,
                 rootIdentity: rootIdentity,
                 identity: ManagedItemIdentity(metadata),
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: nil
+                ),
                 status: .damaged,
                 reason: .unsafeContent
             )
@@ -30,6 +36,11 @@ nonisolated extension SkillDiscoveryScanner {
                 roots: roots,
                 rootIdentity: rootIdentity,
                 symbolicLinkIdentity: linkIdentity,
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: nil
+                ),
                 status: permissionError(errno) ? .permissionDenied : .damaged,
                 reason: permissionError(errno)
                     ? .candidatePermissionDenied
@@ -42,6 +53,11 @@ nonisolated extension SkillDiscoveryScanner {
                 roots: roots,
                 rootIdentity: rootIdentity,
                 symbolicLinkIdentity: linkIdentity,
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: SkillDiscoveryFileRevision(targetMetadata)
+                ),
                 status: .damaged,
                 reason: .symbolicLinkTargetUnsupported
             )
@@ -53,6 +69,7 @@ nonisolated extension SkillDiscoveryScanner {
                 normalizedName: name,
                 roots: roots,
                 rootIdentity: rootIdentity,
+                rootRevision: rootRevision,
                 symbolicLinkIdentity: linkIdentity,
                 limits: limits,
                 checkpoint: checkpoint
@@ -65,6 +82,11 @@ nonisolated extension SkillDiscoveryScanner {
                 roots: roots,
                 rootIdentity: rootIdentity,
                 symbolicLinkIdentity: linkIdentity,
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: nil
+                ),
                 status: .damaged,
                 reason: .sourceChanged
             )
@@ -76,6 +98,7 @@ nonisolated extension SkillDiscoveryScanner {
         normalizedName name: String,
         roots: [SkillDiscoveryRoot],
         rootIdentity: ManagedItemIdentity,
+        rootRevision: SkillDiscoveryFileRevision,
         symbolicLinkIdentity: ManagedItemIdentity,
         limits: SkillContentLimits,
         checkpoint: SkillCancellationCheckpoint
@@ -100,6 +123,11 @@ nonisolated extension SkillDiscoveryScanner {
                 roots: roots,
                 rootIdentity: rootIdentity,
                 symbolicLinkIdentity: symbolicLinkIdentity,
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: nil
+                ),
                 status: permissionError(errno) ? .permissionDenied : .damaged,
                 reason: permissionError(errno)
                     ? .candidatePermissionDenied
@@ -119,6 +147,11 @@ nonisolated extension SkillDiscoveryScanner {
             descriptor: descriptor,
             revision: revision,
             symbolicLinkIdentity: symbolicLinkIdentity,
+            locationRevision: .init(
+                root: rootRevision,
+                container: nil,
+                candidate: revision
+            ),
             limits: limits,
             checkpoint: checkpoint
         )
@@ -131,6 +164,11 @@ nonisolated extension SkillDiscoveryScanner {
                 roots: roots,
                 rootIdentity: rootIdentity,
                 symbolicLinkIdentity: symbolicLinkIdentity,
+                locationRevision: .init(
+                    root: rootRevision,
+                    container: nil,
+                    candidate: nil
+                ),
                 status: .damaged,
                 reason: .sourceChanged
             )
@@ -146,6 +184,7 @@ nonisolated extension SkillDiscoveryScanner {
         descriptor: Int32,
         revision: SkillDiscoveryFileRevision,
         symbolicLinkIdentity: ManagedItemIdentity?,
+        locationRevision: SkillDiscoveryLocationRevision,
         limits: SkillContentLimits,
         checkpoint: SkillCancellationCheckpoint
     ) throws -> SkillDiscoveryCandidate {
@@ -156,32 +195,10 @@ nonisolated extension SkillDiscoveryScanner {
                 limits: limits,
                 checkpoint: checkpoint
             )
-            do {
-                _ = try snapshot.readUTF8File(
-                    relativePath: "SKILL.md",
-                    checkpoint: checkpoint
-                )
-            } catch SkillContentSnapshotError.fileNotFound(let path)
-                where path == "SKILL.md" && symbolicLinkIdentity == nil {
-                if try isContainerDirectory(
-                    descriptor: descriptor,
-                    displayPath: name,
-                    expectedSkillDirectories: directChildSkillManifestDirectories(
-                        in: snapshot
-                    ),
-                    checkpoint: checkpoint
-                ) {
-                    return failedCandidate(
-                        named: name,
-                        roots: roots,
-                        rootIdentity: rootIdentity,
-                        identity: revision.identity,
-                        status: .damaged,
-                        reason: .containerDirectory
-                    )
-                }
-                throw SkillContentSnapshotError.fileNotFound(path: path)
-            }
+            _ = try snapshot.readUTF8File(
+                relativePath: "SKILL.md",
+                checkpoint: checkpoint
+            )
             return SkillDiscoveryCandidate(
                 roots: roots,
                 rootIdentity: rootIdentity,
@@ -190,6 +207,7 @@ nonisolated extension SkillDiscoveryScanner {
                 relativeLocatorKey: SkillContentPath.collisionKey(for: name),
                 candidateIdentity: revision.identity,
                 symbolicLinkIdentity: symbolicLinkIdentity,
+                locationRevision: locationRevision,
                 fingerprint: try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest),
                 providerAliases: try SkillDiscoveryProviderMetadataReader().aliases(
                     in: descriptor,
@@ -208,6 +226,7 @@ nonisolated extension SkillDiscoveryScanner {
                 rootIdentity: rootIdentity,
                 identity: revision.identity,
                 symbolicLinkIdentity: symbolicLinkIdentity,
+                locationRevision: locationRevision,
                 status: status(for: error),
                 reason: reason(for: error)
             )
@@ -218,6 +237,7 @@ nonisolated extension SkillDiscoveryScanner {
                 rootIdentity: rootIdentity,
                 identity: revision.identity,
                 symbolicLinkIdentity: symbolicLinkIdentity,
+                locationRevision: locationRevision,
                 status: .damaged,
                 reason: .candidateReadFailed
             )
@@ -230,6 +250,7 @@ nonisolated extension SkillDiscoveryScanner {
         rootIdentity: ManagedItemIdentity,
         identity: ManagedItemIdentity? = nil,
         symbolicLinkIdentity: ManagedItemIdentity? = nil,
+        locationRevision: SkillDiscoveryLocationRevision? = nil,
         status: SkillDiscoveryStatus,
         reason: SkillDiscoveryReason
     ) -> SkillDiscoveryCandidate {
@@ -242,6 +263,7 @@ nonisolated extension SkillDiscoveryScanner {
             relativeLocatorKey: SkillContentPath.collisionKey(for: normalized),
             candidateIdentity: identity,
             symbolicLinkIdentity: symbolicLinkIdentity,
+            locationRevision: locationRevision,
             fingerprint: nil,
             providerAliases: [],
             terminalStatus: status,
@@ -284,75 +306,4 @@ nonisolated extension SkillDiscoveryScanner {
         }
     }
 
-    func directChildSkillManifestDirectories(
-        in snapshot: SkillContentSnapshot
-    ) -> Set<String> {
-        Set(snapshot.files.compactMap { file in
-            let components = file.relativePath.split(separator: "/", omittingEmptySubsequences: false)
-            guard components.count == 2, components[1] == "SKILL.md" else {
-                return nil
-            }
-            return String(components[0])
-        })
-    }
-
-    func isContainerDirectory(
-        descriptor: Int32,
-        displayPath: String,
-        expectedSkillDirectories: Set<String>,
-        checkpoint: SkillCancellationCheckpoint
-    ) throws -> Bool {
-        var observedSkillDirectories = Set<String>()
-        for name in try SafeSourceTree.names(in: descriptor, displayPath: displayPath) {
-            try checkpoint()
-            var metadata = stat()
-            guard Darwin.fstatat(descriptor, name, &metadata, AT_SYMLINK_NOFOLLOW) == 0 else {
-                throw SkillContentSnapshotError.fileSystemFailure(
-                    path: "\(displayPath)/\(name)",
-                    code: errno
-                )
-            }
-            let type = metadata.st_mode & mode_t(S_IFMT)
-            if type == S_IFLNK {
-                throw SkillContentSnapshotError.unsupportedEntry(
-                    path: "\(displayPath)/\(name)"
-                )
-            }
-            guard type == S_IFDIR else { continue }
-            let child = Darwin.openat(
-                descriptor,
-                name,
-                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
-            )
-            guard child >= 0 else {
-                throw SkillContentSnapshotError.fileSystemFailure(
-                    path: "\(displayPath)/\(name)",
-                    code: errno
-                )
-            }
-            do {
-                defer { Darwin.close(child) }
-                var manifest = stat()
-                if Darwin.fstatat(child, "SKILL.md", &manifest, AT_SYMLINK_NOFOLLOW) == 0 {
-                    guard manifest.st_mode & mode_t(S_IFMT) == S_IFREG else {
-                        throw SkillContentSnapshotError.unsupportedEntry(
-                            path: "\(displayPath)/\(name)/SKILL.md"
-                        )
-                    }
-                    observedSkillDirectories.insert(
-                        SkillContentPath.normalizedComponent(name)
-                    )
-                } else if errno != ENOENT {
-                    throw SkillContentSnapshotError.fileSystemFailure(
-                        path: "\(displayPath)/\(name)/SKILL.md",
-                        code: errno
-                    )
-                }
-            }
-        }
-        guard observedSkillDirectories == expectedSkillDirectories else {
-            throw SkillContentSnapshotError.fileChanged(path: displayPath)
-        }
-        return !observedSkillDirectories.isEmpty
-    }
 }

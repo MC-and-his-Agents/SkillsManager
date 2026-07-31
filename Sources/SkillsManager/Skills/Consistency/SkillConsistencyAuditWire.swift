@@ -279,6 +279,7 @@ nonisolated enum SkillConsistencyAuditWire {
             symbolicLinkIdentity: try value.symbolicLinkIdentity.map(
                 ManagedItemIdentityCodec.encode
             ),
+            locationRevision: try value.locationRevision.map(locationRevision),
             fingerprint: value.fingerprint.map(fingerprint),
             providerAliases: aliases,
             status: value.status.rawValue,
@@ -400,6 +401,28 @@ nonisolated enum SkillConsistencyAuditWire {
         SkillConsistencyAuditFingerprint(
             algorithmVersion: value.algorithmVersion,
             digest: value.digest
+        )
+    }
+
+    private static func locationRevision(
+        _ value: SkillDiscoveryLocationRevision
+    ) throws -> SkillConsistencyAuditLocationRevision {
+        SkillConsistencyAuditLocationRevision(
+            root: try fileRevision(value.root),
+            container: try value.container.map(fileRevision),
+            candidate: try value.candidate.map(fileRevision)
+        )
+    }
+
+    private static func fileRevision(
+        _ value: SkillDiscoveryFileRevision
+    ) throws -> SkillConsistencyAuditFileRevision {
+        SkillConsistencyAuditFileRevision(
+            identity: try ManagedItemIdentityCodec.encode(value.identity),
+            modificationSeconds: value.modificationSeconds,
+            modificationNanoseconds: value.modificationNanoseconds,
+            statusChangeSeconds: value.statusChangeSeconds,
+            statusChangeNanoseconds: value.statusChangeNanoseconds
         )
     }
 

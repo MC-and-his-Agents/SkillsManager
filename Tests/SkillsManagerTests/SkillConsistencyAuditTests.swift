@@ -81,6 +81,8 @@ struct SkillConsistencyAuditTests {
         #expect(observation.status == SkillDiscoveryStatus.claimable.rawValue)
         #expect(observation.reason == nil)
         #expect(observation.symbolicLinkIdentity != nil)
+        #expect(observation.locationRevision?.root != nil)
+        #expect(observation.locationRevision?.candidate != nil)
         #expect(observation.managedDistributionTarget?.skillID == installed.skillID.directoryName)
         #expect(observation.managedDistributionTarget?.syncMode == "symlink")
         #expect(distribution.status == DistributionReconcileStatus.inSync.rawValue)

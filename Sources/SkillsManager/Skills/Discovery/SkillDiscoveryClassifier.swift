@@ -8,10 +8,39 @@ nonisolated struct SkillDiscoveryCandidate: Sendable {
     let relativeLocatorKey: String
     let candidateIdentity: ManagedItemIdentity?
     let symbolicLinkIdentity: ManagedItemIdentity?
+    let locationRevision: SkillDiscoveryLocationRevision?
     let fingerprint: SkillContentFingerprint?
     let providerAliases: Set<ProviderAliasIdentity>
     let terminalStatus: SkillDiscoveryStatus?
     let terminalReason: SkillDiscoveryReason?
+
+    init(
+        roots: [SkillDiscoveryRoot],
+        rootIdentity: ManagedItemIdentity,
+        rawRelativeLocator: String,
+        relativeLocator: String,
+        relativeLocatorKey: String,
+        candidateIdentity: ManagedItemIdentity?,
+        symbolicLinkIdentity: ManagedItemIdentity?,
+        locationRevision: SkillDiscoveryLocationRevision? = nil,
+        fingerprint: SkillContentFingerprint?,
+        providerAliases: Set<ProviderAliasIdentity>,
+        terminalStatus: SkillDiscoveryStatus?,
+        terminalReason: SkillDiscoveryReason?
+    ) {
+        self.roots = roots
+        self.rootIdentity = rootIdentity
+        self.rawRelativeLocator = rawRelativeLocator
+        self.relativeLocator = relativeLocator
+        self.relativeLocatorKey = relativeLocatorKey
+        self.candidateIdentity = candidateIdentity
+        self.symbolicLinkIdentity = symbolicLinkIdentity
+        self.locationRevision = locationRevision
+        self.fingerprint = fingerprint
+        self.providerAliases = providerAliases
+        self.terminalStatus = terminalStatus
+        self.terminalReason = terminalReason
+    }
 }
 
 nonisolated struct SkillDiscoveryClassifier {
@@ -166,17 +195,33 @@ nonisolated struct SkillDiscoveryClassifier {
         _ candidates: [SkillDiscoveryCandidate]
     ) -> Set<Int> {
         var groups: [String: [Int]] = [:]
+        var firstComponentGroups: [String: [(index: Int, rawName: String)]] = [:]
         for (candidateIndex, candidate) in candidates.enumerated()
-        where candidate.terminalStatus == nil {
-            for root in candidate.roots {
-                let key = root.scope.sortKey + "\u{0}" + candidate.relativeLocatorKey
+        {
+            let scopeKeys = Set(candidate.roots.map(\.scope.sortKey))
+            for scopeKey in scopeKeys {
+                let key = scopeKey + "\u{0}" + candidate.relativeLocatorKey
                 groups[key, default: []].append(candidateIndex)
+            }
+            guard let locator = SkillContentLocator(candidate.rawRelativeLocator) else {
+                continue
+            }
+            for scopeKey in scopeKeys {
+                let key = scopeKey + "\u{0}" + locator.collisionKeys[0]
+                firstComponentGroups[key, default: []].append((
+                    candidateIndex,
+                    locator.rawComponents[0]
+                ))
             }
         }
 
         var conflicts = Set<Int>()
         for group in groups.values where group.count > 1 {
             conflicts.formUnion(group)
+        }
+        for group in firstComponentGroups.values
+        where Set(group.map(\.rawName)).count > 1 {
+            conflicts.formUnion(group.map(\.index))
         }
         return conflicts
     }
@@ -227,6 +272,7 @@ nonisolated struct SkillDiscoveryClassifier {
             relativeLocatorKey: candidate.relativeLocatorKey,
             candidateIdentity: candidate.candidateIdentity,
             symbolicLinkIdentity: candidate.symbolicLinkIdentity,
+            locationRevision: candidate.locationRevision,
             fingerprint: candidate.fingerprint,
             providerAliases: candidate.providerAliases,
             status: status,

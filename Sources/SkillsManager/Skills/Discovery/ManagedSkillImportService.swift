@@ -42,21 +42,20 @@ nonisolated enum ManagedSkillImportError: Error, Equatable {
 }
 
 actor ManagedSkillImportService {
-    private struct BoundRoot: Sendable {
+    struct BoundRoot: Sendable {
         let scope: SkillDiscoveryScope
         let reference: ManagedRootReference
     }
 
-    private struct Pending: Sendable {
+    struct Pending: Sendable {
         let action: ManagedSkillImportAction
         let roots: [BoundRoot]
         let rootIdentity: ManagedItemIdentity
-        let rawLocator: String
-        let normalizedLocator: String
-        let collisionKey: String
+        let locator: SkillContentLocator
         let candidateIdentity: ManagedItemIdentity
         let symbolicLinkIdentity: ManagedItemIdentity?
         let candidateReference: ManagedRootReference?
+        let locationRevision: SkillDiscoveryLocationRevision
         let fingerprint: SkillContentFingerprint
         let providerAliases: Set<ProviderAliasIdentity>
         let matchedSkillID: SkillID?
@@ -69,7 +68,7 @@ actor ManagedSkillImportService {
     }
 
     private let writer: JournaledSSOTWriter
-    private let limits: SkillContentLimits
+    let limits: SkillContentLimits
     private let nowMilliseconds: @Sendable () -> Int64
     private var states: [ManagedSkillImportToken: State] = [:]
 
@@ -112,10 +111,16 @@ actor ManagedSkillImportService {
         guard !observation.roots.isEmpty,
               let candidateIdentity = observation.candidateIdentity,
               let fingerprint = observation.fingerprint,
-              SkillContentPath.visibleDirectoryName(observation.rawRelativeLocator)
-                == observation.relativeLocator,
-              SkillContentPath.collisionKey(for: observation.relativeLocator)
-                == observation.relativeLocatorKey else {
+              let locator = SkillContentLocator(observation.rawRelativeLocator),
+              locator.normalizedValue == observation.relativeLocator,
+              locator.collisionKey == observation.relativeLocatorKey,
+              let locationRevision = observation.locationRevision,
+              locationRevision.root.identity == observation.rootIdentity,
+              locationRevision.candidate?.identity == candidateIdentity,
+              (locator.rawComponents.count == 1 && locationRevision.container == nil
+                || locator.rawComponents.count == 2 && locationRevision.container != nil),
+              observation.symbolicLinkIdentity == nil
+                || locator.rawComponents.count == 1 else {
             throw ManagedSkillImportError.invalidObservation
         }
         let matchedSkillID = try matchedSkill(
@@ -163,25 +168,26 @@ actor ManagedSkillImportService {
         }
         let token = ManagedSkillImportToken()
         let newSkillID = action == .importNew ? SkillID() : nil
-        states[token] = .pending(Pending(
+        let pending = Pending(
             action: action,
             roots: roots,
             rootIdentity: observation.rootIdentity,
-            rawLocator: observation.rawRelativeLocator,
-            normalizedLocator: observation.relativeLocator,
-            collisionKey: observation.relativeLocatorKey,
+            locator: locator,
             candidateIdentity: candidateIdentity,
             symbolicLinkIdentity: observation.symbolicLinkIdentity,
             candidateReference: candidateReference,
+            locationRevision: locationRevision,
             fingerprint: fingerprint,
             providerAliases: observation.providerAliases,
             matchedSkillID: matchedSkillID,
             newSkillID: newSkillID
-        ))
+        )
+        _ = try captureSnapshot(pending)
+        states[token] = .pending(pending)
         return ManagedSkillImportPreview(
             token: token,
             action: action,
-            displayName: observation.relativeLocator,
+            displayName: locator.leafName,
             matchedSkillID: matchedSkillID,
             newSkillID: newSkillID
         )
@@ -270,91 +276,6 @@ actor ManagedSkillImportService {
         }
     }
 
-    private func captureSnapshot(_ pending: Pending) throws -> SkillContentSnapshot {
-        do {
-            let verified = try pending.roots.map { try $0.reference.verifiedRoot() }
-            guard !verified.isEmpty,
-                  verified.allSatisfy({ $0.identity == pending.rootIdentity }) else {
-                throw ManagedSkillImportError.sourceChanged
-            }
-            let rootDescriptor = Darwin.open(
-                verified[0].url.path,
-                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
-            )
-            guard rootDescriptor >= 0 else {
-                throw ManagedSkillImportError.sourceChanged
-            }
-            defer { Darwin.close(rootDescriptor) }
-            guard try identity(of: rootDescriptor) == pending.rootIdentity else {
-                throw ManagedSkillImportError.sourceChanged
-            }
-            let collidingNames = try SafeSourceTree.names(
-                in: rootDescriptor,
-                displayPath: verified[0].url.path
-            ).filter {
-                guard let normalized = SkillContentPath.visibleDirectoryName($0) else {
-                    return false
-                }
-                return SkillContentPath.collisionKey(for: normalized) == pending.collisionKey
-            }
-            guard collidingNames == [pending.rawLocator] else {
-                throw ManagedSkillImportError.conflict
-            }
-            let candidateDescriptor: Int32
-            if let reference = pending.candidateReference {
-                let candidate = try reference.verifiedRoot()
-                guard candidate.identity == pending.candidateIdentity else {
-                    throw ManagedSkillImportError.sourceChanged
-                }
-                candidateDescriptor = Darwin.open(
-                    candidate.url.path,
-                    O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
-                )
-            } else {
-                candidateDescriptor = Darwin.openat(
-                    rootDescriptor,
-                    pending.rawLocator,
-                    O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
-                )
-            }
-            guard candidateDescriptor >= 0 else {
-                throw ManagedSkillImportError.sourceChanged
-            }
-            defer { Darwin.close(candidateDescriptor) }
-            guard try identity(of: candidateDescriptor) == pending.candidateIdentity else {
-                throw ManagedSkillImportError.sourceChanged
-            }
-            let snapshot = try SkillContentSnapshot.capture(
-                directoryDescriptor: candidateDescriptor,
-                displayPath: pending.normalizedLocator,
-                limits: limits,
-                checkpoint: { try Task.checkCancellation() }
-            )
-            _ = try snapshot.readUTF8File(
-                relativePath: "SKILL.md",
-                checkpoint: { try Task.checkCancellation() }
-            )
-            guard try identity(of: candidateDescriptor) == pending.candidateIdentity,
-                  try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest)
-                    == pending.fingerprint,
-                  try pending.roots.allSatisfy({
-                      try $0.reference.verifiedRoot().identity == pending.rootIdentity
-                  }),
-                  try pending.candidateReference.map({
-                      try $0.verifiedRoot().identity == pending.candidateIdentity
-                  }) ?? true else {
-                throw ManagedSkillImportError.sourceChanged
-            }
-            return snapshot
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as ManagedSkillImportError {
-            throw error
-        } catch {
-            throw ManagedSkillImportError.sourceChanged
-        }
-    }
-
     private func localOrigins(
         skillID: SkillID,
         pending: Pending,
@@ -364,9 +285,9 @@ actor ManagedSkillImportService {
             try LocalSkillOriginRecord(
                 skillID: skillID,
                 scope: $0,
-                rawLocator: pending.rawLocator,
-                normalizedLocator: pending.normalizedLocator,
-                collisionKey: pending.collisionKey,
+                rawLocator: pending.locator.rawValue,
+                normalizedLocator: pending.locator.normalizedValue,
+                collisionKey: pending.locator.collisionKey,
                 fingerprint: pending.fingerprint,
                 confirmedAtMilliseconds: timestamp
             )
@@ -379,11 +300,12 @@ actor ManagedSkillImportService {
                 SkillDiscoveryRoot(scope: $0.scope, url: $0.reference.canonicalURL)
             },
             rootIdentity: pending.rootIdentity,
-            rawRelativeLocator: pending.rawLocator,
-            relativeLocator: pending.normalizedLocator,
-            relativeLocatorKey: pending.collisionKey,
+            rawRelativeLocator: pending.locator.rawValue,
+            relativeLocator: pending.locator.normalizedValue,
+            relativeLocatorKey: pending.locator.collisionKey,
             candidateIdentity: pending.candidateIdentity,
             symbolicLinkIdentity: pending.symbolicLinkIdentity,
+            locationRevision: pending.locationRevision,
             fingerprint: pending.fingerprint,
             providerAliases: pending.providerAliases,
             terminalStatus: nil,
@@ -396,7 +318,7 @@ actor ManagedSkillImportService {
         pending: Pending,
         timestamp: Int64
     ) throws -> ManagedSkillRecord {
-        let displayName = try SkillDisplayName(pending.normalizedLocator)
+        let displayName = try SkillDisplayName(pending.locator.leafName)
         return try ManagedSkillRecord(
             skillID: skillID,
             displayName: displayName,
@@ -405,22 +327,6 @@ actor ManagedSkillImportService {
             createdAtMilliseconds: timestamp,
             updatedAtMilliseconds: timestamp
         )
-    }
-
-    private func identity(of descriptor: Int32) throws -> ManagedItemIdentity {
-        var metadata = stat()
-        guard Darwin.fstat(descriptor, &metadata) == 0 else {
-            throw ManagedSkillImportError.sourceChanged
-        }
-        return ManagedItemIdentity(metadata)
-    }
-
-    private func namedIdentity(at url: URL) throws -> ManagedItemIdentity {
-        var metadata = stat()
-        guard Darwin.lstat(url.path, &metadata) == 0 else {
-            throw ManagedSkillImportError.sourceChanged
-        }
-        return ManagedItemIdentity(metadata)
     }
 
     private func required<T>(_ value: T?) throws -> T {

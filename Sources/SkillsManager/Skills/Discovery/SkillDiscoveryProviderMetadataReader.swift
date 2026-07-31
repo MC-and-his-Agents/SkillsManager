@@ -1,15 +1,19 @@
 import Darwin
 import Foundation
 
-nonisolated struct SkillDiscoveryFileRevision: Equatable {
+nonisolated struct SkillDiscoveryFileRevision: Hashable, Sendable {
     let identity: ManagedItemIdentity
-    let modification: timespec
-    let statusChange: timespec
+    let modificationSeconds: Int64
+    let modificationNanoseconds: Int64
+    let statusChangeSeconds: Int64
+    let statusChangeNanoseconds: Int64
 
     init(_ metadata: stat) {
         identity = ManagedItemIdentity(metadata)
-        modification = metadata.st_mtimespec
-        statusChange = metadata.st_ctimespec
+        modificationSeconds = Int64(metadata.st_mtimespec.tv_sec)
+        modificationNanoseconds = Int64(metadata.st_mtimespec.tv_nsec)
+        statusChangeSeconds = Int64(metadata.st_ctimespec.tv_sec)
+        statusChangeNanoseconds = Int64(metadata.st_ctimespec.tv_nsec)
     }
 
     init?(descriptor: Int32) {
@@ -31,13 +35,12 @@ nonisolated struct SkillDiscoveryFileRevision: Equatable {
         self.init(metadata)
     }
 
-    static func == (lhs: SkillDiscoveryFileRevision, rhs: SkillDiscoveryFileRevision) -> Bool {
-        lhs.identity == rhs.identity
-            && lhs.modification.tv_sec == rhs.modification.tv_sec
-            && lhs.modification.tv_nsec == rhs.modification.tv_nsec
-            && lhs.statusChange.tv_sec == rhs.statusChange.tv_sec
-            && lhs.statusChange.tv_nsec == rhs.statusChange.tv_nsec
-    }
+}
+
+nonisolated struct SkillDiscoveryLocationRevision: Hashable, Sendable {
+    let root: SkillDiscoveryFileRevision
+    let container: SkillDiscoveryFileRevision?
+    let candidate: SkillDiscoveryFileRevision?
 }
 
 nonisolated struct SkillDiscoveryProviderMetadataReader {

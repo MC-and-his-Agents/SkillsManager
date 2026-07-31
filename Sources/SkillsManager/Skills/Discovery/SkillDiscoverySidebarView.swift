@@ -155,7 +155,7 @@ struct SkillDiscoverySidebarView: View {
                 .frame(width: 16)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(observation.relativeLocator)
+                Text(observation.displayName)
                     .lineLimit(1)
                 Text("\(observation.status.displayName) · \(observation.scopeSummary)")
                     .font(.caption)
@@ -164,7 +164,7 @@ struct SkillDiscoverySidebarView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(observation.relativeLocator)
+        .accessibilityLabel(observation.displayName)
         .accessibilityValue([
             observation.status.displayName,
             observation.scopeSummary,
