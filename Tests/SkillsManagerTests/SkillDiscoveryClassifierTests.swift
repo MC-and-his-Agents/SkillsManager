@@ -31,6 +31,32 @@ struct SkillDiscoveryClassifierTests {
         #expect(observations.allSatisfy { $0.reason == .scopeSlugConflict })
     }
 
+    @Test("colliding container names block all of their children")
+    func containerNameCollisionBlocksChildren() {
+        let observations = classify([
+            candidate(name: "Bundle/one", fingerprintByte: 1),
+            candidate(name: "bundle/two", fingerprintByte: 2),
+        ], catalog: .empty)
+
+        #expect(observations.allSatisfy { $0.status == .conflict })
+        #expect(observations.allSatisfy { $0.reason == .scopeSlugConflict })
+    }
+
+    @Test("colliding child names do not block safe siblings")
+    func childNameCollisionIsIsolated() throws {
+        let observations = classify([
+            candidate(name: "bundle/Demo", fingerprintByte: 1),
+            candidate(name: "bundle/demo", fingerprintByte: 2),
+            candidate(name: "bundle/safe", fingerprintByte: 3),
+        ], catalog: .empty)
+
+        let safe = try #require(observations.first {
+            $0.relativeLocator == "bundle/safe"
+        })
+        #expect(safe.status == .unmanaged)
+        #expect(observations.filter { $0.reason == .scopeSlugConflict }.count == 2)
+    }
+
     @Test("consistent aliases across scopes remain one managed observation")
     func consistentAliasesAreManaged() throws {
         let skill = managedSkill(id: 1, fingerprintByte: 7)

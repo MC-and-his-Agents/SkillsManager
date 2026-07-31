@@ -250,13 +250,14 @@ private func makeManifest(
     } ?? []
     let origins: [LocalSkillOriginRecord]
     if includeDomainState {
+        let locator = try #require(SkillContentLocator("bundle/demo"))
         origins = [
             try LocalSkillOriginRecord(
                 skillID: fixedSkillID,
                 scope: .agent(adapterCode: "codex", pathVariant: ".codex/skills"),
-                rawLocator: "demo",
-                normalizedLocator: "demo",
-                collisionKey: SkillContentPath.collisionKey(for: "demo"),
+                rawLocator: locator.rawValue,
+                normalizedLocator: locator.normalizedValue,
+                collisionKey: locator.collisionKey,
                 fingerprint: fingerprint,
                 confirmedAtMilliseconds: 9
             ),

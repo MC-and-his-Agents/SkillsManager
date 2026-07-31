@@ -76,6 +76,18 @@ struct SkillContentSnapshotTests {
         }
     }
 
+    @Test("Skill locators accept only one or two visible path components")
+    func validatesSkillLocators() throws {
+        let nested = try #require(SkillContentLocator("Bundle/Cafe\u{301}"))
+        #expect(nested.normalizedValue == "Bundle/Café")
+        #expect(nested.leafName == "Café")
+        #expect(SkillContentLocator("demo") != nil)
+        #expect(SkillContentLocator("one/two/three") == nil)
+        #expect(SkillContentLocator("one//two") == nil)
+        #expect(SkillContentLocator("one/.hidden") == nil)
+        #expect(SkillContentLocator("../demo") == nil)
+    }
+
     @Test("management metadata is excluded centrally")
     func excludesManagementMetadata() throws {
         try withTemporaryDirectory { root in

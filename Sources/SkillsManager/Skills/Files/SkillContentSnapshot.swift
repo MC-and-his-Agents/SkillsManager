@@ -394,6 +394,32 @@ nonisolated enum SkillContentPath {
     }
 }
 
+nonisolated struct SkillContentLocator: Hashable, Sendable {
+    let rawComponents: [String]
+    let normalizedComponents: [String]
+    let collisionKeys: [String]
+
+    init?(_ rawValue: String) {
+        let rawComponents = rawValue.split(
+            separator: "/",
+            omittingEmptySubsequences: false
+        ).map(String.init)
+        guard 1...2 ~= rawComponents.count else { return nil }
+        let normalizedComponents = rawComponents.compactMap(
+            SkillContentPath.visibleDirectoryName
+        )
+        guard normalizedComponents.count == rawComponents.count else { return nil }
+        self.rawComponents = rawComponents
+        self.normalizedComponents = normalizedComponents
+        collisionKeys = normalizedComponents.map(SkillContentPath.collisionKey)
+    }
+
+    var rawValue: String { rawComponents.joined(separator: "/") }
+    var normalizedValue: String { normalizedComponents.joined(separator: "/") }
+    var collisionKey: String { collisionKeys.joined(separator: "/") }
+    var leafName: String { normalizedComponents[normalizedComponents.count - 1] }
+}
+
 private extension SHA256 {
     mutating nonisolated func update<T: FixedWidthInteger>(bigEndian value: T) {
         var encoded = value.bigEndian

@@ -179,12 +179,45 @@ nonisolated struct SkillDiscoveryObservation: Hashable, Sendable {
     let relativeLocatorKey: String
     let candidateIdentity: ManagedItemIdentity?
     let symbolicLinkIdentity: ManagedItemIdentity?
+    let locationRevision: SkillDiscoveryLocationRevision?
     let fingerprint: SkillContentFingerprint?
     let providerAliases: Set<ProviderAliasIdentity>
     let status: SkillDiscoveryStatus
     let reason: SkillDiscoveryReason?
     let matchedSkillID: SkillID?
     let matchedSourceKey: SkillDiscoverySourceKey?
+
+    init(
+        roots: [SkillDiscoveryRoot],
+        rootIdentity: ManagedItemIdentity,
+        rawRelativeLocator: String,
+        relativeLocator: String,
+        relativeLocatorKey: String,
+        candidateIdentity: ManagedItemIdentity?,
+        symbolicLinkIdentity: ManagedItemIdentity?,
+        locationRevision: SkillDiscoveryLocationRevision? = nil,
+        fingerprint: SkillContentFingerprint?,
+        providerAliases: Set<ProviderAliasIdentity>,
+        status: SkillDiscoveryStatus,
+        reason: SkillDiscoveryReason?,
+        matchedSkillID: SkillID?,
+        matchedSourceKey: SkillDiscoverySourceKey?
+    ) {
+        self.roots = roots
+        self.rootIdentity = rootIdentity
+        self.rawRelativeLocator = rawRelativeLocator
+        self.relativeLocator = relativeLocator
+        self.relativeLocatorKey = relativeLocatorKey
+        self.candidateIdentity = candidateIdentity
+        self.symbolicLinkIdentity = symbolicLinkIdentity
+        self.locationRevision = locationRevision
+        self.fingerprint = fingerprint
+        self.providerAliases = providerAliases
+        self.status = status
+        self.reason = reason
+        self.matchedSkillID = matchedSkillID
+        self.matchedSourceKey = matchedSourceKey
+    }
 
     var scopes: [SkillDiscoveryScope] {
         roots.map(\.scope)

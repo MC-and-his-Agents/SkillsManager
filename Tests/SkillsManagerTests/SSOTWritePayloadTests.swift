@@ -250,23 +250,24 @@ private func makePayload(includeLocalOrigins: Bool = true) throws -> SSOTSkillWr
             version: try SourceVersion("1.0.0")
         ),
     ]
+    let locator = try #require(SkillContentLocator("Bundle/Sample"))
     let localOrigins: [LocalSkillOriginRecord] = if includeLocalOrigins {
         try [
             LocalSkillOriginRecord(
                 skillID: skillID,
                 scope: .global,
-                rawLocator: "Sample",
-                normalizedLocator: "Sample",
-                collisionKey: SkillContentPath.collisionKey(for: "Sample"),
+                rawLocator: locator.rawValue,
+                normalizedLocator: locator.normalizedValue,
+                collisionKey: locator.collisionKey,
                 fingerprint: skill.contentFingerprint,
                 confirmedAtMilliseconds: 300
             ),
             LocalSkillOriginRecord(
                 skillID: skillID,
                 scope: .agent(adapterCode: "codex", pathVariant: ".codex/skills"),
-                rawLocator: "Sample",
-                normalizedLocator: "Sample",
-                collisionKey: SkillContentPath.collisionKey(for: "Sample"),
+                rawLocator: locator.rawValue,
+                normalizedLocator: locator.normalizedValue,
+                collisionKey: locator.collisionKey,
                 fingerprint: skill.contentFingerprint,
                 confirmedAtMilliseconds: 301
             ),
@@ -277,9 +278,9 @@ private func makePayload(includeLocalOrigins: Bool = true) throws -> SSOTSkillWr
                     adapterCode: "claude",
                     pathVariant: ".claude/skills"
                 ),
-                rawLocator: "Sample",
-                normalizedLocator: "Sample",
-                collisionKey: SkillContentPath.collisionKey(for: "Sample"),
+                rawLocator: locator.rawValue,
+                normalizedLocator: locator.normalizedValue,
+                collisionKey: locator.collisionKey,
                 fingerprint: skill.contentFingerprint,
                 confirmedAtMilliseconds: 302
             ),

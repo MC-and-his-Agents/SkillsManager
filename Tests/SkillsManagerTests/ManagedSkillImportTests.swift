@@ -55,6 +55,67 @@ struct ManagedSkillImportTests {
         #expect(try Data(contentsOf: skillURL.appendingPathComponent("SKILL.md")) == beforeBytes)
     }
 
+    @Test("a direct container child imports with its full origin locator")
+    func importsNestedSkill() async throws {
+        let workspace = try WriterWorkspace()
+        let root = try discoveryRoot(in: workspace)
+        let container = root.appendingPathComponent("bundle", isDirectory: true)
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: false)
+        let skillURL = try createSkill(named: "demo", content: "# Nested", in: container)
+        let writer = try await workspace.openWriter()
+        let observation = try await scanObservation(
+            roots: [SkillDiscoveryRoot(scope: .global, url: root)],
+            writer: writer
+        )
+        let service = ManagedSkillImportService(writer: writer, nowMilliseconds: { 42 })
+
+        let preview = try await service.preview(observation: observation, action: .importNew)
+        let result = try await service.execute(preview.token)
+
+        #expect(preview.displayName == "demo")
+        #expect(result.skill.displayName.value == "demo")
+        #expect(try workspace.scalar(
+            "SELECT raw_locator FROM local_skill_origins"
+        ) == "bundle/demo")
+        #expect(try workspace.scalar(
+            "SELECT normalized_locator FROM local_skill_origins"
+        ) == "bundle/demo")
+        #expect(FileManager.default.fileExists(atPath: skillURL.path))
+        #expect(FileManager.default.fileExists(
+            atPath: workspace.root
+                .appendingPathComponent(result.skill.skillID.directoryName)
+                .appendingPathComponent("SKILL.md")
+                .path
+        ))
+    }
+
+    @Test("a nested source change after preview fails closed")
+    func nestedPreviewChangeFailsClosed() async throws {
+        let workspace = try WriterWorkspace()
+        let root = try discoveryRoot(in: workspace)
+        let container = root.appendingPathComponent("bundle", isDirectory: true)
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: false)
+        let skillURL = try createSkill(named: "demo", content: "# Nested", in: container)
+        let writer = try await workspace.openWriter()
+        let observation = try await scanObservation(
+            roots: [SkillDiscoveryRoot(scope: .global, url: root)],
+            writer: writer
+        )
+        let service = ManagedSkillImportService(writer: writer)
+        let preview = try await service.preview(observation: observation, action: .importNew)
+        try "# Changed".write(
+            to: skillURL.appendingPathComponent("SKILL.md"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        await #expect(throws: ManagedSkillImportError.sourceChanged) {
+            _ = try await service.execute(preview.token)
+        }
+        #expect(try workspace.integer("SELECT count(*) FROM skills") == 0)
+        #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 0)
+    }
+
     @Test("same and different preview tokens converge to one Skill")
     func previewRetriesAreIdempotent() async throws {
         let workspace = try WriterWorkspace()
