@@ -3,7 +3,7 @@ import Testing
 
 @testable import SkillsManager
 
-@Suite("Managed Clawdhub update boundaries")
+@Suite("Managed ClawHub update boundaries")
 struct ManagedClawdhubUpdateBoundaryTests {
     @Test("typed filesystem permission errors use stable permission semantics")
     func typedPermissionErrors() {

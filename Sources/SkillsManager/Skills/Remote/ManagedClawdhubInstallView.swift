@@ -83,9 +83,9 @@ struct ManagedClawdhubInstallView: View {
 
     private var sourceSummary: String {
         guard let version = skill.latestVersion else {
-            return "Clawdhub · \(skill.slug)"
+            return "ClawHub · \(skill.slug)"
         }
-        return "Clawdhub · \(skill.slug) · \(version)"
+        return "ClawHub · \(skill.slug) · \(version)"
     }
 
     private var actions: some View {

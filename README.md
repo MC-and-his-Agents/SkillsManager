@@ -19,11 +19,11 @@ Skills Manager 是一款基于 SwiftPM 构建的 macOS SwiftUI 应用（不使�
 - 审计 SSOT、分发目录和历史 Skill，预览后执行一致性修复或迁移
 - 使用 Markdown 渲染 `SKILL.md`，并预览行内引用
 - 从文件夹或 ZIP 文件导入 Skill
-- 搜索 Clawdhub 技能并浏览最新发布内容
-- 在详情页显示 Clawdhub 作者信息
+- 搜索 ClawHub 技能并浏览最新发布内容
+- 在详情页显示 ClawHub 作者信息
 - 通过实验性的 skills.sh 搜索索引发现 GitHub Skill，并在解析出唯一安全来源后安装
 
-skills.sh 集成依赖未文档化的公共接口，可能随时改名、要求认证或停止服务。它不可用时不会影响本地 Skill、Clawdhub 或其他已管理功能。
+skills.sh 集成依赖未文档化的公共接口，可能随时改名、要求认证或停止服务。它不可用时不会影响本地 Skill、ClawHub 或其他已管理功能。
 
 ### 环境要求
 
@@ -46,4 +46,4 @@ swift run SkillsManager
 ### 致谢
 
 - Markdown 渲染：[swift-markdown-ui](https://github.com/gonzalezreal/swift-markdown-ui)
-- 远程技能目录：[Clawdhub](https://clawdhub.com)
+- 远程技能目录：[ClawHub](https://clawhub.ai/)

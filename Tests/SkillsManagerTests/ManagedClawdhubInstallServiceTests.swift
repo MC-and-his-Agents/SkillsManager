@@ -3,9 +3,9 @@ import Testing
 
 @testable import SkillsManager
 
-@Suite("Managed Clawdhub install")
+@Suite("Managed ClawHub install")
 struct ManagedClawdhubInstallServiceTests {
-    @Test("new Clawdhub install persists provider provenance and uses the remote slug")
+    @Test("new ClawHub install persists provider provenance and uses the remote slug")
     func createsManagedSkill() async throws {
         try await withImportCandidate { candidate in
             let probe = ManagedLocalImportProbe()
@@ -29,7 +29,7 @@ struct ManagedClawdhubInstallServiceTests {
         }
     }
 
-    @Test("real writer discovery catalog projects Clawdhub provenance")
+    @Test("real writer discovery catalog projects ClawHub provenance")
     func discoveryCatalogProjectsProvenance() async throws {
         try await withImportCandidate { candidate in
             let workspace = try WriterWorkspace()

@@ -76,7 +76,7 @@ struct SkillDiscoveryScannerTests {
         }
     }
 
-    @Test("bounded Clawdhub metadata matches persisted provenance")
+    @Test("bounded ClawHub metadata matches persisted provenance")
     func clawdhubAliasMatchesPersistedProvenance() throws {
         try withWorkspace { workspace in
             let root = workspace.appendingPathComponent("skills", isDirectory: true)

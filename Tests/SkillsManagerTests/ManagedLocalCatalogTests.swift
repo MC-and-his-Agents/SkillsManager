@@ -65,7 +65,7 @@ struct ManagedLocalCatalogTests {
             == workspace.root.standardizedFileURL)
         #expect(skill.clawdhubSlug == "published-skill")
         #expect(skill.clawdhubVersion == "1.2.3")
-        #expect(skill.identitySummary == "Discovered via Clawdhub")
+        #expect(skill.identitySummary == "Discovered via ClawHub")
         #expect(skill.enabledPlatforms.isEmpty)
     }
 
@@ -119,7 +119,7 @@ struct SkillStorePublishTests {
         }
         #expect(
             SkillPublishError.publishedButStateNotRecorded.localizedDescription
-                .contains("Clawdhub published")
+                .contains("ClawHub published")
         )
     }
 }

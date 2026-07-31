@@ -4,7 +4,7 @@ nonisolated enum SkillPublishError: LocalizedError, Equatable {
     case publishedButStateNotRecorded
 
     var errorDescription: String? {
-        "Clawdhub published the Skill, but Skills Manager could not save its local publish state. "
+        "ClawHub published the Skill, but Skills Manager could not save its local publish state. "
             + "Refresh before publishing again."
     }
 }

@@ -100,7 +100,7 @@ nonisolated extension ManagedSkillUpdateRemoteLocator {
     var updateDisplayName: String {
         switch self {
         case .clawdhub(let slug, let version):
-            "Clawdhub \(slug) \(version.value)"
+            "ClawHub \(slug) \(version.value)"
         case .github(let repositoryURL, let subpath, let revision, _):
             "\(repositoryURL.value)/\(subpath.value) @ \(revision.value.prefix(12))"
         }

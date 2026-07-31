@@ -304,7 +304,7 @@ struct SkillSplitView: View {
         switch source {
         case .local: "Filter skills"
         case .discovery: "Filter discovered skills"
-        case .clawdhub: "Search Clawdhub"
+        case .clawdhub: "Search ClawHub"
         case .skillsSh: "Search skills.sh"
         }
     }
@@ -341,12 +341,12 @@ struct SkillSplitView: View {
 
     private var remoteInstallAccessibilityLabel: String {
         if isDownloadingRemote {
-            return "Installing Clawdhub Skill"
+            return "Installing ClawHub Skill"
         }
         if managedRemoteSkillID != nil {
-            return "Clawdhub Skill is managed; review installation"
+            return "ClawHub Skill is managed; review installation"
         }
-        return "Install Clawdhub Skill"
+        return "Install ClawHub Skill"
     }
 
     @ViewBuilder
