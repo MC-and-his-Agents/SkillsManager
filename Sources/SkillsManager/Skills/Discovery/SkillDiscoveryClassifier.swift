@@ -195,7 +195,7 @@ nonisolated struct SkillDiscoveryClassifier {
         _ candidates: [SkillDiscoveryCandidate]
     ) -> Set<Int> {
         var groups: [String: [Int]] = [:]
-        var containerGroups: [String: [(index: Int, rawName: String)]] = [:]
+        var firstComponentGroups: [String: [(index: Int, rawName: String)]] = [:]
         for (candidateIndex, candidate) in candidates.enumerated()
         {
             let scopeKeys = Set(candidate.roots.map(\.scope.sortKey))
@@ -203,13 +203,12 @@ nonisolated struct SkillDiscoveryClassifier {
                 let key = scopeKey + "\u{0}" + candidate.relativeLocatorKey
                 groups[key, default: []].append(candidateIndex)
             }
-            guard let locator = SkillContentLocator(candidate.rawRelativeLocator),
-                  locator.rawComponents.count == 2 else {
+            guard let locator = SkillContentLocator(candidate.rawRelativeLocator) else {
                 continue
             }
             for scopeKey in scopeKeys {
                 let key = scopeKey + "\u{0}" + locator.collisionKeys[0]
-                containerGroups[key, default: []].append((
+                firstComponentGroups[key, default: []].append((
                     candidateIndex,
                     locator.rawComponents[0]
                 ))
@@ -220,7 +219,7 @@ nonisolated struct SkillDiscoveryClassifier {
         for group in groups.values where group.count > 1 {
             conflicts.formUnion(group)
         }
-        for group in containerGroups.values
+        for group in firstComponentGroups.values
         where Set(group.map(\.rawName)).count > 1 {
             conflicts.formUnion(group.map(\.index))
         }
