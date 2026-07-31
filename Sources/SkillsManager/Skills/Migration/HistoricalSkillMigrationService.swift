@@ -73,6 +73,7 @@ actor HistoricalSkillMigrationService {
                   observation.roots.count == 1,
                   let root = observation.roots.first,
                   let candidateIdentity = observation.candidateIdentity,
+                  observation.symbolicLinkIdentity == nil,
                   let fingerprint = observation.fingerprint,
                   observation.rawRelativeLocator == observation.relativeLocator else {
                 throw HistoricalSkillMigrationError.unsupportedCandidate

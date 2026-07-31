@@ -276,6 +276,9 @@ nonisolated enum SkillConsistencyAuditWire {
             relativeLocator: value.relativeLocator,
             relativeLocatorKey: value.relativeLocatorKey,
             candidateIdentity: try value.candidateIdentity.map(ManagedItemIdentityCodec.encode),
+            symbolicLinkIdentity: try value.symbolicLinkIdentity.map(
+                ManagedItemIdentityCodec.encode
+            ),
             fingerprint: value.fingerprint.map(fingerprint),
             providerAliases: aliases,
             status: value.status.rawValue,

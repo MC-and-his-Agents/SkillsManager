@@ -252,106 +252,6 @@ nonisolated enum SkillConsistencyPresentation {
         "distribution|\(skillID)|\(target.scopeKey)|\(target.slugKey)"
     }
 
-    private static func historicalFindings(
-        _ prepared: SkillConsistencyAuditPrepared
-    ) throws -> [Finding] {
-        let manifestCandidates = prepared.manifest.discovery.observations.filter {
-            $0.managedDistributionTarget == nil
-        }
-        let candidates = try prepared.discoveryObservations.compactMap { observation
-            -> (Data, SkillDiscoveryObservation, ManagedSkillImportAction?, Bool)? in
-            let allowed = ManagedSkillImportService.allowedActions(for: observation)
-            let managedCandidate = observation.status == .managed
-                && observation.matchedSkillID != nil
-            let wire = try SkillConsistencyAuditWire.discoveryObservation(observation)
-            guard !isManagedDistributionObservation(wire, manifest: prepared.manifest) else {
-                return nil
-            }
-            let bytes = try SkillConsistencyAuditManifestCodec.encode(wire)
-            let action = allowed.sorted(by: importActionPrecedes).first
-            return (bytes, observation, action, managedCandidate || !allowed.isEmpty)
-        }.sorted {
-            if $0.0 != $1.0 { return $0.0.lexicographicallyPrecedes($1.0) }
-            return $0.1.relativeLocator < $1.1.relativeLocator
-        }
-
-        let rawCounts = Dictionary(grouping: candidates, by: \.0).mapValues(\.count)
-        return try candidates.enumerated().map { index, candidate in
-            let wire = try SkillConsistencyAuditWire.discoveryObservation(candidate.1)
-            let matches = manifestCandidates.filter { $0 == wire }
-            let structurallySupported = historicalCandidateIsSupported(candidate.1)
-            let executable = candidate.3
-                && matches.count == 1
-                && rawCounts[candidate.0] == 1
-                && structurallySupported
-            let stableID = "historical|\(candidate.0.base64EncodedString())"
-            let id = executable ? stableID : "\(stableID)|\(index)"
-            let detail: String
-            if matches.count != 1 {
-                detail = "The audit could not bind this directory to one stable observation."
-            } else if !structurallySupported {
-                detail = "This directory is outside the supported managed distribution roots."
-            } else if !candidate.3 {
-                detail = "This directory cannot be safely imported: "
-                    + "\(candidate.1.reason?.rawValue ?? candidate.1.status.rawValue)."
-            } else if candidate.1.status == .conflict {
-                detail = "Conflicting identity evidence requires import as an independent Skill."
-            } else {
-                detail = "This directory is not yet distributed through the managed library."
-            }
-            return Finding(
-                id: id,
-                title: candidate.1.relativeLocator,
-                detail: detail,
-                locator: candidate.1.displayURLs.first?.standardizedFileURL.path,
-                severity: executable ? .warning : .blocking,
-                actions: executable
-                    ? [
-                        .migrate(
-                            importAction: candidate.2,
-                            independent: candidate.1.status == .conflict
-                        ),
-                        .keepForNow,
-                    ]
-                    : [.keepForNow],
-                observation: executable ? candidate.1 : nil,
-                skillID: candidate.1.matchedSkillID,
-                affectedFindingIDs: [id]
-            )
-        }
-    }
-
-    private static func historicalCandidateIsSupported(
-        _ observation: SkillDiscoveryObservation
-    ) -> Bool {
-        guard observation.roots.count == 1,
-              let root = observation.roots.first,
-              root.scope.kind != .custom,
-              observation.candidateIdentity != nil,
-              observation.fingerprint != nil,
-              observation.rawRelativeLocator == observation.relativeLocator else {
-            return false
-        }
-        if root.scope.kind == .agent {
-            return root.scope.adapterCode != nil && root.scope.customPathID == nil
-        }
-        return root.scope == .global
-    }
-
-    private static func isManagedDistributionObservation(
-        _ observation: SkillConsistencyAuditDiscoveryObservation,
-        manifest: SkillConsistencyAuditManifest
-    ) -> Bool {
-        manifest.managedSkills.lazy.flatMap(\.bindings).contains { binding in
-            observation.relativeLocatorKey == binding.slugKey
-                && observation.roots.contains {
-                    $0.kind == binding.scopeKind
-                        && $0.adapterCode == binding.adapterCode
-                        && $0.customPathID == nil
-                }
-        }
-    }
-
     private static func healthFindings(
         _ manifest: SkillConsistencyAuditManifest
     ) -> [Finding] {
@@ -406,16 +306,6 @@ nonisolated enum SkillConsistencyPresentation {
     private static func findingPrecedes(_ lhs: Finding, _ rhs: Finding) -> Bool {
         if lhs.severity != rhs.severity { return lhs.severity > rhs.severity }
         return (lhs.title, lhs.id) < (rhs.title, rhs.id)
-    }
-
-    private static func importActionPrecedes(
-        _ lhs: ManagedSkillImportAction,
-        _ rhs: ManagedSkillImportAction
-    ) -> Bool {
-        switch (lhs, rhs) {
-        case (.claimExisting, .importNew): true
-        default: false
-        }
     }
 
     private static func scopeTitle(_ scopeKey: String) -> String {

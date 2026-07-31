@@ -78,8 +78,9 @@ struct SkillConsistencyAuditTests {
         )
         let distribution = try #require(prepared.manifest.distributions.first)
 
-        #expect(observation.status == SkillDiscoveryStatus.conflict.rawValue)
-        #expect(observation.reason == SkillDiscoveryReason.unknownSymlink.rawValue)
+        #expect(observation.status == SkillDiscoveryStatus.claimable.rawValue)
+        #expect(observation.reason == nil)
+        #expect(observation.symbolicLinkIdentity != nil)
         #expect(observation.managedDistributionTarget?.skillID == installed.skillID.directoryName)
         #expect(observation.managedDistributionTarget?.syncMode == "symlink")
         #expect(distribution.status == DistributionReconcileStatus.inSync.rawValue)
@@ -195,6 +196,40 @@ struct SkillConsistencyAuditTests {
             try SkillConsistencyAuditManifestCodec.encode(first)
                 == SkillConsistencyAuditManifestCodec.encode(second)
         )
+    }
+
+    @Test("canonical discovery evidence distinguishes a direct directory from a link")
+    func symlinkIdentityChangesCanonicalEvidence() throws {
+        let workspace = try WriterWorkspace()
+        let verified = try ManagedRootReference.capture(at: workspace.root).verifiedRoot()
+        let root = SkillDiscoveryRoot(scope: .global, url: workspace.root)
+        let direct = equivalentObservation(
+            rawLocator: "demo",
+            root: root,
+            identity: verified.identity
+        )
+        let link = equivalentObservation(
+            rawLocator: "demo",
+            root: root,
+            identity: verified.identity,
+            symbolicLinkIdentity: ManagedItemIdentity(
+                persistedComponents: .init(
+                    device: 1,
+                    inode: 9,
+                    fileType: UInt32(S_IFLNK),
+                    generation: 0
+                )
+            )
+        )
+
+        let directBytes = try SkillConsistencyAuditManifestCodec.encode(
+            SkillConsistencyAuditWire.discoveryObservation(direct)
+        )
+        let linkBytes = try SkillConsistencyAuditManifestCodec.encode(
+            SkillConsistencyAuditWire.discoveryObservation(link)
+        )
+
+        #expect(directBytes != linkBytes)
     }
 
     @Test("marks an observed unsupported root as incomplete")
@@ -481,7 +516,8 @@ private func treeEntrySignature(_ url: URL, relativeTo root: URL) throws -> Stri
 private func equivalentObservation(
     rawLocator: String,
     root: SkillDiscoveryRoot,
-    identity: ManagedItemIdentity
+    identity: ManagedItemIdentity,
+    symbolicLinkIdentity: ManagedItemIdentity? = nil
 ) -> SkillDiscoveryObservation {
     SkillDiscoveryObservation(
         roots: [root],
@@ -490,6 +526,7 @@ private func equivalentObservation(
         relativeLocator: "\u{e9}",
         relativeLocatorKey: SkillContentPath.collisionKey(for: "\u{e9}"),
         candidateIdentity: identity,
+        symbolicLinkIdentity: symbolicLinkIdentity,
         fingerprint: nil,
         providerAliases: [],
         status: .conflict,

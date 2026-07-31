@@ -7,6 +7,7 @@ nonisolated struct SkillDiscoveryCandidate: Sendable {
     let relativeLocator: String
     let relativeLocatorKey: String
     let candidateIdentity: ManagedItemIdentity?
+    let symbolicLinkIdentity: ManagedItemIdentity?
     let fingerprint: SkillContentFingerprint?
     let providerAliases: Set<ProviderAliasIdentity>
     let terminalStatus: SkillDiscoveryStatus?
@@ -225,6 +226,7 @@ nonisolated struct SkillDiscoveryClassifier {
             relativeLocator: candidate.relativeLocator,
             relativeLocatorKey: candidate.relativeLocatorKey,
             candidateIdentity: candidate.candidateIdentity,
+            symbolicLinkIdentity: candidate.symbolicLinkIdentity,
             fingerprint: candidate.fingerprint,
             providerAliases: candidate.providerAliases,
             status: status,
