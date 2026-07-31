@@ -32,34 +32,6 @@ struct SkillDiscoveryScannerTests {
         }
     }
 
-    @Test("unknown child links are conflicts and are never followed")
-    func unknownSymlinkIsNotFollowed() throws {
-        try withWorkspace { workspace in
-            let root = workspace.appendingPathComponent("skills", isDirectory: true)
-            let outside = workspace.appendingPathComponent("outside", isDirectory: true)
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
-            try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: false)
-            try "# Outside".write(
-                to: outside.appendingPathComponent("SKILL.md"),
-                atomically: true,
-                encoding: .utf8
-            )
-            try FileManager.default.createSymbolicLink(
-                at: root.appendingPathComponent("linked"),
-                withDestinationURL: outside
-            )
-
-            let result = try SkillDiscoveryScanner().scan(roots: [
-                SkillDiscoveryRoot(scope: .global, url: root),
-            ])
-
-            let observation = try #require(result.observations.first)
-            #expect(observation.status == .conflict)
-            #expect(observation.reason == .unknownSymlink)
-            #expect(observation.fingerprint == nil)
-        }
-    }
-
     @Test("bad candidates do not hide valid candidates")
     func candidateFailuresAreIsolated() throws {
         try withWorkspace { workspace in
@@ -349,7 +321,7 @@ struct SkillDiscoveryScannerTests {
         }
     }
 
-    private func createSkill(named name: String, in root: URL) throws -> URL {
+    func createSkill(named name: String, in root: URL) throws -> URL {
         let skill = root.appendingPathComponent(name, isDirectory: true)
         try FileManager.default.createDirectory(at: skill, withIntermediateDirectories: false)
         try "# \(name)".write(
@@ -360,7 +332,7 @@ struct SkillDiscoveryScannerTests {
         return skill
     }
 
-    private func withWorkspace(_ body: (URL) throws -> Void) throws {
+    func withWorkspace(_ body: (URL) throws -> Void) throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("skill-discovery-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)

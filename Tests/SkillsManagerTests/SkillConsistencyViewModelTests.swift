@@ -6,87 +6,6 @@ import Testing
 
 @Suite("Skill consistency presentation and view model", .serialized)
 struct SkillConsistencyViewModelTests {
-    @Test("prepared audit carries the raw observation from the stable capture")
-    func carriesStableRawObservation() async throws {
-        let fixture = try await HistoricalMigrationFixture(content: "# Historical")
-        let audit = try await SkillConsistencyAuditService(
-            writer: fixture.writer,
-            homeURL: fixture.workspace.distributionHomeURL
-        ).prepare()
-        let raw = try #require(audit.discoveryObservations.first)
-        let wire = try SkillConsistencyAuditWire.discoveryObservation(raw)
-
-        #expect(wire.managedDistributionTarget == nil)
-        #expect(audit.manifest.discovery.observations.filter { $0 == wire }.count == 1)
-    }
-
-    @Test("projection exposes complete rebuild and single-scope disable actions")
-    func projectsRepairActions() throws {
-        let prepared = try repairPrepared(missingScopes: ["agent:codex", "agent:claude"])
-        let snapshot = try SkillConsistencyPresentation.makeSnapshot(prepared)
-
-        #expect(snapshot.status == .findings)
-        #expect(snapshot.findings.count == 2)
-        for finding in snapshot.findings {
-            #expect(finding.actions.contains(
-                .rebuildMissingSymlinks(
-                    scopeKeys: ["agent:codex", "agent:claude"]
-                )
-            ))
-            #expect(finding.actions.contains {
-                if case .disableMissingBinding(let keys) = $0 {
-                    return keys.count == 1
-                }
-                return false
-            })
-        }
-    }
-
-    @Test("ambiguous raw-to-wire binding is visible but cannot migrate")
-    func ambiguousHistoricalCandidateFailsClosed() throws {
-        let observation = try historicalObservation()
-        let wire = try SkillConsistencyAuditWire.discoveryObservation(observation)
-        let prepared = try prepared(
-            discovery: [wire, wire],
-            rawObservations: [observation]
-        )
-
-        let finding = try #require(
-            SkillConsistencyPresentation.makeSnapshot(prepared).findings.first
-        )
-
-        #expect(finding.severity == .blocking)
-        #expect(finding.observation == nil)
-        #expect(finding.actions == [.keepForNow])
-    }
-
-    @Test("managed distribution observations never become migration candidates")
-    func excludesManagedDistributionObservation() throws {
-        let base = try repairPrepared(missingScopes: [])
-        let observation = try historicalObservation()
-        let wire = try SkillConsistencyAuditWire.discoveryObservation(observation)
-        let manifest = SkillConsistencyAuditManifest(
-            schema: base.manifest.schema,
-            coverage: base.manifest.coverage,
-            health: base.manifest.health,
-            root: base.manifest.root,
-            managedSkills: base.manifest.managedSkills,
-            distributions: base.manifest.distributions,
-            discovery: SkillConsistencyAuditDiscovery(
-                roots: [],
-                rootDiagnostics: [],
-                observations: [wire]
-            )
-        )
-        let prepared = SkillConsistencyAuditPrepared(
-            manifest: manifest,
-            canonicalBytes: try SkillConsistencyAuditManifestCodec.encode(manifest),
-            discoveryObservations: [observation]
-        )
-
-        #expect(try SkillConsistencyPresentation.makeSnapshot(prepared).findings.isEmpty)
-    }
-
     @Test("operation and repair states disable write actions")
     func terminalSafetyStatesDisableWrites() throws {
         let operation = try SkillConsistencyPresentation.makeSnapshot(
@@ -348,7 +267,7 @@ private actor ConsistencyDependencyProbe {
     }
 }
 
-private func repairPrepared(
+func repairPrepared(
     missingScopes: Set<String>,
     incomplete: Bool = false,
     reconcileStatus: DistributionReconcileStatus? = nil
@@ -449,9 +368,13 @@ private func repairPrepared(
     )
 }
 
-private func historicalObservation(
+func historicalObservation(
     status: SkillDiscoveryStatus = .unmanaged,
-    reason: SkillDiscoveryReason? = nil
+    reason: SkillDiscoveryReason? = nil,
+    symbolicLinkIdentity: ManagedItemIdentity? = nil,
+    matchedSkillID: SkillID? = nil,
+    hasSnapshot: Bool = true,
+    scope: SkillDiscoveryScope = .global
 ) throws -> SkillDiscoveryObservation {
     let identity = ManagedItemIdentity(
         persistedComponents: .init(
@@ -462,7 +385,7 @@ private func historicalObservation(
         )
     )
     let root = SkillDiscoveryRoot(
-        scope: .global,
+        scope: scope,
         url: URL(fileURLWithPath: "/tmp/.agents/skills", isDirectory: true)
     )
     return SkillDiscoveryObservation(
@@ -471,19 +394,57 @@ private func historicalObservation(
         rawRelativeLocator: "demo",
         relativeLocator: "demo",
         relativeLocatorKey: "demo",
-        candidateIdentity: identity,
-        fingerprint: try SkillContentFingerprint(
-            currentDigest: Data(repeating: 2, count: 32)
-        ),
+        candidateIdentity: hasSnapshot ? identity : nil,
+        symbolicLinkIdentity: symbolicLinkIdentity,
+        fingerprint: hasSnapshot
+            ? try SkillContentFingerprint(currentDigest: Data(repeating: 2, count: 32))
+            : nil,
         providerAliases: [],
         status: status,
         reason: reason,
-        matchedSkillID: nil,
+        matchedSkillID: matchedSkillID,
         matchedSourceKey: nil
     )
 }
 
-private func prepared(
+func addingDiscovery(
+    _ observation: SkillDiscoveryObservation,
+    to base: SkillConsistencyAuditPrepared
+) throws -> SkillConsistencyAuditPrepared {
+    let manifest = SkillConsistencyAuditManifest(
+        schema: base.manifest.schema,
+        coverage: base.manifest.coverage,
+        health: base.manifest.health,
+        root: base.manifest.root,
+        managedSkills: base.manifest.managedSkills,
+        distributions: base.manifest.distributions,
+        discovery: SkillConsistencyAuditDiscovery(
+            roots: base.manifest.discovery.roots,
+            rootDiagnostics: base.manifest.discovery.rootDiagnostics,
+            observations: [
+                try SkillConsistencyAuditWire.discoveryObservation(observation),
+            ]
+        )
+    )
+    return SkillConsistencyAuditPrepared(
+        manifest: manifest,
+        canonicalBytes: try SkillConsistencyAuditManifestCodec.encode(manifest),
+        discoveryObservations: [observation]
+    )
+}
+
+func symbolicLinkIdentity() -> ManagedItemIdentity {
+    ManagedItemIdentity(
+        persistedComponents: .init(
+            device: 1,
+            inode: 3,
+            fileType: UInt32(S_IFLNK),
+            generation: 0
+        )
+    )
+}
+
+func prepared(
     discovery: [SkillConsistencyAuditDiscoveryObservation],
     rawObservations: [SkillDiscoveryObservation]
 ) throws -> SkillConsistencyAuditPrepared {
@@ -507,7 +468,7 @@ private func prepared(
     )
 }
 
-private func managedRoot() -> SkillConsistencyAuditManagedRoot {
+func managedRoot() -> SkillConsistencyAuditManagedRoot {
     SkillConsistencyAuditManagedRoot(
         registeredLocator: "/tmp/.SkillsManager/skills",
         canonicalLocator: "/tmp/.SkillsManager/skills",
@@ -515,7 +476,7 @@ private func managedRoot() -> SkillConsistencyAuditManagedRoot {
     )
 }
 
-private func auditRoot() -> SkillConsistencyAuditDiscoveryRoot {
+func auditRoot() -> SkillConsistencyAuditDiscoveryRoot {
     SkillConsistencyAuditDiscoveryRoot(
         scopeKey: "global",
         kind: "global",

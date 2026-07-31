@@ -36,16 +36,19 @@ extension SkillDiscoveryStatus {
 }
 
 extension SkillDiscoveryReason {
-    var displayName: String {
+    nonisolated var displayName: String {
         switch self {
         case .rootPermissionDenied: "The scan root cannot be read."
         case .rootChanged: "The scan root changed while it was being inspected."
         case .rootUnsupportedType: "The scan root is not a directory or supported link."
         case .rootReadFailed: "The scan root could not be read."
         case .unknownSymlink: "The Skill uses a symbolic link that cannot be trusted."
+        case .symbolicLinkTargetUnavailable: "The Skill link target is unavailable."
+        case .symbolicLinkTargetUnsupported: "The Skill link target is not a directory."
         case .candidatePermissionDenied: "The Skill folder cannot be read."
         case .sourceChanged: "The Skill changed while it was being inspected."
         case .missingSkillManifest: "SKILL.md is missing."
+        case .containerDirectory: "This folder contains Skill subdirectories."
         case .invalidSkillManifest: "SKILL.md is not valid UTF-8."
         case .unsupportedEntryType: "The Skill contains an unsupported file type."
         case .unsafeContent: "The Skill contains an unsafe path or link."

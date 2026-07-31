@@ -335,13 +335,13 @@ struct ManagedSkillImportTests {
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
     }
 
-    private func discoveryRoot(in workspace: WriterWorkspace) throws -> URL {
+    func discoveryRoot(in workspace: WriterWorkspace) throws -> URL {
         let root = workspace.workspace.appendingPathComponent("discovery", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         return root
     }
 
-    private func createSkill(
+    func createSkill(
         named name: String,
         content: String,
         in root: URL
@@ -356,7 +356,7 @@ struct ManagedSkillImportTests {
         return skill
     }
 
-    private func scanObservation(
+    func scanObservation(
         roots: [SkillDiscoveryRoot],
         writer: JournaledSSOTWriter
     ) async throws -> SkillDiscoveryObservation {
@@ -366,7 +366,7 @@ struct ManagedSkillImportTests {
         )
     }
 
-    private func identity(of url: URL) throws -> ManagedItemIdentity {
+    func identity(of url: URL) throws -> ManagedItemIdentity {
         var metadata = stat()
         guard Darwin.lstat(url.path, &metadata) == 0 else {
             throw CocoaError(.fileReadUnknown)

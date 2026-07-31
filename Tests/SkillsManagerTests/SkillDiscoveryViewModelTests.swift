@@ -285,6 +285,7 @@ func discoveryTestObservation(
         relativeLocator: name,
         relativeLocatorKey: SkillContentPath.collisionKey(for: name),
         candidateIdentity: ManagedItemIdentity(stat()),
+        symbolicLinkIdentity: nil,
         fingerprint: try! SkillContentFingerprint(currentDigest: Data(repeating: 7, count: 32)),
         providerAliases: [],
         status: status,

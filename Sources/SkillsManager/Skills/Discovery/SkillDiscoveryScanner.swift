@@ -192,13 +192,13 @@ nonisolated struct SkillDiscoveryScanner {
         let type = metadata.st_mode & mode_t(S_IFMT)
         if type == S_IFREG { return nil }
         if type == S_IFLNK {
-            return failedCandidate(
-                named: rawName,
+            return try symbolicLinkCandidate(
+                rawName: rawName,
                 roots: roots,
                 rootIdentity: rootIdentity,
-                identity: ManagedItemIdentity(metadata),
-                status: .conflict,
-                reason: .unknownSymlink
+                metadata: metadata,
+                limits: limits,
+                checkpoint: checkpoint
             )
         }
         guard type == S_IFDIR else {
@@ -276,6 +276,7 @@ nonisolated struct SkillDiscoveryScanner {
             rootIdentity: rootIdentity,
             descriptor: descriptor,
             revision: opened,
+            symbolicLinkIdentity: nil,
             limits: limits,
             checkpoint: checkpoint
         )
@@ -289,86 +290,6 @@ nonisolated struct SkillDiscoveryScanner {
             )
         }
         return candidate
-    }
-
-    private func snapshotCandidate(
-        rawName: String,
-        normalizedName name: String,
-        roots: [SkillDiscoveryRoot],
-        rootIdentity: ManagedItemIdentity,
-        descriptor: Int32,
-        revision: SkillDiscoveryFileRevision,
-        limits: SkillContentLimits,
-        checkpoint: SkillCancellationCheckpoint
-    ) throws -> SkillDiscoveryCandidate {
-        do {
-            let snapshot = try SkillContentSnapshot.capture(
-                directoryDescriptor: descriptor,
-                displayPath: name,
-                limits: limits,
-                checkpoint: checkpoint
-            )
-            _ = try snapshot.readUTF8File(relativePath: "SKILL.md", checkpoint: checkpoint)
-            return SkillDiscoveryCandidate(
-                roots: roots,
-                rootIdentity: rootIdentity,
-                rawRelativeLocator: rawName,
-                relativeLocator: name,
-                relativeLocatorKey: SkillContentPath.collisionKey(for: name),
-                candidateIdentity: revision.identity,
-                fingerprint: try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest),
-                providerAliases: try SkillDiscoveryProviderMetadataReader().aliases(
-                    in: descriptor,
-                    expectedCandidate: revision,
-                    checkpoint: checkpoint
-                ),
-                terminalStatus: nil,
-                terminalReason: nil
-            )
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as SkillContentSnapshotError {
-            return failedCandidate(
-                named: name,
-                roots: roots,
-                rootIdentity: rootIdentity,
-                identity: revision.identity,
-                status: status(for: error),
-                reason: reason(for: error)
-            )
-        } catch {
-            return failedCandidate(
-                named: name,
-                roots: roots,
-                rootIdentity: rootIdentity,
-                identity: revision.identity,
-                status: .damaged,
-                reason: .candidateReadFailed
-            )
-        }
-    }
-
-    private func failedCandidate(
-        named name: String,
-        roots: [SkillDiscoveryRoot],
-        rootIdentity: ManagedItemIdentity,
-        identity: ManagedItemIdentity? = nil,
-        status: SkillDiscoveryStatus,
-        reason: SkillDiscoveryReason
-    ) -> SkillDiscoveryCandidate {
-        let normalized = SkillContentPath.normalizedComponent(name)
-        return SkillDiscoveryCandidate(
-            roots: roots,
-            rootIdentity: rootIdentity,
-            rawRelativeLocator: name,
-            relativeLocator: normalized,
-            relativeLocatorKey: SkillContentPath.collisionKey(for: normalized),
-            candidateIdentity: identity,
-            fingerprint: nil,
-            providerAliases: [],
-            terminalStatus: status,
-            terminalReason: reason
-        )
     }
 
     private func revalidate(_ entries: [RootEntry]) -> (
@@ -413,42 +334,12 @@ nonisolated struct SkillDiscoveryScanner {
             relativeLocator: candidate.relativeLocator,
             relativeLocatorKey: candidate.relativeLocatorKey,
             candidateIdentity: candidate.candidateIdentity,
+            symbolicLinkIdentity: candidate.symbolicLinkIdentity,
             fingerprint: candidate.fingerprint,
             providerAliases: candidate.providerAliases,
             terminalStatus: candidate.terminalStatus,
             terminalReason: candidate.terminalReason
         )
-    }
-
-    private func status(for error: SkillContentSnapshotError) -> SkillDiscoveryStatus {
-        if case .fileSystemFailure(_, let code) = error, permissionError(code) {
-            return .permissionDenied
-        }
-        return .damaged
-    }
-
-    private func reason(for error: SkillContentSnapshotError) -> SkillDiscoveryReason {
-        switch error {
-        case .fileNotFound(let path) where path == "SKILL.md":
-            return .missingSkillManifest
-        case .invalidUTF8(let path) where path == "SKILL.md":
-            return .invalidSkillManifest
-        case .fileChanged, .rootIsNotDirectory:
-            return .sourceChanged
-        case .unsupportedEntry:
-            return .unsupportedEntryType
-        case .pathCollision:
-            return .unsafeContent
-        case .fileCountLimitExceeded, .directoryCountLimitExceeded,
-             .pathDepthLimitExceeded, .fileByteLimitExceeded, .totalByteLimitExceeded:
-            return .resourceLimitExceeded
-        case .fileSystemFailure(_, let code) where permissionError(code):
-            return .candidatePermissionDenied
-        case .fileSystemFailure:
-            return .candidateReadFailed
-        case .fileNotFound, .invalidUTF8:
-            return .unsafeContent
-        }
     }
 
     private func rootDiagnostic(
@@ -469,10 +360,6 @@ nonisolated struct SkillDiscoveryScanner {
             return rootDiagnostic(root, errno: code)
         }
         return SkillDiscoveryRootDiagnostic(root: root, reason: .rootChanged)
-    }
-
-    private func permissionError(_ code: Int32) -> Bool {
-        code == EACCES || code == EPERM
     }
 
     private func sortedRoots(_ roots: [SkillDiscoveryRoot]) -> [SkillDiscoveryRoot] {

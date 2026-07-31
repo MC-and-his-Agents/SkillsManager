@@ -170,6 +170,7 @@ nonisolated struct SkillConsistencyAuditDiscoveryObservation: Codable, Equatable
     let relativeLocator: String
     let relativeLocatorKey: String
     let candidateIdentity: Data?
+    let symbolicLinkIdentity: Data?
     let fingerprint: SkillConsistencyAuditFingerprint?
     let providerAliases: [SkillConsistencyAuditProviderAlias]
     let status: String

@@ -83,9 +83,12 @@ nonisolated enum SkillDiscoveryReason: String, Hashable, Sendable {
     case rootUnsupportedType
     case rootReadFailed
     case unknownSymlink
+    case symbolicLinkTargetUnavailable
+    case symbolicLinkTargetUnsupported
     case candidatePermissionDenied
     case sourceChanged
     case missingSkillManifest
+    case containerDirectory
     case invalidSkillManifest
     case unsupportedEntryType
     case unsafeContent
@@ -175,6 +178,7 @@ nonisolated struct SkillDiscoveryObservation: Hashable, Sendable {
     let relativeLocator: String
     let relativeLocatorKey: String
     let candidateIdentity: ManagedItemIdentity?
+    let symbolicLinkIdentity: ManagedItemIdentity?
     let fingerprint: SkillContentFingerprint?
     let providerAliases: Set<ProviderAliasIdentity>
     let status: SkillDiscoveryStatus

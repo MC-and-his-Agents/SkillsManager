@@ -78,8 +78,9 @@ struct SkillConsistencyAuditTests {
         )
         let distribution = try #require(prepared.manifest.distributions.first)
 
-        #expect(observation.status == SkillDiscoveryStatus.conflict.rawValue)
-        #expect(observation.reason == SkillDiscoveryReason.unknownSymlink.rawValue)
+        #expect(observation.status == SkillDiscoveryStatus.claimable.rawValue)
+        #expect(observation.reason == nil)
+        #expect(observation.symbolicLinkIdentity != nil)
         #expect(observation.managedDistributionTarget?.skillID == installed.skillID.directoryName)
         #expect(observation.managedDistributionTarget?.syncMode == "symlink")
         #expect(distribution.status == DistributionReconcileStatus.inSync.rawValue)
@@ -476,25 +477,4 @@ private func treeEntrySignature(_ url: URL, relativeTo root: URL) throws -> Stri
         try ManagedItemIdentityCodec.encode(ManagedItemIdentity(metadata)).base64EncodedString(),
         payload,
     ].joined(separator: "\u{0}")
-}
-
-private func equivalentObservation(
-    rawLocator: String,
-    root: SkillDiscoveryRoot,
-    identity: ManagedItemIdentity
-) -> SkillDiscoveryObservation {
-    SkillDiscoveryObservation(
-        roots: [root],
-        rootIdentity: identity,
-        rawRelativeLocator: rawLocator,
-        relativeLocator: "\u{e9}",
-        relativeLocatorKey: SkillContentPath.collisionKey(for: "\u{e9}"),
-        candidateIdentity: identity,
-        fingerprint: nil,
-        providerAliases: [],
-        status: .conflict,
-        reason: .scopeSlugConflict,
-        matchedSkillID: nil,
-        matchedSourceKey: nil
-    )
 }
