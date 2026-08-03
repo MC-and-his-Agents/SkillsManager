@@ -55,6 +55,33 @@ struct SkillManagementJourneyTests {
         ) == nil)
     }
 
+    @Test("provider rows are selectable only while their section is visible")
+    func providerStateProjection() {
+        let skill = RemoteSkill(
+            id: "latest",
+            slug: "latest",
+            displayName: "Latest",
+            summary: nil,
+            latestVersion: nil,
+            updatedAt: nil,
+            downloads: nil,
+            stars: nil
+        )
+        let selected = UnifiedSkillSelection.clawHub(skill.id)
+
+        #expect(visibleRemoteSkillSelections(
+            clawHubSkills: [skill],
+            clawHubLoaded: true
+        ) == [selected])
+        #expect(reconciledSkillSelection(
+            selected,
+            visibleSelections: visibleRemoteSkillSelections(
+                clawHubSkills: [skill],
+                clawHubLoaded: false
+            )
+        ) == nil)
+    }
+
     @Test("clearing a managed selection clears distribution state")
     func clearingSelectionClearsDistribution() async {
         let model = distributionModel()

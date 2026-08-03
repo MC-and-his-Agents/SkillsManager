@@ -59,16 +59,17 @@ struct SkillSplitView: View {
             UnifiedSkillSelection.discovered($0.id)
         })
         if query.isEmpty {
-            values.formUnion(remoteStore.latestSkills.map {
-                UnifiedSkillSelection.clawHub($0.id)
-            })
+            values.formUnion(visibleRemoteSkillSelections(
+                clawHubSkills: remoteStore.latestSkills,
+                clawHubLoaded: remoteStore.latestState == .loaded
+            ))
         } else {
-            values.formUnion(remoteStore.searchResults.map {
-                UnifiedSkillSelection.clawHub($0.id)
-            })
-            values.formUnion(skillsShStore.items.map {
-                UnifiedSkillSelection.skillsSh(SkillsShSearchResultID($0))
-            })
+            values.formUnion(visibleRemoteSkillSelections(
+                clawHubSkills: remoteStore.searchResults,
+                clawHubLoaded: remoteStore.searchState == .loaded,
+                skillsShItems: skillsShStore.items,
+                skillsShLoaded: skillsShStore.searchState == .loaded
+            ))
         }
         return values
     }
@@ -252,7 +253,7 @@ struct SkillSplitView: View {
             }
         }
 
-        if selection == nil || isLocalSelection {
+        if selection == nil || isManagedSelection {
             ToolbarItem(id: "add") {
                 Menu {
                     Button("Import Skill...") { showingImport = true }
@@ -270,6 +271,11 @@ struct SkillSplitView: View {
         case .managed, .discovered: true
         case .clawHub, .skillsSh, nil: false
         }
+    }
+
+    private var isManagedSelection: Bool {
+        if case .managed = selection { return true }
+        return false
     }
 
     private var backupAccessibilityLabel: String {
