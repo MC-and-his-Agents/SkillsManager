@@ -12,31 +12,38 @@ struct SkillSplitView: View {
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
 
     @State private var searchText = ""
+    @State private var selection: UnifiedSkillSelection?
+    @State private var searchTask: Task<Void, Never>?
     @State private var showingImport = false
     @State private var showingAddPath = false
     @State private var showingBackups = false
     @State private var showingConsistency = false
     @State private var showingBatchUpdates = false
-    @State private var source: SkillSource = .local
     @State private var downloadErrorMessage: String?
     @State private var isDownloadingRemote = false
     @State private var didDownloadRemote = false
     @State private var installSkill: RemoteSkill?
     @State private var managedRemoteSkillID: SkillID?
-    @State private var searchTask: Task<Void, Never>?
+
+    private var query: String {
+        normalizedSkillSearchQuery(searchText)
+    }
 
     private var filteredSkills: [Skill] {
-        guard !searchText.isEmpty else { return store.skills }
+        guard !query.isEmpty else { return store.skills }
         return store.skills.filter { skill in
-            skill.displayName.localizedCaseInsensitiveContains(searchText)
-                || skill.description.localizedCaseInsensitiveContains(searchText)
+            skill.displayName.localizedCaseInsensitiveContains(query)
+                || skill.description.localizedCaseInsensitiveContains(query)
         }
     }
 
     private var filteredDiscoveryItems: [SkillDiscoveryViewModel.Item] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return discoveryModel.items }
-        return discoveryModel.items.filter { item in
+        let canonical = visibleDiscoveryItems(
+            discoveryModel.items,
+            managedSkillIDs: Set(store.skills.map(\.managedSkillID))
+        )
+        guard !query.isEmpty else { return canonical }
+        return canonical.filter { item in
             let observation = item.observation
             return observation.relativeLocator.localizedCaseInsensitiveContains(query)
                 || observation.scopeSummary.localizedCaseInsensitiveContains(query)
@@ -46,144 +53,142 @@ struct SkillSplitView: View {
         }
     }
 
-    var body: some View {
-        splitView
-            .modifier(
-                SkillSplitLifecycleModifier(
-                    source: $source,
-                    searchText: $searchText,
-                    searchTask: $searchTask
-                )
-            )
-            .toolbar(id: "main-toolbar") {
-                toolbarContent()
-            }
-            .sheet(isPresented: $showingImport) {
-                ImportSkillView()
-                    .environment(store)
-            }
-            .sheet(isPresented: $showingAddPath) {
-                AddCustomPathView()
-                    .environment(store)
-            }
-            .sheet(isPresented: $showingBackups) {
-                SkillBackupLibraryView()
-                    .environment(lifecycleModel)
-            }
-            .sheet(isPresented: $showingConsistency) {
-                SkillConsistencyAssistantView {
-                    showingConsistency = false
-                    Task { @MainActor in
-                        await Task.yield()
-                        showingBackups = true
-                        await lifecycleModel.refreshBackupsOnly()
-                    }
-                }
-                .environment(consistencyModel)
-            }
-            .sheet(isPresented: $showingBatchUpdates) {
-                SkillBatchUpdateView()
-                    .environment(batchUpdateModel)
-            }
-            .sheet(item: $installSkill) { skill in
-                ManagedClawdhubInstallView(
-                    skill: skill,
-                    isInstalling: $isDownloadingRemote,
-                    didInstall: $didDownloadRemote,
-                    errorMessage: $downloadErrorMessage
-                )
-                .environment(store)
-                .environment(remoteStore)
-            }
-            .searchable(
-                text: $searchText,
-                placement: .sidebar,
-                prompt: searchPrompt
-            )
-            .task(id: remoteStore.selectedSkillID) {
-                await refreshManagedRemoteSkill()
-            }
-            .onChange(of: didDownloadRemote) { _, installed in
-                guard installed else { return }
-                Task {
-                    await refreshManagedRemoteSkill()
-                    didDownloadRemote = false
-                }
-            }
-            .onChange(of: libraryRuntime.readiness) { _, _ in
-                Task { await refreshManagedRemoteSkill() }
-            }
-            .onChange(of: lifecycleModel.publishedMutationGeneration) { _, _ in
-                Task { await refreshManagedRemoteSkill() }
-            }
-            .onChange(of: batchUpdateModel.state) { _, newValue in
-                guard newValue == .completed else { return }
-                Task {
-                    await store.loadSkills()
-                    await discoveryModel.refresh()
-                }
-            }
+    private var visibleSelections: Set<UnifiedSkillSelection> {
+        var values = Set(filteredSkills.map { UnifiedSkillSelection.managed($0.id) })
+        values.formUnion(filteredDiscoveryItems.map {
+            UnifiedSkillSelection.discovered($0.id)
+        })
+        if query.isEmpty {
+            values.formUnion(visibleRemoteSkillSelections(
+                clawHubSkills: remoteStore.latestSkills,
+                clawHubLoaded: remoteStore.latestState == .loaded
+            ))
+        } else {
+            values.formUnion(visibleRemoteSkillSelections(
+                clawHubSkills: remoteStore.searchResults,
+                clawHubLoaded: remoteStore.searchState == .loaded,
+                skillsShItems: skillsShStore.items,
+                skillsShLoaded: skillsShStore.searchState == .loaded
+            ))
+        }
+        return values
     }
 
-    private var splitView: some View {
+    var body: some View {
         NavigationSplitView {
-            listView
+            SkillListView(
+                localSkills: filteredSkills,
+                discoveryItems: filteredDiscoveryItems,
+                query: query,
+                installedSkillPlatforms: store.installedSkillPlatformIndex,
+                onInstallRemoteSkill: presentRemoteInstallSheet,
+                selection: $selection
+            )
         } detail: {
             detailView
         }
-    }
-
-    @ViewBuilder
-    private var listView: some View {
-        switch source {
-        case .local, .clawdhub:
-            SkillListView(
-                localSkills: filteredSkills,
-                remoteLatestSkills: remoteStore.latestSkills,
-                remoteSearchResults: remoteStore.searchResults,
-                remoteSearchState: remoteStore.searchState,
-                remoteLatestState: remoteStore.latestState,
-                remoteQuery: searchText,
-                installedSkillPlatforms: store.installedSkillPlatformIndex,
-                onInstallRemoteSkill: { skill in
-                    presentRemoteInstallSheet(for: skill)
-                },
-                source: $source,
-                localSelection: localSelectionBinding,
-                remoteSelection: remoteSelectionBinding
+        .modifier(
+            SkillSplitLifecycleModifier(
+                selection: $selection,
+                searchText: $searchText,
+                searchTask: $searchTask
             )
-        case .discovery:
-            SkillDiscoverySidebarView(
-                items: filteredDiscoveryItems,
-                source: $source
+        )
+        .toolbar(id: "main-toolbar") {
+            toolbarContent()
+        }
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search Skills")
+        .sheet(isPresented: $showingImport) {
+            ImportSkillView().environment(store)
+        }
+        .sheet(isPresented: $showingAddPath) {
+            AddCustomPathView().environment(store)
+        }
+        .sheet(isPresented: $showingBackups) {
+            SkillBackupLibraryView().environment(lifecycleModel)
+        }
+        .sheet(isPresented: $showingConsistency) {
+            consistencySheet
+        }
+        .sheet(isPresented: $showingBatchUpdates) {
+            SkillBatchUpdateView().environment(batchUpdateModel)
+        }
+        .sheet(item: $installSkill) { skill in
+            ManagedClawdhubInstallView(
+                skill: skill,
+                isInstalling: $isDownloadingRemote,
+                didInstall: $didDownloadRemote,
+                errorMessage: $downloadErrorMessage
             )
-        case .skillsSh:
-            SkillsShSearchSidebarView(
-                searchText: searchText,
-                onRetrySearch: scheduleSkillsShSearch,
-                onLoadMore: loadMoreSkillsShResults,
-                source: $source
-            )
+            .environment(store)
+            .environment(remoteStore)
+        }
+        .task(id: remoteStore.selectedSkillID) {
+            await refreshManagedRemoteSkill()
+        }
+        .onChange(of: selection) { _, newValue in
+            applySelection(newValue)
+        }
+        .onChange(of: visibleSelections) { _, visible in
+            selection = reconciledSkillSelection(selection, visibleSelections: visible)
+        }
+        .onChange(of: didDownloadRemote) { _, installed in
+            guard installed else { return }
+            Task {
+                await refreshManagedRemoteSkill()
+                didDownloadRemote = false
+            }
+        }
+        .onChange(of: libraryRuntime.readiness) { _, _ in
+            Task { await refreshManagedRemoteSkill() }
+        }
+        .onChange(of: lifecycleModel.publishedMutationGeneration) { _, _ in
+            Task { await refreshManagedRemoteSkill() }
+        }
+        .onChange(of: batchUpdateModel.state) { _, newValue in
+            guard newValue == .completed else { return }
+            Task {
+                await store.loadSkills()
+                await discoveryModel.refresh()
+            }
         }
     }
 
     @ViewBuilder
     private var detailView: some View {
-        switch source {
-        case .local:
+        switch selection {
+        case .managed:
             SkillDetailView()
-        case .discovery:
+        case .discovered:
             SkillDiscoveryDetailView()
-        case .clawdhub:
+        case .clawHub:
             RemoteSkillDetailView()
         case .skillsSh:
             SkillsShSearchDetailView()
+        case nil:
+            ContentUnavailableView(
+                "Select a skill",
+                systemImage: "sparkles",
+                description: Text("Pick a skill from the list.")
+            )
         }
+    }
+
+    private var consistencySheet: some View {
+        SkillConsistencyAssistantView {
+            showingConsistency = false
+            Task { @MainActor in
+                await Task.yield()
+                showingBackups = true
+                await lifecycleModel.refreshBackupsOnly()
+            }
+        }
+        .environment(consistencyModel)
     }
 
     @ToolbarContentBuilder
     private func toolbarContent() -> some CustomizableToolbarContent {
-        if source != .skillsSh {
+        if isLocalSelection || selection == nil {
             ToolbarItem(id: "consistency") {
                 Button {
                     showingConsistency = true
@@ -197,7 +202,7 @@ struct SkillSplitView: View {
             }
         }
 
-        if source != .clawdhub && source != .skillsSh {
+        if isLocalSelection {
             ToolbarItem(id: "backups") {
                 Button {
                     showingBackups = true
@@ -208,35 +213,20 @@ struct SkillSplitView: View {
                 }
                 .disabled(lifecycleModel.isMutating)
                 .help("Skill Backups")
-                .accessibilityLabel(
-                    lifecycleModel.availableBackupCount == 0
-                        ? "Skill Backups"
-                        : "Skill Backups, \(lifecycleModel.availableBackupCount) available"
-                )
+                .accessibilityLabel(backupAccessibilityLabel)
             }
         }
 
-        if source == .local {
+        if case .managed = selection {
             ToolbarItem(id: "batch-updates") {
                 Button {
-                    batchUpdateModel.configure(
-                        store.skills.map {
-                            SkillBatchUpdateCatalogItem(
-                                skillID: $0.managedSkillID,
-                                displayName: $0.displayName
-                            )
-                        }
-                    )
+                    configureBatchUpdates()
                     showingBatchUpdates = true
                 } label: {
                     Label("Batch Updates", systemImage: "arrow.down.circle")
                         .labelStyle(.iconOnly)
                 }
-                .disabled(
-                    store.skills.isEmpty
-                        || libraryRuntime.readiness != .ready
-                        || batchUpdateModel.operationActive
-                )
+                .disabled(batchUpdatesDisabled)
                 .help(batchUpdateHelp)
                 .accessibilityLabel("Open Batch Updates")
                 .accessibilityValue(batchUpdateHelp)
@@ -244,47 +234,60 @@ struct SkillSplitView: View {
             }
         }
 
-        if source == .clawdhub {
+        if case .clawHub = selection {
             ToolbarItem(id: "download") {
-                Button {
-                    presentRemoteInstallSheet()
-                } label: {
-                    downloadLabel
-                }
-                .labelStyle(.iconOnly)
-                .disabled(isDownloadingRemote || !canDownloadRemoteSkill)
-                .accessibilityLabel(remoteInstallAccessibilityLabel)
+                Button { presentRemoteInstallSheet() } label: { downloadLabel }
+                    .labelStyle(.iconOnly)
+                    .disabled(isDownloadingRemote || remoteStore.selectedSkill == nil)
+                    .accessibilityLabel(remoteInstallAccessibilityLabel)
             }
-
-            if #available(macOS 26.0, *) {
-                ToolbarSpacer(.fixed)
-            }
-
         }
 
-        if source != .discovery && source != .skillsSh {
+        if case .managed = selection {
             ToolbarItem(id: "open") {
-                openFolderItem
+                Button { openSelectedSkillFolder() } label: {
+                    Label("Open Skill Folder", systemImage: "folder")
+                }
+                .labelStyle(.iconOnly)
+                .disabled(store.selectedSkill == nil)
             }
+        }
 
-            if #available(macOS 26.0, *) {
-                ToolbarSpacer(.fixed)
-            }
-
+        if selection == nil || isManagedSelection {
             ToolbarItem(id: "add") {
                 Menu {
-                    Button("Import Skill...") {
-                        showingImport = true
-                    }
-                    Button("Add Custom Path...") {
-                        showingAddPath = true
-                    }
+                    Button("Import Skill...") { showingImport = true }
+                    Button("Add Custom Path...") { showingAddPath = true }
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
                 .labelStyle(.iconOnly)
             }
         }
+    }
+
+    private var isLocalSelection: Bool {
+        switch selection {
+        case .managed, .discovered: true
+        case .clawHub, .skillsSh, nil: false
+        }
+    }
+
+    private var isManagedSelection: Bool {
+        if case .managed = selection { return true }
+        return false
+    }
+
+    private var backupAccessibilityLabel: String {
+        lifecycleModel.availableBackupCount == 0
+            ? "Skill Backups"
+            : "Skill Backups, \(lifecycleModel.availableBackupCount) available"
+    }
+
+    private var batchUpdatesDisabled: Bool {
+        store.skills.isEmpty
+            || libraryRuntime.readiness != .ready
+            || batchUpdateModel.operationActive
     }
 
     private var batchUpdateHelp: String {
@@ -300,31 +303,20 @@ struct SkillSplitView: View {
         return "Check all managed Skills for updates."
     }
 
-    private var searchPrompt: String {
-        switch source {
-        case .local: "Filter skills"
-        case .discovery: "Filter discovered skills"
-        case .clawdhub: "Search ClawHub"
-        case .skillsSh: "Search skills.sh"
-        }
+    private func configureBatchUpdates() {
+        batchUpdateModel.configure(store.skills.map {
+            SkillBatchUpdateCatalogItem(
+                skillID: $0.managedSkillID,
+                displayName: $0.displayName
+            )
+        })
     }
 
-    private var canDownloadRemoteSkill: Bool {
-        remoteStore.selectedSkill != nil
-    }
-
-    private var localSelectionBinding: Binding<Skill.ID?> {
-        Binding(
-            get: { store.selectedSkillID },
-            set: { store.selectedSkillID = $0 }
-        )
-    }
-
-    private var remoteSelectionBinding: Binding<RemoteSkill.ID?> {
-        Binding(
-            get: { remoteStore.selectedSkillID },
-            set: { remoteStore.selectedSkillID = $0 }
-        )
+    private func applySelection(_ selection: UnifiedSkillSelection?) {
+        store.selectedSkillID = selection.managedID
+        discoveryModel.selectedItemID = selection.discoveryID
+        remoteStore.selectedSkillID = selection.clawHubID
+        skillsShStore.selectedResultID = selection.skillsShID
     }
 
     @ViewBuilder
@@ -332,42 +324,28 @@ struct SkillSplitView: View {
         if isDownloadingRemote {
             ProgressView()
         } else if managedRemoteSkillID != nil {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
         } else {
             Image(systemName: "arrow.down.circle")
         }
     }
 
     private var remoteInstallAccessibilityLabel: String {
-        if isDownloadingRemote {
-            return "Installing ClawHub Skill"
-        }
+        if isDownloadingRemote { return "Installing ClawHub Skill" }
         if managedRemoteSkillID != nil {
             return "ClawHub Skill is managed; review installation"
         }
         return "Install ClawHub Skill"
     }
 
-    @ViewBuilder
-    private var openFolderItem: some View {
-        Button {
-            openSelectedSkillFolder()
-        } label: {
-            Label("Open Skill Folder", systemImage: "folder")
-        }
-        .labelStyle(.iconOnly)
-        .disabled(source != .local || store.selectedSkill == nil)
-    }
-
     private func openSelectedSkillFolder() {
-        guard source == .local, let url = store.selectedSkill?.folderURL else { return }
+        guard let url = store.selectedSkill?.folderURL else { return }
         NSWorkspace.shared.open(url)
     }
 
     private func presentRemoteInstallSheet(for skill: RemoteSkill? = nil) {
         if let skill {
-            remoteStore.selectedSkillID = skill.id
+            selection = .clawHub(skill.id)
         }
         guard let resolved = skill ?? remoteStore.selectedSkill else { return }
         downloadErrorMessage = nil
@@ -383,261 +361,31 @@ struct SkillSplitView: View {
               let identity = try? ProviderAliasIdentity(
                 provider: "clawdhub",
                 identifier: slug.value
-              ) else {
-            managedRemoteSkillID = nil
-            return
-        }
+              ) else { return }
         let provenance = try? await writer.providerProvenance(identity)
         guard remoteStore.selectedSkillID == selectedID else { return }
         managedRemoteSkillID = provenance?.skillID
     }
-
-    private func scheduleSkillsShSearch() {
-        searchTask?.cancel()
-        skillsShStore.cancel()
-        searchTask = Task {
-            await skillsShStore.search(query: searchText)
-        }
-    }
-
-    private func loadMoreSkillsShResults() {
-        searchTask?.cancel()
-        searchTask = Task {
-            await skillsShStore.loadNextPage()
-        }
-    }
-
 }
 
-private struct SkillSplitLifecycleModifier: ViewModifier {
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(SkillStore.self) private var store
-    @Environment(RemoteSkillStore.self) private var remoteStore
-    @Environment(SkillsShSearchStore.self) private var skillsShStore
-    @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
-    @Environment(SkillDistributionViewModel.self) private var distributionModel
-    @Environment(SkillUpdateCheckViewModel.self) private var updateCheckModel
-    @Environment(SkillBatchUpdateViewModel.self) private var batchUpdateModel
-    @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
-    @Environment(SkillConsistencyViewModel.self) private var consistencyModel
-    @Environment(LibraryRuntimeState.self) private var libraryRuntime
-
-    @Binding var source: SkillSource
-    @Binding var searchText: String
-    @Binding var searchTask: Task<Void, Never>?
-
-    func body(content: Content) -> some View {
-        content
-            .task {
-                await store.loadSkills()
-                await remoteStore.loadLatest()
-            }
-            .task {
-                await synchronizeDiscoveryRuntime()
-            }
-            .onChange(of: store.selectedSkillID) { _, _ in
-                Task { await store.loadSelectedSkill() }
-            }
-            .onChange(of: remoteStore.selectedSkillID) { _, _ in
-                Task { await remoteStore.loadSelectedSkill() }
-            }
-            .onChange(of: distributionSelectionKey) { _, _ in
-                Task { await refreshManagedSelection() }
-            }
-            .onChange(of: source) { _, newValue in
-                searchTask?.cancel()
-                searchTask = nil
-                skillsShStore.cancel()
-                if newValue == .local {
-                    Task { await store.loadSelectedSkill() }
-                }
-                scheduleRemoteSearch(for: newValue, query: searchText)
-            }
-            .onChange(of: distributionModel.publishedForkSelectionGeneration) { _, _ in
-                Task { await selectRequestedFork() }
-            }
-            .onChange(of: searchText) { _, newValue in
-                scheduleRemoteSearch(for: source, query: newValue)
-            }
-            .onChange(of: libraryRuntime.readiness) { _, _ in
-                Task { await synchronizeDiscoveryRuntime() }
-            }
-            .onChange(of: lifecycleModel.publishedMutationGeneration) { _, _ in
-                Task {
-                    await store.loadSkills()
-                    await discoveryModel.refresh()
-                    await refreshManagedSelection()
-                    await consistencyModel.refreshIfLoaded()
-                }
-            }
-            .onChange(of: scenePhase) { oldValue, newValue in
-                guard oldValue != .active,
-                      newValue == .active,
-                      libraryRuntime.readiness == .ready else {
-                    return
-                }
-                Task {
-                    await discoveryModel.refresh()
-                    await consistencyModel.refreshIfLoaded()
-                    await updateCheckModel.refreshCurrent()
-                }
-            }
+private extension Optional where Wrapped == UnifiedSkillSelection {
+    var managedID: Skill.ID? {
+        guard case .managed(let id) = self else { return nil }
+        return id
     }
 
-    private func synchronizeDiscoveryRuntime() async {
-        guard libraryRuntime.readiness == .ready else {
-            let message = libraryRuntime.blockingMessage
-            discoveryModel.blockRuntime(
-                message: message
-            )
-            distributionModel.blockRuntime(
-                message: message
-            )
-            lifecycleModel.blockRuntime(
-                message: message
-            )
-            consistencyModel.blockRuntime(
-                message: message
-            )
-            await updateCheckModel.blockRuntime(
-                message: message
-            )
-            batchUpdateModel.blockRuntime(message: message)
-            return
-        }
-        guard let writer = store.persistence else {
-            discoveryModel.blockRuntime(
-                message: "The managed library session is unavailable."
-            )
-            distributionModel.blockRuntime(
-                message: "The managed library session is unavailable."
-            )
-            lifecycleModel.blockRuntime(
-                message: "The managed library session is unavailable."
-            )
-            consistencyModel.blockRuntime(
-                message: "The managed library session is unavailable."
-            )
-            await updateCheckModel.blockRuntime(
-                message: "The managed library session is unavailable."
-            )
-            batchUpdateModel.blockRuntime(
-                message: "The managed library session is unavailable."
-            )
-            return
-        }
-        let needsInitialRefresh = discoveryModel.activate(
-            dependencies: .live(writer: writer),
-            roots: {
-                SkillDiscoveryRootPlan.make(
-                    homeURL: FileManager.default.homeDirectoryForCurrentUser,
-                    customPaths: store.customPaths
-                )
-            }
-        )
-        if needsInitialRefresh {
-            await discoveryModel.refresh()
-        }
-        distributionModel.activate(dependencies: .live(writer: writer))
-        lifecycleModel.activate(dependencies: .live(writer: writer))
-        consistencyModel.activate(dependencies: .live(writer: writer))
-        updateCheckModel.activate(writer: writer, remote: remoteStore.client)
-        batchUpdateModel.activate(writer: writer, remote: remoteStore.client)
-        await refreshManagedSelection()
-        await consistencyModel.refreshIfLoaded()
+    var discoveryID: SkillDiscoveryItemID? {
+        guard case .discovered(let id) = self else { return nil }
+        return id
     }
 
-    private func scheduleRemoteSearch(for source: SkillSource, query: String) {
-        guard source == .clawdhub || source == .skillsSh else { return }
-        searchTask?.cancel()
-        if source == .skillsSh {
-            skillsShStore.cancel()
-        }
-        searchTask = Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            switch source {
-            case .clawdhub:
-                await remoteStore.search(query: query)
-            case .skillsSh:
-                await skillsShStore.search(query: query)
-            case .local, .discovery:
-                break
-            }
-        }
+    var clawHubID: RemoteSkill.ID? {
+        guard case .clawHub(let id) = self else { return nil }
+        return id
     }
 
-    private func refreshManagedSelection() async {
-        let selection = managedSelection
-        await refreshManagedSkillSelection(
-            selection,
-            distributionModel: distributionModel,
-            lifecycleModel: lifecycleModel,
-            isCurrent: { selection == managedSelection }
-        )
-        guard selection == managedSelection else { return }
-        await updateCheckModel.refresh(skillID: selection?.skillID)
-    }
-
-    private func selectRequestedFork() async {
-        guard let childSkillID = distributionModel.requestedForkChildSkillID else {
-            return
-        }
-        await store.loadSkills()
-        await discoveryModel.refresh()
-        guard distributionModel.requestedForkChildSkillID == childSkillID else {
-            return
-        }
-        guard let item = discoveryModel.items.first(where: {
-            $0.observation.status == .managed
-                && $0.observation.matchedSkillID == childSkillID
-        }) else {
-            distributionModel.reportForkSelectionFailure(childSkillID)
-            return
-        }
-        source = .discovery
-        discoveryModel.selectedItemID = item.id
-        distributionModel.acknowledgeForkSelection(childSkillID)
-    }
-
-    private var distributionSelectionKey: String {
-        let selection = managedSelection
-        return [
-            source.rawValue,
-            store.selectedSkillID ?? "",
-            selection?.skillID.directoryName ?? "",
-            selection?.displayName ?? "",
-            String(discoveryModel.publishedRefreshGeneration),
-        ].joined(separator: "\u{0}")
-    }
-
-    private var managedSelection: ManagedSkillSelection? {
-        let local: ManagedSkillSelection?
-        if let skill = store.selectedSkill, skill.id == store.selectedSkillID {
-            local = ManagedSkillSelection(
-                skillID: skill.managedSkillID,
-                displayName: skill.displayName
-            )
-        } else {
-            local = nil
-        }
-
-        let discovery: ManagedSkillSelection?
-        if let observation = discoveryModel.selectedItem?.observation,
-           observation.status == .managed,
-           let skillID = observation.matchedSkillID {
-            discovery = ManagedSkillSelection(
-                skillID: skillID,
-                displayName: observation.relativeLocator
-            )
-        } else {
-            discovery = nil
-        }
-
-        return ManagedSkillSelection.resolve(
-            source: source,
-            local: local,
-            discovery: discovery
-        )
+    var skillsShID: SkillsShSearchResultID? {
+        guard case .skillsSh(let id) = self else { return nil }
+        return id
     }
 }

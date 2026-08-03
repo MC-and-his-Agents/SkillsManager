@@ -1,18 +1,6 @@
 struct ManagedSkillSelection: Equatable, Sendable {
     let skillID: SkillID
     let displayName: String
-
-    static func resolve(
-        source: SkillSource,
-        local: Self?,
-        discovery: Self?
-    ) -> Self? {
-        switch source {
-        case .local: local
-        case .discovery: discovery
-        case .clawdhub, .skillsSh: nil
-        }
-    }
 }
 
 @MainActor

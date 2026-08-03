@@ -53,10 +53,15 @@ import Observation
     private let fileWorker = SkillFileWorker()
     private let cliWorker = ClawdhubCLIWorker()
     private let customPathStore: CustomPathStore
+    private let markdownLoader: (@Sendable (URL) async throws -> String)?
     var persistence: JournaledSSOTWriter?
 
-    init(customPathStore: CustomPathStore = CustomPathStore()) {
+    init(
+        customPathStore: CustomPathStore = CustomPathStore(),
+        markdownLoader: (@Sendable (URL) async throws -> String)? = nil
+    ) {
         self.customPathStore = customPathStore
+        self.markdownLoader = markdownLoader
     }
 
     var customPaths: [CustomSkillPath] {
@@ -170,6 +175,7 @@ import Observation
             return
         }
 
+        let requestedSkillID = selectedSkill.id
         let skillURL = selectedSkill.skillMarkdownURL
 
         detailState = .loading
@@ -178,10 +184,16 @@ import Observation
         selectedReferenceMarkdown = ""
 
         do {
-            let raw = try await fileWorker.loadMarkdown(at: skillURL)
+            let raw = if let markdownLoader {
+                try await markdownLoader(skillURL)
+            } else {
+                try await fileWorker.loadMarkdown(at: skillURL)
+            }
+            guard selectedSkillID == requestedSkillID else { return }
             selectedMarkdown = stripFrontmatter(from: raw)
             detailState = .loaded
         } catch {
+            guard selectedSkillID == requestedSkillID else { return }
             detailState = .failed(error.localizedDescription)
             selectedMarkdown = ""
         }
