@@ -6,14 +6,25 @@ struct SidebarHeaderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Skill source", selection: $source) {
-                ForEach(SkillSource.allCases) { source in
-                    Text(source.rawValue).tag(source)
+            Picker("Skill area", selection: areaBinding) {
+                ForEach(SkillArea.allCases) { area in
+                    Text(area.rawValue).tag(area)
                 }
             }
-            .pickerStyle(.menu)
-            .accessibilityLabel("Skill source")
-            .accessibilityValue(source.rawValue)
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Skill area")
+            .accessibilityValue(source.area.rawValue)
+
+            Picker(source.area.sourcePickerLabel, selection: $source) {
+                ForEach(source.area.sources) { option in
+                    Text(option.navigationLabel).tag(option)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .accessibilityLabel(source.area.sourcePickerLabel)
+            .accessibilityValue(source.navigationLabel)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(source.sidebarTitle)
@@ -26,5 +37,12 @@ struct SidebarHeaderView: View {
         }
         .padding(.vertical, 6)
         .textCase(nil)
+    }
+
+    private var areaBinding: Binding<SkillArea> {
+        Binding(
+            get: { source.area },
+            set: { source = $0.defaultSource }
+        )
     }
 }
