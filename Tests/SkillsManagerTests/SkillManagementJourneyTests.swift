@@ -5,6 +5,25 @@ import Testing
 @Suite("Skill management journey")
 @MainActor
 struct SkillManagementJourneyTests {
+    @Test("navigation groups leaf routes without changing their behavior")
+    func navigationRoutes() {
+        #expect(SkillArea.allCases == [.local, .discovery])
+        #expect(SkillArea.local.sources == [.local, .discovery])
+        #expect(SkillArea.discovery.sources == [.clawdhub, .skillsSh])
+        #expect(SkillArea.local.defaultSource == .local)
+        #expect(SkillArea.discovery.defaultSource == .clawdhub)
+
+        #expect(SkillSource.local.area == .local)
+        #expect(SkillSource.discovery.area == .local)
+        #expect(SkillSource.clawdhub.area == .discovery)
+        #expect(SkillSource.skillsSh.area == .discovery)
+
+        #expect(SkillSource.local.navigationLabel == "Managed")
+        #expect(SkillSource.discovery.navigationLabel == "Discovered")
+        #expect(SkillSource.clawdhub.navigationLabel == "ClawHub")
+        #expect(SkillSource.skillsSh.navigationLabel == "skills.sh")
+    }
+
     @Test("management follows only the visible source")
     func visibleSourceSelection() {
         let local = ManagedSkillSelection(skillID: SkillID(), displayName: "Local")
@@ -22,6 +41,11 @@ struct SkillManagementJourneyTests {
         ) == discovery)
         #expect(ManagedSkillSelection.resolve(
             source: .clawdhub,
+            local: local,
+            discovery: discovery
+        ) == nil)
+        #expect(ManagedSkillSelection.resolve(
+            source: .skillsSh,
             local: local,
             discovery: discovery
         ) == nil)
