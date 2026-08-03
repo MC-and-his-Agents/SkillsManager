@@ -19,6 +19,8 @@ struct RemoteSkillRowView: View {
             }
 
             HStack(spacing: 6) {
+                TagView(text: "ClawHub")
+
                 if let version = skill.latestVersion {
                     TagView(text: "v\(version)")
                 }

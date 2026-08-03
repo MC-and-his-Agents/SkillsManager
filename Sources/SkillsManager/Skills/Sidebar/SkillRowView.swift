@@ -30,6 +30,8 @@ struct SkillRowView: View {
                 .lineLimit(2)
 
             HStack(spacing: 6) {
+                TagView(text: "Managed")
+
                 ForEach(SkillPlatform.allCases) { platform in
                     if installedPlatforms.contains(platform) {
                         TagView(text: platform.rawValue, tint: platform.badgeTint)
