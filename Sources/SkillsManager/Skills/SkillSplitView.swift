@@ -12,6 +12,7 @@ struct SkillSplitView: View {
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
 
     @State private var searchText = ""
+    @State private var filters = SkillListFilters()
     @State private var selection: UnifiedSkillSelection?
     @State private var searchTask: Task<Void, Never>?
     @State private var showingImport = false
@@ -30,10 +31,12 @@ struct SkillSplitView: View {
     }
 
     private var filteredSkills: [Skill] {
-        guard !query.isEmpty else { return store.skills }
-        return store.skills.filter { skill in
-            skill.displayName.localizedCaseInsensitiveContains(query)
-                || skill.description.localizedCaseInsensitiveContains(query)
+        store.skills.filter { skill in
+            filters.includesManaged(skill) && (
+                query.isEmpty
+                    || skill.displayName.localizedCaseInsensitiveContains(query)
+                    || skill.description.localizedCaseInsensitiveContains(query)
+            )
         }
     }
 
@@ -42,14 +45,16 @@ struct SkillSplitView: View {
             discoveryModel.items,
             managedSkillIDs: Set(store.skills.map(\.managedSkillID))
         )
-        guard !query.isEmpty else { return canonical }
         return canonical.filter { item in
             let observation = item.observation
-            return observation.relativeLocator.localizedCaseInsensitiveContains(query)
-                || observation.scopeSummary.localizedCaseInsensitiveContains(query)
-                || observation.displayURLs.contains {
-                    $0.path.localizedCaseInsensitiveContains(query)
-                }
+            return filters.includesDiscovery(observation) && (
+                query.isEmpty
+                    || observation.relativeLocator.localizedCaseInsensitiveContains(query)
+                    || observation.scopeSummary.localizedCaseInsensitiveContains(query)
+                    || observation.displayURLs.contains {
+                        $0.path.localizedCaseInsensitiveContains(query)
+                    }
+            )
         }
     }
 
@@ -59,16 +64,22 @@ struct SkillSplitView: View {
             UnifiedSkillSelection.discovered($0.id)
         })
         if query.isEmpty {
-            values.formUnion(visibleRemoteSkillSelections(
-                clawHubSkills: remoteStore.latestSkills,
-                clawHubLoaded: remoteStore.latestState == .loaded
-            ))
+            if filters.includesRemote(.clawHub) {
+                values.formUnion(visibleRemoteSkillSelections(
+                    clawHubSkills: remoteStore.latestSkills,
+                    clawHubLoaded: remoteStore.latestState == .loaded
+                ))
+            }
         } else {
             values.formUnion(visibleRemoteSkillSelections(
-                clawHubSkills: remoteStore.searchResults,
-                clawHubLoaded: remoteStore.searchState == .loaded,
-                skillsShItems: skillsShStore.items,
-                skillsShLoaded: skillsShStore.searchState == .loaded
+                clawHubSkills: filters.includesRemote(.clawHub)
+                    ? remoteStore.searchResults : [],
+                clawHubLoaded: filters.includesRemote(.clawHub)
+                    && remoteStore.searchState == .loaded,
+                skillsShItems: filters.includesRemote(.skillsSh)
+                    ? skillsShStore.items : [],
+                skillsShLoaded: filters.includesRemote(.skillsSh)
+                    && skillsShStore.searchState == .loaded
             ))
         }
         return values
@@ -80,6 +91,7 @@ struct SkillSplitView: View {
                 localSkills: filteredSkills,
                 discoveryItems: filteredDiscoveryItems,
                 query: query,
+                filters: $filters,
                 installedSkillPlatforms: store.installedSkillPlatformIndex,
                 onInstallRemoteSkill: presentRemoteInstallSheet,
                 selection: $selection
@@ -127,7 +139,15 @@ struct SkillSplitView: View {
             await refreshManagedRemoteSkill()
         }
         .onChange(of: selection) { _, newValue in
-            applySelection(newValue)
+            let visibleValue = reconciledSkillSelection(
+                newValue,
+                visibleSelections: visibleSelections
+            )
+            guard visibleValue == newValue else {
+                selection = visibleValue
+                return
+            }
+            applySelection(visibleValue)
         }
         .onChange(of: visibleSelections) { _, visible in
             selection = reconciledSkillSelection(selection, visibleSelections: visible)

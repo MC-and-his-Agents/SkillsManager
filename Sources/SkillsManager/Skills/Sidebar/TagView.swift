@@ -2,15 +2,23 @@ import SwiftUI
 
 struct TagView: View {
     let text: String
+    let systemImage: String?
     let tint: Color?
 
-    init(text: String, tint: Color? = nil) {
+    init(text: String, systemImage: String? = nil, tint: Color? = nil) {
         self.text = text
+        self.systemImage = systemImage
         self.tint = tint
     }
 
     var body: some View {
-        Text(text)
+        Group {
+            if let systemImage {
+                Label(text, systemImage: systemImage)
+            } else {
+                Text(text)
+            }
+        }
             .font(.caption2)
             .foregroundStyle(tint ?? .secondary)
             .padding(.horizontal, 6)

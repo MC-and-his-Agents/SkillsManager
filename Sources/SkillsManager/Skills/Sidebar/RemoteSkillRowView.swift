@@ -19,7 +19,8 @@ struct RemoteSkillRowView: View {
             }
 
             HStack(spacing: 6) {
-                TagView(text: "ClawHub")
+                TagView(text: "Available", systemImage: "arrow.down.circle")
+                TagView(text: "ClawHub", systemImage: "sparkles")
 
                 if let version = skill.latestVersion {
                     TagView(text: "v\(version)")

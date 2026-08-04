@@ -54,6 +54,10 @@ struct SkillStoreSelectionTests {
             description: "",
             managedStatus: .managed,
             identitySummary: "On This Mac",
+            listOrigin: SkillListOriginProjection(
+                hasRepositorySource: false,
+                providers: []
+            ),
             clawdhubSlug: nil,
             clawdhubVersion: nil,
             enabledPlatforms: [],
