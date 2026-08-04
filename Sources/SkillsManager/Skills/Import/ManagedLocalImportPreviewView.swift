@@ -17,7 +17,7 @@ struct ManagedLocalImportPreviewView: View {
                 .foregroundStyle(.secondary)
 
             if let source = preview.source {
-                sourceDetails(source)
+                sourceDetails(source, slug: preview.distributionSlug)
             }
 
             if preview.disposition == .alreadyManaged {
@@ -56,12 +56,16 @@ struct ManagedLocalImportPreviewView: View {
         }
     }
 
-    private func sourceDetails(_ source: ManagedInstallSourcePreview) -> some View {
+    private func sourceDetails(
+        _ source: ManagedInstallSourcePreview,
+        slug: DefaultDistributionSlug
+    ) -> some View {
         GroupBox("Verified source") {
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                 sourceRow("Repository", source.repositoryURL.value)
                 sourceRow("Subpath", source.subpath.value)
                 sourceRow("Revision", source.revision.value)
+                sourceRow("Target slug", slug.value)
                 sourceRow("Archive", source.downloadURL.value)
                 sourceRow(
                     "Provider alias",

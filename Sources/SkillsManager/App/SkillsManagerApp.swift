@@ -21,6 +21,7 @@ struct SkillsManagerApp: App {
     @State private var libraryRuntime = LibraryRuntimeState()
     @State private var remoteStore = RemoteSkillStore(client: .live())
     @State private var skillsShStore = SkillsShSearchStore(client: .live())
+    @State private var customRepositoryModel = CustomRepositoryViewModel()
     @State private var runtimeBootstrap = AppLibraryRuntimeBootstrap()
     private let startupCoordinator = LibraryStartupCoordinator()
 
@@ -43,6 +44,7 @@ struct SkillsManagerApp: App {
                 .environment(store)
                 .environment(remoteStore)
                 .environment(skillsShStore)
+                .environment(customRepositoryModel)
                 .environment(customPathStore)
                 .environment(discoveryModel)
                 .environment(discoveryBatchModel)

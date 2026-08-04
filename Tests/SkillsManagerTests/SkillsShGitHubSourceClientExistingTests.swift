@@ -153,6 +153,106 @@ struct SkillsShGitHubSourceClientExistingTests {
         }
     }
 
+    @Test("resolves a custom repository snapshot only through its immutable commit")
+    func resolveCustomRepositorySnapshot() async throws {
+        let recorder = ExistingSourceRequestRecorder()
+        let source = try await customClient(tree: validTree(), recorder: recorder)
+            .resolveCustomRepository(try snapshot(subpath: "skills/demo"))
+        let repositoryURL = try NormalizedRepositoryURL("https://github.com/owner/repo")
+        let subpath = try RepositorySubpath("skills/demo")
+
+        #expect(source.repositoryURL == repositoryURL)
+        #expect(source.commitSHA == commitSHA)
+        #expect(source.defaultBranch == commitSHA)
+        #expect(source.subpath == subpath)
+        #expect(source.blobs.map(\.relativePath) == ["SKILL.md", "notes/readme.md"])
+        #expect(source.archiveURL.absoluteString ==
+            "https://api.github.com/repos/owner/repo/zipball/\(commitSHA)")
+        #expect(await recorder.values.map { $0.url?.absoluteString } == [
+            "https://api.github.com/repos/owner/repo/commits/\(commitSHA)",
+            "https://api.github.com/repos/owner/repo/git/trees/\(treeSHA)?recursive=1",
+        ])
+    }
+
+    @Test("resolves an exact repository-root snapshot")
+    func resolveCustomRepositoryRoot() async throws {
+        let source = try await customClient(tree: [
+            existingTreeEntry("SKILL.md", size: 12, sha: blobSHA),
+            existingTreeEntry("README.md", size: 3),
+        ]).resolveCustomRepository(try snapshot(subpath: ""))
+
+        #expect(source.subpath.value.isEmpty)
+        #expect(source.blobs.map(\.relativePath) == ["README.md", "SKILL.md"])
+    }
+
+    @Test("fails closed when immutable identity or exact target changes")
+    func customRepositorySnapshotDrift() async throws {
+        let mismatchedCommit = SkillsShGitHubSourceClient.live { request, _ in
+            let url = try #require(request.url)
+            return (
+                Data(
+                    #"{"commit":{"tree":{"sha":"\#(treeSHA)"}},"sha":"\#(String(repeating: "f", count: 40))"}"#.utf8
+                ),
+                try existingResponse(url)
+            )
+        }
+        await #expect(throws: SkillsShGitHubSourceError.contractChanged) {
+            _ = try await mismatchedCommit.resolveCustomRepository(
+                try snapshot(subpath: "skills/demo")
+            )
+        }
+
+        await #expect(throws: SkillsShGitHubSourceError.noUniqueSkillMatch) {
+            _ = try await customClient(tree: validTree()).resolveCustomRepository(
+                try snapshot(subpath: "skills/missing")
+            )
+        }
+
+        var ambiguous = validTree()
+        ambiguous.append(existingTreeEntry("skills/demo/skill.md"))
+        await #expect(throws: SkillsShGitHubSourceError.contractChanged) {
+            _ = try await customClient(tree: ambiguous).resolveCustomRepository(
+                try snapshot(subpath: "skills/demo")
+            )
+        }
+    }
+
+    @Test("validates custom snapshot before networking and preserves typed failures")
+    func customRepositoryFailures() async throws {
+        let noNetwork = SkillsShGitHubSourceClient.live { _, _ in
+            Issue.record("network loader must not be called")
+            throw URLError(.badServerResponse)
+        }
+        var invalid = try snapshot(subpath: "skills/demo")
+        invalid = CustomRepositoryInstallSnapshot(
+            repositoryID: invalid.repositoryID,
+            databaseRevision: invalid.databaseRevision,
+            repositoryURL: invalid.repositoryURL,
+            requestedRef: invalid.requestedRef,
+            commitSHA: "main",
+            subpath: invalid.subpath
+        )
+        await #expect(throws: SkillsShGitHubSourceError.invalidSource) {
+            _ = try await noNetwork.resolveCustomRepository(invalid)
+        }
+
+        let timeout = SkillsShGitHubSourceClient.live { _, _ in throw URLError(.timedOut) }
+        await #expect(throws: SkillsShGitHubSourceError.timeout) {
+            _ = try await timeout.resolveCustomRepository(try snapshot(subpath: "skills/demo"))
+        }
+
+        let task = Task {
+            try await SkillsShGitHubSourceClient.live { _, _ in
+                try await Task.sleep(for: .seconds(1))
+                throw URLError(.badServerResponse)
+            }.resolveCustomRepository(try snapshot(subpath: "skills/demo"))
+        }
+        task.cancel()
+        await #expect(throws: SkillsShGitHubSourceError.cancelled) {
+            _ = try await task.value
+        }
+    }
+
     private func client(
         tree: [[String: Any]],
         recorder: ExistingSourceRequestRecorder? = nil
@@ -178,6 +278,37 @@ struct SkillsShGitHubSourceClientExistingTests {
             }
             return (data, try existingResponse(url))
         }
+    }
+
+    private func customClient(
+        tree: [[String: Any]],
+        recorder: ExistingSourceRequestRecorder? = nil
+    ) -> SkillsShGitHubSourceClient {
+        let treeData = (try? JSONSerialization.data(
+            withJSONObject: ["sha": treeSHA, "tree": tree, "truncated": false],
+            options: [.sortedKeys]
+        )) ?? Data()
+        return SkillsShGitHubSourceClient.live { request, _ in
+            if let recorder { await recorder.append(request) }
+            let url = try #require(request.url)
+            let data = url.path.contains("/commits/")
+                ? Data(
+                    #"{"commit":{"tree":{"sha":"\#(treeSHA)"}},"sha":"\#(commitSHA)"}"#.utf8
+                )
+                : treeData
+            return (data, try existingResponse(url))
+        }
+    }
+
+    private func snapshot(subpath: String) throws -> CustomRepositoryInstallSnapshot {
+        CustomRepositoryInstallSnapshot(
+            repositoryID: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+            databaseRevision: 4,
+            repositoryURL: try NormalizedRepositoryURL("https://github.com/owner/repo"),
+            requestedRef: try .explicit(validating: "release/v1"),
+            commitSHA: commitSHA,
+            subpath: try RepositorySubpath(subpath)
+        )
     }
 
     private func validTree() -> [[String: Any]] {

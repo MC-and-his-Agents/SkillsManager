@@ -3,6 +3,7 @@ import Foundation
 nonisolated enum UnifiedSkillSelection: Hashable, Sendable {
     case managed(Skill.ID)
     case discovered(SkillDiscoveryItemID)
+    case repository(CustomRepositoryCandidateID)
     case clawHub(RemoteSkill.ID)
     case skillsSh(SkillsShSearchResultID)
 }
