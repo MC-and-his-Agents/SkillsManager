@@ -16,22 +16,22 @@ struct SkillDatabaseSchemaTests {
             #expect(try connection.querySingleInt("PRAGMA foreign_keys") == 1)
             #expect(try connection.querySingleInt("PRAGMA busy_timeout") == 5_000)
             #expect(try connection.querySingleInt("PRAGMA synchronous") == 2)
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 14)
-            #expect(try connection.userTableNames() == SkillSchemaV14.tableNames)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 15)
+            #expect(try connection.userTableNames() == SkillSchemaV15.tableNames)
 
             let strictCount = try connection.querySingleInt(
                 "SELECT count(*) FROM pragma_table_list "
                     + "WHERE schema = 'main' AND name NOT LIKE 'sqlite_%' "
                     + "AND strict = 1"
             )
-            #expect(strictCount == Int64(SkillSchemaV14.tableNames.count))
+            #expect(strictCount == Int64(SkillSchemaV15.tableNames.count))
         }
 
         let reopened = try SkillSchemaMigrator.open(at: location.database)
-        #expect(try reopened.querySingleInt("PRAGMA user_version") == 14)
+        #expect(try reopened.querySingleInt("PRAGMA user_version") == 15)
         #expect(try reopened.querySingleInt(
             "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-        ) == 14)
+        ) == 15)
     }
 
     @Test("rolls v0 back when the v1 stage fails")
@@ -68,8 +68,8 @@ struct SkillDatabaseSchemaTests {
         #expect(try rolledBack.userTableNames().isEmpty)
 
         let migrated = try SkillSchemaMigrator.open(at: location.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 14)
-        #expect(try migrated.userTableNames() == SkillSchemaV14.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 15)
+        #expect(try migrated.userTableNames() == SkillSchemaV15.tableNames)
     }
 
     @Test("rechecks v0 after obtaining the migration write lock")
@@ -88,9 +88,9 @@ struct SkillDatabaseSchemaTests {
         })
 
         #expect(checkpointRan)
-        #expect(try first.querySingleInt("PRAGMA user_version") == 14)
-        #expect(try second.querySingleInt("PRAGMA user_version") == 14)
-        #expect(try second.userTableNames() == SkillSchemaV14.tableNames)
+        #expect(try first.querySingleInt("PRAGMA user_version") == 15)
+        #expect(try second.querySingleInt("PRAGMA user_version") == 15)
+        #expect(try second.userTableNames() == SkillSchemaV15.tableNames)
     }
 
     @Test("clears bindings even when reset reports a failed step")
@@ -146,7 +146,7 @@ struct SkillDatabaseSchemaTests {
         defer { try? FileManager.default.removeItem(at: future.root) }
         let futureConnection = try SkillSchemaMigrator.open(at: future.database)
         try futureConnection.execute(
-            "PRAGMA user_version = \(SkillSchemaV14.version + 1)"
+            "PRAGMA user_version = \(SkillSchemaV15.version + 1)"
         )
         #expect(throws: SQLiteStoreError.self) {
             _ = try SkillSchemaMigrator.open(at: future.database)

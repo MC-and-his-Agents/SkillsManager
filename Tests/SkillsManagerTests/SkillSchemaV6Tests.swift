@@ -13,11 +13,11 @@ struct SkillSchemaV6Tests {
             try createV6MigrationFixture(version: version, at: location.database)
 
             let migrated = try SkillSchemaMigrator.open(at: location.database)
-            #expect(try migrated.querySingleInt("PRAGMA user_version") == 14)
+            #expect(try migrated.querySingleInt("PRAGMA user_version") == 15)
             #expect(try migrated.querySingleInt(
                 "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-            ) == 14)
-            #expect(try migrated.userTableNames() == SkillSchemaV14.tableNames)
+            ) == 15)
+            #expect(try migrated.userTableNames() == SkillSchemaV15.tableNames)
         }
     }
 
@@ -63,8 +63,8 @@ struct SkillSchemaV6Tests {
             accessMode: .readOnly
         )
         #expect(reader.accessMode == .readOnly)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == 14)
-        #expect(try reader.userTableNames() == SkillSchemaV14.tableNames)
+        #expect(try reader.querySingleInt("PRAGMA user_version") == 15)
+        #expect(try reader.userTableNames() == SkillSchemaV15.tableNames)
     }
 
     @Test("distribution binding constraints fail closed")
@@ -267,6 +267,7 @@ private func v6SQLIsRejected(_ connection: SQLiteConnection, _ sql: String) -> B
 }
 
 func removeV6ObjectsForLegacyFixture(_ connection: SQLiteConnection) throws {
+    try connection.execute("DROP TABLE repository_catalog")
     try connection.execute("DROP TABLE skill_update_checks")
     try connection.execute("DROP TABLE managed_publish_states")
     try connection.execute("DROP TABLE provider_provenance")

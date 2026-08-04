@@ -74,6 +74,12 @@ extension ManagedInstallService {
         if let aliasOwner, aliasOwner.sourceID != source.sourceID {
             throw ManagedLocalImportProblem.providerAliasConflict
         }
+        if input.alias.provider == "github",
+           payload.providerAliases.contains(where: {
+               $0.identity.provider == "github" && $0.identity != input.alias
+           }) {
+            throw ManagedLocalImportProblem.providerAliasConflict
+        }
         let hasAlias = payload.providerAliases.contains { $0.identity == input.alias }
         guard hasAlias
                 || payload.providerAliases.count

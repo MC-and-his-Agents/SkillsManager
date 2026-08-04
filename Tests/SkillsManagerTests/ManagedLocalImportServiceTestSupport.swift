@@ -9,6 +9,7 @@ actor ManagedLocalImportProbe {
         case none
         case generic
         case permission
+        case cancelled
     }
 
     enum ReplaceFailure: Equatable {
@@ -208,6 +209,8 @@ actor ManagedLocalImportProbe {
             throw ManagedLocalImportProblem.failed("injected create failure")
         case .permission:
             throw ManagedPathError.posix(operation: "create", code: EACCES)
+        case .cancelled:
+            throw CancellationError()
         }
         return try importJournalRecord(
             payload: payload,

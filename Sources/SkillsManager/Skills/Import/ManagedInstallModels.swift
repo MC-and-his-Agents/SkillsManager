@@ -258,6 +258,29 @@ nonisolated struct ManagedSourceInstallInput: Sendable {
     let downloadURL: PublicDownloadURL
     let alias: ProviderAliasIdentity
     let refreshHead: @Sendable () async throws -> SourceRevision
+    let finalAdmission: @Sendable () async throws -> Void
+
+    init(
+        displayName: String,
+        distributionSlug: DefaultDistributionSlug,
+        repositoryURL: NormalizedRepositoryURL,
+        subpath: RepositorySubpath,
+        revision: SourceRevision,
+        downloadURL: PublicDownloadURL,
+        alias: ProviderAliasIdentity,
+        refreshHead: @escaping @Sendable () async throws -> SourceRevision,
+        finalAdmission: @escaping @Sendable () async throws -> Void = {}
+    ) {
+        self.displayName = displayName
+        self.distributionSlug = distributionSlug
+        self.repositoryURL = repositoryURL
+        self.subpath = subpath
+        self.revision = revision
+        self.downloadURL = downloadURL
+        self.alias = alias
+        self.refreshHead = refreshHead
+        self.finalAdmission = finalAdmission
+    }
 
     var preview: ManagedInstallSourcePreview {
         ManagedInstallSourcePreview(
