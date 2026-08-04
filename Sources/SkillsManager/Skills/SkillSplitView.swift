@@ -6,6 +6,7 @@ struct SkillSplitView: View {
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillsShSearchStore.self) private var skillsShStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
+    @Environment(SkillDiscoveryBatchViewModel.self) private var discoveryBatchModel
     @Environment(SkillBatchUpdateViewModel.self) private var batchUpdateModel
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
     @Environment(SkillConsistencyViewModel.self) private var consistencyModel
@@ -20,6 +21,7 @@ struct SkillSplitView: View {
     @State private var showingBackups = false
     @State private var showingConsistency = false
     @State private var showingBatchUpdates = false
+    @State private var showingDiscoveryBatch = false
     @State private var downloadErrorMessage: String?
     @State private var isDownloadingRemote = false
     @State private var didDownloadRemote = false
@@ -125,6 +127,10 @@ struct SkillSplitView: View {
         .sheet(isPresented: $showingBatchUpdates) {
             SkillBatchUpdateView().environment(batchUpdateModel)
         }
+        .sheet(isPresented: $showingDiscoveryBatch) {
+            SkillDiscoveryBatchView()
+                .environment(discoveryBatchModel)
+        }
         .sheet(item: $installSkill) { skill in
             ManagedClawdhubInstallView(
                 skill: skill,
@@ -208,6 +214,20 @@ struct SkillSplitView: View {
 
     @ToolbarContentBuilder
     private func toolbarContent() -> some CustomizableToolbarContent {
+        if canBatchImport {
+            ToolbarItem(id: "batch-discovery") {
+                Button {
+                    presentBatchImport()
+                } label: {
+                    Label("Batch Import", systemImage: "tray.and.arrow.down")
+                }
+                .labelStyle(.iconOnly)
+                .help("Batch Import discovered Skills")
+                .accessibilityLabel("Batch Import discovered Skills")
+                .accessibilityValue("\(batchCandidateCount) candidates available")
+            }
+        }
+
         if isLocalSelection || selection == nil {
             ToolbarItem(id: "consistency") {
                 Button {
@@ -308,6 +328,25 @@ struct SkillSplitView: View {
         store.skills.isEmpty
             || libraryRuntime.readiness != .ready
             || batchUpdateModel.operationActive
+    }
+
+    private var batchCandidateCount: Int {
+        SkillDiscoveryBatchCandidate.canonicalCandidates(from: discoveryModel.items)
+            .count(where: \.isSelectable)
+    }
+
+    private var canBatchImport: Bool {
+        libraryRuntime.readiness == .ready
+            && batchCandidateCount > 0
+            && !discoveryBatchModel.isExecuting
+    }
+
+    private func presentBatchImport() {
+        discoveryBatchModel.configure(
+            items: discoveryModel.items,
+            generation: discoveryModel.publishedRefreshGeneration
+        )
+        showingDiscoveryBatch = true
     }
 
     private var batchUpdateHelp: String {

@@ -6,6 +6,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillsShSearchStore.self) private var skillsShStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
+    @Environment(SkillDiscoveryBatchViewModel.self) private var discoveryBatchModel
     @Environment(SkillDistributionViewModel.self) private var distributionModel
     @Environment(SkillUpdateCheckViewModel.self) private var updateCheckModel
     @Environment(SkillBatchUpdateViewModel.self) private var batchUpdateModel
@@ -42,6 +43,9 @@ struct SkillSplitLifecycleModifier: ViewModifier {
             }
             .onChange(of: discoveryModel.selectedItemID) { _, newValue in
                 synchronizeDiscoverySelection(newValue)
+            }
+            .onChange(of: discoveryModel.publishedRefreshGeneration) { _, generation in
+                discoveryBatchModel.invalidate(generation: generation)
             }
             .onChange(of: skillsShStore.selectedResultID) { _, newValue in
                 synchronizeSkillsShSelection(newValue)
@@ -94,6 +98,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
             }
         )
         if needsInitialRefresh { await discoveryModel.refresh() }
+        discoveryBatchModel.activate(dependencies: .live(writer: writer))
         distributionModel.activate(dependencies: .live(writer: writer))
         lifecycleModel.activate(dependencies: .live(writer: writer))
         consistencyModel.activate(dependencies: .live(writer: writer))
@@ -105,6 +110,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
 
     private func blockRuntime(message: String) async {
         discoveryModel.blockRuntime(message: message)
+        discoveryBatchModel.blockRuntime(message: message)
         distributionModel.blockRuntime(message: message)
         lifecycleModel.blockRuntime(message: message)
         consistencyModel.blockRuntime(message: message)
