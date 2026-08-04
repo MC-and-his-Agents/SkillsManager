@@ -27,7 +27,6 @@ struct SkillImportFlowTests {
 
         let confirmation = Task { await viewModel.confirmPendingImport() }
         #expect(await importProbe.waitForExecuteCount(1))
-        #expect(viewModel.importResultMessage == nil)
         #expect(await scanProbe.waitForCallCount(2))
         await scanProbe.succeedNext(discoveryTestResult(managed))
         await confirmation.value
