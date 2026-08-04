@@ -68,4 +68,13 @@ nonisolated struct TemporaryItemLease: Sendable {
             return
         }
     }
+
+    func verifyCurrent() throws {
+        let verifiedParent = try parentRoot.verifiedRoot()
+        let guardrail = try ManagedPathGuard(rootURL: verifiedParent.url)
+        try guardrail.verifyRootIdentity(expected: verifiedParent.identity)
+        guard try guardrail.itemIdentity(at: url) == identity else {
+            throw ManagedPathError.itemChanged
+        }
+    }
 }
