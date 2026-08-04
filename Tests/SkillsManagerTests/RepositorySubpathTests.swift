@@ -13,8 +13,8 @@ struct RepositorySubpathTests {
 
     @Test("rejects ambiguous and encoded paths")
     func rejection() {
-        for value in ["/skills", "skills/", "a//b", "a/../b", "a\\b", "a%2Fb", "a\0b"] {
-            #expect(throws: RepositorySubpathError.self) {
+        for value in ["/skills", "skills/", "a//b", "a/../b", "a\\b", "a%2Fb", "x/%2E%2E/y", "a\0b"] {
+            #expect(throws: RepositorySubpathError.invalidPath) {
                 try RepositorySubpath(value)
             }
         }
