@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 nonisolated enum SourceMetadataError: Error, Equatable {
@@ -29,6 +30,21 @@ nonisolated struct ProviderAliasIdentity: Hashable, Sendable {
         }
         self.provider = provider
         self.identifier = identifier
+    }
+}
+
+nonisolated extension ProviderAliasIdentity {
+    static func github(
+        repositoryURL: NormalizedRepositoryURL,
+        subpath: RepositorySubpath
+    ) throws -> ProviderAliasIdentity {
+        var bytes = Data("skillsmanager-github-alias-v1".utf8)
+        bytes.append(0)
+        bytes.append(contentsOf: repositoryURL.value.utf8)
+        bytes.append(0)
+        bytes.append(contentsOf: subpath.value.utf8)
+        let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        return try ProviderAliasIdentity(provider: "github", identifier: "v1:\(digest)")
     }
 }
 

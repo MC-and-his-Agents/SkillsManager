@@ -102,9 +102,12 @@ nonisolated extension SkillsShGitHubContract {
         in entries: [TreeEntry],
         subpath: RepositorySubpath
     ) throws -> [SkillsShGitHubBlob] {
-        let targetComponents = try pathComponents(subpath.value)
+        let targetComponents = subpath.value.isEmpty
+            ? [] : try pathComponents(subpath.value)
         let targetKey = targetComponents.map(SkillContentPath.collisionKey).joined(separator: "/")
-        let skillPathKey = targetKey + "/" + SkillContentPath.collisionKey(for: "SKILL.md")
+        let skillPathKey = targetKey.isEmpty
+            ? SkillContentPath.collisionKey(for: "SKILL.md")
+            : targetKey + "/" + SkillContentPath.collisionKey(for: "SKILL.md")
         let matches = entries.filter {
             $0.type == "blob"
                 && ($0.mode == "100644" || $0.mode == "100755")
@@ -116,15 +119,15 @@ nonisolated extension SkillsShGitHubContract {
         }
         let actualTargetComponents = Array(matches[0].components.dropLast())
         let actualTargetPath = actualTargetComponents.joined(separator: "/")
-        guard entries.contains(where: {
+        guard actualTargetPath.isEmpty || entries.contains(where: {
             $0.path == actualTargetPath && $0.type == "tree" && $0.mode == "040000"
         }) else {
             throw SkillsShGitHubSourceError.contractChanged
         }
 
         var blobs: [SkillsShGitHubBlob] = []
-        for entry in entries
-            where entry.path.hasPrefix(actualTargetPath + "/") {
+        for entry in entries where actualTargetPath.isEmpty
+            || entry.path.hasPrefix(actualTargetPath + "/") {
             if entry.type == "tree", entry.mode == "040000" { continue }
             guard entry.type == "blob",
                   entry.mode == "100644" || entry.mode == "100755",

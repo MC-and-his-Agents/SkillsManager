@@ -91,11 +91,15 @@ nonisolated struct SkillsShGitHubSourceClient: Sendable {
     var currentCommitSHA: @Sendable (
         _ source: SkillsShResolvedGitHubSource
     ) async throws -> String
+    var discoverRepository: @Sendable (
+        _ catalog: CustomRepositoryCatalogRecord
+    ) async throws -> CustomRepositoryDiscovery
 
     static func live(
         load: @escaping DataLoader = SkillsShGitHubHTTPTransport.load
     ) -> SkillsShGitHubSourceClient {
-        SkillsShGitHubSourceClient(
+        let discovery = CustomRepositoryDiscoveryResolver(load: load)
+        return SkillsShGitHubSourceClient(
             resolve: { id, source, skillID in
                 do {
                     let input = try SkillsShGitHubContract.input(
@@ -196,6 +200,9 @@ nonisolated struct SkillsShGitHubSourceClient: Sendable {
                 } catch {
                     throw SkillsShGitHubContract.stable(error)
                 }
+            },
+            discoverRepository: { catalog in
+                try await discovery.resolve(catalog)
             }
         )
     }

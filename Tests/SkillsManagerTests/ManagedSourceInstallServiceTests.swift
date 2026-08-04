@@ -196,6 +196,119 @@ struct ManagedSourceInstallServiceTests {
         }
     }
 
+    @Test("final catalog admission expires before the Writer handoff")
+    func finalCatalogAdmission() async throws {
+        try await withImportCandidate { candidate in
+            let state = try SourceInstallReadbackState(revision: "abc123")
+            let probe = ManagedLocalImportProbe()
+            let service = ManagedInstallService(
+                dependencies: sourceDependencies(probe, state: state)
+            )
+            let input = try sourceInput(
+                state: state,
+                revision: "abc123",
+                finalAdmission: { throw CustomRepositoryDiscoveryError.staleCatalog }
+            )
+            let preview = try await service.prepareSourceBacked(
+                candidate: candidate,
+                sourceInput: input,
+                scope: .global
+            )
+
+            await #expect(throws: ManagedLocalImportProblem.previewExpired) {
+                _ = try await service.execute(preview.token)
+            }
+            #expect(await probe.createCount == 0)
+            #expect(await probe.replaceCount == 0)
+        }
+    }
+
+    @Test("final catalog admission also blocks a source update")
+    func finalCatalogAdmissionBeforeUpdate() async throws {
+        try await withImportCandidate { candidate in
+            let existing = try sourcePayload(
+                candidate: candidate,
+                revision: "old",
+                aliases: [try sourceAlias("example/repository:old")]
+            )
+            let state = try SourceInstallReadbackState(
+                revision: "new",
+                domain: StoredSkillDomainSnapshot(payload: existing, revision: 1)
+            )
+            let probe = ManagedLocalImportProbe(existingPayload: existing)
+            let service = ManagedInstallService(
+                dependencies: sourceDependencies(probe, state: state)
+            )
+            let preview = try await service.prepareSourceBacked(
+                candidate: candidate,
+                sourceInput: sourceInput(
+                    state: state,
+                    revision: "new",
+                    alias: sourceAlias("example/repository:new"),
+                    finalAdmission: { throw CustomRepositoryDiscoveryError.staleCatalog }
+                ),
+                scope: .global
+            )
+
+            await #expect(throws: ManagedLocalImportProblem.previewExpired) {
+                _ = try await service.execute(preview.token)
+            }
+            #expect(await probe.createCount == 0)
+            #expect(await probe.replaceCount == 0)
+        }
+    }
+
+    @Test("Writer-side cancellation uses journal readback")
+    func writerCancellationReadback() async throws {
+        try await withImportCandidate { candidate in
+            let state = try SourceInstallReadbackState(revision: "abc123")
+            let probe = ManagedLocalImportProbe(createFailure: .cancelled)
+            let service = ManagedInstallService(
+                dependencies: sourceDependencies(probe, state: state)
+            )
+            let preview = try await service.prepareSourceBacked(
+                candidate: candidate,
+                sourceInput: sourceInput(state: state, revision: "abc123"),
+                scope: .global
+            )
+
+            let result = try await service.execute(preview.token)
+            #expect(result.status == .distributed)
+            #expect(await probe.createCount == 1)
+        }
+    }
+
+    @Test("a source cannot acquire a second incompatible GitHub alias")
+    func incompatibleGitHubAlias() async throws {
+        try await withImportCandidate { candidate in
+            let oldAlias = try ProviderAliasIdentity(provider: "github", identifier: "v1:old")
+            let newAlias = try ProviderAliasIdentity(provider: "github", identifier: "v1:new")
+            let existing = try sourcePayload(
+                candidate: candidate,
+                revision: "old",
+                aliases: [oldAlias]
+            )
+            let state = try SourceInstallReadbackState(
+                revision: "new",
+                domain: StoredSkillDomainSnapshot(payload: existing, revision: 1)
+            )
+            let service = ManagedInstallService(
+                dependencies: sourceDependencies(
+                    ManagedLocalImportProbe(existingPayload: existing),
+                    state: state
+                )
+            )
+
+            await #expect(throws: ManagedLocalImportProblem.providerAliasConflict) {
+                _ = try await service.prepareSourceBacked(
+                    candidate: candidate,
+                    sourceInput: sourceInput(state: state, revision: "new", alias: newAlias),
+                    scope: .global
+                )
+            }
+        }
+    }
+
     @Test("blocked source install remains managed but undistributed")
     func blockedCreate() async throws {
         try await withImportCandidate { candidate in
@@ -376,7 +489,8 @@ private func sourceDependencies(
 private func sourceInput(
     state: SourceInstallReadbackState,
     revision: String,
-    alias: ProviderAliasIdentity? = nil
+    alias: ProviderAliasIdentity? = nil,
+    finalAdmission: @escaping @Sendable () async throws -> Void = {}
 ) throws -> ManagedSourceInstallInput {
     ManagedSourceInstallInput(
         displayName: "Source Demo",
@@ -390,7 +504,8 @@ private func sourceInput(
             "https://codeload.github.com/example/repository/legacy.zip/\(revision)"
         ),
         alias: try alias ?? sourceAlias("example/repository:demo"),
-        refreshHead: { await state.currentRevision() }
+        refreshHead: { await state.currentRevision() },
+        finalAdmission: finalAdmission
     )
 }
 

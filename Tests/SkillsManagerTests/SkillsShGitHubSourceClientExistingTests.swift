@@ -64,6 +64,20 @@ struct SkillsShGitHubSourceClientExistingTests {
         ])
     }
 
+    @Test("resolves a repository-root Skill")
+    func resolveRoot() async throws {
+        let source = try await client(tree: [
+            existingTreeEntry("SKILL.md", size: 12, sha: blobSHA),
+            existingTreeEntry("README.md", size: 3),
+        ]).resolveExisting(
+            NormalizedRepositoryURL("https://github.com/owner/repo"),
+            RepositorySubpath("")
+        )
+
+        #expect(source.subpath.value.isEmpty)
+        #expect(source.blobs.map(\.relativePath) == ["README.md", "SKILL.md"])
+    }
+
     @Test("fails closed when the stored subpath has no exact Skill")
     func missingExistingSubpath() async throws {
         let repositoryURL = try NormalizedRepositoryURL("https://github.com/owner/repo")

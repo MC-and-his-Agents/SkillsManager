@@ -25,7 +25,7 @@ struct ReleaseUpgradeCompatibilityTests {
         #expect(try fixture.fileTreeSnapshot() == filesBefore)
 
         let writer = try await fixture.workspace.openWriter()
-        #expect(try fixture.workspace.integer("PRAGMA user_version") == 14)
+        #expect(try fixture.workspace.integer("PRAGMA user_version") == 15)
         _ = try SkillSchemaMigrator.open(
             at: fixture.workspace.database,
             accessMode: .readOnly

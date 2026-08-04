@@ -19,8 +19,8 @@ struct SkillSchemaV3Tests {
         #expect(try rolledBack.userTableNames().isEmpty)
 
         let migrated = try SkillSchemaMigrator.open(at: fixture.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 14)
-        #expect(try migrated.userTableNames() == SkillSchemaV14.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 15)
+        #expect(try migrated.userTableNames() == SkillSchemaV15.tableNames)
     }
 
     @Test("migrates v2 to v3 atomically")
@@ -39,11 +39,11 @@ struct SkillSchemaV3Tests {
         #expect(try rolledBack.userTableNames() == SkillSchemaV2.tableNames)
 
         let migrated = try SkillSchemaMigrator.open(at: fixture.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 14)
-        #expect(try migrated.userTableNames() == SkillSchemaV14.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 15)
+        #expect(try migrated.userTableNames() == SkillSchemaV15.tableNames)
         #expect(try migrated.querySingleInt(
             "SELECT count(*) FROM pragma_table_list WHERE strict = 1 AND name NOT LIKE 'sqlite_%'"
-        ) == Int64(SkillSchemaV14.tableNames.count))
+        ) == Int64(SkillSchemaV15.tableNames.count))
     }
 
     @Test("enforces custom path identity and uniqueness")

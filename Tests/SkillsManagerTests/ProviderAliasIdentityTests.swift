@@ -3,6 +3,17 @@ import Testing
 
 @Suite("Provider alias and source metadata")
 struct ProviderAliasIdentityTests {
+    @Test("creates the frozen GitHub SHA-256 alias")
+    func githubAliasGolden() throws {
+        let alias = try ProviderAliasIdentity.github(
+            repositoryURL: NormalizedRepositoryURL("https://github.com/owner/repo"),
+            subpath: RepositorySubpath("skills/demo")
+        )
+        #expect(alias.provider == "github")
+        #expect(alias.identifier ==
+            "v1:d0e90976ccd125c46fa6e9ef92359125987af79c7da9831e90933fa62d8f2f3b")
+    }
+
     @Test("accepts stable provider codes and opaque identifiers")
     func providerAlias() throws {
         let alias = try ProviderAliasIdentity(provider: "skills.sh-v1", identifier: "Owner/Skill 🧰")

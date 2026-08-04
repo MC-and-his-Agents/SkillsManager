@@ -246,6 +246,7 @@ actor ManagedInstallService {
                 throw ManagedLocalImportProblem.previewExpired
             }
             if let preparedSource = pending.preparedSource {
+                try await finalSourceAdmission(preparedSource)
                 return try await ManagedRemoteUpdateService(
                     dependencies: dependencies
                 ).execute(
@@ -307,6 +308,7 @@ actor ManagedInstallService {
         )
         let createState: CreateState
         if let preparedSource = pending.preparedSource {
+            try await finalSourceAdmission(preparedSource)
             createState = await createSourceBacked(
                 payload: payload,
                 snapshot: pending.candidate.snapshot,
@@ -350,6 +352,14 @@ actor ManagedInstallService {
             return result(preview, status: .managedDistributionIndeterminate)
         }
         return try await distribute(preview, plan: postCreatePlan)
+    }
+
+    private func finalSourceAdmission(_ source: ManagedPreparedSource) async throws {
+        do {
+            try await source.input.finalAdmission()
+        } catch {
+            throw ManagedLocalImportProblem.previewExpired
+        }
     }
 
     enum CreateState: Equatable {
