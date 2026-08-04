@@ -12,6 +12,7 @@ struct SkillsManagerApp: App {
     @State private var customPathStore: CustomPathStore
     @State private var store: SkillStore
     @State private var discoveryModel = SkillDiscoveryViewModel()
+    @State private var discoveryBatchModel = SkillDiscoveryBatchViewModel()
     @State private var distributionModel = SkillDistributionViewModel()
     @State private var updateCheckModel: SkillUpdateCheckViewModel
     @State private var batchUpdateModel: SkillBatchUpdateViewModel
@@ -44,6 +45,7 @@ struct SkillsManagerApp: App {
                 .environment(skillsShStore)
                 .environment(customPathStore)
                 .environment(discoveryModel)
+                .environment(discoveryBatchModel)
                 .environment(distributionModel)
                 .environment(updateCheckModel)
                 .environment(batchUpdateModel)
