@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-source "$ROOT/version.env"
+source "$ROOT/Scripts/load_version_env.sh"
+load_version_env "$ROOT/version.env"
 ZIP=${1:?
 "Usage: $0 MyApp-<ver>.zip https://example.com/appcast.xml https://example.com"}
 FEED_URL=${2:?

@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-source "$ROOT/version.env"
+source "$ROOT/Scripts/load_version_env.sh"
+load_version_env "$ROOT/version.env"
 
 APP=${1:?
 "Usage: $0 SkillsManager.app SkillsManager-<ver>.zip appcast.xml verification.txt"}

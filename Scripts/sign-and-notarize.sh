@@ -5,7 +5,8 @@ APP_NAME=${APP_NAME:-SkillsManager}
 APP_IDENTITY=${APP_IDENTITY:-"Developer ID Application: Example (TEAMID)"}
 APP_BUNDLE="${APP_NAME}.app"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-source "$ROOT/version.env"
+source "$ROOT/Scripts/load_version_env.sh"
+load_version_env "$ROOT/version.env"
 ZIP_NAME="${APP_NAME}-${MARKETING_VERSION}.zip"
 SPARKLE_FEED_URL=${SPARKLE_FEED_URL:?
 "Set SPARKLE_FEED_URL to the published appcast endpoint."}

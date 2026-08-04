@@ -1,0 +1,209 @@
+name: Auto Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: write
+  issues: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: skills-manager-auto-release
+  cancel-in-progress: false
+
+jobs:
+  tag-and-dispatch:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_HEAD: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect a release-only commit
+        id: changes
+        run: |
+          set -euo pipefail
+          git diff --name-only "$RELEASE_HEAD^" "$RELEASE_HEAD" > "$RUNNER_TEMP/changed-paths.txt"
+          if grep -Fxq version.env "$RUNNER_TEMP/changed-paths.txt"; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Protected main did not change version.env; no release is required."
+          fi
+
+      - name: Read trusted release facts
+        id: facts
+        if: steps.changes.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin main
+          [[ "$(git rev-parse origin/main)" == "$RELEASE_HEAD" ]] || {
+            echo "Release head is no longer current protected main." >&2
+            exit 1
+          }
+
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            | jq -s 'add // [] | map({tagName: .tag_name, isDraft: .draft, isPrerelease: .prerelease})' \
+            > "$RUNNER_TEMP/releases.json"
+          baseline=$(python3 Scripts/release_contract.py stable-release \
+            --releases "$RUNNER_TEMP/releases.json")
+          baseline_tag=$(jq -r '.tag' <<<"$baseline")
+          git merge-base --is-ancestor "$baseline_tag" "$RELEASE_HEAD"
+          git show "$baseline_tag:version.env" > "$RUNNER_TEMP/previous-version.env"
+          [[ "$(python3 Scripts/release_contract.py version --file "$RUNNER_TEMP/previous-version.env" \
+            | jq -r '.version')" == "${baseline_tag#v}" ]]
+
+          gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_HEAD/pulls" \
+            > "$RUNNER_TEMP/pulls.json"
+          [[ "$(jq 'length' "$RUNNER_TEMP/pulls.json")" == "1" ]]
+          jq -e --arg head "$RELEASE_HEAD" \
+            '.[0] | .merged_at != null and .base.ref == "main" and .merge_commit_sha == $head' \
+            "$RUNNER_TEMP/pulls.json" >/dev/null
+          jq -r '.[0].body // ""' "$RUNNER_TEMP/pulls.json" > "$RUNNER_TEMP/pr-body.md"
+          impact=$(python3 Scripts/release_contract.py impact --body "$RUNNER_TEMP/pr-body.md")
+          [[ "$(jq -r '.impact' <<<"$impact")" == "bundled" ]]
+          release_issue=$(jq -r '.issue' <<<"$impact")
+
+          gh api "repos/$GITHUB_REPOSITORY/issues/$release_issue" \
+            > "$RUNNER_TEMP/release-issue.json"
+          [[ "$(jq -r '.state' "$RUNNER_TEMP/release-issue.json")" == "open" ]]
+          [[ "$(jq -r 'has("pull_request")' "$RUNNER_TEMP/release-issue.json")" == "false" ]]
+          jq -e '.labels | map(.name) | index("release") != null' \
+            "$RUNNER_TEMP/release-issue.json" >/dev/null
+          jq -r '.body // ""' "$RUNNER_TEMP/release-issue.json" \
+            > "$RUNNER_TEMP/release-issue.md"
+
+          [[ "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label release-blocker --limit 1 --json number --jq 'length')" == "0" ]]
+
+          plan=$(python3 Scripts/release_contract.py plan \
+            --current-version version.env \
+            --previous-version "$RUNNER_TEMP/previous-version.env" \
+            --changed-paths "$RUNNER_TEMP/changed-paths.txt" \
+            --pr-body "$RUNNER_TEMP/pr-body.md" \
+            --issue-body "$RUNNER_TEMP/release-issue.md" \
+            --release-notes RELEASE_NOTES.md)
+          echo "tag=$(jq -r '.tag' <<<"$plan")" >> "$GITHUB_OUTPUT"
+          echo "issue=$(jq -r '.issue' <<<"$plan")" >> "$GITHUB_OUTPUT"
+          echo "baseline_tag=$baseline_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Revalidate and create exact tag
+        id: tag
+        if: steps.changes.outputs.release == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.facts.outputs.tag }}
+          RELEASE_ISSUE: ${{ steps.facts.outputs.issue }}
+          BASELINE_TAG: ${{ steps.facts.outputs.baseline_tag }}
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin main
+          [[ "$(git rev-parse origin/main)" == "$RELEASE_HEAD" ]]
+          [[ "$(gh issue view "$RELEASE_ISSUE" --repo "$GITHUB_REPOSITORY" \
+            --json state,labels --jq '[.state, (.labels | map(.name) | index("release") != null)] | @tsv')" \
+            == $'OPEN\ttrue' ]]
+          [[ "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label release-blocker --limit 1 --json number --jq 'length')" == "0" ]]
+
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            | jq -s 'add // [] | map({tagName: .tag_name, isDraft: .draft, isPrerelease: .prerelease})' \
+            > "$RUNNER_TEMP/releases-final.json"
+          [[ "$(python3 Scripts/release_contract.py stable-release \
+            --releases "$RUNNER_TEMP/releases-final.json" | jq -r '.tag')" == "$BASELINE_TAG" ]]
+
+          direct=$(git ls-remote origin "refs/tags/$RELEASE_TAG" | awk 'NR == 1 { print $1 }')
+          peeled=$(git ls-remote origin "refs/tags/$RELEASE_TAG^{}" | awk 'NR == 1 { print $1 }')
+          existing=${peeled:-$direct}
+          if [[ -z "$existing" ]]; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/$RELEASE_TAG" \
+              -f sha="$RELEASE_HEAD" >/dev/null
+          elif [[ "$existing" != "$RELEASE_HEAD" ]]; then
+            echo "Tag $RELEASE_TAG already points to another commit." >&2
+            exit 1
+          fi
+          actual_direct=$(git ls-remote origin "refs/tags/$RELEASE_TAG" | awk 'NR == 1 { print $1 }')
+          actual_peeled=$(git ls-remote origin "refs/tags/$RELEASE_TAG^{}" | awk 'NR == 1 { print $1 }')
+          actual=${actual_peeled:-$actual_direct}
+          [[ "$actual" == "$RELEASE_HEAD" ]]
+
+      - name: Dispatch publish once
+        if: steps.changes.outputs.release == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.facts.outputs.tag }}
+        run: |
+          set -euo pipefail
+          context="release-dispatch/$RELEASE_TAG"
+          marker=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_HEAD/statuses" \
+            --jq "map(select(.context == \"$context\"))[0].state // \"\"")
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/release.yml/runs?event=workflow_dispatch&branch=$RELEASE_TAG&per_page=100" \
+            > "$RUNNER_TEMP/release-runs.json"
+          jq --arg head "$RELEASE_HEAD" \
+            '[.workflow_runs[] | select(.head_sha == $head)]' \
+            "$RUNNER_TEMP/release-runs.json" > "$RUNNER_TEMP/matching-runs.json"
+          action=$(python3 Scripts/release_contract.py dispatch \
+            --marker "$marker" --runs "$RUNNER_TEMP/matching-runs.json" | jq -r '.action')
+          if [[ "$action" != "dispatch" ]]; then
+            run_url=$(jq -r '.[0].html_url' "$RUNNER_TEMP/matching-runs.json")
+            if [[ "$action" == "rerun" ]]; then
+              gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$RELEASE_HEAD" \
+                -f state=failure -f context="$context" \
+                -f description='Release run failed; Owner rerun required' \
+                -f target_url="$run_url" >/dev/null
+              exit 1
+            fi
+            if [[ "$action" == "published" ]]; then
+              gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+            fi
+            gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$RELEASE_HEAD" \
+              -f state=success -f context="$context" \
+              -f description='Release workflow dispatch is visible' \
+              -f target_url="$run_url" >/dev/null
+            exit 0
+          fi
+
+          target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$RELEASE_HEAD" \
+            -f state=pending -f context="$context" \
+            -f description='Waiting for the Release workflow run' \
+            -f target_url="$target_url" >/dev/null
+
+          if ! gh workflow run release.yml --repo "$GITHUB_REPOSITORY" \
+            --ref "$RELEASE_TAG" -f publish=true; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$RELEASE_HEAD" \
+              -f state=failure -f context="$context" \
+              -f description='Release dispatch failed; Owner readback required' \
+              -f target_url="$target_url" >/dev/null
+            exit 1
+          fi
+
+          for _ in {1..12}; do
+            sleep 5
+            visible=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/release.yml/runs?event=workflow_dispatch&branch=$RELEASE_TAG&per_page=100" \
+              --jq "[.workflow_runs[] | select(.head_sha == \"$RELEASE_HEAD\")] | length")
+            if [[ "$visible" == "1" ]]; then
+              gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$RELEASE_HEAD" \
+                -f state=success -f context="$context" \
+                -f description='Release workflow dispatch is visible' \
+                -f target_url="$target_url" >/dev/null
+              exit 0
+            fi
+          done
+          echo "Release dispatch visibility is unknown; automatic redispatch is forbidden." >&2
+          exit 1

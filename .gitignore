@@ -3,3 +3,5 @@
 /SkillsManager.app
 *.zip
 release.env
+__pycache__/
+*.pyc
