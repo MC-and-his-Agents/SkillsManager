@@ -17,7 +17,8 @@ SPARKLE_FEED_URL=${SPARKLE_FEED_URL:-}
 SPARKLE_PUBLIC_KEY=${SPARKLE_PUBLIC_KEY:-}
 
 if [[ -f "$ROOT/version.env" ]]; then
-  source "$ROOT/version.env"
+  source "$ROOT/Scripts/load_version_env.sh"
+  load_version_env "$ROOT/version.env"
 else
   MARKETING_VERSION=${MARKETING_VERSION:-0.1.0}
   BUILD_NUMBER=${BUILD_NUMBER:-1}

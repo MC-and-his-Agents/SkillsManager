@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-source "$ROOT/version.env"
+source "$ROOT/Scripts/load_version_env.sh"
+load_version_env "$ROOT/version.env"
 
 EVENT_NAME=${GITHUB_EVENT_NAME:?
 "GITHUB_EVENT_NAME is required."}
@@ -13,6 +14,7 @@ REF_NAME=${GITHUB_REF_NAME:?
 SHA=${GITHUB_SHA:?
 "GITHUB_SHA is required."}
 CANDIDATE_ENABLED=${RELEASE_CANDIDATE_ENABLED:-false}
+PUBLISH_REQUESTED=${RELEASE_PUBLISH_REQUESTED:-false}
 
 git fetch --no-tags origin main
 main_sha=$(git rev-parse origin/main)
@@ -25,6 +27,21 @@ remote_ref_sha() {
 }
 
 if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+  if [[ "$PUBLISH_REQUESTED" == "true" ]]; then
+    [[ "$REF" == refs/tags/v* && "$REF_NAME" == "v${MARKETING_VERSION}" ]] || {
+      echo "Release publishing dispatch requires the matching v* tag." >&2
+      exit 1
+    }
+    [[ "$(remote_ref_sha "$REF")" == "$SHA" ]] || {
+      echo "Tag moved after the workflow started." >&2
+      exit 1
+    }
+    git merge-base --is-ancestor "$SHA" "$main_sha" || {
+      echo "Tag commit is not reachable from protected main." >&2
+      exit 1
+    }
+    exit 0
+  fi
   [[ "$CANDIDATE_ENABLED" == "true" ]] || {
     echo "Release candidates are disabled." >&2
     exit 1

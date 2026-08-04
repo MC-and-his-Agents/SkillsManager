@@ -40,6 +40,31 @@ Skills Manager 是一款基于 SwiftPM 构建的 macOS SwiftUI 应用，不使�
 
 复用现有脚本，不要重新实现打包逻辑。证书、私钥、API 凭据和机器相关的发布配置必须放在仓库外。严禁提交 `release.env`、`.p8`、`.p12`、Sparkle 私钥或临时签名 keychain。
 
+### 发布影响
+
+每个 Work Item 和 PR 必须声明一种发布影响：
+
+- `release_impact: none`：纯文档、测试、CI 或行为不变的内部重构。
+- `release_impact: patch`：Bug、兼容性、UI 调整或已有功能完善。
+- `release_impact: minor`：新增用户可见功能或改变产品行为。
+- `release_impact: bundled #<release-issue>`：不单独发布，归入指定的开放 Release Issue。
+
+影响已发布 App 行为、界面或用户数据的变更不得使用 `none`，除非明确使用
+`bundled` 绑定已有 Release Issue。Release PR 本身使用 `bundled` 绑定它要完成的
+Release Issue；该 Issue 使用 `patch` 或 `minor` 表达版本级别，不递归创建下一个版本。
+
+PR 合并后，Owner 必须按声明收口：
+
+- `none`：完成 no-release readback。
+- `bundled`：将 PR 登记到指定 Release Issue。
+- `patch` / `minor`：若没有待发布 Release Issue，立即创建；主分支 CI 全绿且没有开放
+  `release-blocker` 后，创建只修改 `version.env` 与 `RELEASE_NOTES.md` 的发布 PR。
+
+版本递增规则固定：`patch` 将 `0.2.0` 升为 `0.2.1`，`minor` 将 `0.2.x` 升为
+`0.3.0`；每次发布 `BUILD_NUMBER` 恰好加一，不使用 pre-release。发布 PR 合并后由
+自动化创建 tag，现有 Release workflow 继续负责签名、公证、Sparkle、GitHub Release
+和公开安装验证；验证通过后才关闭 Release Issue。
+
 ## 变更纪律
 
 - 修改范围应与当前 issue 或任务一致。
