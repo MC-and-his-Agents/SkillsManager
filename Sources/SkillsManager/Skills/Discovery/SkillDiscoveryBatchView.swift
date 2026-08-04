@@ -102,8 +102,9 @@ struct SkillDiscoveryBatchView: View {
                     Text(candidate.observation.status.displayName)
                         .font(.caption)
                         .foregroundStyle(candidate.observation.status.tint)
-                    if let reason = candidate.observation.reason {
-                        Text(reason.displayName)
+                    if let reason = candidate.selectionBlockReason
+                        ?? candidate.observation.reason?.displayName {
+                        Text(reason)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

@@ -20,9 +20,17 @@ nonisolated struct SkillDiscoveryBatchCandidate: Hashable, Sendable, Identifiabl
     let observation: SkillDiscoveryObservation
     let aliases: [SkillDiscoveryBatchAlias]
     let sourceEvidence: Set<ProviderAliasIdentity>
+    let hasConflictingManagementEvidence: Bool
 
     var allowedActions: Set<ManagedSkillImportAction> {
-        ManagedSkillImportService.allowedActions(for: observation)
+        guard !hasConflictingManagementEvidence else { return [] }
+        return ManagedSkillImportService.allowedActions(for: observation)
+    }
+
+    var selectionBlockReason: String? {
+        hasConflictingManagementEvidence
+            ? "Verified locations disagree about the managed Skill identity."
+            : nil
     }
 
     var defaultAction: ManagedSkillImportAction? {
@@ -53,7 +61,16 @@ nonisolated struct SkillDiscoveryBatchCandidate: Hashable, Sendable, Identifiabl
         }
 
         return groups.map { key, observations in
-            let canonical = observations.sorted(by: canonicalObservationPrecedes).first!
+            let sorted = observations.sorted(by: canonicalObservationPrecedes)
+            let managedEvidence = sorted.filter {
+                $0.status == .managed || $0.status == .claimable
+            }
+            let matchedSkillIDs = Set(managedEvidence.compactMap(\.matchedSkillID))
+            let hasConflictingManagementEvidence = matchedSkillIDs.count > 1
+                || managedEvidence.contains { $0.matchedSkillID == nil }
+            let canonical = managedEvidence.first { $0.status == .managed }
+                ?? managedEvidence.first { $0.status == .claimable }
+                ?? sorted.first!
             let merged = SkillDiscoveryObservation(
                 roots: canonical.roots,
                 rootIdentity: canonical.rootIdentity,
@@ -67,10 +84,11 @@ nonisolated struct SkillDiscoveryBatchCandidate: Hashable, Sendable, Identifiabl
                 providerAliases: observations.reduce(into: Set<ProviderAliasIdentity>()) {
                     $0.formUnion($1.providerAliases)
                 },
-                status: canonical.status,
-                reason: canonical.reason,
-                matchedSkillID: canonical.matchedSkillID,
-                matchedSourceKey: canonical.matchedSourceKey
+                status: hasConflictingManagementEvidence ? .conflict : canonical.status,
+                reason: hasConflictingManagementEvidence ? .evidenceConflict : canonical.reason,
+                matchedSkillID: hasConflictingManagementEvidence ? nil : canonical.matchedSkillID,
+                matchedSourceKey: hasConflictingManagementEvidence
+                    ? nil : canonical.matchedSourceKey
             )
             let aliases = observations
                 .flatMap { observation in
@@ -96,7 +114,8 @@ nonisolated struct SkillDiscoveryBatchCandidate: Hashable, Sendable, Identifiabl
                 id: key,
                 observation: merged,
                 aliases: aliases,
-                sourceEvidence: merged.providerAliases
+                sourceEvidence: merged.providerAliases,
+                hasConflictingManagementEvidence: hasConflictingManagementEvidence
             )
         }
         .sorted { skillDiscoveryObservationPrecedes($0.observation, $1.observation) }

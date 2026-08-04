@@ -102,6 +102,96 @@ struct SkillDiscoveryBatchImportTests {
         #expect(candidates[0].observation.roots == [root])
     }
 
+    @Test("prefers one managed identity across physical aliases and rejects disagreement")
+    func canonicalManagementEvidence() throws {
+        var candidateMetadata = stat()
+        candidateMetadata.st_dev = 12
+        candidateMetadata.st_ino = 42
+        candidateMetadata.st_mode = mode_t(S_IFDIR)
+        var rootMetadata = stat()
+        rootMetadata.st_dev = 12
+        rootMetadata.st_ino = 7
+        rootMetadata.st_mode = mode_t(S_IFDIR)
+        var linkMetadata = stat()
+        linkMetadata.st_dev = 12
+        linkMetadata.st_ino = 99
+        linkMetadata.st_mode = mode_t(S_IFLNK)
+
+        let directRoot = discoveryTestRoot()
+        let aliasRoot = SkillDiscoveryRoot(
+            scope: .agent(adapterCode: "claude", pathVariant: "default"),
+            url: URL(fileURLWithPath: "/tmp/other-root", isDirectory: true)
+        )
+        let candidateIdentity = ManagedItemIdentity(candidateMetadata)
+        let fingerprint = try SkillContentFingerprint(
+            currentDigest: Data(repeating: 3, count: 32)
+        )
+        func observation(
+            root: SkillDiscoveryRoot,
+            rootIdentity: ManagedItemIdentity,
+            symbolicLink: ManagedItemIdentity?,
+            status: SkillDiscoveryStatus,
+            matchedSkillID: SkillID?
+        ) -> SkillDiscoveryViewModel.Item {
+            SkillDiscoveryViewModel.Item(SkillDiscoveryObservation(
+                roots: [root],
+                rootIdentity: rootIdentity,
+                rawRelativeLocator: "shared",
+                relativeLocator: "shared",
+                relativeLocatorKey: SkillContentPath.collisionKey(for: "shared"),
+                candidateIdentity: candidateIdentity,
+                symbolicLinkIdentity: symbolicLink,
+                fingerprint: fingerprint,
+                providerAliases: [],
+                status: status,
+                reason: nil,
+                matchedSkillID: matchedSkillID,
+                matchedSourceKey: nil
+            ))
+        }
+
+        let skillID = SkillID()
+        let direct = observation(
+            root: directRoot,
+            rootIdentity: ManagedItemIdentity(rootMetadata),
+            symbolicLink: nil,
+            status: .unmanaged,
+            matchedSkillID: nil
+        )
+        let claimable = observation(
+            root: aliasRoot,
+            rootIdentity: ManagedItemIdentity(linkMetadata),
+            symbolicLink: ManagedItemIdentity(linkMetadata),
+            status: .claimable,
+            matchedSkillID: skillID
+        )
+        let compatible = try #require(
+            SkillDiscoveryBatchCandidate.canonicalCandidates(from: [direct, claimable]).first
+        )
+        #expect(compatible.observation.status == .claimable)
+        #expect(compatible.observation.matchedSkillID == skillID)
+        #expect(compatible.observation.roots == [aliasRoot])
+        #expect(compatible.defaultAction == .claimExisting)
+
+        let disagreement = try #require(
+            SkillDiscoveryBatchCandidate.canonicalCandidates(from: [
+                claimable,
+                observation(
+                    root: directRoot,
+                    rootIdentity: ManagedItemIdentity(rootMetadata),
+                    symbolicLink: nil,
+                    status: .managed,
+                    matchedSkillID: SkillID()
+                ),
+            ]).first
+        )
+        #expect(disagreement.observation.status == .conflict)
+        #expect(disagreement.observation.reason == .evidenceConflict)
+        #expect(!disagreement.isSelectable)
+        #expect(disagreement.defaultAction == nil)
+        #expect(disagreement.selectionBlockReason != nil)
+    }
+
     @Test("executes in order and refreshes only through the finalizer")
     @MainActor
     func orderedExecution() async throws {
