@@ -186,6 +186,7 @@ struct ManagedLocalImportMultiSkillZipTests {
             model.activate(dependencies: probe.dependencies())
             model.configure(session: session)
             await model.prepare(scope: .global)
+
             await model.confirm()
 
             #expect(model.resultItems.count == 2)
@@ -213,6 +214,13 @@ struct ManagedLocalImportMultiSkillZipTests {
             model.activate(dependencies: probe.dependencies())
             model.configure(session: session)
             await model.prepare(scope: .global)
+
+            #expect(model.hasBlockedDistribution)
+            #expect(model.previewItems.first?.preview?.plan.conflicts.first?.reason == .slugOccupied)
+            #expect(
+                model.previewItems.first?.preview?.plan.conflicts.first?.canonicalLocator
+                    == "~/.agents/skills/blocked"
+            )
             await model.confirm()
 
             #expect(await probe.createCount == 1)

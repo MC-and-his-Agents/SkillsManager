@@ -71,6 +71,9 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
     var selectedCount: Int { selectedIDs.count }
     var availableCandidateCount: Int { candidates.count(where: \.isImportable) }
     var isWorking: Bool { state == .preparing || state == .executing }
+    var hasBlockedDistribution: Bool {
+        previewItems.contains { $0.preview?.plan.status == .blocked }
+    }
     var canPrepare: Bool {
         state == .selecting && !selectedIDs.isEmpty && service != nil
     }

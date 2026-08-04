@@ -133,6 +133,23 @@ struct ManagedArchiveImportView: View {
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
+                    if let preview = item.preview,
+                       preview.plan.status == .blocked {
+                        Label(
+                            "Distribution is blocked. This Skill will be added without enabling.",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        ForEach(
+                            Array(preview.plan.conflicts.enumerated()),
+                            id: \.offset
+                        ) { _, conflict in
+                            Text("\(conflict.reason.displayName): \(conflict.canonicalLocator)")
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+                        }
+                    }
                 }
                 .padding(.vertical, 3)
                 .accessibilityElement(children: .combine)
@@ -142,7 +159,11 @@ struct ManagedArchiveImportView: View {
             HStack {
                 Button("Back") { model.cancelPreview() }
                 Spacer()
-                Button("Import selected") {
+                Button(
+                    model.hasBlockedDistribution
+                        ? "Add selected to library"
+                        : "Import selected"
+                ) {
                     onConfirm()
                 }
                 .buttonStyle(.borderedProminent)
