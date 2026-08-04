@@ -223,6 +223,33 @@ struct ManagedSourceInstallServiceTests {
         }
     }
 
+    @Test("initial catalog admission drift expires before any Writer call")
+    func initialCatalogAdmission() async throws {
+        try await withImportCandidate { candidate in
+            let state = try SourceInstallReadbackState(revision: "abc123")
+            let probe = ManagedLocalImportProbe()
+            let service = ManagedInstallService(
+                dependencies: sourceDependencies(probe, state: state)
+            )
+            let input = try sourceInput(
+                state: state,
+                revision: "abc123",
+                refreshHead: { throw CustomRepositoryDiscoveryError.staleCatalog }
+            )
+            let preview = try await service.prepareSourceBacked(
+                candidate: candidate,
+                sourceInput: input,
+                scope: .global
+            )
+
+            await #expect(throws: ManagedLocalImportProblem.previewExpired) {
+                _ = try await service.execute(preview.token)
+            }
+            #expect(await probe.createCount == 0)
+            #expect(await probe.replaceCount == 0)
+        }
+    }
+
     @Test("final catalog admission also blocks a source update")
     func finalCatalogAdmissionBeforeUpdate() async throws {
         try await withImportCandidate { candidate in
@@ -490,6 +517,7 @@ private func sourceInput(
     state: SourceInstallReadbackState,
     revision: String,
     alias: ProviderAliasIdentity? = nil,
+    refreshHead: (@Sendable () async throws -> SourceRevision)? = nil,
     finalAdmission: @escaping @Sendable () async throws -> Void = {}
 ) throws -> ManagedSourceInstallInput {
     ManagedSourceInstallInput(
@@ -504,7 +532,7 @@ private func sourceInput(
             "https://codeload.github.com/example/repository/legacy.zip/\(revision)"
         ),
         alias: try alias ?? sourceAlias("example/repository:demo"),
-        refreshHead: { await state.currentRevision() },
+        refreshHead: refreshHead ?? { await state.currentRevision() },
         finalAdmission: finalAdmission
     )
 }

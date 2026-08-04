@@ -221,7 +221,12 @@ actor ManagedInstallService {
             throw ManagedLocalImportProblem.sourceChanged
         }
         if let preparedSource = pending.preparedSource {
-            let revision = try await preparedSource.input.refreshHead()
+            let revision: SourceRevision
+            do {
+                revision = try await preparedSource.input.refreshHead()
+            } catch CustomRepositoryDiscoveryError.staleCatalog {
+                throw ManagedLocalImportProblem.previewExpired
+            }
             guard revision == preparedSource.input.revision,
                   try await unchangedSourceAdmission(preparedSource.admission, pending: pending) else {
                 throw ManagedLocalImportProblem.previewExpired

@@ -108,6 +108,49 @@ struct CustomRepositoryJourneyTests {
         #expect(model.state(for: changed.repositoryID) == .idle)
     }
 
+    @Test("stable candidate identity survives refresh until its terminal result")
+    @MainActor
+    func stableSelectionDuringRefresh() async throws {
+        let record = try repository(id: UUID())
+        let firstProbe = RepositoryJourneyProbe(records: [record])
+        let model = CustomRepositoryViewModel()
+        model.activate(dependencies: await firstProbe.dependencies())
+        await model.loadAndRefresh()
+        let id = try #require(model.candidates.first?.id)
+
+        let gate = RepositoryRefreshGate()
+        model.activate(dependencies: CustomRepositoryDependencies(
+            list: { [record] },
+            insert: { _ in throw CustomRepositoryCatalogError.conflict },
+            remove: { _, _ in throw CustomRepositoryCatalogError.conflict },
+            discover: { try await gate.discover($0) }
+        ))
+        let refresh = Task { @MainActor in
+            await model.refresh(repositoryID: record.repositoryID)
+        }
+        await gate.waitUntilStarted()
+
+        #expect(model.candidates.isEmpty)
+        #expect(model.candidate(id: id)?.id == id)
+        #expect(reconciledSkillSelection(.repository(id), visibleSelections: [.repository(id)])
+            == .repository(id))
+
+        await gate.resume()
+        await refresh.value
+        #expect(model.candidate(id: id)?.id == id)
+        #expect(model.state(for: record.repositoryID) == .loaded(1))
+
+        model.activate(dependencies: CustomRepositoryDependencies(
+            list: { [record] },
+            insert: { _ in throw CustomRepositoryCatalogError.conflict },
+            remove: { _, _ in throw CustomRepositoryCatalogError.conflict },
+            discover: { _ in throw SkillsShGitHubSourceError.offline }
+        ))
+        await model.refresh(repositoryID: record.repositoryID)
+        #expect(model.candidate(id: id) == nil)
+        #expect(model.state(for: record.repositoryID) == .failed(.offline))
+    }
+
     @Test("repository candidates obey available, source, agent, and selection filters")
     @MainActor
     func filtersAndSelection() async throws {

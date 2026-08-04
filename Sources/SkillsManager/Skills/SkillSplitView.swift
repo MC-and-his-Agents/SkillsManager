@@ -64,12 +64,7 @@ struct SkillSplitView: View {
 
     private var filteredRepositoryCandidates: [CustomRepositoryCandidate] {
         guard filters.includesRemote(.repository) else { return [] }
-        return customRepositoryModel.candidates.filter { candidate in
-            query.isEmpty
-                || candidate.displayName.localizedCaseInsensitiveContains(query)
-                || candidate.repository.repositoryURL.value.localizedCaseInsensitiveContains(query)
-                || candidate.snapshot.subpath.value.localizedCaseInsensitiveContains(query)
-        }
+        return customRepositoryModel.candidates.filter(repositoryCandidateMatches)
     }
 
     private var visibleSelections: Set<UnifiedSkillSelection> {
@@ -80,6 +75,12 @@ struct SkillSplitView: View {
         values.formUnion(filteredRepositoryCandidates.map {
             UnifiedSkillSelection.repository($0.id)
         })
+        if case .repository(let id) = selection,
+           filters.includesRemote(.repository),
+           let candidate = customRepositoryModel.candidate(id: id),
+           repositoryCandidateMatches(candidate) {
+            values.insert(.repository(id))
+        }
         if query.isEmpty {
             if filters.includesRemote(.clawHub) {
                 values.formUnion(visibleRemoteSkillSelections(
@@ -100,6 +101,13 @@ struct SkillSplitView: View {
             ))
         }
         return values
+    }
+
+    private func repositoryCandidateMatches(_ candidate: CustomRepositoryCandidate) -> Bool {
+        query.isEmpty
+            || candidate.displayName.localizedCaseInsensitiveContains(query)
+            || candidate.repository.repositoryURL.value.localizedCaseInsensitiveContains(query)
+            || candidate.snapshot.subpath.value.localizedCaseInsensitiveContains(query)
     }
 
     var body: some View {

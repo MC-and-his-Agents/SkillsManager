@@ -89,12 +89,15 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
         case invalidURL
         case invalidRef
         case alreadyExists
+        case notFound
         case conflict
         case rateLimited
         case offline
         case timeout
         case cancelled
         case unavailable
+        case treeTooLarge
+        case noUniqueSkill
         case contractChanged
 
         var message: String {
@@ -102,12 +105,15 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
             case .invalidURL: "Enter a public https://github.com/owner/repository URL."
             case .invalidRef: "Enter a valid Git branch, tag, or commit reference."
             case .alreadyExists: "This GitHub repository is already registered."
+            case .notFound: "The repository is no longer registered."
             case .conflict: "The repository changed. Review the latest catalog state and try again."
             case .rateLimited: "GitHub rate limited this request."
             case .offline: "GitHub is unavailable while the network is offline."
             case .timeout: "GitHub did not respond in time."
             case .cancelled: "The GitHub request was cancelled."
             case .unavailable: "The GitHub repository is unavailable."
+            case .treeTooLarge: "The GitHub repository tree is too large to inspect safely."
+            case .noUniqueSkill: "The selected repository path does not identify one Skill."
             case .contractChanged: "GitHub returned an unsupported repository layout."
             }
         }
@@ -122,6 +128,7 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
     private var dependencies: CustomRepositoryDependencies?
     private var runtimeReady = false
     private var generations: [UUID: UInt64] = [:]
+    private var refreshingCandidates: [CustomRepositoryCandidateID: CustomRepositoryCandidate] = [:]
 
     var isRefreshing: Bool {
         states.values.contains(.loading)
@@ -142,6 +149,7 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
         generations = generations.mapValues { $0 &+ 1 }
         repositories = []
         candidates = []
+        refreshingCandidates = [:]
         states = [:]
         operationProblem = .unavailable
         isMutating = false
@@ -171,6 +179,10 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
             }
             candidates.removeAll {
                 revisions[$0.repository.repositoryID] != $0.repository.databaseRevision
+            }
+            refreshingCandidates = refreshingCandidates.filter {
+                revisions[$0.value.repository.repositoryID]
+                    == $0.value.repository.databaseRevision
             }
             states = states.filter { revisions[$0.key] != nil }
             operationProblem = nil
@@ -213,6 +225,9 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
             guard runtimeReady else { return false }
             repositories.removeAll { $0.repositoryID == record.repositoryID }
             candidates.removeAll { $0.repository.repositoryID == record.repositoryID }
+            refreshingCandidates = refreshingCandidates.filter {
+                $0.value.repository.repositoryID != record.repositoryID
+            }
             states[record.repositoryID] = nil
             generations[record.repositoryID, default: 0] &+= 1
             return true
@@ -237,6 +252,9 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
         }
         generations[repositoryID, default: 0] &+= 1
         let generation = generations[repositoryID, default: 0]
+        for candidate in candidates where candidate.repository.repositoryID == repositoryID {
+            refreshingCandidates[candidate.id] = candidate
+        }
         candidates.removeAll { $0.repository.repositoryID == repositoryID }
         states[repositoryID] = .loading
         do {
@@ -250,10 +268,16 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
             candidates.append(contentsOf: values)
             candidates.sort(by: Self.candidateOrder)
             states[repositoryID] = values.isEmpty ? .empty : .loaded(values.count)
+            refreshingCandidates = refreshingCandidates.filter {
+                $0.value.repository.repositoryID != repositoryID
+            }
         } catch {
             guard isCurrent(record, generation: generation) else { return }
             candidates.removeAll { $0.repository.repositoryID == repositoryID }
             states[repositoryID] = .failed(Self.problem(error))
+            refreshingCandidates = refreshingCandidates.filter {
+                $0.value.repository.repositoryID != repositoryID
+            }
         }
     }
 
@@ -263,7 +287,7 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
 
     func candidate(id: CustomRepositoryCandidateID?) -> CustomRepositoryCandidate? {
         guard let id else { return nil }
-        return candidates.first { $0.id == id }
+        return candidates.first { $0.id == id } ?? refreshingCandidates[id]
     }
 
     private func isCurrent(
@@ -318,16 +342,17 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
         case CustomRepositoryCatalogError.invalidURL: .invalidURL
         case CustomRepositoryCatalogError.invalidRef: .invalidRef
         case CustomRepositoryCatalogError.alreadyExists: .alreadyExists
+        case CustomRepositoryCatalogError.notFound,
+             CustomRepositoryDiscoveryError.notFound: .notFound
         case CustomRepositoryCatalogError.conflict,
-             CustomRepositoryCatalogError.notFound,
              CustomRepositoryDiscoveryError.staleCatalog: .conflict
         case SkillsShGitHubSourceError.rateLimited: .rateLimited
         case SkillsShGitHubSourceError.offline: .offline
         case SkillsShGitHubSourceError.timeout: .timeout
         case SkillsShGitHubSourceError.cancelled: .cancelled
-        case SkillsShGitHubSourceError.contractChanged,
-             SkillsShGitHubSourceError.treeTruncated,
-             SkillsShGitHubSourceError.noUniqueSkillMatch: .contractChanged
+        case SkillsShGitHubSourceError.treeTruncated: .treeTooLarge
+        case SkillsShGitHubSourceError.noUniqueSkillMatch: .noUniqueSkill
+        case SkillsShGitHubSourceError.contractChanged: .contractChanged
         default: .unavailable
         }
     }
