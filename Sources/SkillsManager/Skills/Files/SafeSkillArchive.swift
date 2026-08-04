@@ -34,6 +34,11 @@ nonisolated struct SafeSkillArchive {
         let components: [String]
         let kind: EntryKind
     }
+    /// The structural facts that are safe to consume before any entry is written.
+    struct PreflightEntry: Sendable {
+        let components: [String]
+        let isDirectory: Bool
+    }
     let limits: Limits
     init(limits: Limits = Limits()) {
         self.limits = limits
@@ -45,6 +50,7 @@ nonisolated struct SafeSkillArchive {
         to emptyDestinationURL: URL,
         checkpoint: SkillCancellationCheckpoint = {},
         afterPreflight: () throws -> Void = {},
+        afterValidation: ([PreflightEntry]) throws -> Void = { _ in },
         beforeEntry: ([String]) throws -> Void = { _ in }
     ) throws -> [String] {
         let rootDescriptor = try openEmptyDestination(emptyDestinationURL)
@@ -55,6 +61,7 @@ nonisolated struct SafeSkillArchive {
             toRootDescriptor: rootDescriptor,
             checkpoint: checkpoint,
             afterPreflight: afterPreflight,
+            afterValidation: afterValidation,
             beforeEntry: beforeEntry
         )
     }
@@ -66,6 +73,7 @@ nonisolated struct SafeSkillArchive {
         toDirectoryDescriptor destinationDescriptor: Int32,
         checkpoint: SkillCancellationCheckpoint = {},
         afterPreflight: () throws -> Void = {},
+        afterValidation: ([PreflightEntry]) throws -> Void = { _ in },
         beforeEntry: ([String]) throws -> Void = { _ in }
     ) throws -> [String] {
         let rootDescriptor = try duplicateEmptyDestination(destinationDescriptor)
@@ -76,6 +84,7 @@ nonisolated struct SafeSkillArchive {
             toRootDescriptor: rootDescriptor,
             checkpoint: checkpoint,
             afterPreflight: afterPreflight,
+            afterValidation: afterValidation,
             beforeEntry: beforeEntry
         )
     }
@@ -86,6 +95,7 @@ nonisolated struct SafeSkillArchive {
         toRootDescriptor rootDescriptor: Int32,
         checkpoint: SkillCancellationCheckpoint,
         afterPreflight: () throws -> Void,
+        afterValidation: ([PreflightEntry]) throws -> Void,
         beforeEntry: ([String]) throws -> Void
     ) throws -> [String] {
         let rollbackJournal = try SafeSkillArchiveRollbackJournal(rootDescriptor: rootDescriptor)
@@ -110,6 +120,12 @@ nonisolated struct SafeSkillArchive {
                 rawKinds: rawKinds,
                 checkpoint: checkpoint
             )
+            try afterValidation(validatedEntries.map {
+                PreflightEntry(
+                    components: $0.components,
+                    isDirectory: $0.kind == .directory
+                )
+            })
             try extract(
                 validatedEntries,
                 from: archive,

@@ -26,6 +26,49 @@ nonisolated final class AnchoredSkillPackage {
 nonisolated enum AnchoredSkillPackageLocator {
     static func locate(
         in rootDescriptor: Int32,
+        components: [String],
+        displayPath: String
+    ) throws -> AnchoredSkillPackage {
+        guard components.allSatisfy({
+            SkillContentPath.visibleDirectoryName($0) != nil
+        }) else {
+            throw SkillPackageError.unsupportedRoot
+        }
+
+        var current = try duplicate(rootDescriptor, displayPath: displayPath)
+        do {
+            for component in components {
+                let childPath = URL(fileURLWithPath: displayPath)
+                    .appendingPathComponent(component, isDirectory: true)
+                    .path
+                guard let child = try openDirectory(
+                    named: component,
+                    in: current,
+                    displayPath: childPath
+                ) else {
+                    throw SkillPackageError.missingManifest
+                }
+                Darwin.close(current)
+                current = child
+            }
+
+            let packagePath = components.isEmpty
+                ? displayPath
+                : URL(fileURLWithPath: displayPath)
+                    .appendingPathComponent(components.joined(separator: "/"), isDirectory: true)
+                    .path
+            guard try manifestState(in: current, displayPath: packagePath) == .valid else {
+                throw SkillPackageError.missingManifest
+            }
+            return AnchoredSkillPackage(descriptor: current, displayPath: packagePath)
+        } catch {
+            Darwin.close(current)
+            throw error
+        }
+    }
+
+    static func locate(
+        in rootDescriptor: Int32,
         displayPath: String
     ) throws -> AnchoredSkillPackage {
         if try manifestState(in: rootDescriptor, displayPath: displayPath) == .valid {

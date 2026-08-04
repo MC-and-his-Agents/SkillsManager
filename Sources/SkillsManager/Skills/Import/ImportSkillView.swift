@@ -13,6 +13,7 @@ struct ImportSkillView: View {
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
     @State private var model = ManagedLocalImportViewModel()
+    @State private var archiveModel = ManagedArchiveImportViewModel()
     @State private var showingPicker = false
     @State private var candidate: ImportCandidate?
     @State private var status: Status = .idle
@@ -21,6 +22,7 @@ struct ImportSkillView: View {
     @State private var selectedAgents: Set<SkillPlatform> = [.codex]
     @State private var activeTask: Task<Void, Never>?
     @State private var operationToken = UUID()
+    @State private var archiveSession: SkillImportWorker.ArchiveSession?
     private let importWorker = SkillImportWorker()
 
     private enum Status {
@@ -54,16 +56,20 @@ struct ImportSkillView: View {
         }
         .task {
             model.activate(writer: store.persistence)
+            archiveModel.activate(writer: store.persistence)
         }
         .onChange(of: libraryRuntime.readiness) { _, _ in
             if !model.isWorking {
                 model.activate(writer: store.persistence)
             }
+            if !archiveModel.isWorking {
+                archiveModel.activate(writer: store.persistence)
+            }
         }
         .onDisappear {
             cancelAndCleanup()
         }
-        .interactiveDismissDisabled(model.isWorking)
+        .interactiveDismissDisabled(model.isWorking || archiveModel.isWorking)
     }
 
     private var header: some View {
@@ -77,7 +83,13 @@ struct ImportSkillView: View {
 
     @ViewBuilder
     private var content: some View {
-        if model.result != nil {
+        if archiveSession != nil {
+            ManagedArchiveImportView(
+                model: archiveModel,
+                onPrepare: prepareArchiveImport,
+                onConfirm: confirmArchiveImport
+            )
+        } else if model.result != nil {
             resultState
         } else {
             switch status {
@@ -233,7 +245,9 @@ struct ImportSkillView: View {
 
     @ViewBuilder
     private var actions: some View {
-        if model.result != nil {
+        if archiveSession != nil {
+            archiveActions
+        } else if model.result != nil {
             HStack {
                 Spacer()
                 Button("Close") { dismiss() }
@@ -265,6 +279,24 @@ struct ImportSkillView: View {
         }
     }
 
+    @ViewBuilder
+    private var archiveActions: some View {
+        HStack {
+            if archiveModel.state == .completed {
+                Button("Close") { cancelAndDismiss() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(archiveModel.isWorking)
+            } else {
+                Button("Cancel") { cancelAndDismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(archiveModel.isWorking)
+                Spacer()
+                Button("Choose…") { showingPicker = true }
+                    .disabled(archiveModel.isWorking)
+            }
+        }
+    }
+
     private var canPrepareImport: Bool {
         status == .valid
             && model.result == nil
@@ -281,20 +313,38 @@ struct ImportSkillView: View {
     }
 
     private func handlePick(_ result: Result<[URL], Error>) {
+        let previousTask = activeTask
+        previousTask?.cancel()
         switch result {
         case .failure(let error):
-            operationToken = UUID()
-            status = .invalid
-            errorMessage = error.localizedDescription
+            let token = UUID()
+            operationToken = token
+            activeTask = Task {
+                await previousTask?.value
+                guard operationToken == token else { return }
+                await cleanupCandidate()
+                status = .invalid
+                errorMessage = error.localizedDescription
+            }
         case .success(let urls):
             guard let url = urls.first else {
-                status = .idle
+                let token = UUID()
+                operationToken = token
+                activeTask = Task {
+                    await previousTask?.value
+                    guard operationToken == token else { return }
+                    await cleanupCandidate()
+                    status = .idle
+                }
                 return
             }
             let token = UUID()
-            activeTask?.cancel()
             operationToken = token
-            activeTask = Task { await validate(url: url, token: token) }
+            activeTask = Task {
+                await previousTask?.value
+                guard operationToken == token else { return }
+                await validate(url: url, token: token)
+            }
         }
     }
 
@@ -309,26 +359,31 @@ struct ImportSkillView: View {
         guard operationToken == token, !Task.isCancelled else { return }
 
         do {
-            let payload: SkillImportWorker.ImportCandidatePayload
             if fileValues?.isDirectory == true {
-                payload = try await importWorker.validateFolder(resolved)
+                let payload = try await importWorker.validateFolder(resolved)
+                guard operationToken == token, !Task.isCancelled else { return }
+                candidate = ImportCandidate(
+                    displayName: formatTitle(payload.skillName),
+                    payload: payload
+                )
+                model.reset()
+                archiveSession = nil
+                archiveModel.reset()
+                status = .valid
             } else if resolved.pathExtension.lowercased() == "zip" {
-                payload = try await importWorker.validateZip(resolved)
+                let session = try await importWorker.validateZipSession(resolved)
+                guard operationToken == token, !Task.isCancelled else {
+                    await importWorker.cleanupArchiveSession(session)
+                    return
+                }
+                archiveSession = session
+                archiveModel.reset()
+                archiveModel.configure(session: session)
+                model.reset()
+                status = .valid
             } else {
                 throw SkillImportValidationError.contentRejected("Select a folder or .zip file.")
             }
-            guard operationToken == token, !Task.isCancelled else {
-                if let temporaryRoot = payload.temporaryRoot {
-                    await importWorker.cleanupTemporaryRoot(temporaryRoot)
-                }
-                return
-            }
-            candidate = ImportCandidate(
-                displayName: formatTitle(payload.skillName),
-                payload: payload
-            )
-            model.reset()
-            status = .valid
         } catch is CancellationError {
             return
         } catch {
@@ -359,6 +414,28 @@ struct ImportSkillView: View {
         }
     }
 
+    private func prepareArchiveImport(_ scope: ManagedLocalImportScope) {
+        guard archiveSession != nil, !archiveModel.isWorking else { return }
+        let token = operationToken
+        activeTask?.cancel()
+        activeTask = Task {
+            await archiveModel.prepare(scope: scope)
+            guard operationToken == token else { return }
+        }
+    }
+
+    private func confirmArchiveImport() {
+        guard archiveSession != nil, !archiveModel.isWorking else { return }
+        let token = operationToken
+        activeTask?.cancel()
+        activeTask = Task {
+            await archiveModel.confirm {
+                await finalizeArchiveImport()
+            }
+            guard operationToken == token else { return }
+        }
+    }
+
     private func confirmImport() {
         let token = operationToken
         activeTask?.cancel()
@@ -380,12 +457,15 @@ struct ImportSkillView: View {
         activeTask = nil
         operationToken = UUID()
         let temporaryRoot = candidate?.payload.temporaryRoot
+        let session = archiveSession
         candidate = nil
+        archiveSession = nil
         Task {
             await importWorker.cleanupTemporaryRoot(
                 temporaryRoot,
                 afterCancelling: task
             )
+            await importWorker.cleanupArchiveSession(session)
             dismiss()
         }
     }
@@ -395,20 +475,31 @@ struct ImportSkillView: View {
         activeTask = nil
         operationToken = UUID()
         let temporaryRoot = candidate?.payload.temporaryRoot
+        let session = archiveSession
         candidate = nil
+        archiveSession = nil
         Task {
             await importWorker.cleanupTemporaryRoot(
                 temporaryRoot,
                 afterCancelling: task
             )
+            await importWorker.cleanupArchiveSession(session)
         }
     }
 
     private func cleanupCandidate() async {
         let temporaryRoot = candidate?.payload.temporaryRoot
+        let session = archiveSession
         candidate = nil
+        archiveSession = nil
         if let temporaryRoot {
             await importWorker.cleanupTemporaryRoot(temporaryRoot)
         }
+        await importWorker.cleanupArchiveSession(session)
+    }
+
+    private func finalizeArchiveImport() async {
+        await store.loadSkills()
+        await discoveryModel.refresh()
     }
 }

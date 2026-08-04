@@ -42,6 +42,21 @@ actor ManagedInstallService {
         )
     }
 
+    func prepareArchive(
+        candidate: SkillImportWorker.ImportCandidatePayload,
+        displayName rawDisplayName: String,
+        scope: ManagedLocalImportScope
+    ) async throws -> ManagedLocalImportPreview {
+        try await prepare(
+            candidate: candidate,
+            displayName: rawDisplayName,
+            distributionSlug: nil,
+            scope: scope,
+            providerInput: nil,
+            allowsBlockedCreate: true
+        )
+    }
+
     func prepareClawdhub(
         candidate: SkillImportWorker.ImportCandidatePayload,
         skill: RemoteSkill,
