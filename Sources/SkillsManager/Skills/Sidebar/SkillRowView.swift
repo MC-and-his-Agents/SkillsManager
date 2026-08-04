@@ -2,14 +2,13 @@ import SwiftUI
 
 struct SkillRowView: View {
     let skill: Skill
-    let installedPlatforms: Set<SkillPlatform>
 
-    private var visibleTags: [String] {
-        Array(skill.tagLabels.prefix(3))
+    private var visibleSources: [SkillListSourceLabel] {
+        Array(skill.listOrigin.labels.prefix(2))
     }
 
-    private var overflowCount: Int {
-        max(skill.tagLabels.count - visibleTags.count, 0)
+    private var sourceOverflowCount: Int {
+        max(skill.listOrigin.labels.count - visibleSources.count, 0)
     }
 
     var body: some View {
@@ -30,25 +29,34 @@ struct SkillRowView: View {
                 .lineLimit(2)
 
             HStack(spacing: 6) {
-                TagView(text: "Managed")
+                TagView(
+                    text: skill.managedStatus == .needsRepair ? "Needs Attention" : "Managed",
+                    systemImage: skill.managedStatus == .needsRepair
+                        ? "exclamationmark.triangle"
+                        : "checkmark.seal"
+                )
 
-                ForEach(SkillPlatform.allCases) { platform in
-                    if installedPlatforms.contains(platform) {
-                        TagView(text: platform.rawValue, tint: platform.badgeTint)
-                    }
+                ForEach(visibleSources) { source in
+                    TagView(text: source.text, systemImage: source.systemImage)
                 }
 
-                ForEach(visibleTags, id: \.self) { tag in
-                    TagView(text: tag)
+                if sourceOverflowCount > 0 {
+                    TagView(text: "+\(sourceOverflowCount) sources")
                 }
 
-                if overflowCount > 0 {
-                    TagView(text: "+\(overflowCount) more")
-                }
+                TagView(
+                    text: SkillListAgentSummary.text(count: skill.enabledPlatforms.count),
+                    systemImage: "point.3.connected.trianglepath.dotted"
+                )
             }
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
-        .accessibilityValue(skill.identitySummary)
+        .accessibilityValue([
+            skill.identitySummary,
+            skill.managedStatus == .needsRepair ? "Needs Attention" : "Managed",
+            skill.listOrigin.labels.map(\.text).joined(separator: ", "),
+            SkillListAgentSummary.text(count: skill.enabledPlatforms.count),
+        ].filter { !$0.isEmpty }.joined(separator: ", "))
     }
 }

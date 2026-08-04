@@ -136,6 +136,10 @@ import Observation
                         providerProvenance: item.providerProvenance,
                         displayNames: displayNames
                     ),
+                    listOrigin: SkillListOriginProjection(
+                        hasRepositorySource: item.source != nil,
+                        providers: item.providerProvenance.map(\.identity.provider)
+                    ),
                     clawdhubSlug: clawdhub?.identity.identifier,
                     clawdhubVersion: clawdhub?.version?.value,
                     enabledPlatforms: enabledPlatforms,
@@ -318,7 +322,7 @@ import Observation
         return false
     }
 
-    private static func enabledPlatforms(
+    static func enabledPlatforms(
         for bindings: [DistributionBinding]
     ) -> Set<SkillPlatform> {
         bindings.reduce(into: Set<SkillPlatform>()) { platforms, binding in

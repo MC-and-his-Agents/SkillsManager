@@ -9,6 +9,7 @@ struct SkillListView: View {
     let localSkills: [Skill]
     let discoveryItems: [SkillDiscoveryViewModel.Item]
     let query: String
+    @Binding var filters: SkillListFilters
     let installedSkillPlatforms: InstalledSkillPlatformIndex
     let onInstallRemoteSkill: (RemoteSkill) -> Void
     @Binding var selection: UnifiedSkillSelection?
@@ -16,26 +17,40 @@ struct SkillListView: View {
     var body: some View {
         List(selection: $selection) {
             header
-            Section("On This Mac") {
-                localContent
+            if filters.status != .available {
+                Section("On This Mac") {
+                    localContent
+                }
             }
 
             if normalizedQuery.isEmpty {
-                Section("ClawHub Latest Drops") {
-                    clawHubLatestContent
+                if filters.includesRemote(.clawHub) {
+                    Section("ClawHub Latest Drops") {
+                        clawHubLatestContent
+                    }
                 }
             } else {
-                Section("ClawHub") {
-                    clawHubSearchContent
+                if filters.includesRemote(.clawHub) {
+                    Section("ClawHub") {
+                        clawHubSearchContent
+                    }
                 }
-                Section("skills.sh") {
-                    skillsShSearchContent
+                if filters.includesRemote(.skillsSh) {
+                    Section("skills.sh") {
+                        skillsShSearchContent
+                    }
                 }
             }
 
             if !discoveryModel.rootDiagnostics.isEmpty {
                 Section("Unavailable Locations") {
                     discoveryDiagnostics
+                }
+            }
+
+            if !hasIncludedSkillChannel {
+                Section {
+                    emptyRow("No Skills match the current filters.")
                 }
             }
         }
@@ -65,32 +80,77 @@ struct SkillListView: View {
         normalizedSkillSearchQuery(query)
     }
 
+    private var hasIncludedSkillChannel: Bool {
+        if filters.status != .available { return true }
+        if normalizedQuery.isEmpty { return filters.includesRemote(.clawHub) }
+        return filters.includesRemote(.clawHub) || filters.includesRemote(.skillsSh)
+    }
+
     private var visibleCount: Int {
-        let remoteCount = normalizedQuery.isEmpty
-            ? remoteStore.latestSkills.count
-            : remoteStore.searchResults.count + skillsShStore.items.count
+        let remoteCount: Int
+        if normalizedQuery.isEmpty {
+            remoteCount = filters.includesRemote(.clawHub)
+                && remoteStore.latestState == .loaded
+                ? remoteStore.latestSkills.count : 0
+        } else {
+            remoteCount = (filters.includesRemote(.clawHub)
+                && remoteStore.searchState == .loaded ? remoteStore.searchResults.count : 0)
+                + (filters.includesRemote(.skillsSh)
+                    && skillsShStore.searchState == .loaded ? skillsShStore.items.count : 0)
+        }
         return localSkills.count + discoveryItems.count + remoteCount
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Skills")
-                .font(.title2.bold())
-            Text("\(visibleCount) shown")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Skills")
+                    .font(.title2.bold())
+                Text("\(visibleCount) shown")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            filterMenu
         }
         .padding(.vertical, 6)
         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
-        .accessibilityElement(children: .combine)
+    }
+
+    private var filterMenu: some View {
+        Menu {
+            Picker("Status", selection: $filters.status) {
+                ForEach(SkillListStatusFilter.allCases) { value in
+                    Text(value.rawValue).tag(value)
+                }
+            }
+            Picker("Source", selection: $filters.source) {
+                ForEach(SkillListSourceFilter.allCases) { value in
+                    Text(value.displayName).tag(value)
+                }
+            }
+            Picker("Agent", selection: $filters.agent) {
+                ForEach(SkillListAgentFilter.allCases) { value in
+                    Text(value.displayName).tag(value)
+                }
+            }
+        } label: {
+            Image(systemName: filters.isActive
+                ? "line.3.horizontal.decrease.circle.fill"
+                : "line.3.horizontal.decrease.circle")
+        }
+        .menuStyle(.borderlessButton)
+        .help("Filter Skills")
+        .accessibilityLabel("Filter Skills")
+        .accessibilityValue(filters.isActive ? "Filters active" : "All Skills")
     }
 
     @ViewBuilder
     private var localContent: some View {
         ForEach(localSkills) { skill in
-            SkillRowView(skill: skill, installedPlatforms: skill.enabledPlatforms)
+            SkillRowView(skill: skill)
                 .tag(UnifiedSkillSelection.managed(skill.id))
         }
 
@@ -99,26 +159,39 @@ struct SkillListView: View {
                 .tag(UnifiedSkillSelection.discovered(item.id))
         }
 
-        switch discoveryModel.loadState {
-        case .blocked(let message):
-            statusRow("Discovery unavailable", message: message, icon: "lock.trianglebadge.exclamationmark")
-        case .idle, .loading:
-            progressRow("Scanning registered folders")
-        case .failed(let message):
-            statusRow("Discovery failed", message: message, icon: "exclamationmark.triangle")
-        case .loaded:
-            if localSkills.isEmpty && discoveryItems.isEmpty {
-                statusRow(
-                    normalizedQuery.isEmpty ? "No Skills found" : "No local matches",
-                    message: normalizedQuery.isEmpty
-                        ? "Refresh discovery or import a Skill to get started."
-                        : "No local Skills match this search.",
-                    icon: "sparkles"
-                )
-            } else if discoveryModel.isRefreshing {
-                progressRow("Refreshing local Skills")
+        if includesDiscoveryChannel {
+            switch discoveryModel.loadState {
+            case .blocked(let message):
+                statusRow("Discovery unavailable", message: message, icon: "lock.trianglebadge.exclamationmark")
+            case .idle, .loading:
+                progressRow("Scanning registered folders")
+            case .failed(let message):
+                statusRow("Discovery failed", message: message, icon: "exclamationmark.triangle")
+            case .loaded:
+                if localSkills.isEmpty && discoveryItems.isEmpty {
+                    localEmptyState
+                } else if discoveryModel.isRefreshing {
+                    progressRow("Refreshing local Skills")
+                }
             }
+        } else if localSkills.isEmpty {
+            localEmptyState
         }
+    }
+
+    private var includesDiscoveryChannel: Bool {
+        filters.status.includesDiscoveryStatus(.unmanaged) && filters.agent == .all
+    }
+
+    private var localEmptyState: some View {
+        let constrained = !normalizedQuery.isEmpty || filters.isActive
+        return statusRow(
+            constrained ? "No local matches" : "No Skills found",
+            message: constrained
+                ? "No local Skills match the current search and filters."
+                : "Refresh discovery or import a Skill to get started.",
+            icon: "sparkles"
+        )
     }
 
     @ViewBuilder

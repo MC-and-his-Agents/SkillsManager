@@ -73,14 +73,15 @@ struct SkillsShSearchRow: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             HStack(spacing: 6) {
-                TagView(text: "skills.sh")
+                TagView(text: "Available", systemImage: "arrow.down.circle")
+                TagView(text: "skills.sh", systemImage: "magnifyingglass")
                 TagView(text: "\(item.installs.formatted()) installs")
             }
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(item.name), \(item.installs.formatted()) installs, source \(item.source)"
+            "\(item.name), Available, skills.sh, \(item.installs.formatted()) installs, source \(item.source)"
         )
     }
 }
