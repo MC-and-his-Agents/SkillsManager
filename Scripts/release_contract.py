@@ -85,7 +85,13 @@ def parse_version_env(path: str) -> Version:
 def select_stable_release(releases: list[dict[str, object]]) -> dict[str, object]:
     candidates: list[tuple[tuple[int, int, int], str]] = []
     for release in releases:
-        if release.get("isDraft") is True or release.get("isPrerelease") is True:
+        if not isinstance(release, dict):
+            raise ContractError("Release metadata must contain objects.")
+        if not isinstance(release.get("isDraft"), bool) or not isinstance(
+            release.get("isPrerelease"), bool
+        ):
+            raise ContractError("Release draft and prerelease flags must be booleans.")
+        if release["isDraft"] or release["isPrerelease"]:
             continue
         tag = release.get("tagName")
         if not isinstance(tag, str) or not tag.startswith("v"):

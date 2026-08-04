@@ -54,6 +54,12 @@ class ReleaseContractTests(unittest.TestCase):
             {"tagName": "v0.1.9", "isDraft": False, "isPrerelease": False},
         ]
         self.assertEqual(contract.select_stable_release(releases)["tag"], "v0.2.0")
+        for malformed in (
+            [{"tagName": "v0.2.0", "isPrerelease": False}],
+            [{"tagName": "v0.2.0", "isDraft": "false", "isPrerelease": False}],
+        ):
+            with self.assertRaises(contract.ContractError):
+                contract.select_stable_release(malformed)
 
     def test_release_plan_enforces_paths_version_build_and_issue(self):
         with tempfile.TemporaryDirectory() as directory:

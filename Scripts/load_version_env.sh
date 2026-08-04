@@ -25,7 +25,7 @@ load_version_env() {
           return 1
         }
         value=${line#MARKETING_VERSION=}
-        [[ "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+        [[ "$value" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
           echo "MARKETING_VERSION must be a stable numeric SemVer." >&2
           return 1
         }
