@@ -5,6 +5,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
     @Environment(SkillStore.self) private var store
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillsShSearchStore.self) private var skillsShStore
+    @Environment(CustomRepositoryViewModel.self) private var customRepositoryModel
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillDiscoveryBatchViewModel.self) private var discoveryBatchModel
     @Environment(SkillDistributionViewModel.self) private var distributionModel
@@ -104,6 +105,10 @@ struct SkillSplitLifecycleModifier: ViewModifier {
         consistencyModel.activate(dependencies: .live(writer: writer))
         updateCheckModel.activate(writer: writer, remote: remoteStore.client)
         batchUpdateModel.activate(writer: writer, remote: remoteStore.client)
+        let needsRepositoryRefresh = customRepositoryModel.activate(
+            dependencies: .live(writer: writer)
+        )
+        if needsRepositoryRefresh { await customRepositoryModel.loadAndRefresh() }
         await refreshManagedSelection()
         await consistencyModel.refreshIfLoaded()
     }
@@ -115,6 +120,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
         lifecycleModel.blockRuntime(message: message)
         consistencyModel.blockRuntime(message: message)
         batchUpdateModel.blockRuntime(message: message)
+        customRepositoryModel.blockRuntime(message: message)
         await updateCheckModel.blockRuntime(message: message)
     }
 
@@ -208,7 +214,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
                 skillID: skillID,
                 displayName: observation.relativeLocator
             )
-        case .clawHub, .skillsSh, nil:
+        case .repository, .clawHub, .skillsSh, nil:
             return nil
         }
     }

@@ -65,7 +65,7 @@ nonisolated enum SkillsShGitHubSourceError: Error, Equatable, LocalizedError, Se
         case .responseTooLarge: "GitHub returned more data than can be handled safely."
         case .contractChanged: "The GitHub source response did not match the expected contract."
         case .treeTruncated: "The GitHub repository tree is too large to resolve safely."
-        case .noUniqueSkillMatch: "The skills.sh result does not identify exactly one Skill."
+        case .noUniqueSkillMatch: "The GitHub source does not identify exactly one Skill."
         }
     }
 }
@@ -94,6 +94,9 @@ nonisolated struct SkillsShGitHubSourceClient: Sendable {
     var discoverRepository: @Sendable (
         _ catalog: CustomRepositoryCatalogRecord
     ) async throws -> CustomRepositoryDiscovery
+    var resolveCustomRepository: @Sendable (
+        _ snapshot: CustomRepositoryInstallSnapshot
+    ) async throws -> SkillsShResolvedGitHubUpdateSource
 
     static func live(
         load: @escaping DataLoader = SkillsShGitHubHTTPTransport.load
@@ -203,6 +206,35 @@ nonisolated struct SkillsShGitHubSourceClient: Sendable {
             },
             discoverRepository: { catalog in
                 try await discovery.resolve(catalog)
+            },
+            resolveCustomRepository: { snapshot in
+                do {
+                    let input = try SkillsShGitHubContract.existingInput(
+                        repositoryURL: snapshot.repositoryURL,
+                        subpath: snapshot.subpath
+                    )
+                    guard SkillsShGitHubContract.validSHA(snapshot.commitSHA) else {
+                        throw SkillsShGitHubSourceError.invalidSource
+                    }
+                    let commit = try await SkillsShGitHubContract.commit(
+                        owner: input.owner,
+                        repository: input.repository,
+                        defaultBranch: snapshot.commitSHA,
+                        load: load
+                    )
+                    guard commit.sha == snapshot.commitSHA else {
+                        throw SkillsShGitHubSourceError.contractChanged
+                    }
+                    return try await SkillsShGitHubContract.updateSource(
+                        input,
+                        canonicalFullName: "\(input.owner)/\(input.repository)",
+                        defaultBranch: snapshot.commitSHA,
+                        commit: commit,
+                        load: load
+                    )
+                } catch {
+                    throw SkillsShGitHubContract.stable(error)
+                }
             }
         )
     }

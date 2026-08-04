@@ -1,12 +1,125 @@
 import SwiftUI
 
 struct ManagedSkillsShInstallView: View {
+    let item: SkillsShSearchItem
+
+    var body: some View {
+        ManagedGitHubInstallView(request: .skillsSh(item))
+    }
+}
+
+struct ManagedCustomRepositoryInstallView: View {
+    @Environment(SkillStore.self) private var store
+
+    let candidate: CustomRepositoryCandidate
+
+    var body: some View {
+        if let writer = store.persistence, let slug = candidate.distributionSlug {
+            ManagedGitHubInstallView(
+                request: .customRepository(candidate, writer: writer, slug: slug)
+            )
+        } else {
+            ContentUnavailableView(
+                "Installation unavailable",
+                systemImage: "exclamationmark.triangle",
+                description: Text(
+                    candidate.installProblem ?? "The managed library is unavailable."
+                )
+            )
+            .frame(minWidth: 520, minHeight: 320)
+        }
+    }
+}
+
+nonisolated struct ManagedGitHubResolvedInstall: Sendable {
+    let source: SkillsShResolvedGitHubUpdateSource
+    let sourceInput: ManagedSourceInstallInput
+}
+
+nonisolated struct ManagedGitHubInstallRequest: Sendable {
+    let displayName: String
+    let detail: String
+    let resolve: @Sendable () async throws -> ManagedGitHubResolvedInstall
+    let download:
+        @Sendable (SkillsShResolvedGitHubUpdateSource) async throws -> SkillsShGitHubArchive
+
+    static func skillsSh(
+        _ item: SkillsShSearchItem,
+        client: SkillsShGitHubSourceClient = .live()
+    ) -> Self {
+        Self(
+            displayName: item.name,
+            detail: "verify \(item.source), find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
+            resolve: {
+                let source = try await client.resolve(item.id, item.source, item.skillID)
+                let updateSource = SkillsShResolvedGitHubUpdateSource(
+                    repositoryURL: source.repositoryURL,
+                    owner: source.owner,
+                    repository: source.repository,
+                    defaultBranch: source.defaultBranch,
+                    commitSHA: source.commitSHA,
+                    treeSHA: source.treeSHA,
+                    subpath: source.subpath,
+                    blobs: source.blobs,
+                    archiveURL: source.archiveURL
+                )
+                return ManagedGitHubResolvedInstall(
+                    source: updateSource,
+                    sourceInput: ManagedSourceInstallInput(
+                        displayName: item.name,
+                        distributionSlug: source.defaultDistributionSlug,
+                        repositoryURL: source.repositoryURL,
+                        subpath: source.subpath,
+                        revision: try SourceRevision(source.commitSHA),
+                        downloadURL: try PublicDownloadURL(source.archiveURL.absoluteString),
+                        alias: try ProviderAliasIdentity(
+                            provider: "skills.sh",
+                            identifier: source.providerAliasIdentifier
+                        ),
+                        refreshHead: {
+                            try SourceRevision(try await client.currentCommitSHA(source))
+                        }
+                    )
+                )
+            },
+            download: { try await client.downloadExisting($0) }
+        )
+    }
+
+    static func customRepository(
+        _ candidate: CustomRepositoryCandidate,
+        writer: JournaledSSOTWriter,
+        slug: DefaultDistributionSlug,
+        client: SkillsShGitHubSourceClient = .live()
+    ) -> Self {
+        Self(
+            displayName: candidate.displayName,
+            detail: "verify \(candidate.repository.displayName) at the discovered commit and exact Skill subpath.",
+            resolve: {
+                let source = try await client.resolveCustomRepository(candidate.snapshot)
+                return ManagedGitHubResolvedInstall(
+                    source: source,
+                    sourceInput: try candidate.snapshot.managedSourceInput(
+                        displayName: candidate.displayName,
+                        distributionSlug: slug,
+                        loadCatalog: { try await writer.loadCustomRepository(id: $0) },
+                        refresh: { try await client.discoverRepository($0) }
+                    )
+                )
+            },
+            download: { try await client.downloadExisting($0) }
+        )
+    }
+}
+
+private struct ManagedGitHubInstallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SkillStore.self) private var store
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
+    @Environment(CustomRepositoryViewModel.self) private var customRepositoryModel
 
-    let item: SkillsShSearchItem
+    let request: ManagedGitHubInstallRequest
 
     @State private var model = ManagedLocalImportViewModel()
     @State private var distributionMode: ManagedInstallDistributionMode = .global
@@ -16,7 +129,6 @@ struct ManagedSkillsShInstallView: View {
     @State private var isResolving = false
     @State private var errorMessage: String?
 
-    private let client = SkillsShGitHubSourceClient.live()
     private let importWorker = SkillImportWorker()
 
     var body: some View {
@@ -64,11 +176,10 @@ struct ManagedSkillsShInstallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Resolve and Install Skill")
+            Text("Resolve and Install \(request.displayName)")
                 .font(.title.bold())
             Text(
-                "Skills Manager will verify \(item.source), find one matching SKILL.md, "
-                    + "and pin the install to an immutable GitHub commit."
+                "Skills Manager will \(request.detail)"
             )
             .foregroundStyle(.secondary)
         }
@@ -119,8 +230,8 @@ struct ManagedSkillsShInstallView: View {
             isResolving = true
             defer { isResolving = false }
             do {
-                let resolved = try await client.resolve(item.id, item.source, item.skillID)
-                let downloaded = try await client.download(resolved)
+                let resolved = try await request.resolve()
+                let downloaded = try await request.download(resolved.source)
                 try Task.checkCancellation()
                 let archive = try await Task.detached {
                     try persistDownloadedSkillArchive(data: downloaded.data)
@@ -129,8 +240,8 @@ struct ManagedSkillsShInstallView: View {
                 do {
                     payload = try await importWorker.validateZip(
                         archive.url,
-                        repositorySubpath: resolved.subpath,
-                        expectedBlobs: try resolved.blobs.map {
+                        repositorySubpath: resolved.source.subpath,
+                        expectedBlobs: try resolved.source.blobs.map {
                             guard let byteCount = UInt64(exactly: $0.size) else {
                                 throw SkillsShGitHubSourceError.contractChanged
                             }
@@ -161,25 +272,9 @@ struct ManagedSkillsShInstallView: View {
                     return
                 }
                 candidate = payload
-                let revision = try SourceRevision(resolved.commitSHA)
-                let sourceInput = ManagedSourceInstallInput(
-                    displayName: item.name,
-                    distributionSlug: resolved.defaultDistributionSlug,
-                    repositoryURL: resolved.repositoryURL,
-                    subpath: resolved.subpath,
-                    revision: revision,
-                    downloadURL: try PublicDownloadURL(resolved.archiveURL.absoluteString),
-                    alias: try ProviderAliasIdentity(
-                        provider: "skills.sh",
-                        identifier: resolved.providerAliasIdentifier
-                    ),
-                    refreshHead: {
-                        try SourceRevision(try await client.currentCommitSHA(resolved))
-                    }
-                )
                 await model.prepareSourceBacked(
                     candidate: payload,
-                    sourceInput: sourceInput,
+                    sourceInput: resolved.sourceInput,
                     scope: distributionMode == .global ? .global : .agents(selectedAgents)
                 )
                 if model.problem != nil {
@@ -197,9 +292,10 @@ struct ManagedSkillsShInstallView: View {
         activeTask?.cancel()
         activeTask = Task {
             await model.confirm {
+                await cleanupCandidate()
                 await store.loadSkills()
                 await discoveryModel.refresh()
-                await cleanupCandidate()
+                await customRepositoryModel.refreshAll()
             }
             if let problem = model.problem {
                 errorMessage = problem.localizedDescription
@@ -260,7 +356,7 @@ nonisolated func persistDownloadedSkillArchive(
     data: Data
 ) throws -> DownloadedSkillArchive {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(
-        "skillsmanager-skillssh-\(UUID().uuidString.lowercased()).zip"
+        "skillsmanager-github-\(UUID().uuidString.lowercased()).zip"
     )
     do {
         try data.write(to: url, options: [.atomic])

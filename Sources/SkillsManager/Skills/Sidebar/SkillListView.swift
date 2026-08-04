@@ -5,9 +5,11 @@ struct SkillListView: View {
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillsShSearchStore.self) private var skillsShStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
+    @Environment(CustomRepositoryViewModel.self) private var customRepositoryModel
 
     let localSkills: [Skill]
     let discoveryItems: [SkillDiscoveryViewModel.Item]
+    let repositoryCandidates: [CustomRepositoryCandidate]
     let query: String
     @Binding var filters: SkillListFilters
     let installedSkillPlatforms: InstalledSkillPlatformIndex
@@ -39,6 +41,12 @@ struct SkillListView: View {
                     Section("skills.sh") {
                         skillsShSearchContent
                     }
+                }
+            }
+
+            if filters.includesRemote(.repository) {
+                Section("Repositories") {
+                    repositoryContent
                 }
             }
 
@@ -82,6 +90,7 @@ struct SkillListView: View {
 
     private var hasIncludedSkillChannel: Bool {
         if filters.status != .available { return true }
+        if filters.includesRemote(.repository) { return true }
         if normalizedQuery.isEmpty { return filters.includesRemote(.clawHub) }
         return filters.includesRemote(.clawHub) || filters.includesRemote(.skillsSh)
     }
@@ -98,7 +107,7 @@ struct SkillListView: View {
                 + (filters.includesRemote(.skillsSh)
                     && skillsShStore.searchState == .loaded ? skillsShStore.items.count : 0)
         }
-        return localSkills.count + discoveryItems.count + remoteCount
+        return localSkills.count + discoveryItems.count + repositoryCandidates.count + remoteCount
     }
 
     private var header: some View {
@@ -181,6 +190,33 @@ struct SkillListView: View {
 
     private var includesDiscoveryChannel: Bool {
         filters.status.includesDiscoveryStatus(.unmanaged) && filters.agent == .all
+    }
+
+    @ViewBuilder
+    private var repositoryContent: some View {
+        ForEach(repositoryCandidates) { candidate in
+            CustomRepositoryCandidateRow(candidate: candidate)
+                .tag(UnifiedSkillSelection.repository(candidate.id))
+        }
+        if repositoryCandidates.isEmpty {
+            if customRepositoryModel.isRefreshing {
+                progressRow("Refreshing GitHub repositories")
+            } else if customRepositoryModel.repositories.isEmpty {
+                emptyRow("No GitHub repositories registered.")
+            } else if let failure = customRepositoryModel.repositories.lazy.compactMap({ record in
+                if case .failed(let problem) = customRepositoryModel.state(
+                    for: record.repositoryID
+                ) { problem } else { nil }
+            }).first {
+                statusRow(
+                    "Repository unavailable",
+                    message: failure.message,
+                    icon: "exclamationmark.triangle"
+                )
+            } else {
+                emptyRow("No Skills found in the registered repositories.")
+            }
+        }
     }
 
     private var localEmptyState: some View {
@@ -402,6 +438,7 @@ struct SkillListView: View {
         async let local: Void = store.loadSkills()
         async let discovery: Void = discoveryModel.refresh()
         async let latest: Void = remoteStore.loadLatest()
-        _ = await (local, discovery, latest)
+        async let repositories: Void = customRepositoryModel.refreshAll()
+        _ = await (local, discovery, latest, repositories)
     }
 }

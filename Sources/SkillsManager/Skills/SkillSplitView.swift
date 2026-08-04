@@ -5,6 +5,7 @@ struct SkillSplitView: View {
     @Environment(SkillStore.self) private var store
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillsShSearchStore.self) private var skillsShStore
+    @Environment(CustomRepositoryViewModel.self) private var customRepositoryModel
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillDiscoveryBatchViewModel.self) private var discoveryBatchModel
     @Environment(SkillBatchUpdateViewModel.self) private var batchUpdateModel
@@ -22,6 +23,7 @@ struct SkillSplitView: View {
     @State private var showingConsistency = false
     @State private var showingBatchUpdates = false
     @State private var showingDiscoveryBatch = false
+    @State private var showingRepositories = false
     @State private var downloadErrorMessage: String?
     @State private var isDownloadingRemote = false
     @State private var didDownloadRemote = false
@@ -60,10 +62,23 @@ struct SkillSplitView: View {
         }
     }
 
+    private var filteredRepositoryCandidates: [CustomRepositoryCandidate] {
+        guard filters.includesRemote(.repository) else { return [] }
+        return customRepositoryModel.candidates.filter { candidate in
+            query.isEmpty
+                || candidate.displayName.localizedCaseInsensitiveContains(query)
+                || candidate.repository.repositoryURL.value.localizedCaseInsensitiveContains(query)
+                || candidate.snapshot.subpath.value.localizedCaseInsensitiveContains(query)
+        }
+    }
+
     private var visibleSelections: Set<UnifiedSkillSelection> {
         var values = Set(filteredSkills.map { UnifiedSkillSelection.managed($0.id) })
         values.formUnion(filteredDiscoveryItems.map {
             UnifiedSkillSelection.discovered($0.id)
+        })
+        values.formUnion(filteredRepositoryCandidates.map {
+            UnifiedSkillSelection.repository($0.id)
         })
         if query.isEmpty {
             if filters.includesRemote(.clawHub) {
@@ -92,6 +107,7 @@ struct SkillSplitView: View {
             SkillListView(
                 localSkills: filteredSkills,
                 discoveryItems: filteredDiscoveryItems,
+                repositoryCandidates: filteredRepositoryCandidates,
                 query: query,
                 filters: $filters,
                 installedSkillPlatforms: store.installedSkillPlatformIndex,
@@ -130,6 +146,9 @@ struct SkillSplitView: View {
         .sheet(isPresented: $showingDiscoveryBatch) {
             SkillDiscoveryBatchView()
                 .environment(discoveryBatchModel)
+        }
+        .sheet(isPresented: $showingRepositories) {
+            CustomRepositorySheet().environment(customRepositoryModel)
         }
         .sheet(item: $installSkill) { skill in
             ManagedClawdhubInstallView(
@@ -187,6 +206,12 @@ struct SkillSplitView: View {
             SkillDetailView()
         case .discovered:
             SkillDiscoveryDetailView()
+        case .repository(let id):
+            if let candidate = customRepositoryModel.candidate(id: id) {
+                CustomRepositoryCandidateDetailView(candidate: candidate)
+            } else {
+                ContentUnavailableView("Skill unavailable", systemImage: "shippingbox")
+            }
         case .clawHub:
             RemoteSkillDetailView()
         case .skillsSh:
@@ -293,29 +318,23 @@ struct SkillSplitView: View {
             }
         }
 
-        if selection == nil || isManagedSelection {
-            ToolbarItem(id: "add") {
-                Menu {
-                    Button("Import Skill...") { showingImport = true }
-                    Button("Add Custom Path...") { showingAddPath = true }
-                } label: {
-                    Label("Add", systemImage: "plus")
-                }
-                .labelStyle(.iconOnly)
+        ToolbarItem(id: "add") {
+            Menu {
+                Button("Import Skill...") { showingImport = true }
+                Button("Add Custom Path...") { showingAddPath = true }
+                Button("GitHub Repository...") { showingRepositories = true }
+            } label: {
+                Label("Add", systemImage: "plus")
             }
+            .labelStyle(.iconOnly)
         }
     }
 
     private var isLocalSelection: Bool {
         switch selection {
         case .managed, .discovered: true
-        case .clawHub, .skillsSh, nil: false
+        case .repository, .clawHub, .skillsSh, nil: false
         }
-    }
-
-    private var isManagedSelection: Bool {
-        if case .managed = selection { return true }
-        return false
     }
 
     private var backupAccessibilityLabel: String {
