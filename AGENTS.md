@@ -74,26 +74,12 @@ PR 合并后，Owner 必须按声明收口：
 - 使用功能分支和 pull request，不要直接在 `main` 上实施修改。
 - 规格审查和代码审查必须分别遵循 `spec_review.md` 与 `code_review.md`；两者的结论不能互相替代。
 
-<!-- LOOM_BOOTSTRAP_START -->
-## Loom Execution
+## GitHub 原生执行
 
-本仓库使用 Loom 编排 Work Item、build、review、merge-ready 与 host closeout。Loom
-消费 GitHub 与工作现场事实，不用 repo current、progress、review、shadow 或 closeout
-carrier 替代宿主真相。
-
-开始改文件前：
-
-1. 用 `loom route --target . --issue <issue> --json` 判断规划或执行入口。
-2. 实现必须显式绑定 Work Item 与 issue-scoped branch；PR 创建前可直接运行
-   `loom build --target . --issue <work-item> --branch <branch> --json`。
-3. 一次只推进一个有界目标；不要创建空提交、空 PR 或治理载体来满足 admission。
-4. PR 存在后再运行 `loom pre-review`、`loom review`、`loom merge-ready` 或 `loom ship`；
-   这些入口从 GitHub readback 取得 branch、head、review、checks 与 merge 状态。
-5. 验证证据记录命令、结果、时间或 head/run id；变更代码或 PR review 输入后重新确认
-   current-head attestation 与 gate freshness。
-6. merge 不等于产品完成；用 `loom attestation closeout` 消费宿主 closeout，用
-   `loom release readback` 消费发布事实，不创建 closeout/current-retire PR。
-
-环境或 provider 问题由 `loom doctor --target . --json` 分类；退役命令返回
-`unsupported_command_surface`，不得通过 compatibility flag 恢复。
-<!-- LOOM_BOOTSTRAP_END -->
+1. 每项实现绑定唯一 GitHub Work Item、功能分支、正式 worktree 和 PR。
+2. PR 必须声明发布影响，并通过 main 分支保护要求的 `build`、`test` 和
+   `release-impact` 检查。
+3. 规格审查、代码审查和 CI 是不同证据；代码或审查输入变化后，重新确认当前 PR head。
+4. 合并前回读 Work Item、PR、branch、head、required checks、review 与 mergeability。
+5. 合并后回读 merge commit、main CI、Issue 状态和发布或 no-release 结果，再清理现场。
+6. GitHub Issue、PR、Actions、Release 与本地 Git 现场是执行事实来源；不要创建平行状态载体。

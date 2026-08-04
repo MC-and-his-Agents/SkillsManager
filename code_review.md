@@ -12,7 +12,7 @@
 - 当前 diff、受影响调用链、测试与验证证据。
 - 涉及数据或发布时的迁移、回滚、签名、公证和发布后验证方案。
 
-缺少唯一 Work Item、当前 head 或必要规格时，不继续猜测实现意图，返回 `fallback`。CI 通过、`loom pre-review` 通过或文件齐全都不等于代码审查通过。
+缺少唯一 Work Item、当前 head 或必要规格时，不继续猜测实现意图，返回 `fallback`。CI 通过或文件齐全都不等于代码审查通过。
 
 ## 审查原则
 
@@ -55,7 +55,7 @@
 
 正式结论只能是：
 
-- `allow`：当前 head 未发现未解决的 P0–P2，可进入 merge-ready。
+- `allow`：当前 head 未发现未解决的 P0–P2，可进入合并前检查。
 - `block`：当前 head 存在必须修复的问题。
 - `fallback`：事实链、规格或验证证据不足，应退回明确入口。
 
@@ -66,13 +66,13 @@
 - Work Item、PR、branch 与完整 `reviewed_head`
 - 按优先级排列的 findings 和证据 locator
 - 已执行验证、未执行验证及剩余风险
-- 是否可以进入 merge-ready，或应退回 spec/build/pre-review 的哪一层
+- 是否可以进入合并前检查，或应退回规格、实现或验证中的哪一层
 
 ## 修复、复审与合并
 
 - 修复 finding 后先排查同类根因，再请求复审。
 - 任何代码或审查输入变化都会使旧 head 结论过期；必须针对新 head 重审。
-- GitHub review 状态、语义 review artifact、CI 与 Loom gate 是不同证据，不得混写。
-- `allow` 不等于 merge-ready；后者还需当前 head 的 host attestation、required checks、delivery gate 和 mergeability。
+- GitHub review 状态、语义审查结论与 CI 是不同证据，不得混写。
+- `allow` 不等于可以合并；还需当前 head 的 required checks、分支保护和 mergeability 通过。
 - 合并后仍须核对 merge commit、Issue 状态、目标分支、发布或 no-release 证据，并安全清理 branch/worktree。
-- 不以 `.loom/reviews/**`、current、progress、shadow 或 repo-local closeout 文件替代 GitHub 与当前 head 事实。
+- 不以 repo-local review、current、progress、shadow 或 closeout 文件替代 GitHub 与当前 head 事实。

@@ -6,7 +6,7 @@
 
 规格审查回答的是：需求是否足够明确、安全、可实现且可验证，可以进入实现阶段。
 
-它不判断实现代码是否正确，也不直接授权合并或发布。实现完成后仍须按 [code_review.md](code_review.md) 进行代码审查，并通过当前 PR head 的 CI、host attestation 与 merge-ready 检查。
+它不判断实现代码是否正确，也不直接授权合并或发布。实现完成后仍须按 [code_review.md](code_review.md) 进行代码审查，并通过当前 PR head 的 required checks 与合并前回读。
 
 ## 何时需要审查
 
@@ -67,10 +67,10 @@ Finding 使用以下优先级：
 
 结论至少记录审查类型、GitHub locator、审查对象版本或 PR head、findings、验证要求、剩余风险与下一入口。`allow` 只表示可以实现，不表示实现正确或可以合并。
 
-## 新鲜度与 Loom
+## 新鲜度与 GitHub 证据
 
 - 规格、验收、风险边界或依赖关系改变后，旧结论立即过期。
 - PR 形式的规格审查必须绑定当前 head；head 改变后重新确认。
-- `loom pre-review` 只验证事实链完整，不产生语义结论。
-- 正式结论发布到 GitHub 认可的 review/check 入口，并由 Loom host attestation 消费。
-- 不创建 `.loom/reviews/**`、repo-local spec record、current、progress、shadow 或 closeout carrier 作为替代真相。
+- 正式结论记录在对应 GitHub Issue、PR review 或 PR comment，并包含审查对象和当前 head。
+- CI 只证明自动化检查结果，不能替代规格语义结论。
+- 不创建 repo-local spec record、current、progress、shadow 或 closeout 文件替代 GitHub 事实。
