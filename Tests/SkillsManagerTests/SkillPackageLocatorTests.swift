@@ -62,7 +62,7 @@ struct SkillPackageLocatorTests {
                 withDestinationURL: outside
             )
 
-            #expect(throws: SkillPackageError.self) {
+            #expect(throws: SkillPackageError.unsafeManifest(root.appendingPathComponent("SKILL.md").path)) {
                 try SkillPackageLocator().locateSkillRoot(in: root)
             }
         }
