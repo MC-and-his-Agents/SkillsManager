@@ -224,9 +224,22 @@ nonisolated extension SkillsShGitHubContract {
                 && ($0.mode == "100644" || $0.mode == "100755")
                 && $0.components.last == "SKILL.md"
         }
+        let treePaths = Set(entries.lazy.filter {
+            $0.type == "tree" && $0.mode == "040000"
+        }.map(\.path))
         var subpaths: [RepositorySubpath] = []
         subpaths.reserveCapacity(manifests.count)
         for manifest in manifests {
+            let directoryComponents = manifest.components.dropLast()
+            if !directoryComponents.isEmpty {
+                for end in 1...directoryComponents.count {
+                    guard treePaths.contains(
+                        directoryComponents.prefix(end).joined(separator: "/")
+                    ) else {
+                        throw SkillsShGitHubSourceError.contractChanged
+                    }
+                }
+            }
             let raw = manifest.components.dropLast().joined(separator: "/")
             let subpath = try RepositorySubpath(raw)
             guard subpath.value == raw else { throw SkillsShGitHubSourceError.contractChanged }

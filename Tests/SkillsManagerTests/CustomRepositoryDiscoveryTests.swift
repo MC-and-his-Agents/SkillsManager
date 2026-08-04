@@ -17,8 +17,9 @@ struct CustomRepositoryDiscoveryTests {
         #expect(root.map(\.displayName) == ["repo"])
 
         let candidates = try SkillsShGitHubContract.discoveryCandidates(
-            [entry("skills/a/SKILL.md"), entry("skills/b/SKILL.md"),
-             entry("other/deep/c/SKILL.md")],
+            [tree("skills"), tree("skills/a"), entry("skills/a/SKILL.md"),
+             tree("skills/b"), entry("skills/b/SKILL.md"), tree("other"),
+             tree("other/deep"), tree("other/deep/c"), entry("other/deep/c/SKILL.md")],
             repositoryURL: repositoryURL,
             repositoryName: "repo"
         )
@@ -37,11 +38,28 @@ struct CustomRepositoryDiscoveryTests {
         ] {
             #expect(throws: SkillsShGitHubSourceError.contractChanged) {
                 try SkillsShGitHubContract.discoveryCandidates(
-                    paths.map(entry),
+                    paths.flatMap { path -> [SkillsShGitHubContract.TreeEntry] in
+                        let components = path.split(separator: "/").dropLast()
+                        let ancestors = components.indices.map {
+                            tree(components.prefix($0 + 1).joined(separator: "/"))
+                        }
+                        return ancestors + [entry(path)]
+                    },
                     repositoryURL: repositoryURL,
                     repositoryName: "repo"
                 )
             }
+        }
+    }
+
+    @Test("rejects a manifest whose ancestor tree is missing")
+    func missingAncestor() throws {
+        #expect(throws: SkillsShGitHubSourceError.contractChanged) {
+            try SkillsShGitHubContract.discoveryCandidates(
+                [tree("skills"), entry("skills/demo/SKILL.md")],
+                repositoryURL: NormalizedRepositoryURL("https://github.com/owner/repo"),
+                repositoryName: "repo"
+            )
         }
     }
 
@@ -156,10 +174,14 @@ struct CustomRepositoryDiscoveryTests {
             } else {
                 body = try JSONSerialization.data(withJSONObject: [
                     "sha": treeSHA,
-                    "tree": [[
-                        "path": "skills/demo/SKILL.md", "mode": "100644",
-                        "type": "blob", "sha": String(repeating: "c", count: 40), "size": 1,
-                    ]],
+                    "tree": [
+                        ["path": "skills", "mode": "040000", "type": "tree",
+                         "sha": String(repeating: "c", count: 40)],
+                        ["path": "skills/demo", "mode": "040000", "type": "tree",
+                         "sha": String(repeating: "d", count: 40)],
+                        ["path": "skills/demo/SKILL.md", "mode": "100644",
+                         "type": "blob", "sha": String(repeating: "e", count: 40), "size": 1],
+                    ],
                     "truncated": false,
                 ])
             }
