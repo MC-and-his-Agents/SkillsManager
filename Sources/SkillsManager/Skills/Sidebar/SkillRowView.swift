@@ -52,6 +52,13 @@ struct SkillRowView: View {
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel([
+            skill.displayName,
+            skill.identitySummary,
+            skill.managedStatus == .needsRepair ? "Needs Attention" : "Managed",
+            skill.listOrigin.labels.map(\.text).joined(separator: ", "),
+            SkillListAgentSummary.text(count: skill.enabledPlatforms.count),
+        ].filter { !$0.isEmpty }.joined(separator: ", "))
         .accessibilityValue([
             skill.identitySummary,
             skill.managedStatus == .needsRepair ? "Needs Attention" : "Managed",

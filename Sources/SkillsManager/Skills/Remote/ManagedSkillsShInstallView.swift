@@ -2,21 +2,30 @@ import SwiftUI
 
 struct ManagedSkillsShInstallView: View {
     let item: SkillsShSearchItem
+    @Environment(\.skillsManagerGitHubClient) private var githubClient
 
     var body: some View {
-        ManagedGitHubInstallView(request: .skillsSh(item))
+        ManagedGitHubInstallView(
+            request: .skillsSh(item, client: githubClient)
+        )
     }
 }
 
 struct ManagedCustomRepositoryInstallView: View {
     @Environment(SkillStore.self) private var store
+    @Environment(\.skillsManagerGitHubClient) private var githubClient
 
     let candidate: CustomRepositoryCandidate
 
     var body: some View {
         if let writer = store.persistence, let slug = candidate.distributionSlug {
             ManagedGitHubInstallView(
-                request: .customRepository(candidate, writer: writer, slug: slug)
+                request: .customRepository(
+                    candidate,
+                    writer: writer,
+                    slug: slug,
+                    client: githubClient
+                )
             )
         } else {
             ContentUnavailableView(

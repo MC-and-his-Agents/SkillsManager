@@ -40,6 +40,8 @@ struct RemoteSkillRowView: View {
         .padding(.vertical, 6)
         .padding(.trailing, 26)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue("Available, ClawHub, 0 Agents")
         .overlay(alignment: .topTrailing) {
             Button {
                 onInstall()

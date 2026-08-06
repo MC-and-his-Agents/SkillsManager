@@ -6,6 +6,44 @@ import Testing
 
 @Suite("DistributionSymlinkFileSystem", .serialized)
 struct DistributionSymlinkFileSystemTests {
+    @Test("captures distribution destinations under the supplied home")
+    func capturesDestinationUnderExplicitHome() throws {
+        let home = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: false)
+        let fileSystem = try DistributionSymlinkFileSystem(homeURL: home)
+        let entry = DistributionTargetEntry(
+            target: DistributionTarget(scope: .global, rootLocator: "~/.agents/skills"),
+            distributionSlug: try DefaultDistributionSlug(validating: "captured"),
+            canonicalLocator: "~/.agents/skills/captured"
+        )
+
+        let expected = home
+            .appendingPathComponent(".agents/skills/captured", isDirectory: true)
+            .standardizedFileURL
+        #expect(try fileSystem.absoluteTargetURL(for: entry) == expected)
+        #expect(try fileSystem.captureAbsoluteTarget(for: entry) == expected.path)
+    }
+
+    @Test("capture resolves from the held home and ignores locator strings")
+    func captureIgnoresLocatorStrings() throws {
+        let home = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: false)
+        let fileSystem = try DistributionSymlinkFileSystem(homeURL: home)
+        let entry = DistributionTargetEntry(
+            target: DistributionTarget(scope: .global, rootLocator: "~/../../etc"),
+            distributionSlug: try DefaultDistributionSlug(validating: "escape"),
+            canonicalLocator: "~/../../etc/escape"
+        )
+
+        let resolved = try fileSystem.absoluteTargetURL(for: entry).path
+        #expect(resolved.hasPrefix(home.standardizedFileURL.path + "/"))
+        #expect(!resolved.contains(".."))
+    }
+
     @Test("creates, observes, quarantines, restores, and cleans a managed link")
     func lifecycle() throws {
         let home = FileManager.default.temporaryDirectory

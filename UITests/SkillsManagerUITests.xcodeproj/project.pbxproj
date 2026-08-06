@@ -1,0 +1,156 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A16800010000000000000001 /* SkillsManagerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16800020000000000000001 /* SkillsManagerUITests.swift */; };
+		A16800070000000000000001 /* SkillsManagerUISnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16800080000000000000001 /* SkillsManagerUISnapshot.swift */; };
+		A16800090000000000000001 /* SkillsManagerUIAudit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16800110000000000000001 /* SkillsManagerUIAudit.swift */; };
+		A16800030000000000000001 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A16800040000000000000001 /* XCTest.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A16800020000000000000001 /* SkillsManagerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsManagerUITests/SkillsManagerUITests.swift; sourceTree = "<group>"; };
+		A16800080000000000000001 /* SkillsManagerUISnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsManagerUITests/SkillsManagerUISnapshot.swift; sourceTree = "<group>"; };
+		A16800110000000000000001 /* SkillsManagerUIAudit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsManagerUITests/SkillsManagerUIAudit.swift; sourceTree = "<group>"; };
+		A16800040000000000000001 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
+		A16800050000000000000001 /* SkillsManagerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SkillsManagerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A16800100000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A16800030000000000000001 /* XCTest.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A16800200000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A16800020000000000000001 /* SkillsManagerUITests.swift */,
+				A16800080000000000000001 /* SkillsManagerUISnapshot.swift */,
+				A16800110000000000000001 /* SkillsManagerUIAudit.swift */,
+				A16800210000000000000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A16800210000000000000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A16800050000000000000001 /* SkillsManagerUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A16800300000000000000001 /* SkillsManagerUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A16800500000000000000001 /* Build configuration list for PBXNativeTarget "SkillsManagerUITests" */;
+			buildPhases = (
+				A16800310000000000000001 /* Sources */,
+				A16800100000000000000001 /* Frameworks */,
+				A16800320000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SkillsManagerUITests;
+			productName = SkillsManagerUITests;
+			productReference = A16800050000000000000001 /* SkillsManagerUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A16800400000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					A16800300000000000000001 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+				};
+			};
+			buildConfigurationList = A16800410000000000000001 /* Build configuration list for PBXProject "SkillsManagerUITests" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A16800200000000000000001;
+			productRefGroup = A16800210000000000000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A16800300000000000000001 /* SkillsManagerUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A16800320000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A16800310000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A16800010000000000000001 /* SkillsManagerUITests.swift in Sources */, A16800070000000000000001 /* SkillsManagerUISnapshot.swift in Sources */, A16800090000000000000001 /* SkillsManagerUIAudit.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A16800600000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CODE_SIGN_IDENTITY = "-";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mcandhisagents.skillsmanager.uitest;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A16800610000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CODE_SIGN_IDENTITY = "-";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mcandhisagents.skillsmanager.uitest;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		A16800620000000000000001 /* Debug project */ = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_IDENTITY = "-"; DEVELOPMENT_TEAM = ""; MACOSX_DEPLOYMENT_TARGET = 15.0; SDKROOT = macosx; SWIFT_VERSION = 6.0; }; name = Debug; };
+		A16800630000000000000001 /* Release project */ = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_IDENTITY = "-"; DEVELOPMENT_TEAM = ""; MACOSX_DEPLOYMENT_TARGET = 15.0; SDKROOT = macosx; SWIFT_VERSION = 6.0; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A16800410000000000000001 /* Build configuration list for PBXProject "SkillsManagerUITests" */ = {isa = XCConfigurationList; buildConfigurations = (A16800620000000000000001 /* Debug */, A16800630000000000000001 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A16800500000000000000001 /* Build configuration list for PBXNativeTarget "SkillsManagerUITests" */ = {isa = XCConfigurationList; buildConfigurations = (A16800600000000000000001 /* Debug */, A16800610000000000000001 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A16800400000000000000001 /* Project object */;
+}

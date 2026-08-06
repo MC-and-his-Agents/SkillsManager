@@ -121,6 +121,21 @@ nonisolated final class DistributionSymlinkFileSystem {
         )
     }
 
+    /// Returns the distribution entry's absolute path without touching the file system.
+    /// The path is resolved from the validated home held by this file system; callers must
+    /// capture it before applying a plan and may use it for containment checks.
+    func absoluteTargetURL(for entry: DistributionTargetEntry) throws -> URL {
+        let path = try components(for: entry.target.scope).reduce(homeURL) {
+            $0.appendingPathComponent($1, isDirectory: true)
+        }
+        return path.appendingPathComponent(entry.distributionSlug.value, isDirectory: true)
+            .standardizedFileURL
+    }
+
+    func captureAbsoluteTarget(for entry: DistributionTargetEntry) throws -> String {
+        try absoluteTargetURL(for: entry).path
+    }
+
     func ensureRoot(for scope: DistributionBindingScope) throws -> ManagedItemIdentity {
         let handle = try openDirectory(components: try components(for: scope), createMissing: true)
         defer { Darwin.close(handle.descriptor) }

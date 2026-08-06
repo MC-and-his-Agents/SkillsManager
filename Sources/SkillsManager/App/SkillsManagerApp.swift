@@ -1,4 +1,5 @@
 import Security
+import AppKit
 import SwiftUI
 
 #if canImport(Sparkle) && ENABLE_SPARKLE
@@ -23,9 +24,21 @@ struct SkillsManagerApp: App {
     @State private var skillsShStore = SkillsShSearchStore(client: .live())
     @State private var customRepositoryModel = CustomRepositoryViewModel()
     @State private var runtimeBootstrap = AppLibraryRuntimeBootstrap()
-    private let startupCoordinator = LibraryStartupCoordinator()
+    private let startupCoordinator: LibraryStartupCoordinator
+#if SKILLS_MANAGER_UI_TEST
+    private let fixtureRuntime: SkillsManagerUIFixtureRuntime
+#endif
 
     init() {
+#if SKILLS_MANAGER_UI_TEST
+        let fixture = SkillsManagerUIFixtureRuntime.current()
+        fixtureRuntime = fixture
+        startupCoordinator = LibraryStartupCoordinator(homeURL: fixture.homeURL)
+        _remoteStore = State(initialValue: RemoteSkillStore(client: fixture.remoteClient))
+        _skillsShStore = State(initialValue: SkillsShSearchStore(client: fixture.skillsShClient))
+#else
+        startupCoordinator = LibraryStartupCoordinator()
+#endif
         let pathStore = CustomPathStore()
         let updateAdmission = ManagedSkillUpdateAdmission()
         _customPathStore = State(initialValue: pathStore)
@@ -54,9 +67,31 @@ struct SkillsManagerApp: App {
                 .environment(lifecycleModel)
                 .environment(consistencyModel)
                 .environment(libraryRuntime)
+#if SKILLS_MANAGER_UI_TEST
+                .environment(\.skillsManagerHomeURL, fixtureRuntime.homeURL)
+                .environment(\.skillsManagerGitHubClient, fixtureRuntime.githubClient)
+                .onAppear {
+                    // Prefer a screen with non-negative origin: XCUITest hit
+                    // points are unreliable on negative-origin displays.
+                    let screen = NSScreen.screens.first {
+                        $0.frame.origin.x >= 0 && $0.frame.origin.y >= 0
+                    } ?? NSScreen.main
+                    guard let screen else { return }
+                    let target = screen.visibleFrame.insetBy(dx: 60, dy: 40)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        NSApplication.shared.windows.first?.setFrame(target, display: true)
+                    }
+                }
+#endif
                 .task {
                     await runtimeBootstrap.start(
-                        using: { await startupCoordinator.start() },
+                        using: {
+#if SKILLS_MANAGER_UI_TEST
+                            await fixtureRuntime.start()
+#else
+                            await startupCoordinator.start()
+#endif
+                        },
                         runtimeState: libraryRuntime,
                         customPathStore: customPathStore,
                         skillStore: store
