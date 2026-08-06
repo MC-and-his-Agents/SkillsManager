@@ -154,7 +154,18 @@ plutil -insert "SkillsManagerUITests.EnvironmentVariables.SKILLS_MANAGER_UI_TEST
 plutil -insert "SkillsManagerUITests.EnvironmentVariables.TEST_APP_PATH" \
   -string "$TEST_APP_PATH" "$XCTESTRUN"
 
-xcodebuild test-without-building \
-  -xctestrun "$XCTESTRUN" \
-  -destination 'platform=macOS,arch=arm64' \
-  -resultBundlePath "$RESULT_BUNDLE"
+run_ui_tests() {
+  xcodebuild test-without-building \
+    -xctestrun "$XCTESTRUN" \
+    -destination 'platform=macOS,arch=arm64' \
+    -resultBundlePath "$RESULT_BUNDLE"
+}
+
+# LaunchServices can intermittently fail to launch the container-homed Runner
+# with OSStatus -10827; re-register and retry once before giving up.
+if ! run_ui_tests; then
+  echo "UI test launch failed; re-registering Runner and retrying once."
+  "$LSREGISTER" -f "$RUNNER_APP" 2>/dev/null || true
+  sleep 3
+  run_ui_tests
+fi
