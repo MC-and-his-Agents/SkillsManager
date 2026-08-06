@@ -7,6 +7,7 @@ SCHEME=SkillsManagerUITests
 UI_TEST_BUNDLE_ID=com.mcandhisagents.skillsmanager.uitest
 START_STATUS=$(git -C "$ROOT_DIR" status --short)
 RESULT_BUNDLE=""
+DERIVED_DATA=""
 # The sandboxed XCTRunner can only write inside its own container; the runner
 # root must live there so tests can create/remove child homes.
 CONTAINER_HOME="${HOME}/Library/Containers/${UI_TEST_BUNDLE_ID}.xctrunner/Data"
@@ -20,13 +21,13 @@ cleanup() {
   if [[ "$end_status" != "$START_STATUS" ]]; then
     echo "ERROR: UI test runner changed repository status." >&2
     printf 'before:\n%s\nafter:\n%s\n' "$START_STATUS" "$end_status" >&2
-    rm -rf "$RUNNER_ROOT"
+    rm -rf "$RUNNER_ROOT" "$DERIVED_DATA"
     exit 1
   fi
   if [[ -d "$RESULT_BUNDLE" ]]; then
     echo "UI test result bundle: $RESULT_BUNDLE"
   fi
-  rm -rf "$RUNNER_ROOT"
+  rm -rf "$RUNNER_ROOT" "$DERIVED_DATA"
 }
 trap cleanup EXIT
 
@@ -73,7 +74,10 @@ build_marker_check release "$RUNNER_ROOT/swiftpm-default-release" absent
 
 APP_DIR="$RUNNER_ROOT/app"
 SCRATCH_DIR="$RUNNER_ROOT/swiftpm-ui"
-DERIVED_DATA="$RUNNER_ROOT/derived-data"
+# DerivedData must NOT live inside the sandbox container: LaunchServices
+# intermittently fails to launch container-homed apps (OSStatus -10827).
+# The runner cleans this directory together with the container root.
+DERIVED_DATA=$(mktemp -d "${TMPDIR:-/tmp}/skillsmanager-ui-derived-XXXXXX")
 RESULT_BUNDLE="$RUNNER_ROOT/xcresult"
 ENTITLEMENTS="$RUNNER_ROOT/app/SkillsManagerUITest.entitlements"
 mkdir -p "$APP_DIR" "$SCRATCH_DIR"
