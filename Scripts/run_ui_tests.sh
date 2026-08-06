@@ -145,6 +145,10 @@ XCTESTRUN=$(find "$DERIVED_DATA/Build/Products" -maxdepth 1 -name '*.xctestrun' 
   echo "ERROR: xctestrun file not found under $DERIVED_DATA/Build/Products" >&2
   exit 1
 }
+# Register the Runner with LaunchServices so a fresh container or a stale
+# launch-services cache cannot fail the launch with OSStatus -10827.
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+"$LSREGISTER" -f "$RUNNER_APP" 2>/dev/null || true
 plutil -insert "SkillsManagerUITests.EnvironmentVariables.SKILLS_MANAGER_UI_TEST_ROOT" \
   -string "$RUNNER_ROOT" "$XCTESTRUN"
 plutil -insert "SkillsManagerUITests.EnvironmentVariables.TEST_APP_PATH" \
