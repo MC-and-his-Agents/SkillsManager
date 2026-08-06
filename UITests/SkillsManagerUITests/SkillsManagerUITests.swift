@@ -452,7 +452,16 @@ final class SkillsManagerUITests: XCTestCase {
         menu.click()
         let menuItem = app.menuItems[item]
         try requireElement(menuItem, surface: surface, app: app)
-        try clickWhenHittable(menuItem, surface: surface, app: app)
+        // Menu item frames can be non-finite while the menu is presenting; poll
+        // for a settled frame before synthesizing the click.
+        for _ in 0..<8 {
+            let frame = menuItem.frame
+            if frame.width.isFinite && frame.width > 0, frame.height.isFinite, frame.height > 0 {
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        menuItem.click()
     }
 
     private func openImportSheet(surface: String, app: XCUIApplication) throws {
