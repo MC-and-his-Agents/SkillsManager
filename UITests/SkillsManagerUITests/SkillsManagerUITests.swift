@@ -417,9 +417,9 @@ final class SkillsManagerUITests: XCTestCase {
         // (the menu is a separate key window); close it with the standard
         // click-outside interaction and record the classification evidence.
         recordMenuKeyboardClassification(surface: "ui-08", app: app)
-        app.windows.firstMatch.coordinate(
-            withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)
-        ).click()
+        // Click a menu-outside element to close it (a bare window coordinate can
+        // land on the sidebar ScrollView which has no hit point).
+        app.searchFields.firstMatch.click()
         try waitForDisappearance(
             app.menuItems["All Statuses"],
             surface: "ui-08",

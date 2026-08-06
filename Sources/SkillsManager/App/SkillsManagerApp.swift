@@ -71,11 +71,15 @@ struct SkillsManagerApp: App {
                 .environment(\.skillsManagerHomeURL, fixtureRuntime.homeURL)
                 .environment(\.skillsManagerGitHubClient, fixtureRuntime.githubClient)
                 .onAppear {
-                    if let screen = NSScreen.main {
-                        NSApplication.shared.windows.first?.setFrame(
-                            screen.visibleFrame.insetBy(dx: 60, dy: 40),
-                            display: true
-                        )
+                    // Prefer a screen with non-negative origin: XCUITest hit
+                    // points are unreliable on negative-origin displays.
+                    let screen = NSScreen.screens.first {
+                        $0.frame.origin.x >= 0 && $0.frame.origin.y >= 0
+                    } ?? NSScreen.main
+                    guard let screen else { return }
+                    let target = screen.visibleFrame.insetBy(dx: 60, dy: 40)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        NSApplication.shared.windows.first?.setFrame(target, display: true)
                     }
                 }
 #endif
