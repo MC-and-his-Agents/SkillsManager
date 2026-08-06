@@ -22,9 +22,11 @@ struct CustomRepositorySheet: View {
             HStack {
                 Button("Refresh All") { Task { await model.refreshAll() } }
                     .disabled(model.repositories.isEmpty || model.isRefreshing || model.isMutating)
+                    .accessibilityIdentifier("repository.refresh-all")
                 Spacer()
                 Button("Done") { dismiss() }
                     .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("repository.done")
             }
         }
         .padding(20)
@@ -86,6 +88,7 @@ struct CustomRepositorySheet: View {
                         }
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("repository.add")
                     .disabled(repositoryURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         || model.isMutating)
                 }

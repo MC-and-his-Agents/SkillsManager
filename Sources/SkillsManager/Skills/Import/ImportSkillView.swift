@@ -58,6 +58,15 @@ struct ImportSkillView: View {
             model.activate(writer: store.persistence)
             archiveModel.activate(writer: store.persistence)
         }
+#if SKILLS_MANAGER_UI_TEST
+        .task {
+            let fixture = SkillsManagerUIFixtureRuntime.current()
+            guard fixture.isAdmitted,
+                  fixture.profile == .baseline,
+                  FileManager.default.fileExists(atPath: fixture.archiveURL.path) else { return }
+            handlePick(.success([fixture.archiveURL]))
+        }
+#endif
         .onChange(of: libraryRuntime.readiness) { _, _ in
             if !model.isWorking {
                 model.activate(writer: store.persistence)

@@ -14,6 +14,8 @@ struct SkillSplitLifecycleModifier: ViewModifier {
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
     @Environment(SkillConsistencyViewModel.self) private var consistencyModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
+    @Environment(\.skillsManagerHomeURL) private var homeURL
+    @Environment(\.skillsManagerGitHubClient) private var githubClient
 
     @Binding var selection: UnifiedSkillSelection?
     @Binding var searchText: String
@@ -93,7 +95,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
             dependencies: .live(writer: writer),
             roots: {
                 SkillDiscoveryRootPlan.make(
-                    homeURL: FileManager.default.homeDirectoryForCurrentUser,
+                    homeURL: homeURL,
                     customPaths: store.customPaths
                 )
             }
@@ -106,7 +108,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
         updateCheckModel.activate(writer: writer, remote: remoteStore.client)
         batchUpdateModel.activate(writer: writer, remote: remoteStore.client)
         let needsRepositoryRefresh = customRepositoryModel.activate(
-            dependencies: .live(writer: writer)
+            dependencies: .live(writer: writer, client: githubClient)
         )
         if needsRepositoryRefresh { await customRepositoryModel.loadAndRefresh() }
         await refreshManagedSelection()

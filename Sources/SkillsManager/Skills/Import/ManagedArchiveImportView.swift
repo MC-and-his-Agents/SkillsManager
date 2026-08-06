@@ -51,8 +51,10 @@ struct ManagedArchiveImportView: View {
             HStack {
                 Button("Select safe") { model.selectAllSafe() }
                     .disabled(model.availableCandidateCount == 0)
+                    .accessibilityIdentifier("archive.select-safe")
                 Button("Clear") { model.clearSelection() }
                     .disabled(model.selectedCount == 0)
+                    .accessibilityIdentifier("archive.clear-selection")
                 Spacer()
                 Text("\(model.selectedCount) selected")
                     .font(.caption)
@@ -70,6 +72,7 @@ struct ManagedArchiveImportView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canPrepare || !scopeIsValid)
+                .accessibilityIdentifier("archive.review-selected")
             }
         }
     }
@@ -106,6 +109,7 @@ struct ManagedArchiveImportView: View {
             .disabled(!candidate.isImportable)
             .accessibilityLabel(candidate.displayName)
             .accessibilityValue(candidate.blockedReason ?? "Importable")
+            .accessibilityIdentifier("archive.candidate.\(candidate.canonicalSubpath)")
         }
         .padding(.vertical, 4)
     }
@@ -168,6 +172,7 @@ struct ManagedArchiveImportView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canConfirm)
+                .accessibilityIdentifier("archive.confirm")
             }
         }
     }

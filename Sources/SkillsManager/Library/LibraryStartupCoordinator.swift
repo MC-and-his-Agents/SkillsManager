@@ -169,7 +169,8 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
                 managementRoot: managementRoot,
                 ssotRoot: ssotRoot,
                 connection: connection,
-                ownership: ownership
+                ownership: ownership,
+                distributionHomeURL: homeURL
             )
             phase = .migratingLegacy
             let migration = try await writer.migrateLegacy(homeURL: homeURL)
@@ -317,7 +318,8 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
             managementRoot: managementRoot,
             ssotRoot: ssotRoot,
             connection: connection,
-            ownership: ownership
+            ownership: ownership,
+            distributionHomeURL: homeURL
         )
         diagnostics.append(contentsOf: try await writer.healthDiagnostics())
         return readyResult(
