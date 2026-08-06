@@ -119,8 +119,13 @@ RUNNER_APP="$DERIVED_DATA/Build/Products/Debug/SkillsManagerUITests-Runner.app"
 if [[ -d "$RUNNER_APP" ]]; then
   RUNNER_EXEC_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" \
     "$RUNNER_APP/Contents/Info.plist" 2>/dev/null || true)
+  echo "Runner CFBundleExecutable: ${RUNNER_EXEC_NAME:-unreadable}"
+  echo "Runner Contents/MacOS: $(ls -la "$RUNNER_APP/Contents/MacOS" 2>/dev/null | tr '\n' ' ')"
   if [[ -n "$RUNNER_EXEC_NAME" ]]; then
     RUNNER_EXEC="$RUNNER_APP/Contents/MacOS/$RUNNER_EXEC_NAME"
+    if [[ -x "$RUNNER_EXEC" ]]; then
+      echo "Runner executable arches: $(lipo -archs "$RUNNER_EXEC" 2>&1)"
+    fi
     if [[ ! -x "$RUNNER_EXEC" ]]; then
       ACTUAL_EXEC=$(find "$RUNNER_APP/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
       if [[ -n "$ACTUAL_EXEC" ]]; then
