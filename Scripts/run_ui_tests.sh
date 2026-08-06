@@ -112,6 +112,29 @@ xcodebuild build-for-testing \
   -destination 'platform=macOS,arch=arm64' \
   -derivedDataPath "$DERIVED_DATA"
 
+# Some Xcode runner templates (e.g. 26.4) emit a CFBundleExecutable that differs
+# from the actual binary name, which makes LaunchServices fail with -10827.
+# Align the executable name with the Info.plist and re-sign when needed.
+RUNNER_APP="$DERIVED_DATA/Build/Products/Debug/SkillsManagerUITests-Runner.app"
+if [[ -d "$RUNNER_APP" ]]; then
+  RUNNER_EXEC_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" \
+    "$RUNNER_APP/Contents/Info.plist" 2>/dev/null || true)
+  if [[ -n "$RUNNER_EXEC_NAME" ]]; then
+    RUNNER_EXEC="$RUNNER_APP/Contents/MacOS/$RUNNER_EXEC_NAME"
+    if [[ ! -x "$RUNNER_EXEC" ]]; then
+      ACTUAL_EXEC=$(find "$RUNNER_APP/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
+      if [[ -n "$ACTUAL_EXEC" ]]; then
+        mv "$ACTUAL_EXEC" "$RUNNER_EXEC"
+        codesign --force --sign - "$RUNNER_APP"
+        echo "Aligned Runner executable: $(basename "$ACTUAL_EXEC") -> $RUNNER_EXEC_NAME"
+      else
+        echo "ERROR: Runner.app contains no executable." >&2
+        exit 1
+      fi
+    fi
+  fi
+fi
+
 XCTESTRUN=$(find "$DERIVED_DATA/Build/Products" -maxdepth 1 -name '*.xctestrun' | head -1)
 [[ -n "$XCTESTRUN" && -f "$XCTESTRUN" ]] || {
   echo "ERROR: xctestrun file not found under $DERIVED_DATA/Build/Products" >&2
