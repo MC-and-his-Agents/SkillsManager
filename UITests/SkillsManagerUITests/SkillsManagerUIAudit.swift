@@ -121,9 +121,12 @@ extension XCTestCase {
         for _ in 0..<6 {
             let hasFrame = NSPredicate { object, _ in
                 guard let candidate = object as? XCUIElement else { return false }
+                let frame = candidate.frame
                 return candidate.exists
-                    && candidate.frame.width > 0
-                    && candidate.frame.height > 0
+                    && frame.width.isFinite
+                    && frame.height.isFinite
+                    && frame.width > 0
+                    && frame.height > 0
             }
             let frameExpectation = XCTNSPredicateExpectation(
                 predicate: hasFrame,
@@ -256,7 +259,7 @@ extension XCTestCase {
               let height = Double(numbers[numbers.count - 1]) else {
             return false
         }
-        return width <= 8 || height <= 8
+        return width <= 16 || height <= 16
     }
 
     /// macOS XCUITest cannot reliably scroll SwiftUI sidebar lists; Load More

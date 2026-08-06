@@ -452,7 +452,7 @@ final class SkillsManagerUITests: XCTestCase {
         menu.click()
         let menuItem = app.menuItems[item]
         try requireElement(menuItem, surface: surface, app: app)
-        menuItem.click()
+        try clickWhenHittable(menuItem, surface: surface, app: app)
     }
 
     private func openImportSheet(surface: String, app: XCUIApplication) throws {
