@@ -167,5 +167,6 @@ if ! run_ui_tests; then
   echo "UI test launch failed; re-registering Runner and retrying once."
   "$LSREGISTER" -f "$RUNNER_APP" 2>/dev/null || true
   sleep 3
+  rm -rf "$RESULT_BUNDLE"
   run_ui_tests
 fi
