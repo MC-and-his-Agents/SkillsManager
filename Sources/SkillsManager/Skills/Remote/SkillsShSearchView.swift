@@ -79,10 +79,11 @@ struct SkillsShSearchRow: View {
             }
         }
         .padding(.vertical, 6)
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "\(item.name), Available, skills.sh, \(item.installs.formatted()) installs, source \(item.source)"
         )
+        .accessibilityValue("Available, skills.sh, 0 Agents")
     }
 }
 

@@ -258,6 +258,7 @@ struct SkillSplitView: View {
                 .help("Batch Import discovered Skills")
                 .accessibilityLabel("Batch Import discovered Skills")
                 .accessibilityValue("\(batchCandidateCount) candidates available")
+                .accessibilityIdentifier("skills.batch-import")
             }
         }
 
@@ -335,6 +336,8 @@ struct SkillSplitView: View {
                 Label("Add", systemImage: "plus")
             }
             .labelStyle(.iconOnly)
+            .accessibilityLabel("Add")
+            .accessibilityIdentifier("skills.add.menu")
         }
     }
 

@@ -16,6 +16,38 @@ APP_IDENTITY=${APP_IDENTITY:-}
 SPARKLE_FEED_URL=${SPARKLE_FEED_URL:-}
 SPARKLE_PUBLIC_KEY=${SPARKLE_PUBLIC_KEY:-}
 
+CUSTOM_APP_OUTPUT_DIR=0
+if [[ -n "${APP_OUTPUT_DIR+x}" ]]; then CUSTOM_APP_OUTPUT_DIR=1; fi
+APP_OUTPUT_DIR=${APP_OUTPUT_DIR:-$ROOT}
+SWIFT_SCRATCH_PATH=${SWIFT_SCRATCH_PATH:-}
+
+require_absolute_directory() {
+  local value="$1" label="$2"
+  [[ -n "$value" && "$value" == /* ]] || {
+    echo "ERROR: $label must be an absolute path." >&2
+    exit 1
+  }
+  mkdir -p "$value"
+  [[ ! -L "$value" ]] || {
+    echo "ERROR: $label must not be a symlink." >&2
+    exit 1
+  }
+}
+
+require_absolute_directory "$APP_OUTPUT_DIR" APP_OUTPUT_DIR
+if [[ "$CUSTOM_APP_OUTPUT_DIR" == "1" ]]; then
+  APP_OUTPUT_REAL=$(cd "$APP_OUTPUT_DIR" && pwd -P)
+  ROOT_REAL=$(pwd -P)
+  [[ "$APP_OUTPUT_REAL" != "/" && "$APP_OUTPUT_REAL" != "$HOME" \
+      && "$APP_OUTPUT_REAL" != "$ROOT_REAL" ]] || {
+    echo "ERROR: APP_OUTPUT_DIR must be a dedicated output directory." >&2
+    exit 1
+  }
+fi
+if [[ -n "$SWIFT_SCRATCH_PATH" ]]; then
+  require_absolute_directory "$SWIFT_SCRATCH_PATH" SWIFT_SCRATCH_PATH
+fi
+
 if [[ -f "$ROOT/version.env" ]]; then
   source "$ROOT/Scripts/load_version_env.sh"
   load_version_env "$ROOT/version.env"
@@ -31,17 +63,30 @@ if [[ ${#ARCH_LIST[@]} -eq 0 ]]; then
 fi
 
 for ARCH in "${ARCH_LIST[@]}"; do
-  swift build -c "$CONF" --arch "$ARCH"
+  BUILD_ARGS=(build -c "$CONF" --arch "$ARCH")
+  if [[ -n "$SWIFT_SCRATCH_PATH" ]]; then
+    BUILD_ARGS+=(--scratch-path "$SWIFT_SCRATCH_PATH")
+  fi
+  if [[ "${UI_TEST_BUILD:-0}" == "1" ]]; then
+    BUILD_ARGS+=(-Xswiftc -DSKILLS_MANAGER_UI_TEST)
+  fi
+  swift "${BUILD_ARGS[@]}"
 done
 
-APP="$ROOT/${APP_NAME}.app"
-rm -rf "$APP"
+APP="$APP_OUTPUT_DIR/${APP_NAME}.app"
+if [[ -e "$APP" || -L "$APP" ]]; then
+  [[ ! -L "$APP" ]] || {
+    echo "ERROR: refusing to remove symlink app bundle: $APP" >&2
+    exit 1
+  }
+  rm -rf "$APP"
+fi
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 
 # Convert Icon.icon to Icon.icns if present (requires iconutil).
 ICON_SOURCE="$ROOT/Icon.icon"
 ICON_TARGET="$ROOT/Icon.icns"
-if [[ -f "$ICON_SOURCE" ]]; then
+if [[ "${UI_TEST_BUILD:-0}" != "1" && -f "$ICON_SOURCE" ]]; then
   iconutil --convert icns --output "$ICON_TARGET" "$ICON_SOURCE"
 fi
 
@@ -87,13 +132,16 @@ ${SPARKLE_PLIST_KEYS}
 </plist>
 PLIST
 
-build_product_path() {
-  local name="$1"
-  local arch="$2"
-  case "$arch" in
-    arm64|x86_64) echo ".build/${arch}-apple-macosx/$CONF/$name" ;;
-    *) echo ".build/$CONF/$name" ;;
-  esac
+show_bin_path() {
+  local arch="$1"
+  local args=(build -c "$CONF" --arch "$arch" --show-bin-path)
+  if [[ -n "$SWIFT_SCRATCH_PATH" ]]; then
+    args+=(--scratch-path "$SWIFT_SCRATCH_PATH")
+  fi
+  if [[ "${UI_TEST_BUILD:-0}" == "1" ]]; then
+    args+=(-Xswiftc -DSKILLS_MANAGER_UI_TEST)
+  fi
+  swift "${args[@]}"
 }
 
 verify_binary_arches() {
@@ -122,7 +170,9 @@ install_binary() {
   local binaries=()
   for arch in "${ARCH_LIST[@]}"; do
     local src
-    src=$(build_product_path "$name" "$arch")
+    local bin_dir
+    bin_dir=$(show_bin_path "$arch")
+    src="$bin_dir/$name"
     if [[ ! -f "$src" ]]; then
       echo "ERROR: Missing ${name} build for ${arch} at ${src}" >&2
       exit 1
@@ -147,7 +197,7 @@ if [[ -d "$APP_RESOURCES_DIR" ]]; then
 fi
 
 # SwiftPM resource bundles are emitted next to the built binary.
-PREFERRED_BUILD_DIR="$(dirname "$(build_product_path "$EXECUTABLE_NAME" "${ARCH_LIST[0]}")")"
+PREFERRED_BUILD_DIR="$(show_bin_path "${ARCH_LIST[0]}")"
 shopt -s nullglob
 SWIFTPM_BUNDLES=("${PREFERRED_BUILD_DIR}/"*.bundle)
 shopt -u nullglob
@@ -158,7 +208,7 @@ if [[ ${#SWIFTPM_BUNDLES[@]} -gt 0 ]]; then
 fi
 
 # Embed frameworks if any exist in the build folder.
-FRAMEWORK_DIRS=(".build/$CONF" ".build/${ARCH_LIST[0]}-apple-macosx/$CONF")
+FRAMEWORK_DIRS=("$PREFERRED_BUILD_DIR" "$(dirname "$PREFERRED_BUILD_DIR")")
 for dir in "${FRAMEWORK_DIRS[@]}"; do
   if compgen -G "${dir}/*.framework" >/dev/null; then
     cp -R "${dir}/"*.framework "$APP/Contents/Frameworks/"
@@ -179,11 +229,27 @@ chmod -R u+w "$APP"
 xattr -cr "$APP"
 find "$APP" -name '._*' -delete
 
-ENTITLEMENTS_DIR="$ROOT/.build/entitlements"
+if [[ "${UI_TEST_BUILD:-0}" == "1" ]]; then
+  ENTITLEMENTS_DIR="$APP_OUTPUT_DIR/.entitlements"
+else
+  ENTITLEMENTS_DIR="$ROOT/.build/entitlements"
+fi
 DEFAULT_ENTITLEMENTS="$ENTITLEMENTS_DIR/${APP_NAME}.entitlements"
 mkdir -p "$ENTITLEMENTS_DIR"
 
 APP_ENTITLEMENTS=${APP_ENTITLEMENTS:-$DEFAULT_ENTITLEMENTS}
+if [[ "$APP_ENTITLEMENTS" != /* ]]; then
+  echo "ERROR: APP_ENTITLEMENTS must be an absolute path." >&2
+  exit 1
+fi
+if [[ "${UI_TEST_BUILD:-0}" == "1" ]]; then
+  ENTITLEMENTS_REAL=$(cd "$(dirname "$APP_ENTITLEMENTS")" && pwd -P)
+  OUTPUT_REAL=$(cd "$APP_OUTPUT_DIR" && pwd -P)
+  [[ "$ENTITLEMENTS_REAL" == "$OUTPUT_REAL" || "$ENTITLEMENTS_REAL" == "$OUTPUT_REAL"/* ]] || {
+    echo "ERROR: UI test entitlements must live under APP_OUTPUT_DIR." >&2
+    exit 1
+  }
+fi
 if [[ ! -f "$APP_ENTITLEMENTS" ]]; then
   cat > "$APP_ENTITLEMENTS" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

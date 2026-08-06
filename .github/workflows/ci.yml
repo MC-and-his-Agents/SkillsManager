@@ -27,7 +27,7 @@ jobs:
           swift=false
           while IFS= read -r file; do
             case "$file" in
-              Package.swift|Package.resolved|version.env|Sources/*|Tests/*|Scripts/*|Icon.icns|Icon.iconset/*|.github/workflows/*)
+              Package.swift|Package.resolved|version.env|Sources/*|Tests/*|Scripts/*|UITests/*|Icon.icns|Icon.iconset/*|.github/workflows/*)
                 swift=true
                 break
                 ;;
@@ -67,6 +67,7 @@ jobs:
           xcodebuild -version
           swift --version
           swift test --no-parallel
+          ./Scripts/run_ui_tests.sh
       - name: Skip Swift tests
         if: needs.changes.outputs.swift != 'true'
         run: echo "No Swift changes; tests are not required."

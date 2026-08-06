@@ -80,6 +80,7 @@ struct SkillListView: View {
                 .accessibilityLabel(
                     discoveryModel.isRefreshing ? "Refreshing Skills" : "Refresh Skills"
                 )
+                .accessibilityIdentifier("skills.refresh")
             }
         }
     }
@@ -117,7 +118,7 @@ struct SkillListView: View {
                     .font(.title2.bold())
                 Text("\(visibleCount) shown")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
             }
             Spacer()
             filterMenu
@@ -154,6 +155,7 @@ struct SkillListView: View {
         .help("Filter Skills")
         .accessibilityLabel("Filter Skills")
         .accessibilityValue(filters.isActive ? "Filters active" : "All Skills")
+        .accessibilityIdentifier("skills.filter.menu")
     }
 
     @ViewBuilder
@@ -307,6 +309,7 @@ struct SkillListView: View {
         case .canLoadMore:
             Button("Load More") { Task { await action() } }
                 .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("clawhub.load-more")
                 .accessibilityHint("Loads more ClawHub results")
         case .failed:
             clawHubFailure(retryLabel, action: action)
@@ -345,6 +348,7 @@ struct SkillListView: View {
         case .canLoadMore:
             Button("Load More") { Task { await skillsShStore.loadNextPage() } }
                 .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("skills-sh.load-more")
                 .accessibilityHint("Loads more skills.sh results")
         case .finished:
             emptyRow("No more unique results.")
@@ -369,7 +373,7 @@ struct SkillListView: View {
                 Image(systemName: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
             }
-            .accessibilityElement(children: .ignore)
+            .accessibilityElement(children: .combine)
             .accessibilityLabel("Unavailable scan location")
             .accessibilityValue(diagnostic.accessibilitySummary)
         }

@@ -4,7 +4,7 @@
 
 [English](README.en.md)
 
-Skills Manager 是一款基于 SwiftPM 构建的 macOS SwiftUI 应用（不使用 Xcode 工程）。它将多个 AI CLI 工具使用的 Skills 统一纳入单一事实来源（SSOT），并提供导入、分发、启用/停用、备份与恢复。
+Skills Manager 是一款基于 SwiftPM 构建的 macOS SwiftUI 应用。它将多个 AI CLI 工具使用的 Skills 统一纳入单一事实来源（SSOT），并提供导入、分发、启用/停用、备份与恢复。仓库中的 Xcode 工程仅用于 Apple 原生 UI 测试宿主，不是产品工程。
 
 本项目基于 [Dimillian/CodexSkillManager](https://github.com/Dimillian/CodexSkillManager) 的提交 [`3f2d809c`](https://github.com/Dimillian/CodexSkillManager/commit/3f2d809c19cd18f5b0d74997c3457760fd819035) 开始独立二次开发。原项目采用 MIT License；本项目保留原作者的版权和许可声明，详见 [LICENSE](LICENSE)。
 
@@ -19,11 +19,15 @@ Skills Manager 是一款基于 SwiftPM 构建的 macOS SwiftUI 应用（不使�
 - 审计 SSOT、分发目录和历史 Skill，预览后执行一致性修复或迁移
 - 使用 Markdown 渲染 `SKILL.md`，并预览行内引用
 - 从文件夹或 ZIP 文件导入 Skill
+- 在统一列表中组合状态、来源和 Agent 筛选，并在当前选择被筛掉时安全清空详情
+- 一次选择多个待接管 Skill，逐项预览、导入并读取成功或失败结果
+- 预览多 Skill ZIP，选择子集后确认导入，取消时保持 SSOT、数据库和分发状态不变
+- 登记固定 GitHub 仓库、发现候选并在 immutable revision/subpath 预览后安装
 - 搜索 ClawHub 技能并浏览最新发布内容
 - 在详情页显示 ClawHub 作者信息
-- 通过实验性的 skills.sh 搜索索引发现 GitHub Skill，并在解析出唯一安全来源后安装
+- 通过 skills.sh 搜索索引发现 GitHub Skill，并在解析出唯一安全来源后安装
 
-skills.sh 集成依赖未文档化的公共接口，可能随时改名、要求认证或停止服务。它不可用时不会影响本地 Skill、ClawHub 或其他已管理功能。
+skills.sh 集成不可用时不会影响本地 Skill、ClawHub、GitHub 仓库或其他已管理功能。
 
 ### 环境要求
 
@@ -47,3 +51,4 @@ swift run SkillsManager
 
 - Markdown 渲染：[swift-markdown-ui](https://github.com/gonzalezreal/swift-markdown-ui)
 - 远程技能目录：[ClawHub](https://clawhub.ai/)
+- 交互合同与归属参考：[CC Switch](THIRD_PARTY_NOTICES.md#cc-switch)

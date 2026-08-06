@@ -2,7 +2,7 @@
 
 ## 仓库范围
 
-Skills Manager 是一款基于 SwiftPM 构建的 macOS SwiftUI 应用，不使用 Xcode 工程。
+Skills Manager 是一款基于 SwiftPM 构建的 macOS SwiftUI 应用。产品 target 不使用 Xcode 工程；仓库内 `UITests/SkillsManagerUITests.xcodeproj` 仅用于 Apple 原生 UI 测试。
 
 本文件只记录稳定的开发约束和事实来源入口。不要在此重复产品功能、界面结构、支持的平台、源码文件清单或发布实现细节；这些内容会随着产品变化，应维护在对应的事实来源中。
 

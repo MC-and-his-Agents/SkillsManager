@@ -783,6 +783,14 @@ nonisolated final class DistributionSymlinkExecutor {
         }
     }
 
+    func absoluteTargetURL(for entry: DistributionTargetEntry) throws -> URL {
+        try fileSystem.absoluteTargetURL(for: entry)
+    }
+
+    func captureAbsoluteTarget(for entry: DistributionTargetEntry) throws -> String {
+        try fileSystem.captureAbsoluteTarget(for: entry)
+    }
+
     func reconcile(
         skillID: SkillID,
         bindings: [DistributionBinding]? = nil

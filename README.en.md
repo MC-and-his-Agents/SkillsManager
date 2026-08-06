@@ -4,7 +4,7 @@
 
 ![Skills Manager](image.png)
 
-Skills Manager is a macOS SwiftUI app built with SwiftPM (no Xcode project). It manages skills for multiple AI CLI tools from one source of truth (SSOT), with import, distribution, enable/disable, backup, and restore workflows.
+Skills Manager is a macOS SwiftUI app built with SwiftPM. The repository's Xcode project is only the host for Apple-native UI tests; it is not the product project. The app manages skills for multiple AI CLI tools from one source of truth (SSOT), with import, distribution, enable/disable, backup, and restore workflows.
 
 This project started independent secondary development from commit [`3f2d809c`](https://github.com/Dimillian/CodexSkillManager/commit/3f2d809c19cd18f5b0d74997c3457760fd819035) of [Dimillian/CodexSkillManager](https://github.com/Dimillian/CodexSkillManager). The original project is distributed under the MIT License; its copyright and license notice remain in [LICENSE](LICENSE).
 
@@ -19,11 +19,15 @@ This project started independent secondary development from commit [`3f2d809c`](
 - Audit the SSOT, distribution directories, and historical skills before repairing or migrating them
 - Render `SKILL.md` with Markdown, plus inline reference previews
 - Import skills from a folder or ZIP archive
+- Combine status, source, and Agent filters in one list; a filtered-out selection safely clears its detail
+- Select multiple pending skills for batch takeover, then review per-item import results
+- Review a multi-skill ZIP, import only the selected subset, and keep SSOT, database, and distribution unchanged on cancel
+- Register a fixed GitHub repository, discover candidates, and install only after an immutable revision/subpath preview
 - Browse ClawHub skills with search and latest drops
 - Show ClawHub author information in the detail view
-- Discover GitHub skills through the experimental skills.sh search index and install only after resolving one unambiguous safe source
+- Discover GitHub skills through the skills.sh search index and install only after resolving one unambiguous safe source
 
-The skills.sh integration depends on an undocumented public endpoint that may change, require authentication, or disappear. Its failure does not affect local skills, ClawHub, or other managed features.
+If skills.sh is unavailable, local skills, ClawHub, GitHub repositories, and other managed features remain available.
 
 ## Requirements
 
@@ -47,3 +51,4 @@ swift run SkillsManager
 
 - Markdown rendering: [swift-markdown-ui](https://github.com/gonzalezreal/swift-markdown-ui)
 - Remote skill catalog: [ClawHub](https://clawhub.ai/)
+- Interaction contracts and attribution: [CC Switch](THIRD_PARTY_NOTICES.md#cc-switch)

@@ -15,7 +15,7 @@ struct SkillDiscoveryRow: View {
         let observation = item.observation
         HStack(spacing: 10) {
             Image(systemName: observation.status.systemImage)
-                .foregroundStyle(observation.status.tint)
+                .foregroundStyle(.primary)
                 .frame(width: 16)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -23,7 +23,7 @@ struct SkillDiscoveryRow: View {
                     .lineLimit(1)
                 Text(observation.scopeSummary)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 HStack(spacing: 6) {
@@ -41,17 +41,13 @@ struct SkillDiscoveryRow: View {
                 }
             }
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel(observation.displayName)
         .accessibilityValue([
             observation.status.displayName,
             "On This Mac",
-            observation.scopeSummary,
-            observation.displayURLs.first?.path,
-            observation.sourceSummary,
             observation.listOrigin.labels.map(\.text).joined(separator: ", "),
-            observation.fingerprintSummary,
-            observation.reason.map(\.displayName),
+            "0 Agents",
         ].compactMap { $0 }.joined(separator: ", "))
         .help(observation.displayURLs.first?.path ?? observation.relativeLocator)
     }

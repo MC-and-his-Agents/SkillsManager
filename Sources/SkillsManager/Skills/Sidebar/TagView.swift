@@ -20,7 +20,7 @@ struct TagView: View {
             }
         }
             .font(.caption2)
-            .foregroundStyle(tint ?? .secondary)
+            .foregroundStyle(.primary)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(

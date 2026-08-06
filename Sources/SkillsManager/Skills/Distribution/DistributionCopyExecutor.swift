@@ -37,6 +37,10 @@ nonisolated final class DistributionCopyExecutor {
         self.nowMilliseconds = nowMilliseconds
     }
 
+    func absoluteTargetURL(for entry: DistributionTargetEntry) throws -> URL {
+        try fileSystem.absoluteTargetURL(for: entry)
+    }
+
     func dryRun(
         skillID: SkillID,
         currentBindings: [DistributionBinding],

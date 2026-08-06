@@ -32,7 +32,8 @@ struct SSOTWriterOwnershipTests {
             _ = try await JournaledSSOTWriter.open(
                 managementRoot: workspace.verifiedRoot,
                 ssotRoot: workspace.verifiedRoot,
-                databaseURL: workspace.database
+                databaseURL: workspace.database,
+                distributionHomeURL: workspace.distributionHomeURL
             )
         }
     }

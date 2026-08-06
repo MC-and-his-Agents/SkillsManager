@@ -36,7 +36,7 @@ actor JournaledSSOTWriter {
         managementRoot: VerifiedSSOTRoot,
         ssotRoot: VerifiedSSOTRoot,
         databaseURL: URL,
-        distributionHomeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
+        distributionHomeURL: URL,
         hooks: JournaledSSOTWriterHooks = .init()
     ) async throws -> JournaledSSOTWriter {
         guard managementRoot.identity != ssotRoot.identity,
@@ -66,7 +66,7 @@ actor JournaledSSOTWriter {
         ssotRoot: VerifiedSSOTRoot,
         connection: sending SQLiteConnection,
         ownership: SSOTWriterOwnership,
-        distributionHomeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
+        distributionHomeURL: URL,
         hooks: JournaledSSOTWriterHooks = .init()
     ) async throws -> JournaledSSOTWriter {
         guard connection.accessMode != .readOnly,
@@ -196,6 +196,24 @@ actor JournaledSSOTWriter {
             requiredAdapterCodes: requiredAdapterCodes,
             catalog: catalog
         )
+    }
+
+    /// Captures every distribution destination in a plan before any write is attempted.
+    /// Resolution is delegated to the executor's already-validated home file system.
+    func captureDistributionTargets(for plan: DistributionPlan) throws -> [URL] {
+        try plan.filesystemActions.map { action in
+            switch action.kind {
+            case .createCopy, .refreshCopy, .discardCopyDrift, .removeCopy,
+                 .replaceSymlinkWithCopy, .replaceCopyWithSymlink:
+                try copyDistribution.absoluteTargetURL(for: action.entry)
+            case .removeSymlink, .createSymlink:
+                try distribution.absoluteTargetURL(for: action.entry)
+            }
+        }
+    }
+
+    func distributionTargetURLs(for plan: DistributionPlan) throws -> [URL] {
+        try captureDistributionTargets(for: plan)
     }
 
     func loadDistributionSelection(

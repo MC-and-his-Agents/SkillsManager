@@ -19,8 +19,9 @@ struct CustomRepositoryCandidateRow: View {
             }
         }
         .padding(.vertical, 6)
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel(candidate.accessibilitySummary)
+        .accessibilityValue("Available, Repository, 0 Agents")
     }
 }
 
@@ -59,6 +60,7 @@ struct CustomRepositoryCandidateDetailView: View {
                 Button("Review and Install…") { showingInstall = true }
                     .buttonStyle(.borderedProminent)
                     .disabled(candidate.distributionSlug == nil)
+                    .accessibilityIdentifier("repository.review-install")
                     .accessibilityHint("Verifies the immutable GitHub source before installation")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
