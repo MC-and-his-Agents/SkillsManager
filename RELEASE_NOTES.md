@@ -1,12 +1,14 @@
-# Skills Manager 0.2.1
+# Skills Manager 0.3.0
 
 中文
 
-- 保留“左侧 Skill 列表 + 右侧详情”两栏布局，将已管理 Skill、本机发现候选、ClawHub Latest Drops 和 skills.sh 搜索结果收敛到同一列表。
-- 在列表行内显示管理状态与来源标签，选择任意结果时，右侧详情和工具栏会与当前对象保持一致。
-- 空搜索会显示本机 Skill 和 ClawHub 最新内容；输入关键词时会同时搜索本机、ClawHub 与 skills.sh。
-- 改善远程结果的加载更多与错误隔离；单个 Provider 不可用不会影响其他来源或本地 Skill。
-- 修复快速搜索、刷新或切换 Skill 时可能残留旧详情与错误操作的问题。
+- 统一 Skill 列表：已管理 Skill、本机发现候选、ClawHub、skills.sh 与自定义 GitHub 仓库候选收敛到同一列表，并在行内显示状态、来源与 Agent 数量。
+- 支持按状态、来源与 Agent 组合筛选；当前选择被筛掉时详情自动回到空状态，清除筛选后恢复。
+- 支持批量接管本机发现的待导入 Skill，逐项预览导入结果。
+- 支持导入包含多个 Skill 的 ZIP 归档，可选择子集后确认导入。
+- 支持登记自定义 GitHub 仓库并发现其中的 Skill，在 immutable revision/subpath 预览后安全安装。
+- 改进远程结果的分页与错误隔离；单个 Provider 不可用不影响本地 Skill 或其他来源。
+- 改善辅助功能：列表行可读出名称、状态、来源与 Agent 数量，主要文本对比度与键盘/焦点行为收敛。
 
 已知限制
 
@@ -15,11 +17,13 @@
 
 English
 
-- Keeps the two-column Skill list and detail layout while bringing managed skills, on-device discoveries, ClawHub Latest Drops, and skills.sh search results into one list.
-- Shows management status and source labels in each row; the detail pane and toolbar now stay aligned with the selected result type.
-- Shows local skills and ClawHub latest content for an empty query, then searches local skills, ClawHub, and skills.sh together when a query is entered.
-- Improves remote pagination and failure isolation so one unavailable provider does not hide other sources or local skills.
-- Fixes stale details and incorrect actions that could remain after rapidly searching, refreshing, or switching skills.
+- Unified Skill list: managed skills, on-device discoveries, ClawHub, skills.sh, and custom GitHub repository candidates converge into one list, with status, source, and Agent count shown in each row.
+- Filter by status, source, and Agent together; filtering out the current selection returns the detail pane to its empty state and clearing filters restores it.
+- Batch-take over discovered local Skills awaiting import, reviewing each import result.
+- Import ZIP archives containing multiple Skills, selecting a subset before confirming.
+- Register custom GitHub repositories, discover their Skills, and install only after reviewing an immutable revision/subpath preview.
+- Improved remote pagination and failure isolation; one unavailable provider does not hide local skills or other sources.
+- Accessibility improvements: rows read out name, status, source, and Agent count; primary text contrast and keyboard/focus behavior converged.
 
 Known limitations
 
