@@ -4,6 +4,7 @@ import SwiftUI
 struct SkillMarkdownView: View {
     @Environment(SkillStore.self) private var store
     @Environment(RemoteSkillStore.self) private var remoteStore
+    @Environment(SkillUpdateBadgeStore.self) private var badgeStore
 
     let skill: Skill
     let markdown: String
@@ -42,6 +43,9 @@ struct SkillMarkdownView: View {
                         }
                     }
                 )
+                SkillDetailFeedbackBanner(skillID: skill.id)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         if isOwned {
@@ -289,6 +293,7 @@ struct SkillMarkdownView: View {
         } else {
             updateAvailable = false
         }
+        badgeStore.backfill(skill, latestVersion: latest)
         isCheckingPublish = false
     }
 

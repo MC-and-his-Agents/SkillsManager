@@ -15,6 +15,7 @@ nonisolated enum SkillsManagerUIFixtureProfile: String, Sendable, CaseIterable {
     case failureSkillsSh = "failure-skills-sh"
     case failureRepository = "failure-repository"
     case detailActionBar = "detail-action-bar"
+    case feedback
 }
 
 struct SkillsManagerUIFixtureRuntime: Sendable {
@@ -90,6 +91,10 @@ struct SkillsManagerUIFixtureRuntime: Sendable {
         if profile == .detailActionBar {
             try await seedNeedsRepairSkill(writer: writer)
         }
+        if profile == .feedback {
+            try await seedNeedsRepairSkill(writer: writer)
+            try await seedClawHubManagedSkill(writer: writer)
+        }
         try createUnmanagedSkills()
         try await writer.insertCustomPath(CustomSkillPath(
             url: homeURL.appendingPathComponent("fixture-custom-skills", isDirectory: true),
@@ -156,6 +161,37 @@ struct SkillsManagerUIFixtureRuntime: Sendable {
             updatedAtMilliseconds: 1
         )
         let payload = try SSOTSkillWritePayload(skill: skill)
+        _ = try await writer.create(payload: payload, sourceSnapshot: snapshot)
+    }
+
+    private func seedClawHubManagedSkill(writer: JournaledSSOTWriter) async throws {
+        let sourceURL = homeURL.appendingPathComponent("fixture-source/clawhub", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceURL, withIntermediateDirectories: true)
+        try Data("# ClawHub Managed\n\nDeterministic ClawHub-provenance fixture Skill.\n".utf8)
+            .write(to: sourceURL.appendingPathComponent("SKILL.md"), options: .atomic)
+        try chmodDirectory(sourceURL)
+        let snapshot = try SkillContentSnapshot.capture(at: sourceURL)
+        let skillID = SkillID()
+        let displayName = try SkillDisplayName("ClawHub Managed")
+        let slug = try DefaultDistributionSlug(candidateFrom: displayName)
+        let skill = try ManagedSkillRecord(
+            skillID: skillID,
+            displayName: displayName,
+            defaultDistributionSlug: slug,
+            contentFingerprint: try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest),
+            createdAtMilliseconds: 1,
+            updatedAtMilliseconds: 1
+        )
+        let provenance = try ProviderProvenanceRecord(
+            skillID: skillID,
+            identity: try ProviderAliasIdentity(provider: "clawdhub", identifier: slug.value),
+            identifierKey: slug.collisionKey,
+            version: try SourceVersion("1.0.0")
+        )
+        let payload = try SSOTSkillWritePayload(
+            skill: skill,
+            providerProvenance: [provenance]
+        )
         _ = try await writer.create(payload: payload, sourceSnapshot: snapshot)
     }
 
@@ -315,7 +351,12 @@ private extension RemoteSkillClient {
                 throw RemoteSkillClientError.providerUnavailable
             },
             fetchDetail: { _ in nil },
-            fetchLatestVersion: { _ in "1.0.0" }
+            fetchLatestVersion: { slug in
+                if profile == .feedback {
+                    return "1.0.1"
+                }
+                return "1.0.0"
+            }
         )
     }
 }

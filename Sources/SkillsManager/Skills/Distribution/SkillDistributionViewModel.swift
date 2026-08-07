@@ -69,6 +69,15 @@ import Observation
         )
     }
 
+    /// 刷新但保留结果消息（操作完成后的列表刷新不应吞掉刚产生的反馈）。
+    func refreshPreservingFeedback(skillID: SkillID?, displayName: String?) async {
+        await refresh(
+            skillID: skillID,
+            displayName: displayName,
+            clearFeedback: false
+        )
+    }
+
     func refreshCurrent() async {
         guard let activeSkillID else { return }
         await refresh(skillID: activeSkillID, displayName: activeDisplayName)

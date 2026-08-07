@@ -106,6 +106,12 @@ import Observation
         await refreshBackups(clearFeedback: false)
     }
 
+    /// 刷新但保留结果消息（操作完成后的列表刷新不应吞掉刚产生的反馈）。
+    func refreshPreservingFeedback(skillID: SkillID?) async {
+        await refreshDeletion(skillID: skillID, clearFeedback: false)
+        await refreshBackups(clearFeedback: false)
+    }
+
     func refreshCurrent() async {
         await refreshDeletion(skillID: activeSkillID, clearFeedback: true)
         await refreshBackups(clearFeedback: false)
