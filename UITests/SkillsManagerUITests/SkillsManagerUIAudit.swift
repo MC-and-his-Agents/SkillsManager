@@ -15,6 +15,16 @@ enum SkillsManagerUILocators {
     static let archiveReviewSelected = "archive.review-selected"
     static let archiveClearSelection = "archive.clear-selection"
     static let archiveConfirm = "archive.confirm"
+    static let detailBadge = "skills.detail.badge"
+    static let detailUpdate = "skills.detail.update"
+    static let detailFinder = "skills.detail.finder"
+    static let detailDelete = "skills.detail.delete"
+    static let detailFullSettings = "skills.detail.full-settings"
+    static let detailBatchUpdates = "skills.detail.batch-updates"
+
+    static func detailAgent(_ storageKey: String) -> String {
+        "skills.detail.agent.\(storageKey)"
+    }
 }
 
 enum SkillsManagerUIError: Error, CustomStringConvertible {

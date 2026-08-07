@@ -110,6 +110,12 @@ nonisolated struct ManagedSkillUpdateCheckSnapshot: Equatable, Sendable {
     var sourceChangedScopeKeys: [String] {
         copyStates.filter(\.sourceChanged).map(\.scopeKey)
     }
+
+    var hasExecutableRemoteUpdate: Bool {
+        guard let candidate else { return false }
+        return candidate.contentFingerprint != storedFingerprint
+            && (status == .remoteChanged || status == .copyDrift)
+    }
 }
 
 nonisolated enum ManagedSkillUpdateCheckProblem: LocalizedError, Equatable, Sendable {

@@ -445,7 +445,117 @@ final class SkillsManagerUITests: XCTestCase {
         try auditSurface("ui-08-final", app: app)
     }
 
+    // MARK: - SM183-UI-09
+
+    func testSM183UI09DetailActionBar() throws {
+        try launchFixture(app: app, profile: "detail-action-bar", surface: "ui-09")
+
+        // Managed Skill → 固定操作条可见：徽章/来源/Agent chips/更新/批量更新/Finder/完整设置/删除
+        try selectRow(label: "Fixture Managed", value: "Managed", surface: "ui-09", app: app)
+        let badge = element(identifier: SkillsManagerUILocators.detailBadge, app: app)
+        try requireElement(badge, surface: "ui-09", app: app)
+        XCTAssertTrue(
+            badge.label.contains("Managed"),
+            "managed badge must read Managed; got: \(badge.label)"
+        )
+        try requireElement(
+            element(identifier: "skills.detail.source.Local", app: app),
+            surface: "ui-09",
+            app: app
+        )
+        for key in ["codex", "claude", "opencode", "copilot"] {
+            try requireElement(
+                app.checkBoxes[SkillsManagerUILocators.detailAgent(key)],
+                surface: "ui-09",
+                app: app
+            )
+        }
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.detailUpdate],
+            surface: "ui-09",
+            app: app
+        )
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.detailBatchUpdates],
+            surface: "ui-09",
+            app: app
+        )
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.detailFinder],
+            surface: "ui-09",
+            app: app
+        )
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.detailFullSettings],
+            surface: "ui-09",
+            app: app
+        )
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.detailDelete],
+            surface: "ui-09",
+            app: app
+        )
+        try auditSurface("ui-09-managed", app: app)
+
+        // Agent chip 切换只修改 draft，选择状态立即反映
+        let claudeChip = app.checkBoxes[SkillsManagerUILocators.detailAgent("claude")]
+        XCTAssertEqual(
+            (claudeChip.value as? NSNumber)?.intValue ?? -1,
+            0,
+            "Claude Code chip must start unselected; got: \(claudeChip.value ?? "")"
+        )
+        claudeChip.click()
+        let selectedPredicate = NSPredicate(format: "value == %d", 1)
+        let chipExpectation = XCTNSPredicateExpectation(predicate: selectedPredicate, object: claudeChip)
+        let chipResult = XCTWaiter().wait(for: [chipExpectation], timeout: 10)
+        guard chipResult == .completed else {
+            attachDiagnostics("ui-09", app: app)
+            throw SkillsManagerUIError.elementMissing("Claude Code chip selected state")
+        }
+        try auditSurface("ui-09-chips", app: app)
+
+        // Needs Attention Skill → 徽章与状态反映
+        try selectRow(label: "Fixture Broken", value: "Needs Attention", surface: "ui-09", app: app)
+        let needsAttention = NSPredicate { _, _ in
+            badge.exists && badge.label.contains("Needs Attention")
+        }
+        let attentionExpectation = XCTNSPredicateExpectation(predicate: needsAttention, object: nil)
+        let attentionResult = XCTWaiter().wait(for: [attentionExpectation], timeout: 10)
+        guard attentionResult == .completed else {
+            attachDiagnostics("ui-09", app: app)
+            throw SkillsManagerUIError.elementMissing("Needs Attention badge")
+        }
+        try auditSurface("ui-09-needs-attention", app: app)
+
+        // 非匹配 discovery 项 → 操作条消失
+        try selectRow(label: "Needs Import One", value: "Unmanaged", surface: "ui-09", app: app)
+        try waitForDisappearance(badge, surface: "ui-09", app: app)
+        XCTAssertFalse(
+            app.buttons[SkillsManagerUILocators.detailUpdate].exists,
+            "unmanaged discovery detail must not show the action bar"
+        )
+        try auditSurface("ui-09-unmanaged", app: app)
+    }
+
     // MARK: - Helpers
+
+    private func selectRow(
+        label: String,
+        value: String,
+        surface: String,
+        app: XCUIApplication
+    ) throws {
+        let candidate = row(label: label, value: value, app: app)
+        try requireElement(candidate, surface: surface, app: app)
+        candidate.click()
+    }
+
+    private func element(
+        identifier: String,
+        app: XCUIApplication
+    ) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
 
     private func setFilter(_ item: String, surface: String, app: XCUIApplication) throws {
         let menu = app.menuButtons[SkillsManagerUILocators.filterMenu]

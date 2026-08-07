@@ -227,14 +227,6 @@ private extension ManagedSkillUpdateCheckStatus {
     }
 }
 
-private extension ManagedSkillUpdateCheckSnapshot {
-    var hasExecutableRemoteUpdate: Bool {
-        guard let candidate else { return false }
-        return candidate.contentFingerprint != storedFingerprint
-            && (status == .remoteChanged || status == .copyDrift)
-    }
-}
-
 private extension ManagedSkillUpdateExecutionStatus {
     var displayName: String {
         switch self {

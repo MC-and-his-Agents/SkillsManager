@@ -4,6 +4,8 @@ import SwiftUI
 struct RemoteSkillDetailView: View {
     @Environment(RemoteSkillStore.self) private var store
 
+    let onInstall: (RemoteSkill) -> Void
+
     var body: some View {
         if let skill = store.selectedSkill {
             Group {
@@ -18,16 +20,6 @@ struct RemoteSkillDetailView: View {
             }
             .navigationTitle(skill.displayName)
             .navigationSubtitle("ClawHub")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        openClawdhubURL(for: skill)
-                    } label: {
-                        Image(systemName: "globe")
-                    }
-                    .help("Open on ClawHub")
-                }
-            }
         } else {
             ContentUnavailableView(
                 "Select a skill",
@@ -116,6 +108,24 @@ struct RemoteSkillDetailView: View {
                     TagView(text: statsText)
                 }
             }
+            HStack(spacing: 12) {
+                Button {
+                    onInstall(skill)
+                } label: {
+                    Label("Install", systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Install this ClawHub Skill")
+                .accessibilityHint(
+                    "Opens the installation review. Nothing is written until you confirm."
+                )
+                Button {
+                    openClawdhubURL(for: skill)
+                } label: {
+                    Label("Open on ClawHub", systemImage: "globe")
+                }
+            }
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

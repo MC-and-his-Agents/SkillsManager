@@ -21,7 +21,6 @@ struct SkillSplitView: View {
     @State private var showingAddPath = false
     @State private var showingBackups = false
     @State private var showingConsistency = false
-    @State private var showingBatchUpdates = false
     @State private var showingDiscoveryBatch = false
     @State private var showingRepositories = false
     @State private var downloadErrorMessage: String?
@@ -148,9 +147,6 @@ struct SkillSplitView: View {
         .sheet(isPresented: $showingConsistency) {
             consistencySheet
         }
-        .sheet(isPresented: $showingBatchUpdates) {
-            SkillBatchUpdateView().environment(batchUpdateModel)
-        }
         .sheet(isPresented: $showingDiscoveryBatch) {
             SkillDiscoveryBatchView()
                 .environment(discoveryBatchModel)
@@ -221,7 +217,9 @@ struct SkillSplitView: View {
                 ContentUnavailableView("Skill unavailable", systemImage: "shippingbox")
             }
         case .clawHub:
-            RemoteSkillDetailView()
+            RemoteSkillDetailView(
+                onInstall: { presentRemoteInstallSheet(for: $0) }
+            )
         case .skillsSh:
             SkillsShSearchDetailView()
         case nil:
@@ -254,7 +252,6 @@ struct SkillSplitView: View {
                 } label: {
                     Label("Batch Import", systemImage: "tray.and.arrow.down")
                 }
-                .labelStyle(.iconOnly)
                 .help("Batch Import discovered Skills")
                 .accessibilityLabel("Batch Import discovered Skills")
                 .accessibilityValue("\(batchCandidateCount) candidates available")
@@ -268,7 +265,6 @@ struct SkillSplitView: View {
                     showingConsistency = true
                 } label: {
                     Label("Consistency Audit", systemImage: "checkmark.shield")
-                        .labelStyle(.iconOnly)
                 }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
                 .help("Consistency Audit")
@@ -283,47 +279,10 @@ struct SkillSplitView: View {
                     Task { await lifecycleModel.refreshBackupsOnly() }
                 } label: {
                     Label("Skill Backups", systemImage: "archivebox")
-                        .labelStyle(.iconOnly)
                 }
                 .disabled(lifecycleModel.isMutating)
                 .help("Skill Backups")
                 .accessibilityLabel(backupAccessibilityLabel)
-            }
-        }
-
-        if case .managed = selection {
-            ToolbarItem(id: "batch-updates") {
-                Button {
-                    configureBatchUpdates()
-                    showingBatchUpdates = true
-                } label: {
-                    Label("Batch Updates", systemImage: "arrow.down.circle")
-                        .labelStyle(.iconOnly)
-                }
-                .disabled(batchUpdatesDisabled)
-                .help(batchUpdateHelp)
-                .accessibilityLabel("Open Batch Updates")
-                .accessibilityValue(batchUpdateHelp)
-                .accessibilityHint(batchUpdateHelp)
-            }
-        }
-
-        if case .clawHub = selection {
-            ToolbarItem(id: "download") {
-                Button { presentRemoteInstallSheet() } label: { downloadLabel }
-                    .labelStyle(.iconOnly)
-                    .disabled(isDownloadingRemote || remoteStore.selectedSkill == nil)
-                    .accessibilityLabel(remoteInstallAccessibilityLabel)
-            }
-        }
-
-        if case .managed = selection {
-            ToolbarItem(id: "open") {
-                Button { openSelectedSkillFolder() } label: {
-                    Label("Open Skill Folder", systemImage: "folder")
-                }
-                .labelStyle(.iconOnly)
-                .disabled(store.selectedSkill == nil)
             }
         }
 
@@ -335,7 +294,6 @@ struct SkillSplitView: View {
             } label: {
                 Label("Add", systemImage: "plus")
             }
-            .labelStyle(.iconOnly)
             .accessibilityLabel("Add")
             .accessibilityIdentifier("skills.add.menu")
         }
@@ -352,12 +310,6 @@ struct SkillSplitView: View {
         lifecycleModel.availableBackupCount == 0
             ? "Skill Backups"
             : "Skill Backups, \(lifecycleModel.availableBackupCount) available"
-    }
-
-    private var batchUpdatesDisabled: Bool {
-        store.skills.isEmpty
-            || libraryRuntime.readiness != .ready
-            || batchUpdateModel.operationActive
     }
 
     private var batchCandidateCount: Int {
@@ -379,57 +331,11 @@ struct SkillSplitView: View {
         showingDiscoveryBatch = true
     }
 
-    private var batchUpdateHelp: String {
-        if libraryRuntime.readiness != .ready {
-            return "Batch updates are unavailable until the managed library is ready."
-        }
-        if store.skills.isEmpty {
-            return "Import a managed Skill before checking for batch updates."
-        }
-        if batchUpdateModel.operationActive {
-            return "A batch update is already running."
-        }
-        return "Check all managed Skills for updates."
-    }
-
-    private func configureBatchUpdates() {
-        batchUpdateModel.configure(store.skills.map {
-            SkillBatchUpdateCatalogItem(
-                skillID: $0.managedSkillID,
-                displayName: $0.displayName
-            )
-        })
-    }
-
     private func applySelection(_ selection: UnifiedSkillSelection?) {
         store.selectedSkillID = selection.managedID
         discoveryModel.selectedItemID = selection.discoveryID
         remoteStore.selectedSkillID = selection.clawHubID
         skillsShStore.selectedResultID = selection.skillsShID
-    }
-
-    @ViewBuilder
-    private var downloadLabel: some View {
-        if isDownloadingRemote {
-            ProgressView()
-        } else if managedRemoteSkillID != nil {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        } else {
-            Image(systemName: "arrow.down.circle")
-        }
-    }
-
-    private var remoteInstallAccessibilityLabel: String {
-        if isDownloadingRemote { return "Installing ClawHub Skill" }
-        if managedRemoteSkillID != nil {
-            return "ClawHub Skill is managed; review installation"
-        }
-        return "Install ClawHub Skill"
-    }
-
-    private func openSelectedSkillFolder() {
-        guard let url = store.selectedSkill?.folderURL else { return }
-        NSWorkspace.shared.open(url)
     }
 
     private func presentRemoteInstallSheet(for skill: RemoteSkill? = nil) {
