@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct SkillSplitView: View {
@@ -27,7 +26,6 @@ struct SkillSplitView: View {
     @State private var isDownloadingRemote = false
     @State private var didDownloadRemote = false
     @State private var installSkill: RemoteSkill?
-    @State private var managedRemoteSkillID: SkillID?
 
     private var query: String {
         normalizedSkillSearchQuery(searchText)
@@ -164,9 +162,6 @@ struct SkillSplitView: View {
             .environment(store)
             .environment(remoteStore)
         }
-        .task(id: remoteStore.selectedSkillID) {
-            await refreshManagedRemoteSkill()
-        }
         .onChange(of: selection) { _, newValue in
             let visibleValue = reconciledSkillSelection(
                 newValue,
@@ -183,16 +178,7 @@ struct SkillSplitView: View {
         }
         .onChange(of: didDownloadRemote) { _, installed in
             guard installed else { return }
-            Task {
-                await refreshManagedRemoteSkill()
-                didDownloadRemote = false
-            }
-        }
-        .onChange(of: libraryRuntime.readiness) { _, _ in
-            Task { await refreshManagedRemoteSkill() }
-        }
-        .onChange(of: lifecycleModel.publishedMutationGeneration) { _, _ in
-            Task { await refreshManagedRemoteSkill() }
+            didDownloadRemote = false
         }
         .onChange(of: batchUpdateModel.state) { _, newValue in
             guard newValue == .completed else { return }
@@ -345,21 +331,6 @@ struct SkillSplitView: View {
         guard let resolved = skill ?? remoteStore.selectedSkill else { return }
         downloadErrorMessage = nil
         installSkill = resolved
-    }
-
-    private func refreshManagedRemoteSkill() async {
-        let selectedID = remoteStore.selectedSkillID
-        managedRemoteSkillID = nil
-        guard let skill = remoteStore.selectedSkill,
-              let writer = store.persistence,
-              let slug = try? DefaultDistributionSlug(validating: skill.slug),
-              let identity = try? ProviderAliasIdentity(
-                provider: "clawdhub",
-                identifier: slug.value
-              ) else { return }
-        let provenance = try? await writer.providerProvenance(identity)
-        guard remoteStore.selectedSkillID == selectedID else { return }
-        managedRemoteSkillID = provenance?.skillID
     }
 }
 
