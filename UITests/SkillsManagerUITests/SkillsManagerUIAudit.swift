@@ -3,7 +3,10 @@ import Foundation
 import XCTest
 
 enum SkillsManagerUILocators {
-    static let filterMenu = "skills.filter.menu"
+    static let filterBar = "skills.filter.bar"
+    static let filterStatus = "skills.filter.status"
+    static let filterSummary = "skills.filter.summary"
+    static let filterCollapse = "skills.filter.collapse"
     static let batchImport = "skills.batch-import"
     static let addMenu = "skills.add.menu"
     static let clawHubLoadMore = "clawhub.load-more"
@@ -21,6 +24,18 @@ enum SkillsManagerUILocators {
     static let detailDelete = "skills.detail.delete"
     static let detailFullSettings = "skills.detail.full-settings"
     static let detailBatchUpdates = "skills.detail.batch-updates"
+
+    static func filterStatus(_ key: String) -> String {
+        "skills.filter.status.\(key)"
+    }
+
+    static func filterSource(_ key: String) -> String {
+        "skills.filter.source.\(key)"
+    }
+
+    static func filterAgent(_ key: String) -> String {
+        "skills.filter.agent.\(key)"
+    }
 
     static func detailAgent(_ storageKey: String) -> String {
         "skills.detail.agent.\(storageKey)"
