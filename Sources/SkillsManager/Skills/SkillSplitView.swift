@@ -11,6 +11,7 @@ struct SkillSplitView: View {
     @Environment(SkillLifecycleViewModel.self) private var lifecycleModel
     @Environment(SkillConsistencyViewModel.self) private var consistencyModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
+    @Environment(SkillUpdateBadgeStore.self) private var updateBadgeStore
 
     @State private var searchText = ""
     @State private var filters = SkillListFilters()
@@ -185,6 +186,17 @@ struct SkillSplitView: View {
             Task {
                 await store.loadSkills()
                 await discoveryModel.refresh()
+            }
+        }
+        .onChange(of: store.skills) { _, _ in
+            updateBadgeStore.invalidateAll()
+            for skill in filteredSkills {
+                Task { await updateBadgeStore.checkIfNeeded(for: skill) }
+            }
+        }
+        .onChange(of: filteredSkills) { _, skills in
+            for skill in skills {
+                Task { await updateBadgeStore.checkIfNeeded(for: skill) }
             }
         }
     }

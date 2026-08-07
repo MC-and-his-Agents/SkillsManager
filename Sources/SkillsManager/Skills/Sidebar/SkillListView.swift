@@ -198,8 +198,8 @@ struct SkillListView: View {
 
     private var localEmptyState: some View {
         let constrained = !normalizedQuery.isEmpty || filters.isActive
-        return statusRow(
-            constrained ? "No local matches" : "No Skills found",
+        return SkillListEmptyRow(
+            title: constrained ? "No local matches" : "No Skills found",
             message: constrained
                 ? "No local Skills match the current search and filters."
                 : "Refresh discovery or import a Skill to get started.",
@@ -365,38 +365,26 @@ struct SkillListView: View {
     }
 
     private func emptyRow(_ text: String) -> some View {
-        Text(text)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
+        SkillListEmptyRow(title: text)
     }
 
     private func statusRow(_ title: String, message: String, icon: String) -> some View {
-        Label {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                Text(message).font(.caption).foregroundStyle(.secondary)
-            }
-        } icon: {
-            Image(systemName: icon).foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 8)
-        .accessibilityElement(children: .combine)
+        SkillListEmptyRow(title: title, message: message, icon: icon)
     }
 
     private func clawHubFailure(
         _ retryLabel: String,
         action: @escaping () async -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label(ClawdhubAvailabilityPresentation.title, systemImage: "exclamationmark.triangle")
-            Text(ClawdhubAvailabilityPresentation.detail)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Button("Retry") { Task { await action() } }
-                .accessibilityLabel(retryLabel)
+        SkillListEmptyRow(
+            title: ClawdhubAvailabilityPresentation.title,
+            message: ClawdhubAvailabilityPresentation.detail,
+            icon: "exclamationmark.triangle",
+            actionTitle: "Retry",
+            actionAccessibilityLabel: retryLabel
+        ) {
+            Task { await action() }
         }
-        .padding(.vertical, 8)
     }
 
     private func skillsShFailure(
@@ -404,13 +392,15 @@ struct SkillListView: View {
         title: String,
         action: @escaping () async -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(problem == .invalidRequest ? "Invalid search" : "skills.sh unavailable")
-                .font(.headline)
-            Text(problem.message).foregroundStyle(.secondary)
-            Button(title) { Task { await action() } }
+        SkillListEmptyRow(
+            title: problem == .invalidRequest ? "Invalid search" : "skills.sh unavailable",
+            message: problem.message,
+            icon: "exclamationmark.triangle",
+            actionTitle: title,
+            actionAccessibilityLabel: title
+        ) {
+            Task { await action() }
         }
-        .padding(.vertical, 8)
     }
 
     private func refresh() async {

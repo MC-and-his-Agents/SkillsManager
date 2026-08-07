@@ -66,7 +66,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
                 Task {
                     await store.loadSkills()
                     await discoveryModel.refresh()
-                    await refreshManagedSelection()
+                    await refreshManagedSelection(preserveFeedback: true)
                     await consistencyModel.refreshIfLoaded()
                 }
             }
@@ -146,13 +146,14 @@ struct SkillSplitLifecycleModifier: ViewModifier {
         _ = await (clawHub, skillsSh)
     }
 
-    private func refreshManagedSelection() async {
+    private func refreshManagedSelection(preserveFeedback: Bool = false) async {
         let current = managedSelection
         await refreshManagedSkillSelection(
             current,
             distributionModel: distributionModel,
             lifecycleModel: lifecycleModel,
-            isCurrent: { current == managedSelection }
+            isCurrent: { current == managedSelection },
+            preserveFeedback: preserveFeedback
         )
         guard current == managedSelection else { return }
         await updateCheckModel.refresh(skillID: current?.skillID)

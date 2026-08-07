@@ -623,6 +623,71 @@ final class SkillsManagerUITests: XCTestCase {
         try auditSurface("ui-10-final", app: app)
     }
 
+    // MARK: - SM185-UI-11
+
+    func testSM185UI11FeedbackBadgesAndBanner() throws {
+        try launchFixture(app: app, profile: "feedback", surface: "ui-11")
+
+        // 更新可用（ClawHub provenance v1.0.0 vs remote v1.0.1）→ 行内绿徽章
+        let updateRow = row(label: "ClawHub Managed", value: "Update available", app: app)
+        try requireElement(updateRow, surface: "ui-11", app: app)
+        try auditSurface("ui-11-update-badge", app: app)
+
+        // 需修复 Skill → 行内黄徽章
+        let repairRow = row(label: "Fixture Broken", value: "Needs Repair", app: app)
+        try requireElement(repairRow, surface: "ui-11", app: app)
+        try auditSurface("ui-11-repair-badge", app: app)
+
+        // 无更新 Skill 不显示徽章
+        XCTAssertFalse(
+            (row(label: "Fixture Managed", value: "Managed", app: app)
+                .value as? String)?.contains("Update available") == true,
+            "Fixture Managed has no ClawHub provenance and must not show an update badge"
+        )
+
+        // 分发应用成功 → 详情顶部绿 banner
+        try selectRow(label: "ClawHub Managed", value: "Update available", surface: "ui-11", app: app)
+        try requireElement(
+            app.checkBoxes[SkillsManagerUILocators.detailAgent("claude")],
+            surface: "ui-11",
+            app: app
+        )
+        let claudeChip = app.checkBoxes[SkillsManagerUILocators.detailAgent("claude")]
+        if (claudeChip.value as? NSNumber)?.intValue == 0 {
+            claudeChip.click()
+        }
+        let previewButton = app.buttons["Preview changes"]
+        try requireElement(previewButton, surface: "ui-11", app: app)
+        if !previewButton.isHittable {
+            scrollDetailToReveal(previewButton, app: app)
+        }
+        previewButton.click()
+        try requireElement(
+            app.buttons["Apply"],
+            surface: "ui-11",
+            app: app
+        )
+        app.buttons["Apply"].click()
+        try waitForDisappearance(
+            app.buttons["Apply"],
+            surface: "ui-11",
+            app: app
+        )
+        // macOS 26 谓词查询已知超时（见 waitForHierarchyText 注释），
+        // banner 断言使用 accessibility 层级文本搜索；debugDescription 会
+        // 截断长 value，匹配 banner 独有前缀 "Result: Distributi"。
+        try waitForHierarchyText("Result: Distributi", surface: "ui-11", app: app)
+        try auditSurface("ui-11-banner", app: app)
+    }
+
+    private func scrollDetailToReveal(_ element: XCUIElement, app: XCUIApplication) {
+        for _ in 0..<14 {
+            if element.isHittable { return }
+            app.typeKey(.pageDown, modifierFlags: [])
+            usleep(120_000)
+        }
+    }
+
     // MARK: - Helpers
 
     private static let statusFilterKeys = [

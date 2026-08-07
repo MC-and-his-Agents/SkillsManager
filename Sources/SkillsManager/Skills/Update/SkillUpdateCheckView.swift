@@ -226,32 +226,3 @@ private extension ManagedSkillUpdateCheckStatus {
         }
     }
 }
-
-private extension ManagedSkillUpdateExecutionStatus {
-    var displayName: String {
-        switch self {
-        case .cancelled: "Update cancelled"
-        case .noChange: "Already up to date"
-        case .backupReadyUpdateNotStarted:
-            "Backup completed; recheck before trying the update again"
-        case .copyDecisionsAppliedUpdateNotCompleted:
-            "Copy decisions were saved; recheck before updating the parent Skill"
-        case .updated: "Skill updated"
-        case .updatedNeedsAttention: "Skill updated; distribution needs attention"
-        case .updateRolledBack: "Update rolled back"
-        case .updateIndeterminate: "Update state could not be confirmed"
-        case .needsRepair: "Managed Skill needs repair"
-        }
-    }
-
-    var requiresAttention: Bool {
-        switch self {
-        case .updated, .noChange, .cancelled: false
-        default: true
-        }
-    }
-
-    var systemImage: String {
-        requiresAttention ? "exclamationmark.triangle" : "checkmark.circle"
-    }
-}

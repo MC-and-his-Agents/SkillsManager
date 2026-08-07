@@ -66,6 +66,12 @@ struct SkillDiscoveryDetailView: View {
                         }
                     )
                 }
+                SkillDetailFeedbackBanner(
+                    skillID: item.id.relativeLocatorKey,
+                    extraErrorMessage: flowErrorMessage
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         HStack(alignment: .top, spacing: 12) {
@@ -86,21 +92,6 @@ struct SkillDiscoveryDetailView: View {
                             }
                         }
                         .accessibilityElement(children: .combine)
-
-                        if let message = model.importResultMessage {
-                            resultBanner(
-                                message,
-                                systemImage: "checkmark.circle.fill",
-                                tint: .green
-                            )
-                        }
-                        if let message = model.importErrorMessage ?? flowErrorMessage {
-                            resultBanner(
-                                message,
-                                systemImage: "exclamationmark.triangle.fill",
-                                tint: .orange
-                            )
-                        }
 
                         GroupBox("Local locations") {
                             VStack(alignment: .leading, spacing: 10) {
@@ -272,19 +263,6 @@ struct SkillDiscoveryDetailView: View {
             }
             .padding(.top, 8)
         }
-    }
-
-    private func resultBanner(
-        _ message: String,
-        systemImage: String,
-        tint: Color
-    ) -> some View {
-        Label(message, systemImage: systemImage)
-            .foregroundStyle(tint)
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-            .accessibilityElement(children: .combine)
     }
 
     private func unavailableView(

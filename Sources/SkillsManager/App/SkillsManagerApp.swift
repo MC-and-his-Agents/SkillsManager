@@ -24,6 +24,8 @@ struct SkillsManagerApp: App {
     @State private var skillsShStore = SkillsShSearchStore(client: .live())
     @State private var customRepositoryModel = CustomRepositoryViewModel()
     @State private var runtimeBootstrap = AppLibraryRuntimeBootstrap()
+    @State private var updateBadgeStore: SkillUpdateBadgeStore
+    @State private var resultCenter = SkillResultCenter()
     private let startupCoordinator: LibraryStartupCoordinator
 #if SKILLS_MANAGER_UI_TEST
     private let fixtureRuntime: SkillsManagerUIFixtureRuntime
@@ -36,8 +38,14 @@ struct SkillsManagerApp: App {
         startupCoordinator = LibraryStartupCoordinator(homeURL: fixture.homeURL)
         _remoteStore = State(initialValue: RemoteSkillStore(client: fixture.remoteClient))
         _skillsShStore = State(initialValue: SkillsShSearchStore(client: fixture.skillsShClient))
+        _updateBadgeStore = State(
+            initialValue: SkillUpdateBadgeStore(remote: fixture.remoteClient)
+        )
 #else
         startupCoordinator = LibraryStartupCoordinator()
+        _updateBadgeStore = State(
+            initialValue: SkillUpdateBadgeStore(remote: .live())
+        )
 #endif
         let pathStore = CustomPathStore()
         let updateAdmission = ManagedSkillUpdateAdmission()
@@ -67,6 +75,8 @@ struct SkillsManagerApp: App {
                 .environment(lifecycleModel)
                 .environment(consistencyModel)
                 .environment(libraryRuntime)
+                .environment(updateBadgeStore)
+                .environment(resultCenter)
 #if SKILLS_MANAGER_UI_TEST
                 .environment(\.skillsManagerHomeURL, fixtureRuntime.homeURL)
                 .environment(\.skillsManagerGitHubClient, fixtureRuntime.githubClient)
