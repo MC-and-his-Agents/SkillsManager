@@ -66,24 +66,18 @@ struct SkillsShSearchRow: View {
     let item: SkillsShSearchItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(item.name)
-                .font(.headline)
-            Text(item.source)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            HStack(spacing: 6) {
-                TagView(text: "Available", systemImage: "arrow.down.circle")
-                TagView(text: "skills.sh", systemImage: "magnifyingglass")
-                TagView(text: "\(item.installs.formatted()) installs")
-            }
-        }
-        .padding(.vertical, 6)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(item.name), Available, skills.sh, \(item.installs.formatted()) installs, source \(item.source)"
-        )
-        .accessibilityValue("Available, skills.sh, 0 Agents")
+        SkillListRow(data: SkillListRowData(
+            id: item.resultID.id,
+            title: item.name,
+            detail: item.source,
+            statusIcon: "arrow.down.circle",
+            statusTint: .accentColor,
+            sources: [SkillListSourceLabel(text: "skills.sh", systemImage: "magnifyingglass")],
+            agentCount: 0,
+            accessibilityLabel:
+                "\(item.name), Available, skills.sh, \(item.installs.formatted()) installs, source \(item.source)",
+            accessibilityValue: "Available, skills.sh, 0 Agents"
+        ))
     }
 }
 

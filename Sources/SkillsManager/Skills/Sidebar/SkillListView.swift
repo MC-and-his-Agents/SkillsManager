@@ -19,6 +19,11 @@ struct SkillListView: View {
     var body: some View {
         List(selection: $selection) {
             header
+            SkillFilterBar(filters: $filters)
+                .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 10, trailing: 4))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+
             if filters.status != .available {
                 Section("On This Mac") {
                     localContent
@@ -121,41 +126,11 @@ struct SkillListView: View {
                     .foregroundStyle(.primary)
             }
             Spacer()
-            filterMenu
         }
         .padding(.vertical, 6)
         .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
-    }
-
-    private var filterMenu: some View {
-        Menu {
-            Picker("Status", selection: $filters.status) {
-                ForEach(SkillListStatusFilter.allCases) { value in
-                    Text(value.rawValue).tag(value)
-                }
-            }
-            Picker("Source", selection: $filters.source) {
-                ForEach(SkillListSourceFilter.allCases) { value in
-                    Text(value.displayName).tag(value)
-                }
-            }
-            Picker("Agent", selection: $filters.agent) {
-                ForEach(SkillListAgentFilter.allCases) { value in
-                    Text(value.displayName).tag(value)
-                }
-            }
-        } label: {
-            Image(systemName: filters.isActive
-                ? "line.3.horizontal.decrease.circle.fill"
-                : "line.3.horizontal.decrease.circle")
-        }
-        .menuStyle(.borderlessButton)
-        .help("Filter Skills")
-        .accessibilityLabel("Filter Skills")
-        .accessibilityValue(filters.isActive ? "Filters active" : "All Skills")
-        .accessibilityIdentifier("skills.filter.menu")
     }
 
     @ViewBuilder

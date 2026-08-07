@@ -4,24 +4,18 @@ struct CustomRepositoryCandidateRow: View {
     let candidate: CustomRepositoryCandidate
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(candidate.displayName).font(.headline)
-            Text(candidate.repository.displayName)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(candidate.snapshot.subpath.value.isEmpty ? "/" : candidate.snapshot.subpath.value)
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            HStack(spacing: 6) {
-                TagView(text: "Available", systemImage: "arrow.down.circle")
-                TagView(text: "Repository", systemImage: "shippingbox")
-            }
-        }
-        .padding(.vertical, 6)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(candidate.accessibilitySummary)
-        .accessibilityValue("Available, Repository, 0 Agents")
+        SkillListRow(data: SkillListRowData(
+            id: "\(candidate.id.repositoryID)-\(candidate.id.subpath.value)",
+            title: candidate.displayName,
+            detail: candidate.repository.displayName,
+            statusIcon: "arrow.down.circle",
+            statusTint: .accentColor,
+            sources: [SkillListSourceLabel(text: "Repository", systemImage: "shippingbox")],
+            agentCount: 0,
+            accessibilityLabel: candidate.accessibilitySummary,
+            accessibilityValue: "Available, Repository, 0 Agents"
+        ))
+        .help(candidate.snapshot.subpath.value.isEmpty ? "/" : candidate.snapshot.subpath.value)
     }
 }
 

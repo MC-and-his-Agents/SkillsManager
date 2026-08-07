@@ -61,7 +61,16 @@ final class SkillsManagerUITests: XCTestCase {
     func testSM168UI01Baseline() throws {
         try launchFixture(app: app, profile: "baseline", surface: "ui-01")
         try requireElement(app.staticTexts["Skills"], surface: "ui-01", app: app)
-        try requireElement(app.menuButtons[SkillsManagerUILocators.filterMenu], surface: "ui-01", app: app)
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.filterStatus("all")],
+            surface: "ui-01",
+            app: app
+        )
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.filterSource("local")],
+            surface: "ui-01",
+            app: app
+        )
         try waitForShownCount(6, surface: "ui-01", app: app)
 
         let managed = row(label: "Fixture Managed", value: "Managed", app: app)
@@ -78,7 +87,7 @@ final class SkillsManagerUITests: XCTestCase {
             "discovery row must expose its Agent count"
         )
         try auditSurface("ui-01-main-window", app: app)
-        try auditSurface("ui-01-filter-menu", app: app)
+        try auditSurface("ui-01-filter-bar", app: app)
     }
 
     // MARK: - SM168-UI-02
@@ -407,24 +416,11 @@ final class SkillsManagerUITests: XCTestCase {
         searchField.typeKey("a", modifierFlags: .command)
         searchField.typeKey(.delete, modifierFlags: [])
 
-        let menu = app.menuButtons[SkillsManagerUILocators.filterMenu]
-        menu.click()
-        let filterMenuItem = app.menuItems["All Statuses"]
-        try requireElement(filterMenuItem, surface: "ui-08", app: app)
-        app.typeKey(.downArrow, modifierFlags: [])
-        app.typeKey(.return, modifierFlags: [])
-        // XCUITest keyboard events are not routed into an open NSMenu on macOS
-        // (the menu is a separate key window); close it with the standard
-        // click-outside interaction and record the classification evidence.
-        recordMenuKeyboardClassification(surface: "ui-08", app: app)
-        // Click a menu-outside element to close it (a bare window coordinate can
-        // land on the sidebar ScrollView which has no hit point).
-        app.searchFields.firstMatch.click()
-        try waitForDisappearance(
-            app.menuItems["All Statuses"],
-            surface: "ui-08",
-            app: app
-        )
+        // Status 键盘切换（⌘2 Managed / ⌘1 All）替换原 filter menu 键盘验证
+        app.typeKey("2", modifierFlags: .command)
+        try waitForHierarchyText("No local matches", surface: "ui-08", app: app)
+        app.typeKey("1", modifierFlags: .command)
+        try waitForHierarchyText("No Skills found", surface: "ui-08", app: app)
 
         let addMenu = app.menuButtons[SkillsManagerUILocators.addMenu]
         try requireElement(addMenu, surface: "ui-08", app: app)
@@ -537,7 +533,138 @@ final class SkillsManagerUITests: XCTestCase {
         try auditSurface("ui-09-unmanaged", app: app)
     }
 
+    // MARK: - SM184-UI-10
+
+    func testSM184UI10FilterBarAndRows() throws {
+        try launchFixture(app: app, profile: "baseline", surface: "ui-10")
+
+        // 筛选区可见：Status 分段 + Source/Agent chips
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.filterStatus("all")],
+            surface: "ui-10",
+            app: app
+        )
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.filterSource("local")],
+            surface: "ui-10",
+            app: app
+        )
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.filterSource("clawhub")],
+            surface: "ui-10",
+            app: app
+        )
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.filterAgent("codex")],
+            surface: "ui-10",
+            app: app
+        )
+
+        // Source chip：ClawHub → 仅 ClawHub 行
+        try clickFilter(SkillsManagerUILocators.filterSource("clawhub"), surface: "ui-10", app: app)
+        try requireElement(
+            row(label: "ClawHub Fixture 1", value: "Available", app: app),
+            surface: "ui-10",
+            app: app
+        )
+        XCTAssertFalse(
+            row(label: "Fixture Managed", value: "Managed", app: app).exists,
+            "ClawHub source filter must hide local rows"
+        )
+        try auditSurface("ui-10-source-clawhub", app: app)
+        try clickFilter(SkillsManagerUILocators.filterSource("all"), surface: "ui-10", app: app)
+
+        // 组合：Managed + Local → 仅 Fixture Managed
+        try clickFilter(SkillsManagerUILocators.filterStatus("managed"), surface: "ui-10", app: app)
+        try clickFilter(SkillsManagerUILocators.filterSource("local"), surface: "ui-10", app: app)
+        try requireElement(
+            row(label: "Fixture Managed", value: "Managed", app: app),
+            surface: "ui-10",
+            app: app
+        )
+        XCTAssertFalse(
+            row(label: "ClawHub Fixture 1", value: "Available", app: app).exists,
+            "combined Managed + Local must hide remote rows"
+        )
+        try auditSurface("ui-10-combined", app: app)
+
+        // 清空恢复
+        try clickFilter(SkillsManagerUILocators.filterStatus("all"), surface: "ui-10", app: app)
+        try clickFilter(SkillsManagerUILocators.filterSource("all"), surface: "ui-10", app: app)
+        try waitForShownCount(6, surface: "ui-10", app: app)
+
+        // 折叠 → 摘要；展开 → chips 恢复
+        try clickFilter(SkillsManagerUILocators.filterCollapse, surface: "ui-10", app: app)
+        try requireElement(
+            element(identifier: SkillsManagerUILocators.filterSummary, app: app),
+            surface: "ui-10",
+            app: app
+        )
+        try clickFilter(SkillsManagerUILocators.filterCollapse, surface: "ui-10", app: app)
+        try requireElement(
+            app.buttons[SkillsManagerUILocators.filterSource("local")],
+            surface: "ui-10",
+            app: app
+        )
+
+        // ⌘2 / ⌘1 键盘切换 Status
+        app.typeKey("2", modifierFlags: .command)
+        try requireElement(
+            row(label: "Fixture Managed", value: "Managed", app: app),
+            surface: "ui-10",
+            app: app
+        )
+        XCTAssertFalse(
+            row(label: "Needs Import One", value: "Unmanaged", app: app).exists,
+            "⌘2 Managed must hide discovery rows"
+        )
+        app.typeKey("1", modifierFlags: .command)
+        try waitForShownCount(6, surface: "ui-10", app: app)
+        try auditSurface("ui-10-final", app: app)
+    }
+
     // MARK: - Helpers
+
+    private static let statusFilterKeys = [
+        "All Statuses": "all", "Managed": "managed",
+        "Needs Import": "needs-import", "Available": "available",
+    ]
+    private static let sourceFilterKeys = [
+        "All Sources": "all", "Local": "local", "Repository": "repository",
+        "ClawHub": "clawhub", "skills.sh": "skills-sh",
+    ]
+    private static let agentFilterKeys = [
+        "All Agents": "all", "Codex": "codex", "Claude Code": "claude",
+        "OpenCode": "opencode", "GitHub Copilot": "copilot",
+    ]
+
+    private func clickFilter(_ identifier: String, surface: String, app: XCUIApplication) throws {
+        let button = app.buttons[identifier]
+        try requireElement(button, surface: surface, app: app)
+        // 窄窗口下筛选 chips 行可横向滚动，最右 chip 初始不可点；先滚动到可见。
+        if !button.isHittable {
+            scrollFilterRowToReveal(button, app: app)
+        }
+        button.click()
+    }
+
+    private func scrollFilterRowToReveal(_ button: XCUIElement, app: XCUIApplication) {
+        let containerID: String
+        if button.identifier.hasPrefix(SkillsManagerUILocators.filterStatus("")) {
+            containerID = SkillsManagerUILocators.filterStatus("")
+        } else if button.identifier.hasPrefix(SkillsManagerUILocators.filterSource("")) {
+            containerID = SkillsManagerUILocators.filterSource("")
+        } else {
+            containerID = SkillsManagerUILocators.filterAgent("")
+        }
+        let row = app.scrollViews.matching(identifier: containerID).firstMatch
+        for _ in 0..<8 {
+            if button.isHittable { return }
+            if !row.exists { return }
+            row.swipeLeft()
+            usleep(150_000)
+        }
+    }
 
     private func selectRow(
         label: String,
@@ -558,20 +685,16 @@ final class SkillsManagerUITests: XCTestCase {
     }
 
     private func setFilter(_ item: String, surface: String, app: XCUIApplication) throws {
-        let menu = app.menuButtons[SkillsManagerUILocators.filterMenu]
-        menu.click()
-        let menuItem = app.menuItems[item]
-        try requireElement(menuItem, surface: surface, app: app)
-        // Menu item frames can be non-finite while the menu is presenting; poll
-        // for a settled frame before synthesizing the click.
-        for _ in 0..<8 {
-            let frame = menuItem.frame
-            if frame.width.isFinite && frame.width > 0, frame.height.isFinite, frame.height > 0 {
-                break
-            }
-            Thread.sleep(forTimeInterval: 0.5)
+        let candidates: [String?] = [
+            Self.statusFilterKeys[item].map(SkillsManagerUILocators.filterStatus),
+            Self.sourceFilterKeys[item].map(SkillsManagerUILocators.filterSource),
+            Self.agentFilterKeys[item].map(SkillsManagerUILocators.filterAgent),
+        ]
+        guard let identifier = candidates.compactMap({ $0 }).first else {
+            XCTFail("unknown filter item: \(item)")
+            throw SkillsManagerUIError.elementMissing("filter \(item)")
         }
-        menuItem.click()
+        try clickFilter(identifier, surface: surface, app: app)
     }
 
     private func openImportSheet(surface: String, app: XCUIApplication) throws {
