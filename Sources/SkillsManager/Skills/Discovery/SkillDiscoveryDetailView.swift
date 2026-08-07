@@ -49,91 +49,111 @@ struct SkillDiscoveryDetailView: View {
 
     private func itemDetail(_ item: SkillDiscoveryViewModel.Item) -> some View {
         let observation = item.observation
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: observation.status.systemImage)
-                        .font(.title)
-                        .foregroundStyle(observation.status.tint)
-                        .accessibilityHidden(true)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(observation.relativeLocator)
-                            .font(.largeTitle.bold())
-                        Text(observation.status.displayName)
-                            .font(.title3)
-                        if let reason = observation.reason {
-                            Text(reason.displayName)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .accessibilityElement(children: .combine)
-
-                if let message = model.importResultMessage {
-                    resultBanner(
-                        message,
-                        systemImage: "checkmark.circle.fill",
-                        tint: .green
-                    )
-                }
-                if let message = model.importErrorMessage ?? flowErrorMessage {
-                    resultBanner(
-                        message,
-                        systemImage: "exclamationmark.triangle.fill",
-                        tint: .orange
-                    )
-                }
-
-                GroupBox("Local locations") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(Array(observation.displayURLs.enumerated()), id: \.offset) {
-                            index, url in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(observation.roots[index].scope.displayName)
-                                    .font(.headline)
-                                Text(url.path)
-                                    .font(.callout.monospaced())
-                                    .textSelection(.enabled)
+        let isManagedMatch = observation.status == .managed
+            && observation.matchedSkillID != nil
+        return ScrollViewReader { proxy in
+            VStack(spacing: 0) {
+                if isManagedMatch {
+                    SkillDiscoveryActionBar(
+                        item: item,
+                        onFullSettings: {
+                            withAnimation {
+                                proxy.scrollTo(
+                                    "discovered-distribution-editor",
+                                    anchor: .top
+                                )
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .accessibilityElement(children: .combine)
                         }
-                    }
-                    .padding(.top, 4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    )
                 }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: observation.status.systemImage)
+                                .font(.title)
+                                .foregroundStyle(observation.status.tint)
+                                .accessibilityHidden(true)
 
-                GroupBox("Discovery evidence") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        LabeledContent("Status", value: observation.status.displayName)
-                        LabeledContent("Scope", value: observation.scopeSummary)
-                        LabeledContent("Source", value: observation.sourceSummary)
-                        LabeledContent("Content fingerprint", value: observation.fingerprintSummary)
-                        if let matchedSkillID = observation.matchedSkillID {
-                            LabeledContent(
-                                "Matched Skill ID",
-                                value: matchedSkillID.uuid.uuidString.lowercased()
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(observation.relativeLocator)
+                                    .font(.largeTitle.bold())
+                                Text(observation.status.displayName)
+                                    .font(.title3)
+                                if let reason = observation.reason {
+                                    Text(reason.displayName)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .accessibilityElement(children: .combine)
+
+                        if let message = model.importResultMessage {
+                            resultBanner(
+                                message,
+                                systemImage: "checkmark.circle.fill",
+                                tint: .green
                             )
                         }
-                        if let reason = observation.reason {
-                            LabeledContent("Reason", value: reason.displayName)
+                        if let message = model.importErrorMessage ?? flowErrorMessage {
+                            resultBanner(
+                                message,
+                                systemImage: "exclamationmark.triangle.fill",
+                                tint: .orange
+                            )
                         }
+
+                        GroupBox("Local locations") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(Array(observation.displayURLs.enumerated()), id: \.offset) {
+                                    index, url in
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(observation.roots[index].scope.displayName)
+                                            .font(.headline)
+                                        Text(url.path)
+                                            .font(.callout.monospaced())
+                                            .textSelection(.enabled)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .accessibilityElement(children: .combine)
+                                }
+                            }
+                            .padding(.top, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+
+                        GroupBox("Discovery evidence") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                LabeledContent("Status", value: observation.status.displayName)
+                                LabeledContent("Scope", value: observation.scopeSummary)
+                                LabeledContent("Source", value: observation.sourceSummary)
+                                LabeledContent("Content fingerprint", value: observation.fingerprintSummary)
+                                if let matchedSkillID = observation.matchedSkillID {
+                                    LabeledContent(
+                                        "Matched Skill ID",
+                                        value: matchedSkillID.uuid.uuidString.lowercased()
+                                    )
+                                }
+                                if let reason = observation.reason {
+                                    LabeledContent("Reason", value: reason.displayName)
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
+
+                        if isManagedMatch {
+                            SkillDistributionView()
+                                .id("discovered-distribution-editor")
+                            SkillUpdateCheckView()
+                            SkillDeletionView()
+                        }
+
+                        actionSection(for: item)
+                        scanScopeDisclosure
                     }
-                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
                 }
-
-                if observation.status == .managed, observation.matchedSkillID != nil {
-                    SkillDistributionView()
-                    SkillUpdateCheckView()
-                    SkillDeletionView()
-                }
-
-                actionSection(for: item)
-                scanScopeDisclosure
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
         }
     }
 

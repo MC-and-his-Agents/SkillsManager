@@ -14,6 +14,7 @@ nonisolated enum SkillsManagerUIFixtureProfile: String, Sendable, CaseIterable {
     case failureClawHub = "failure-clawhub"
     case failureSkillsSh = "failure-skills-sh"
     case failureRepository = "failure-repository"
+    case detailActionBar = "detail-action-bar"
 }
 
 struct SkillsManagerUIFixtureRuntime: Sendable {
@@ -86,6 +87,9 @@ struct SkillsManagerUIFixtureRuntime: Sendable {
         guard profile != .empty else { return }
         try createFixtureSources()
         try await seedManagedSkill(writer: writer)
+        if profile == .detailActionBar {
+            try await seedNeedsRepairSkill(writer: writer)
+        }
         try createUnmanagedSkills()
         try await writer.insertCustomPath(CustomSkillPath(
             url: homeURL.appendingPathComponent("fixture-custom-skills", isDirectory: true),
@@ -131,6 +135,28 @@ struct SkillsManagerUIFixtureRuntime: Sendable {
         try Data("# Fixture Managed\n\nA deterministic fixture Skill.\n".utf8)
             .write(to: source.appendingPathComponent("SKILL.md"), options: .atomic)
         try chmodDirectory(source)
+    }
+
+    private func seedNeedsRepairSkill(writer: JournaledSSOTWriter) async throws {
+        let sourceURL = homeURL.appendingPathComponent("fixture-source/broken", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceURL, withIntermediateDirectories: true)
+        try Data("# Fixture Broken\n\nDeterministic needs-repair fixture Skill.\n".utf8)
+            .write(to: sourceURL.appendingPathComponent("SKILL.md"), options: .atomic)
+        try chmodDirectory(sourceURL)
+        let snapshot = try SkillContentSnapshot.capture(at: sourceURL)
+        let skillID = SkillID()
+        let displayName = try SkillDisplayName("Fixture Broken")
+        let skill = try ManagedSkillRecord(
+            skillID: skillID,
+            displayName: displayName,
+            defaultDistributionSlug: try DefaultDistributionSlug(candidateFrom: displayName),
+            contentFingerprint: try SkillContentFingerprint(currentDigest: snapshot.fingerprintDigest),
+            status: .needsRepair,
+            createdAtMilliseconds: 1,
+            updatedAtMilliseconds: 1
+        )
+        let payload = try SSOTSkillWritePayload(skill: skill)
+        _ = try await writer.create(payload: payload, sourceSnapshot: snapshot)
     }
 
     private func createUnmanagedSkills() throws {

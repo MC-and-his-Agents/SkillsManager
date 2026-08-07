@@ -29,38 +29,54 @@ struct SkillMarkdownView: View {
     @State private var isCheckingCli = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                if isOwned {
-                    publishSection
-                } else if clawdhubOrigin != nil {
-                    installSection
-                }
-                Markdown(markdown)
-                    .textSelection(.enabled)
-
-                if !skill.references.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("References")
-                            .font(.title2.bold())
-                        ReferenceListView(references: skill.references)
+        ScrollViewReader { proxy in
+            VStack(spacing: 0) {
+                SkillDetailActionBar(
+                    skill: skill,
+                    onFullSettings: {
+                        withAnimation {
+                            proxy.scrollTo(
+                                "skill-distribution-editor",
+                                anchor: .top
+                            )
+                        }
                     }
-                    .padding(.top, 8)
+                )
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if isOwned {
+                            publishSection
+                        } else if clawdhubOrigin != nil {
+                            installSection
+                        }
+                        Markdown(markdown)
+                            .textSelection(.enabled)
+
+                        if !skill.references.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("References")
+                                    .font(.title2.bold())
+                                ReferenceListView(references: skill.references)
+                            }
+                            .padding(.top, 8)
+                        }
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        Text("Manage Skill")
+                            .font(.title2.bold())
+                            .accessibilityAddTraits(.isHeader)
+
+                        SkillDistributionView()
+                            .id("skill-distribution-editor")
+                        SkillUpdateCheckView()
+                        SkillDeletionView()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
                 }
-
-                Divider()
-                    .padding(.vertical, 4)
-
-                Text("Manage Skill")
-                    .font(.title2.bold())
-                    .accessibilityAddTraits(.isHeader)
-
-                SkillDistributionView()
-                SkillUpdateCheckView()
-                SkillDeletionView()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
         }
         .navigationTitle(skill.displayName)
         .navigationSubtitle(skill.folderPath)
