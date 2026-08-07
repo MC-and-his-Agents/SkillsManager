@@ -53,35 +53,39 @@ struct SkillFilterBar: View {
     // MARK: - Status
 
     private var statusSegment: some View {
-        HStack(spacing: 2) {
-            ForEach(SkillListStatusFilter.allCases) { value in
-                Button {
-                    filters.status = value
-                } label: {
-                    Text(value.rawValue)
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule().fill(
-                                filters.status == value
-                                    ? Color.accentColor.opacity(0.22)
-                                    : Color.clear
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 2) {
+                ForEach(SkillListStatusFilter.allCases) { value in
+                    Button {
+                        filters.status = value
+                    } label: {
+                        Text(value.rawValue)
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(
+                                    filters.status == value
+                                        ? Color.accentColor.opacity(0.22)
+                                        : Color.clear
+                                )
                             )
-                        )
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut(statusShortcut(for: value))
+                    .focused($statusFocused)
+                    .accessibilityAddTraits(filters.status == value ? .isSelected : [])
+                    .accessibilityLabel("Status: \(value.rawValue)")
+                    .accessibilityValue(
+                        filters.status == value ? "Selected" : "Not selected"
+                    )
+                    .accessibilityIdentifier("skills.filter.status.\(statusKey(for: value))")
+                    .tint(filters.status == value ? .accentColor : .secondary)
                 }
-                .buttonStyle(.plain)
-                .keyboardShortcut(statusShortcut(for: value))
-                .focused($statusFocused)
-                .accessibilityAddTraits(filters.status == value ? .isSelected : [])
-                .accessibilityLabel("Status: \(value.rawValue)")
-                .accessibilityValue(
-                    filters.status == value ? "Selected" : "Not selected"
-                )
-                .accessibilityIdentifier("skills.filter.status.\(statusKey(for: value))")
-                .tint(filters.status == value ? .accentColor : .secondary)
             }
+            .padding(.horizontal, 2)
         }
+        .frame(height: 24)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("skills.filter.status")
     }
@@ -107,27 +111,38 @@ struct SkillFilterBar: View {
     // MARK: - Source
 
     private var sourceChips: some View {
-        HStack(spacing: 6) {
-            Text("Source")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            ForEach(SkillListSourceFilter.allCases) { value in
-                Button {
-                    filters.source = value
-                } label: {
-                    chipLabel(
-                        value.displayName,
-                        icon: sourceIcon(for: value)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 5) {
+                ForEach(SkillListSourceFilter.allCases) { value in
+                    Button {
+                        filters.source = value
+                    } label: {
+                        chipLabel(sourceShortText(for: value), icon: sourceIcon(for: value))
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .accessibilityAddTraits(filters.source == value ? .isSelected : [])
+                    .accessibilityLabel("Source: \(value.displayName)")
+                    .accessibilityValue(
+                        filters.source == value ? "Selected" : "Not selected"
                     )
+                    .accessibilityIdentifier("skills.filter.source.\(sourceKey(for: value))")
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(filters.source == value ? .isSelected : [])
-                .accessibilityLabel("Source: \(value.displayName)")
-                .accessibilityValue(
-                    filters.source == value ? "Selected" : "Not selected"
-                )
-                .accessibilityIdentifier("skills.filter.source.\(sourceKey(for: value))")
             }
+            .padding(.horizontal, 2)
+        }
+        .frame(height: 22)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("skills.filter.source")
+    }
+
+    private func sourceShortText(for value: SkillListSourceFilter) -> String {
+        guard case .source(let source) = value else { return "All" }
+        switch source {
+        case .local: return "Local"
+        case .repository: return "Repo"
+        case .clawHub: return "ClawHub"
+        case .skillsSh: return "skills.sh"
         }
     }
 
@@ -149,24 +164,38 @@ struct SkillFilterBar: View {
     // MARK: - Agent
 
     private var agentChips: some View {
-        HStack(spacing: 6) {
-            Text("Agent")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            ForEach(SkillListAgentFilter.allCases) { value in
-                Button {
-                    filters.agent = value
-                } label: {
-                    chipLabel(value.displayName, icon: nil)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 5) {
+                ForEach(SkillListAgentFilter.allCases) { value in
+                    Button {
+                        filters.agent = value
+                    } label: {
+                        chipLabel(agentShortText(for: value), icon: nil)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .accessibilityAddTraits(filters.agent == value ? .isSelected : [])
+                    .accessibilityLabel("Agent: \(value.displayName)")
+                    .accessibilityValue(
+                        filters.agent == value ? "Selected" : "Not selected"
+                    )
+                    .accessibilityIdentifier("skills.filter.agent.\(agentKey(for: value))")
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(filters.agent == value ? .isSelected : [])
-                .accessibilityLabel("Agent: \(value.displayName)")
-                .accessibilityValue(
-                    filters.agent == value ? "Selected" : "Not selected"
-                )
-                .accessibilityIdentifier("skills.filter.agent.\(agentKey(for: value))")
             }
+            .padding(.horizontal, 2)
+        }
+        .frame(height: 22)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("skills.filter.agent")
+    }
+
+    private func agentShortText(for value: SkillListAgentFilter) -> String {
+        guard case .agent(let platform) = value else { return "All" }
+        switch platform {
+        case .codex: return "Codex"
+        case .claude: return "Claude"
+        case .opencode: return "OpenCode"
+        case .copilot: return "Copilot"
         }
     }
 
@@ -178,7 +207,7 @@ struct SkillFilterBar: View {
     // MARK: - Shared
 
     private func chipLabel(_ text: String, icon: String?) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             if let icon {
                 Image(systemName: icon)
                     .font(.caption)
@@ -186,7 +215,7 @@ struct SkillFilterBar: View {
             Text(text)
                 .font(.caption)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 6)
         .padding(.vertical, 3)
         .background(
             Capsule().fill(Color.secondary.opacity(0.14))

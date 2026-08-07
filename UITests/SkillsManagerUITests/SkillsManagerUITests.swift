@@ -641,7 +641,29 @@ final class SkillsManagerUITests: XCTestCase {
     private func clickFilter(_ identifier: String, surface: String, app: XCUIApplication) throws {
         let button = app.buttons[identifier]
         try requireElement(button, surface: surface, app: app)
+        // 窄窗口下筛选 chips 行可横向滚动，最右 chip 初始不可点；先滚动到可见。
+        if !button.isHittable {
+            scrollFilterRowToReveal(button, app: app)
+        }
         button.click()
+    }
+
+    private func scrollFilterRowToReveal(_ button: XCUIElement, app: XCUIApplication) {
+        let containerID: String
+        if button.identifier.hasPrefix(SkillsManagerUILocators.filterStatus("")) {
+            containerID = SkillsManagerUILocators.filterStatus("")
+        } else if button.identifier.hasPrefix(SkillsManagerUILocators.filterSource("")) {
+            containerID = SkillsManagerUILocators.filterSource("")
+        } else {
+            containerID = SkillsManagerUILocators.filterAgent("")
+        }
+        let row = app.scrollViews.matching(identifier: containerID).firstMatch
+        for _ in 0..<8 {
+            if button.isHittable { return }
+            if !row.exists { return }
+            row.swipeLeft()
+            usleep(150_000)
+        }
     }
 
     private func selectRow(
