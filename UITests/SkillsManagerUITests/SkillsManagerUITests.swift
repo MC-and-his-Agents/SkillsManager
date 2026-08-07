@@ -197,7 +197,9 @@ final class SkillsManagerUITests: XCTestCase {
         try requireElement(app.staticTexts["skills.sh unavailable"], surface: "ui-04-skills-sh", app: app)
         let retry = app.buttons["Retry"]
         try requireElement(retry, surface: "ui-04-skills-sh", app: app)
-        retry.click()
+        // 统一空状态组件让错误行更高，窄窗口下 Retry 可能落到视口边缘；
+        // 使用带滚动重试的点击。
+        try clickWhenHittable(retry, surface: "ui-04-skills-sh", app: app)
         try waitForProgressDisappearance("Searching skills.sh", surface: "ui-04-skills-sh", app: app)
         try requireElement(app.staticTexts["skills.sh unavailable"], surface: "ui-04-skills-sh", app: app)
         try auditSurface("ui-04-skills-sh-error", app: app)

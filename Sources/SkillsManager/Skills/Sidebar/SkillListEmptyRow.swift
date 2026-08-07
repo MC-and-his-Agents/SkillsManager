@@ -53,7 +53,7 @@ struct SkillListEmptyRow: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
+        .padding(.vertical, 10)
         .accessibilityElement(children: action == nil ? .combine : .contain)
         .accessibilityLabel([title, message].compactMap { $0 }.joined(separator: ", "))
     }
