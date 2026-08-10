@@ -15,6 +15,8 @@ TEST_FILTER_ARG=""
 if [[ -n "${UI_TEST_ONLY_TESTING:-}" ]]; then
   TEST_FILTER_ARG="-only-testing:${UI_TEST_ONLY_TESTING}"
 fi
+MAX_FAILED_IDENTIFIERS=20
+MAX_FAILED_IDENTIFIER_LENGTH=200
 
 # UI tests must never consume a developer identity or inherited provisioning
 # settings. The explicit xcodebuild settings below are build settings, not
@@ -38,6 +40,7 @@ FINAL_CATEGORY=unclassified
 
 declare -a ATTEMPT_CATEGORY ATTEMPT_STATUS ATTEMPT_TOTAL
 declare -a ATTEMPT_LOG ATTEMPT_XCRESULT ATTEMPT_SUMMARY
+declare -a ATTEMPT_FAILED_IDENTIFIERS
 
 cleanup() {
   local status=$?
@@ -90,13 +93,58 @@ sha256_file() {
   fi
 }
 
+extract_failed_identifiers() {
+  local summary="$1"
+  local failure_xml identifiers
+
+  [[ -f "$summary" ]] || { printf 'unknown'; return 0; }
+  failure_xml=$(plutil -extract testFailures xml1 -o - "$summary" 2>/dev/null || true)
+  [[ -n "$failure_xml" ]] || { printf 'unknown'; return 0; }
+  identifiers=$(printf '%s\n' "$failure_xml" | awk \
+    -v limit="$MAX_FAILED_IDENTIFIERS" \
+    -v max_length="$MAX_FAILED_IDENTIFIER_LENGTH" '
+      /<key>testIdentifier(String)?<\/key>/ { capture=1; next }
+      capture && /<string>/ {
+        value=$0
+        sub(/^.*<string>/, "", value)
+        sub(/<\/string>.*$/, "", value)
+        if (length(value) <= max_length \
+            && value ~ /^[A-Za-z_][A-Za-z0-9_.:\/-]*$/ \
+            && value !~ /^\// \
+            && value !~ /\.\./ \
+            && value !~ /:\/\// \
+            && value !~ /\.(swift|m|mm|h|c|cc|cpp|json|plist|log|xcresult)(:[0-9]+)?$/) {
+          if (!(value in seen)) {
+            if (count > 0) printf ","
+            printf "%s", value
+            seen[value]=1
+            count++
+            if (count >= limit) exit
+          }
+        }
+        capture=0
+        next
+      }
+      capture && /<key>|<\/dict>|<\/array>/ { capture=0 }
+    ')
+  [[ -n "$identifiers" ]] && printf '%s' "$identifiers" || printf 'unknown'
+}
+
 print_attempt() {
   local attempt="$1"
   if [[ "$HOSTED_CI" == "1" ]]; then
-    printf 'ui-test-attempt=%s category=%s exit_status=%s test_total=%s log_sha256=%s xcresult_summary_sha256=%s github_run_id=%s\n' \
-      "$attempt" "${ATTEMPT_CATEGORY[$attempt]}" "${ATTEMPT_STATUS[$attempt]}" \
-      "${ATTEMPT_TOTAL[$attempt]}" "$(sha256_file "${ATTEMPT_LOG[$attempt]}")" \
-      "$(sha256_file "${ATTEMPT_SUMMARY[$attempt]}")" "$GITHUB_RUN_ID_VALUE"
+    if [[ "${ATTEMPT_CATEGORY[$attempt]}" == "test-failure" ]]; then
+      printf 'ui-test-attempt=%s category=%s exit_status=%s test_total=%s failed_test_identifiers=%s log_sha256=%s xcresult_summary_sha256=%s github_run_id=%s\n' \
+        "$attempt" "${ATTEMPT_CATEGORY[$attempt]}" "${ATTEMPT_STATUS[$attempt]}" \
+        "${ATTEMPT_TOTAL[$attempt]}" "${ATTEMPT_FAILED_IDENTIFIERS[$attempt]:-unknown}" \
+        "$(sha256_file "${ATTEMPT_LOG[$attempt]}")" \
+        "$(sha256_file "${ATTEMPT_SUMMARY[$attempt]}")" "$GITHUB_RUN_ID_VALUE"
+    else
+      printf 'ui-test-attempt=%s category=%s exit_status=%s test_total=%s log_sha256=%s xcresult_summary_sha256=%s github_run_id=%s\n' \
+        "$attempt" "${ATTEMPT_CATEGORY[$attempt]}" "${ATTEMPT_STATUS[$attempt]}" \
+        "${ATTEMPT_TOTAL[$attempt]}" "$(sha256_file "${ATTEMPT_LOG[$attempt]}")" \
+        "$(sha256_file "${ATTEMPT_SUMMARY[$attempt]}")" "$GITHUB_RUN_ID_VALUE"
+    fi
   else
     printf 'UI test attempt %s: category=%s exit_status=%s test_total=%s log=%s xcresult=%s summary=%s\n' \
       "$attempt" "${ATTEMPT_CATEGORY[$attempt]}" "${ATTEMPT_STATUS[$attempt]}" \
@@ -298,6 +346,12 @@ run_attempt() {
     category=runner-initialization
   else
     category=unclassified
+  fi
+
+  if [[ "$category" == "test-failure" && "$HOSTED_CI" == "1" ]]; then
+    ATTEMPT_FAILED_IDENTIFIERS[$attempt]=$(extract_failed_identifiers "$summary")
+  else
+    ATTEMPT_FAILED_IDENTIFIERS[$attempt]=unknown
   fi
 
   ATTEMPT_CATEGORY[$attempt]="$category"

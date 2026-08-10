@@ -97,6 +97,9 @@ if [[ "${1:-}" == test-without-building ]]; then
     assertion)
       : > "$result/started"
       printf "%s\\n" "Test Case '-[FixtureTests testAssertion]' failed" "XCTAssertTrue failed"; exit 65 ;;
+    unsafe-failure)
+      : > "$result/started"
+      printf "%s\\n" "Test Case '-[FixtureTests testUnsafe]' failed" "XCTAssertTrue failed"; exit 65 ;;
     runner|runner-real)
       if [[ "$count" == 1 ]]; then
         : > "$result/zero"
@@ -126,7 +129,11 @@ for ((i = 1; i <= $#; i++)); do
   fi
 done
 if [[ -f "$result/started" ]]; then
-  printf "%s\n" "{\"testsCount\":1,\"testIdentifier\":\"FixtureTests/test\"}"
+  if [[ "${FIXTURE_MODE:-}" == unsafe-failure ]]; then
+    printf "%s\n" "{\"testsCount\":1,\"testFailures\":[{\"testIdentifier\":1,\"testIdentifierString\":\"/Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123\",\"failureText\":\"XCTAssert failed at /Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123\"}]}"
+  else
+    printf "%s\n" "{\"testsCount\":1,\"testFailures\":[{\"testIdentifier\":1,\"testIdentifierString\":\"FixtureTests/testAssertion\",\"failureText\":\"XCTAssert failed at /Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123\"}]}"
+  fi
 elif [[ -f "$result/zero" ]]; then
   if [[ "${FIXTURE_MODE:-}" == runner-real ]]; then
     printf "%s\n" "{\"totalTestCount\":1,\"failedTests\":1,\"testFailures\":[{\"testIdentifier\":1,\"testIdentifierString\":\"SkillsManagerUITests-Runner (1) encountered an error\",\"testName\":\"SkillsManagerUITests-Runner (1) encountered an error\"}]}"
@@ -143,6 +150,14 @@ case " $* " in
   *" -convert xml1 "*)
     file="${@: -1}"
     grep -q "^{" "$file" ;;
+  *" -extract testFailures xml1 "*)
+    file="${@: -1}"
+    identifier=$(sed -nE "s/.*\\\"testIdentifierString\\\"[[:space:]]*:[[:space:]]*\\\"([^\\\"]+)\\\".*/\\1/p" "$file" | head -1)
+    [[ -n "$identifier" ]] || exit 1
+    printf "%s\n" "<plist><array><dict>"
+    printf "%s\n" "<key>testIdentifierString</key>"
+    printf "%s\n" "<string>$identifier</string>"
+    printf "%s\n" "<key>failureText</key><string>/Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123</string></dict></array></plist>" ;;
   *" -extract testsCount raw "*)
     file="${@: -1}"
     sed -nE "s/.*\\\"testsCount\\\"[[:space:]]*:[[:space:]]*([0-9]+).*/\\1/p" "$file" | head -1 ;;
@@ -229,6 +244,26 @@ assert_local_artifacts "$assertion_dir" test-failure not-run
 [[ -e "$assertion_dir/filter-absent" ]] || fail "empty filter did not reach xcodebuild without a filter"
 [[ ! -e "$assertion_dir/filter-present" ]] || fail "unexpected test filter was passed"
 assert_signing_scrubbed "$assertion_dir"
+
+hosted_assertion_dir=$(run_case assertion 1 true)
+grep -Fq 'category=test-failure' "$hosted_assertion_dir/output" || fail "hosted assertion failure was not classified"
+grep -Fq 'failed_test_identifiers=FixtureTests/testAssertion' "$hosted_assertion_dir/output" || fail "safe failed test identifier missing"
+if grep -Fq '/Users/' "$hosted_assertion_dir/output" \
+  || grep -Fq 'failureText' "$hosted_assertion_dir/output" \
+  || grep -Fq 'XCTAssert failed' "$hosted_assertion_dir/output" \
+  || grep -Fq "$hosted_assertion_dir" "$hosted_assertion_dir/output"; then
+  fail "hosted failed test output leaked unsafe payload"
+fi
+
+unsafe_dir=$(run_case unsafe-failure 1 true)
+grep -Fq 'category=test-failure' "$unsafe_dir/output" || fail "unsafe failure was not classified"
+grep -Fq 'failed_test_identifiers=unknown' "$unsafe_dir/output" || fail "unsafe identifiers were not redacted"
+if grep -Fq '/Users/' "$unsafe_dir/output" \
+  || grep -Fq 'failureText' "$unsafe_dir/output" \
+  || grep -Fq 'XCTAssert failed' "$unsafe_dir/output" \
+  || grep -Fq "$unsafe_dir" "$unsafe_dir/output"; then
+  fail "unsafe failed test payload leaked"
+fi
 
 runner_dir=$(run_case runner 0)
 assert_local_artifacts "$runner_dir" runner-initialization success
