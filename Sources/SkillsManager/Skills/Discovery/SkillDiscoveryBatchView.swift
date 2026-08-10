@@ -24,9 +24,9 @@ struct SkillDiscoveryBatchView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Batch Import")
+            Text("Batch Import", bundle: .module)
                 .font(.title2.bold())
-            Text("Review discovered local Skills, then import them in a safe, stable order.")
+            Text("Review discovered local Skills, then import them in a safe, stable order.", bundle: .module)
                 .foregroundStyle(.secondary)
             Text(summaryText)
                 .font(.caption)
@@ -40,9 +40,9 @@ struct SkillDiscoveryBatchView: View {
         switch model.state {
         case .idle:
             ContentUnavailableView(
-                "No Discovery candidates",
+                localized("No Discovery candidates"),
                 systemImage: "tray",
-                description: Text("Refresh Discovery before opening Batch Import.")
+                description: Text("Refresh Discovery before opening Batch Import.", bundle: .module)
             )
         case .selecting:
             selectionContent
@@ -60,14 +60,22 @@ struct SkillDiscoveryBatchView: View {
     private var selectionContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Button("Select safe") { model.selectAllSafe() }
+                Button {
+                    model.selectAllSafe()
+                } label: {
+                    Text("Select safe", bundle: .module)
+                }
                     .keyboardShortcut("a", modifiers: [.command, .shift])
                     .disabled(model.availableCandidateCount == 0)
-                Button("Clear") { model.clearSelection() }
+                Button {
+                    model.clearSelection()
+                } label: {
+                    Text("Clear", bundle: .module)
+                }
                     .keyboardShortcut(.delete, modifiers: [.command])
                     .disabled(model.selectedCount == 0)
                 Spacer()
-                Text("\(model.selectedCount) selected")
+                Text("\(model.selectedCount) selected", bundle: .module)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -99,12 +107,12 @@ struct SkillDiscoveryBatchView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(candidate.observation.displayName)
                         .font(.headline)
-                    Text(candidate.observation.status.displayName)
+                    Text(localized(candidate.observation.status.displayName))
                         .font(.caption)
                         .foregroundStyle(candidate.observation.status.tint)
                     if let reason = candidate.selectionBlockReason
                         ?? candidate.observation.reason?.displayName {
-                        Text(reason)
+                        Text(localized(reason))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -115,7 +123,7 @@ struct SkillDiscoveryBatchView: View {
                             .textSelection(.enabled)
                     }
                     if candidate.aliases.count > 1 {
-                        Text("+\(candidate.aliases.count - 1) verified alias locations")
+                        Text("+\(candidate.aliases.count - 1) verified alias locations", bundle: .module)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -123,17 +131,22 @@ struct SkillDiscoveryBatchView: View {
             }
             .toggleStyle(.checkbox)
             .disabled(!candidate.isSelectable)
-            .accessibilityLabel(candidate.observation.displayName)
-            .accessibilityValue(candidateAccessibilityValue(candidate))
+            .accessibilityLabel(Text(candidate.observation.displayName))
+            .accessibilityValue(Text(candidateAccessibilityValue(candidate)))
 
             if candidate.observation.status == .conflict,
                candidate.allowedActions.contains(.importNew) {
-                Button("Import as new") {
+                Button {
                     model.setAction(.importNew, for: candidate.id)
+                } label: {
+                    Text("Import as new", bundle: .module)
                 }
                 .buttonStyle(.bordered)
                 .disabled(model.isSelected(candidate.id))
-                .accessibilityHint("Explicitly selects this conflict for an independent import.")
+                .accessibilityHint(Text(
+                    "Explicitly selects this conflict for an independent import.",
+                    bundle: .module
+                ))
             }
         }
         .padding(.vertical, 4)
@@ -141,10 +154,14 @@ struct SkillDiscoveryBatchView: View {
 
     private var previewContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(
-                "Nothing has been written. Confirm once to begin the ordered import.",
-                systemImage: "eye"
-            )
+            Label {
+                Text(
+                    "Nothing has been written. Confirm once to begin the ordered import.",
+                    bundle: .module
+                )
+            } icon: {
+                Image(systemName: "eye")
+            }
             .foregroundStyle(.secondary)
             List(model.preview?.items ?? []) { item in
                 previewRow(item)
@@ -166,13 +183,25 @@ struct SkillDiscoveryBatchView: View {
                     .foregroundStyle(.secondary)
             }
             if let slug = item.distributionSlug {
-                LabeledContent("Slug", value: slug.value)
+                LabeledContent {
+                    Text(slug.value)
+                } label: {
+                    Text("Slug", bundle: .module)
+                }
             }
             if let source = item.sourceURLs.first {
-                LabeledContent("Source", value: source.path)
+                LabeledContent {
+                    Text(source.path)
+                } label: {
+                    Text("Source", bundle: .module)
+                }
             }
             if let plan = item.plan {
-                LabeledContent("Distribution", value: distributionName(plan.status))
+                LabeledContent {
+                    Text(localized(distributionName(plan.status)))
+                } label: {
+                    Text("Distribution", bundle: .module)
+                }
                 if !plan.conflicts.isEmpty {
                     Text(plan.conflicts.map(\.reason.rawValue).joined(separator: ", "))
                         .font(.caption)
@@ -180,7 +209,11 @@ struct SkillDiscoveryBatchView: View {
                 }
             }
             if let reason = item.reason {
-                Label(reason, systemImage: item.token == nil ? "xmark.circle" : "info.circle")
+                Label {
+                    Text(verbatim: reason)
+                } icon: {
+                    Image(systemName: item.token == nil ? "xmark.circle" : "info.circle")
+                }
                     .font(.caption)
                     .foregroundStyle(item.token == nil ? .orange : .secondary)
             }
@@ -202,14 +235,18 @@ struct SkillDiscoveryBatchView: View {
 
     private var resultsContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(
-                model.summary.needsAttention == 0
-                    ? "Batch import finished."
-                    : "Batch import finished with items that need attention.",
-                systemImage: model.summary.needsAttention == 0
+            Label {
+                Text(
+                    model.summary.needsAttention == 0
+                        ? "Batch import finished."
+                        : "Batch import finished with items that need attention.",
+                    bundle: .module
+                )
+            } icon: {
+                Image(systemName: model.summary.needsAttention == 0
                     ? "checkmark.circle"
-                    : "exclamationmark.triangle"
-            )
+                    : "exclamationmark.triangle")
+            }
             .foregroundStyle(model.summary.needsAttention == 0 ? .green : .orange)
             .accessibilityElement(children: .combine)
             List(model.resultItems) { result in
@@ -225,8 +262,16 @@ struct SkillDiscoveryBatchView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(result.displayName).font(.headline)
-            LabeledContent("Management", value: managementName(result.management))
-            LabeledContent("Distribution", value: distributionName(result.distribution))
+            LabeledContent {
+                Text(verbatim: managementName(result.management))
+            } label: {
+                Text("Management", bundle: .module)
+            }
+            LabeledContent {
+                Text(verbatim: distributionName(result.distribution))
+            } label: {
+                Text("Distribution", bundle: .module)
+            }
             if let source = result.sourceURLs.first {
                 Text(source.path)
                     .font(.caption.monospaced())
@@ -244,28 +289,34 @@ struct SkillDiscoveryBatchView: View {
                 value: Double(model.resultItems.count),
                 total: Double(max(model.preview?.items.count ?? model.selectedCount, 1))
             )
-            Text(title)
+            Text(verbatim: localized(title))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(title)
-        .accessibilityValue("\(model.resultItems.count) of \(model.preview?.items.count ?? model.selectedCount)")
+        .accessibilityLabel(Text(verbatim: localized(title)))
+        .accessibilityValue(Text(verbatim: localized(
+            "\(model.resultItems.count) of \(model.preview?.items.count ?? model.selectedCount)"
+        )))
     }
 
     @ViewBuilder
     private var controls: some View {
         HStack {
             if model.state == .selecting || model.state == .ready {
-                Button("Cancel") {
+                Button {
                     model.cancelPreview()
                     dismiss()
+                } label: {
+                    Text("Cancel", bundle: .module)
                 }
                 .keyboardShortcut(.cancelAction)
             } else if model.state == .completed {
-                Button("Close") {
+                Button {
                     model.reset()
                     dismiss()
+                } label: {
+                    Text("Close", bundle: .module)
                 }
                 .keyboardShortcut(.cancelAction)
             }
@@ -274,7 +325,11 @@ struct SkillDiscoveryBatchView: View {
                 Button {
                     Task { await model.preparePreview() }
                 } label: {
-                    Label("Preview selected", systemImage: "eye")
+                    Label {
+                        Text("Preview selected", bundle: .module)
+                    } icon: {
+                        Image(systemName: "eye")
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canPreview)
@@ -289,7 +344,11 @@ struct SkillDiscoveryBatchView: View {
                         }
                     }
                 } label: {
-                    Label("Import selected", systemImage: "tray.and.arrow.down")
+                    Label {
+                        Text("Import selected", bundle: .module)
+                    } icon: {
+                        Image(systemName: "tray.and.arrow.down")
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canConfirm)
@@ -301,10 +360,13 @@ struct SkillDiscoveryBatchView: View {
     private var summaryText: String {
         switch model.state {
         case .completed:
-            "\(model.summary.created) created · \(model.summary.claimed) claimed · "
-                + "\(model.summary.skipped) skipped · \(model.summary.failed) failed"
+            "\(model.summary.created) \(localized("created")) · "
+                + "\(model.summary.claimed) \(localized("claimed")) · "
+                + "\(model.summary.skipped) \(localized("skipped")) · "
+                + "\(model.summary.failed) \(localized("failed"))"
         default:
-            "\(model.availableCandidateCount) candidates available · \(model.selectedCount) selected"
+            "\(model.availableCandidateCount) \(localized("candidates available")) · "
+                + "\(model.selectedCount) \(localized("selected"))"
         }
     }
 
@@ -325,9 +387,10 @@ struct SkillDiscoveryBatchView: View {
     private func candidateAccessibilityValue(
         _ candidate: SkillDiscoveryBatchCandidate
     ) -> String {
-        let selection = model.isSelected(candidate.id) ? "Selected" : "Not selected"
-        let action = model.action(for: candidate.id).map(actionName) ?? "No action selected"
-        return [selection, candidate.observation.status.displayName, action]
+        let selection = localized(model.isSelected(candidate.id) ? "Selected" : "Not selected")
+        let action = model.action(for: candidate.id).map(actionName)
+            .map(localized) ?? localized("No action selected")
+        return [selection, localized(candidate.observation.status.displayName), action]
             .joined(separator: ", ")
     }
 
@@ -350,11 +413,11 @@ struct SkillDiscoveryBatchView: View {
         _ result: SkillDiscoveryBatchManagementResult
     ) -> String {
         switch result {
-        case .created: "Created"
-        case .claimed: "Claimed; existing bindings preserved"
-        case .alreadyManaged: "Already managed"
-        case .failed(let message): "Failed: \(message)"
-        case .skipped(let reason): "Skipped: \(reason)"
+        case .created: localized("Created")
+        case .claimed: localized("Claimed; existing bindings preserved")
+        case .alreadyManaged: localized("Already managed")
+        case .failed(let message): "\(localized("Failed")): \(message)"
+        case .skipped(let reason): "\(localized("Skipped")): \(reason)"
         }
     }
 
@@ -362,11 +425,15 @@ struct SkillDiscoveryBatchView: View {
         _ result: SkillDiscoveryBatchDistributionResult
     ) -> String {
         switch result {
-        case .distributed: "Distributed"
-        case .noChanges: "No changes"
-        case .managedUndistributed: "Managed but not enabled"
-        case .indeterminate(let message): "Needs attention: \(message)"
+        case .distributed: localized("Distributed")
+        case .noChanges: localized("No changes")
+        case .managedUndistributed: localized("Managed but not enabled")
+        case .indeterminate(let message): "\(localized("Needs attention")): \(message)"
         case .notApplicable(let message): message
         }
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

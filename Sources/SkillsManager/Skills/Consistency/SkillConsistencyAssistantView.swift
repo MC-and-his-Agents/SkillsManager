@@ -21,17 +21,26 @@ struct SkillConsistencyAssistantView: View {
                 Button {
                     Task { await model.refresh() }
                 } label: {
-                    Label("Refresh audit", systemImage: "arrow.clockwise")
+                    Label {
+                        Text("Refresh audit", bundle: .module)
+                    } icon: {
+                        Image(systemName: "arrow.clockwise")
+                    }
                 }
                 .disabled(!model.canRefresh)
                 .keyboardShortcut("r", modifiers: [.command])
-                .help("Refresh consistency audit")
-                .accessibilityLabel(
-                    model.canRefresh ? "Refresh consistency audit" : "Consistency audit is busy"
-                )
+                .help(Text("Refresh consistency audit", bundle: .module))
+                .accessibilityLabel(Text(
+                    model.canRefresh ? "Refresh consistency audit" : "Consistency audit is busy",
+                    bundle: .module
+                ))
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Done") { dismiss() }
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Done", bundle: .module)
+                }
                     .keyboardShortcut(.cancelAction)
                     .disabled(model.isExecuting)
             }
@@ -56,9 +65,11 @@ struct SkillConsistencyAssistantView: View {
                 List(visibleFindings, selection: $selectedFindingID) { finding in
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(finding.title)
+                            Text(verbatim: finding.title)
                                 .lineLimit(1)
-                            Text(model.isKept(finding.id) ? "Kept for now" : finding.detail)
+                            Text(verbatim: model.isKept(finding.id)
+                                ? localized("Kept for now")
+                                : finding.detail)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
@@ -73,19 +84,22 @@ struct SkillConsistencyAssistantView: View {
                 .listStyle(.sidebar)
             } else if model.snapshot?.findings.isEmpty == false {
                 ContentUnavailableView(
-                    "No matching findings",
+                    localized("No matching findings"),
                     systemImage: "magnifyingglass",
-                    description: Text("Clear the filter to restore the complete audit.")
+                    description: Text("Clear the filter to restore the complete audit.", bundle: .module)
                 )
             } else {
                 ContentUnavailableView(
-                    emptyTitle,
+                    localized(emptyTitle),
                     systemImage: emptySystemImage,
-                    description: Text(emptyDescription)
+                    description: Text(verbatim: localizedStatusDetail)
                 )
             }
         }
-        .searchable(text: $query, prompt: "Filter audit findings")
+        .searchable(
+            text: $query,
+            prompt: Text("Filter audit findings", bundle: .module)
+        )
     }
 
     private var statusHeader: some View {
@@ -93,22 +107,22 @@ struct SkillConsistencyAssistantView: View {
             HStack(spacing: 8) {
                 statusIcon
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(statusTitle)
+                    Text(verbatim: localized(statusTitle))
                         .font(.headline)
-                    Text(statusDetail)
+                    Text(verbatim: localizedStatusDetail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
             }
             if model.isPreparingPreview {
-                ProgressView("Preparing preview…")
+                ProgressView(localized("Preparing preview…"))
                     .controlSize(.small)
             } else if model.isExecuting {
-                ProgressView("Applying changes…")
+                ProgressView(localized("Applying changes…"))
                     .controlSize(.small)
             } else if model.isVerifying {
-                ProgressView("Verifying with a fresh audit…")
+                ProgressView(localized("Verifying with a fresh audit…"))
                     .controlSize(.small)
             }
         }
@@ -127,15 +141,33 @@ struct SkillConsistencyAssistantView: View {
 
     private var overview: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label(statusTitle, systemImage: statusSystemImage)
+            Label {
+                Text(verbatim: localized(statusTitle))
+            } icon: {
+                Image(systemName: statusSystemImage)
+            }
                 .font(.title2)
-            Text(statusDetail)
+            Text(verbatim: localizedStatusDetail)
                 .foregroundStyle(.secondary)
             if let snapshot = model.snapshot {
-                GroupBox("Audit summary") {
-                    LabeledContent("Managed Skills", value: "\(snapshot.managedSkillCount)")
-                    LabeledContent("Observed directories", value: "\(snapshot.observedSkillCount)")
-                    LabeledContent("Findings", value: "\(snapshot.findings.count)")
+                GroupBox {
+                    LabeledContent {
+                        Text(verbatim: snapshot.managedSkillCount.formatted(.number))
+                    } label: {
+                        Text("Managed Skills", bundle: .module)
+                    }
+                    LabeledContent {
+                        Text(verbatim: snapshot.observedSkillCount.formatted(.number))
+                    } label: {
+                        Text("Observed directories", bundle: .module)
+                    }
+                    LabeledContent {
+                        Text(verbatim: snapshot.findings.count.formatted(.number))
+                    } label: {
+                        Text("Findings", bundle: .module)
+                    }
+                } label: {
+                    Text("Audit summary", bundle: .module)
                 }
             }
             feedback
@@ -151,23 +183,33 @@ struct SkillConsistencyAssistantView: View {
     ) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Label(finding.title, systemImage: systemImage(for: finding.severity))
+                Label {
+                    Text(verbatim: finding.title)
+                } icon: {
+                    Image(systemName: systemImage(for: finding.severity))
+                }
                     .font(.title2)
                 Text(finding.detail)
                     .foregroundStyle(.secondary)
                 if let locator = finding.locator {
-                    GroupBox("Location") {
+                    GroupBox {
                         Text(locator)
                             .font(.callout.monospaced())
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                    } label: {
+                        Text("Location", bundle: .module)
                     }
                 }
                 if model.isKept(finding.id) {
-                    Label(
-                        "Kept for this session. Refreshing will show the finding again.",
-                        systemImage: "clock"
-                    )
+                    Label {
+                        Text(
+                            "Kept for this session. Refreshing will show the finding again.",
+                            bundle: .module
+                        )
+                    } icon: {
+                        Image(systemName: "clock")
+                    }
                     .foregroundStyle(.secondary)
                 } else {
                     actionButtons(finding)
@@ -184,13 +226,15 @@ struct SkillConsistencyAssistantView: View {
         _ finding: SkillConsistencyPresentation.Finding
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Actions")
+            Text("Actions", bundle: .module)
                 .font(.headline)
             ForEach(finding.actions, id: \.self) { action in
-                Button(action.title) {
+                Button {
                     Task {
                         await model.prepare(findingID: finding.id, action: action)
                     }
+                } label: {
+                    Text(verbatim: localized(action.title))
                 }
                 .buttonStyle(.bordered)
                 .disabled(
@@ -199,8 +243,8 @@ struct SkillConsistencyAssistantView: View {
                         || model.isVerifying
                         || model.snapshot?.allowsWrites != true
                 )
-                .accessibilityLabel("\(action.title): \(finding.title)")
-                .accessibilityHint(actionHint(action))
+                .accessibilityLabel(Text(verbatim: localized(action.title) + ": " + finding.title))
+                .accessibilityHint(Text(verbatim: localized(actionHint(action))))
             }
         }
     }
@@ -224,15 +268,19 @@ struct SkillConsistencyAssistantView: View {
         if currentProblem != nil || model.snapshot?.status == .needsRepair
             || model.snapshot?.status == .operationInProgress {
             HStack {
-                Button("Refresh audit") {
+                Button {
                     Task { await model.refresh() }
+                } label: {
+                    Text("Refresh audit", bundle: .module)
                 }
                 .disabled(!model.canRefresh)
                 if currentProblem?.showsBackups == true
                     || model.snapshot?.status == .needsRepair {
-                    Button("Open Skill Backups") {
+                    Button {
                         dismiss()
                         openBackups()
+                    } label: {
+                        Text("Open Skill Backups", bundle: .module)
                     }
                     .disabled(model.isExecuting)
                 }
@@ -300,6 +348,17 @@ struct SkillConsistencyAssistantView: View {
         }
     }
 
+    private var localizedStatusDetail: String {
+        switch model.loadState {
+        case .blocked, .failed:
+            statusDetail
+        case .ready(let snapshot) where snapshot.status == .findings:
+            statusDetail
+        default:
+            localized(statusDetail)
+        }
+    }
+
     private var statusSystemImage: String {
         if case .ready(let snapshot) = model.loadState {
             return snapshot.status.systemImage
@@ -331,8 +390,6 @@ struct SkillConsistencyAssistantView: View {
     }
 
     private var emptySystemImage: String { statusSystemImage }
-    private var emptyDescription: String { statusDetail }
-
     private func systemImage(
         for severity: SkillConsistencyPresentation.Severity
     ) -> String {
@@ -365,6 +422,10 @@ struct SkillConsistencyAssistantView: View {
             "Makes no changes. The finding returns after the next audit."
         }
     }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
+    }
 }
 
 private struct SkillConsistencyPreviewView: View {
@@ -375,11 +436,15 @@ private struct SkillConsistencyPreviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label(preview.title, systemImage: "checklist")
+            Label {
+                Text(verbatim: localized(preview.title))
+            } icon: {
+                Image(systemName: "checklist")
+            }
                 .font(.title2)
-            Text(preview.summary)
+            Text(verbatim: localized(preview.summary))
                 .foregroundStyle(.secondary)
-            GroupBox("Affected items") {
+            GroupBox {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(preview.details, id: \.self) {
                         Text($0)
@@ -388,22 +453,28 @@ private struct SkillConsistencyPreviewView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            } label: {
+                Text("Affected items", bundle: .module)
             }
             if model.isExecuting {
-                ProgressView("Applying changes…")
+                ProgressView(localized("Applying changes…"))
             } else if model.isVerifying {
-                ProgressView("Verifying with a fresh audit…")
+                ProgressView(localized("Verifying with a fresh audit…"))
             }
             HStack {
                 Spacer()
-                Button("Cancel") {
+                Button {
                     model.cancelPreview()
                     dismiss()
+                } label: {
+                    Text("Cancel", bundle: .module)
                 }
                 .keyboardShortcut(.cancelAction)
                 .disabled(model.isExecuting || model.isVerifying)
-                Button("Confirm") {
+                Button {
                     Task { await model.confirmPreview() }
+                } label: {
+                    Text("Confirm", bundle: .module)
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
@@ -413,5 +484,9 @@ private struct SkillConsistencyPreviewView: View {
         .padding(24)
         .frame(minWidth: 560)
         .interactiveDismissDisabled(model.isExecuting || model.isVerifying)
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

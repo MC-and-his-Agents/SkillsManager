@@ -63,8 +63,18 @@ enum SkillsManagerUIError: Error, CustomStringConvertible {
 }
 
 extension XCTestCase {
-    func launchFixture(app: XCUIApplication, profile: String, surface: String) throws {
-        app.launchArguments = ["--skillsmanager-ui-fixture", profile]
+    func launchFixture(
+        app: XCUIApplication,
+        profile: String,
+        surface: String,
+        language: String = "en"
+    ) throws {
+        let locale = language == "en" ? "en_US" : language.hasPrefix("zh") ? "zh_CN" : "ja_JP"
+        app.launchArguments = [
+            "-AppleLanguages", "(\(language))",
+            "-AppleLocale", locale,
+            "--skillsmanager-ui-fixture", profile,
+        ]
         app.launch()
         guard app.windows.firstMatch.waitForExistence(timeout: 10) else {
             attachDiagnostics(surface, app: app)

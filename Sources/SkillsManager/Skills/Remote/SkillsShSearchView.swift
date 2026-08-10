@@ -19,8 +19,8 @@ struct SkillsShSearchDetailView: View {
 
                         Label {
                             Text(
-                                "Before installation, Skills Manager verifies a unique "
-                                    + "repository subpath and immutable GitHub revision."
+                                "Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.",
+                                bundle: .module
                             )
                         } icon: {
                             Image(systemName: "lock.shield")
@@ -28,24 +28,27 @@ struct SkillsShSearchDetailView: View {
                         .foregroundStyle(.secondary)
                         .accessibilityElement(children: .combine)
 
-                        Button("Resolve and Install…") {
+                        Button {
                             installItem = item
+                        } label: {
+                            Text("Resolve and Install…", bundle: .module)
                         }
                         .buttonStyle(.borderedProminent)
-                        .accessibilityHint(
-                            "Verifies the public GitHub source before showing an install preview"
-                        )
+                        .accessibilityHint(Text(
+                            "Verifies the public GitHub source before showing an install preview",
+                            bundle: .module
+                        ))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                 }
                 .navigationTitle(item.name)
-                .navigationSubtitle("skills.sh")
+                .navigationSubtitle(String(localized: "skills.sh", bundle: .module))
             } else {
                 ContentUnavailableView(
-                    "Select a skill",
+                    String(localized: "Select a skill", bundle: .module),
                     systemImage: "magnifyingglass",
-                    description: Text("Choose a skills.sh result.")
+                    description: Text("Choose a skills.sh result.", bundle: .module)
                 )
             }
         }

@@ -34,8 +34,8 @@ struct SkillListRow: View {
             HStack(spacing: 8) {
                 ForEach(data.sources) { label in
                     Image(systemName: label.systemImage)
-                        .help(label.text)
-                        .accessibilityLabel("Source: \(label.text)")
+                        .help(localized(label.text))
+                        .accessibilityLabel(Text("Source: \(localized(label.text))", bundle: .module))
                 }
                 if let agentCount = data.agentCount {
                     Text(SkillListAgentSummary.text(count: agentCount))
@@ -58,16 +58,28 @@ struct SkillListRow: View {
     private func badgeView(_ badge: SkillRowBadge) -> some View {
         switch badge {
         case .updateAvailable(let version):
-            Label("↻ v\(version)", systemImage: "arrow.triangle.2.circlepath")
+            Label {
+                Text("↻ v\(version)", bundle: .module)
+            } icon: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+            }
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.green)
-                .accessibilityLabel("Update available, version \(version)")
+                .accessibilityLabel(Text("Update available, version \(version)", bundle: .module))
         case .needsAttention:
-            Label("Needs Repair", systemImage: "exclamationmark.triangle.fill")
+            Label {
+                Text("Needs Repair", bundle: .module)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+            }
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.yellow)
-                .accessibilityLabel("Needs Repair")
+                .accessibilityLabel(Text("Needs Repair", bundle: .module))
         }
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }
 

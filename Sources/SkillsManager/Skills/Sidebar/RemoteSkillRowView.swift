@@ -6,6 +6,8 @@ struct RemoteSkillRowView: View {
     let onInstall: () -> Void
 
     var body: some View {
+        let status = localized("Available")
+        let source = localized("ClawHub")
         SkillListRow(data: SkillListRowData(
             id: skill.id,
             title: skill.displayName,
@@ -16,13 +18,13 @@ struct RemoteSkillRowView: View {
             agentCount: installedTargets.count,
             accessibilityLabel: [
                 skill.displayName,
-                "Available",
-                "ClawHub",
+                status,
+                source,
                 SkillListAgentSummary.text(count: installedTargets.count),
             ].filter { !$0.isEmpty }.joined(separator: ", "),
             accessibilityValue: [
-                "Available",
-                "ClawHub",
+                status,
+                source,
                 SkillListAgentSummary.text(count: installedTargets.count),
             ].filter { !$0.isEmpty }.joined(separator: ", ")
         ))
@@ -36,14 +38,19 @@ struct RemoteSkillRowView: View {
                     : "arrow.down.circle")
             }
             .buttonStyle(.borderless)
-            .help(isInstalled ? "Review or update" : "Install")
-            .accessibilityLabel(
+            .help(Text(isInstalled ? "Review or update" : "Install", bundle: .module))
+            .accessibilityLabel(Text(
                 isInstalled
                     ? "Review or update \(skill.displayName)"
-                    : "Install \(skill.displayName)"
-            )
+                    : "Install \(skill.displayName)",
+                bundle: .module
+            ))
         }
     }
 
     private var isInstalled: Bool { !installedTargets.isEmpty }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
+    }
 }

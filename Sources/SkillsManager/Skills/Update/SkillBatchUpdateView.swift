@@ -15,13 +15,16 @@ struct SkillBatchUpdateView: View {
                 }
                 .listStyle(.inset)
                 .frame(minHeight: 340)
-                .searchable(text: $query, prompt: "Filter batch updates")
+                .searchable(
+                    text: $query,
+                    prompt: Text("Filter batch updates", bundle: .module)
+                )
                 .overlay {
                     if !model.items.isEmpty, visibleItems.isEmpty {
                         ContentUnavailableView(
                             "No matching Skills",
                             systemImage: "magnifyingglass",
-                            description: Text("Clear the filter to restore the complete batch.")
+                            description: Text("Clear the filter to restore the complete batch.", bundle: .module)
                         )
                     }
                 }
@@ -46,16 +49,20 @@ struct SkillBatchUpdateView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Batch Updates")
+            Text("Batch Updates", bundle: .module)
                 .font(.title2.bold())
-            Text("Check managed Skills, review every conflict, then update selected items.")
+            Text("Check managed Skills, review every conflict, then update selected items.", bundle: .module)
                 .foregroundStyle(.secondary)
-            Text(SkillBatchUpdatePresentation.summary(model.summary))
+            Text(
+                "Batch update summary: \(SkillBatchUpdatePresentation.summary(model.summary))",
+                bundle: .module
+            )
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel(
-                    "Batch update summary. "
-                        + SkillBatchUpdatePresentation.summary(model.summary)
+                .accessibilityLabel(Text(
+                    "Batch update summary: \(SkillBatchUpdatePresentation.summary(model.summary))",
+                    bundle: .module
+                )
                 )
         }
     }
@@ -68,7 +75,11 @@ struct SkillBatchUpdateView: View {
                 .foregroundStyle(.orange)
                 .accessibilityElement(children: .combine)
         case .empty:
-            Label("No managed Skills are available.", systemImage: "tray")
+            Label {
+                Text("No managed Skills are available.", bundle: .module)
+            } icon: {
+                Image(systemName: "tray")
+            }
                 .foregroundStyle(.secondary)
         case .checking:
             progress("Checking Skills…")
@@ -79,15 +90,21 @@ struct SkillBatchUpdateView: View {
                     : "Updating selected Skills…"
             )
         case .completed:
-            Label(
-                model.summary[.failed] > 0 || model.summary[.needsAttention] > 0
-                    ? "Batch finished with items that need review."
-                    : "Batch finished.",
-                systemImage:
+            Label {
+                Text(
                     model.summary[.failed] > 0 || model.summary[.needsAttention] > 0
-                        ? "exclamationmark.triangle"
-                        : "checkmark.circle"
-            )
+                        ? "Batch finished with items that need review."
+                        : "Batch finished.",
+                    bundle: .module
+                )
+            } icon: {
+                Image(
+                    systemName:
+                        model.summary[.failed] > 0 || model.summary[.needsAttention] > 0
+                            ? "exclamationmark.triangle"
+                            : "checkmark.circle"
+                )
+            }
             .accessibilityElement(children: .combine)
         case .idle, .review:
             EmptyView()
@@ -100,56 +117,69 @@ struct SkillBatchUpdateView: View {
                 value: Double(model.summary.completed),
                 total: Double(max(model.summary.total, 1))
             )
-            Text(title)
+            Text(verbatim: localized(title))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(title)
-        .accessibilityValue("\(model.summary.completed) of \(model.summary.total)")
+        .accessibilityLabel(Text(verbatim: localized(title)))
+        .accessibilityValue(Text(
+            "\(model.summary.completed) of \(model.summary.total)",
+            bundle: .module
+        ))
     }
 
     private var controls: some View {
         HStack {
-            Button("Check All") {
+            Button {
                 Task { await model.checkAll() }
+            } label: {
+                Text("Check All", bundle: .module)
             }
             .keyboardShortcut("r", modifiers: [.command, .shift])
             .disabled(!model.controls.canCheck)
 
-            Button("Select Ready") {
+            Button {
                 model.selectReady()
+            } label: {
+                Text("Select Ready", bundle: .module)
             }
             .disabled(!model.controls.canSelectReady)
 
-            Button("Update Selected") {
+            Button {
                 Task { await model.executeSelected() }
+            } label: {
+                Text("Update Selected", bundle: .module)
             }
             .buttonStyle(.borderedProminent)
             .disabled(!model.controls.canUpdate)
-            .accessibilityLabel(
-                model.selectedCount == 0
-                    ? "Update Selected, no Skills selected"
-                    : "Update \(model.selectedCount) selected Skills"
-            )
+            .accessibilityLabel(Text("Update Selected", bundle: .module))
 
             if model.controls.canStop {
-                Button(model.stopRequested ? "Stopping…" : "Stop") {
+                Button {
                     model.stop()
+                } label: {
+                    Text(model.stopRequested ? "Stopping…" : "Stop", bundle: .module)
                 }
                 .disabled(model.stopRequested)
                 .keyboardShortcut(.cancelAction)
-                .accessibilityLabel("Stop after the current Skill")
+                .accessibilityLabel(Text("Stop after the current Skill", bundle: .module))
             }
 
             Spacer()
 
-            Button("Close") {
+            Button {
                 dismiss()
+            } label: {
+                Text("Close", bundle: .module)
             }
             .keyboardShortcut(.cancelAction)
             .disabled(!model.controls.canClose)
         }
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }
 
@@ -183,11 +213,13 @@ private struct SkillBatchUpdateRow: View {
                 .accessibilityValue(presentation.accessibilityValue)
                 Spacer()
                 if item.allowsRetry {
-                    Button("Retry") {
+                    Button {
                         Task { await model.retry(item.skillID) }
+                    } label: {
+                        Text("Retry", bundle: .module)
                     }
                     .disabled(model.operationActive)
-                    .accessibilityLabel("Recheck \(item.displayName)")
+                    .accessibilityLabel(Text("Recheck \(item.displayName)", bundle: .module))
                 }
             }
 
@@ -197,7 +229,7 @@ private struct SkillBatchUpdateRow: View {
                         scope.title,
                         selection: decisionBinding(scope.scopeKey)
                     ) {
-                        Text("Choose an action")
+                        Text("Choose an action", bundle: .module)
                             .tag(nil as ManagedSkillUpdateCopyDecision?)
                         ForEach(ManagedSkillUpdateCopyDecision.allCases, id: \.self) {
                             Text($0.batchDisplayName)
@@ -205,7 +237,7 @@ private struct SkillBatchUpdateRow: View {
                         }
                     }
                     .disabled(model.operationActive)
-                    .accessibilityLabel("Copy decision for \(scope.title)")
+                    .accessibilityLabel(Text("Copy decision for \(scope.title)", bundle: .module))
                 }
             }
         }
@@ -216,12 +248,13 @@ private struct SkillBatchUpdateRow: View {
     private var selection: some View {
         if item.isActionable {
             Toggle(
-                "Select \(item.displayName)",
                 isOn: Binding(
                     get: { item.isSelected },
                     set: { model.select(item.skillID, selected: $0) }
                 )
-            )
+            ) {
+                Text("Select \(item.displayName)", bundle: .module)
+            }
             .labelsHidden()
             .disabled(model.operationActive)
         }
@@ -252,5 +285,9 @@ private struct SkillBatchUpdateRow: View {
                 }
             }
         )
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

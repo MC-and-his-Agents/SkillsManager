@@ -1,0 +1,814 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%arg Skills</key>
+	<string>%arg 个技能</string>
+	<key>%arg candidates available</key>
+	<string>%arg 个候选项可用</string>
+	<key>%arg distribution</key>
+	<string>%arg 分发</string>
+	<key>%arg of %arg</key>
+	<string>%1$arg of %2$arg</string>
+	<key>%arg selected</key>
+	<string>已选择 %arg</string>
+	<key>%arg shown</key>
+	<string>显示 %arg 个</string>
+	<key>%arg skill(s)</key>
+	<string>%arg 个技能</string>
+	<key>%arg target%arg</key>
+	<string>%1$arg 个目标%2$arg</string>
+	<key>%arg valid · %arg observed</key>
+	<string>%1$arg 个有效 · 已观察 %2$arg</string>
+	<key>%arg: %arg</key>
+	<string>%1$arg: %2$arg</string>
+	<key>+%arg verified alias locations</key>
+	<string>+%arg verified alias locations</string>
+	<key>1 Agent</key>
+	<string>1 个 Agent</string>
+	<key>About Skills Manager</key>
+	<string>关于 Skills Manager</string>
+	<key>Action</key>
+	<string>操作</string>
+	<key>Action for %arg</key>
+	<string>Action for %arg</string>
+	<key>Actions</key>
+	<string>操作</string>
+	<key>Active filters: %arg</key>
+	<string>当前筛选：%arg</string>
+	<key>Add</key>
+	<string>添加</string>
+	<key>Add %arg to the managed library or safely update it.</key>
+	<string>将 %arg 添加到托管库，或安全地更新它。</string>
+	<key>Add Custom Path...</key>
+	<string>添加自定义路径…</string>
+	<key>Add Custom Skill Path</key>
+	<string>添加自定义 Skill 路径</string>
+	<key>Add Repository</key>
+	<string>添加仓库</string>
+	<key>Add a public repository to discover its Skills.</key>
+	<string>添加公开仓库以发现其中的 Skill。</string>
+	<key>Affected items</key>
+	<string>受影响项目</string>
+	<key>Agent bindings</key>
+	<string>Agent 绑定</string>
+	<key>Agent selection has unapplied changes</key>
+	<string>Agent 选择有未应用的更改</string>
+	<key>Agent selection has unapplied changes.</key>
+	<string>Agent 选择有未应用的更改。</string>
+	<key>Agent: %arg</key>
+	<string>Agent：%arg</string>
+	<key>Agents</key>
+	<string>Agent</string>
+	<key>All</key>
+	<string>全部</string>
+	<key>All Agents</key>
+	<string>所有 Agent</string>
+	<key>All Skills</key>
+	<string>所有技能</string>
+	<key>All Sources</key>
+	<string>所有来源</string>
+	<key>All Statuses</key>
+	<string>所有状态</string>
+	<key>All skills will be added automatically.</key>
+	<string>所有 Skill 将自动添加。</string>
+	<key>Also restore the original Agent targets</key>
+	<string>同时恢复原始 Agent 目标</string>
+	<key>Apply</key>
+	<string>应用</string>
+	<key>Applying changes…</key>
+	<string>正在应用更改…</string>
+	<key>Applying this selection will replace the global target with Agent-specific targets.</key>
+	<string>Applying this selection will replace the global target with Agent-specific targets.</string>
+	<key>Audit summary</key>
+	<string>审计摘要</string>
+	<key>Available</key>
+	<string>可用</string>
+	<key>Available action</key>
+	<string>可用操作</string>
+	<key>Back</key>
+	<string>返回</string>
+	<key>Backs up the Skill, removes managed Agent links, and deletes the managed Skill.</key>
+	<string>备份 Skill、移除托管 Agent 链接并删除托管 Skill。</string>
+	<key>Backup</key>
+	<string>备份</string>
+	<key>Backups</key>
+	<string>备份</string>
+	<key>Backups unavailable</key>
+	<string>备份不可用</string>
+	<key>Based on %arg</key>
+	<string>基于 %arg</string>
+	<key>Batch Import</key>
+	<string>批量导入</string>
+	<key>Batch Import discovered Skills</key>
+	<string>批量导入发现的 Skill</string>
+	<key>Batch Updates</key>
+	<string>批量更新</string>
+	<key>Batch update summary: %arg</key>
+	<string>批量更新摘要：%arg</string>
+	<key>Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.</key>
+	<string>安装前，Skills Manager 会验证唯一的仓库子路径和不可变 GitHub 修订版本。</string>
+	<key>Built for Codex and your other agents to manage and inspect skills on your Mac.</key>
+	<string>Built for Codex and your other agents to manage and inspect skills on your Mac.</string>
+	<key>Cancel</key>
+	<string>取消</string>
+	<key>Cancel this update</key>
+	<string>取消此次更新</string>
+	<key>Candidate source</key>
+	<string>候选来源</string>
+	<key>Change preview</key>
+	<string>更改预览</string>
+	<key>Changelog</key>
+	<string>更新日志</string>
+	<key>Changes cannot be applied</key>
+	<string>无法应用更改</string>
+	<key>Check All</key>
+	<string>全部检查</string>
+	<key>Check again</key>
+	<string>再次检查</string>
+	<key>Check for Updates</key>
+	<string>检查更新</string>
+	<key>Check for Updates…</key>
+	<string>检查更新…</string>
+	<key>Check managed Skills, review every conflict, then update selected items.</key>
+	<string>Check managed Skills, review every conflict, then update selected items.</string>
+	<key>Check now</key>
+	<string>立即检查</string>
+	<key>Checking ClawHub status…</key>
+	<string>正在检查 ClawHub 状态…</string>
+	<key>Checking for updates</key>
+	<string>正在检查更新</string>
+	<key>Choose Folder...</key>
+	<string>选择文件夹…</string>
+	<key>Choose a Skill folder or zip, then add it to the managed library.</key>
+	<string>选择 Skill 文件夹或 ZIP，然后将其添加到托管库。</string>
+	<key>Choose a ZIP archive</key>
+	<string>选择 ZIP 压缩包</string>
+	<key>Choose a folder containing platform skill directories</key>
+	<string>选择包含平台 Skill 目录的文件夹</string>
+	<key>Choose a skills.sh result.</key>
+	<string>选择一个 skills.sh 结果。</string>
+	<key>Choose an action</key>
+	<string>选择操作</string>
+	<key>Choose…</key>
+	<string>Choose…</string>
+	<key>Claude Code</key>
+	<string>Claude Code</string>
+	<key>ClawHub</key>
+	<string>ClawHub</string>
+	<key>ClawHub Latest Drops</key>
+	<string>ClawHub 最新发布</string>
+	<key>ClawHub unavailable</key>
+	<string>ClawHub 不可用</string>
+	<key>ClawHub unavailable — cached content may be out of date.</key>
+	<string>ClawHub 不可用 — 缓存内容可能已过期。</string>
+	<key>Clear</key>
+	<string>清除</string>
+	<key>Clear the filter to restore the complete audit.</key>
+	<string>清除筛选以恢复完整审计。</string>
+	<key>Clear the filter to restore the complete batch.</key>
+	<string>清除筛选以恢复完整批次。</string>
+	<key>Close</key>
+	<string>关闭</string>
+	<key>Codex</key>
+	<string>Codex</string>
+	<key>Compatible Agents share one managed link in %arg.</key>
+	<string>兼容的 Agent 在 %arg 中共享一个托管链接。</string>
+	<key>Confirm</key>
+	<string>确认</string>
+	<key>Confirm update</key>
+	<string>确认更新</string>
+	<key>Consistency Audit</key>
+	<string>一致性审计</string>
+	<key>Content</key>
+	<string>内容</string>
+	<key>Content fingerprint</key>
+	<string>内容指纹</string>
+	<key>Continues the interrupted deletion safely.</key>
+	<string>Continues the interrupted deletion safely.</string>
+	<key>Continues this journaled deletion operation.</key>
+	<string>Continues this journaled deletion operation.</string>
+	<key>Copy</key>
+	<string>复制</string>
+	<key>Copy content is behind the managed Skill and needs to be synchronized.</key>
+	<string>Copy content is behind the managed Skill and needs to be synchronized.</string>
+	<key>Copy decision for %arg</key>
+	<string>Copy decision for %arg</string>
+	<key>Copy login command</key>
+	<string>Copy login command</string>
+	<key>Current Agent targets</key>
+	<string>当前 Agent 目标</string>
+	<key>Current source</key>
+	<string>当前来源</string>
+	<key>Current targets</key>
+	<string>当前目标</string>
+	<key>Default branch</key>
+	<string>默认分支</string>
+	<key>Delete</key>
+	<string>删除</string>
+	<key>Delete from Skills Manager?</key>
+	<string>从 Skills Manager 删除？</string>
+	<key>Delete from Skills Manager…</key>
+	<string>从 Skills Manager 删除…</string>
+	<key>Deleting a managed Skill creates a verified backup here.</key>
+	<string>删除托管 Skill 会在此创建已验证备份。</string>
+	<key>Deletion operations</key>
+	<string>删除操作</string>
+	<key>Discard local changes</key>
+	<string>放弃本地更改</string>
+	<key>Discover Skills from public GitHub repositories.</key>
+	<string>从公开 GitHub 仓库发现 Skill。</string>
+	<key>Discovered Skills</key>
+	<string>已发现的 Skill</string>
+	<key>Discovery</key>
+	<string>发现</string>
+	<key>Discovery evidence</key>
+	<string>Discovery evidence</string>
+	<key>Discovery failed</key>
+	<string>发现失败</string>
+	<key>Discovery unavailable</key>
+	<string>发现不可用</string>
+	<key>Distribution</key>
+	<string>分发</string>
+	<key>Distribution is blocked. This Skill will be added without enabling.</key>
+	<string>Distribution is blocked. This Skill will be added without enabling.</string>
+	<key>Distribution mode</key>
+	<string>分发模式</string>
+	<key>Distribution preview</key>
+	<string>分发预览</string>
+	<key>Distribution scope</key>
+	<string>分发范围</string>
+	<key>Distribution status: %arg</key>
+	<string>分发状态：%arg</string>
+	<key>Done</key>
+	<string>完成</string>
+	<key>Downloading and validating…</key>
+	<string>正在下载并验证…</string>
+	<key>Enable for</key>
+	<string>启用范围</string>
+	<key>Every visible result is unavailable. Fix the folders below, then refresh.</key>
+	<string>Every visible result is unavailable. Fix the folders below, then refresh.</string>
+	<key>Explicitly selects this conflict for an independent import.</key>
+	<string>Explicitly selects this conflict for an independent import.</string>
+	<key>Failed</key>
+	<string>失败</string>
+	<key>Files</key>
+	<string>文件</string>
+	<key>Filter audit findings</key>
+	<string>筛选审计发现</string>
+	<key>Filter batch updates</key>
+	<string>筛选批量更新</string>
+	<key>Findings</key>
+	<string>发现</string>
+	<key>Full Settings…</key>
+	<string>完整设置…</string>
+	<key>GitHub</key>
+	<string>GitHub</string>
+	<key>GitHub Copilot</key>
+	<string>GitHub Copilot</string>
+	<key>GitHub Repositories</key>
+	<string>GitHub 仓库</string>
+	<key>GitHub Repository...</key>
+	<string>GitHub 仓库…</string>
+	<key>GitHub repository URL</key>
+	<string>GitHub 仓库 URL</string>
+	<key>Hide filters</key>
+	<string>隐藏筛选器</string>
+	<key>If a target conflicts, the Skill remains restored without Agent links.</key>
+	<string>If a target conflicts, the Skill remains restored without Agent links.</string>
+	<key>Impact</key>
+	<string>影响</string>
+	<key>Import Skill</key>
+	<string>导入 Skill</string>
+	<key>Import Skill...</key>
+	<string>导入 Skill…</string>
+	<key>Import as new</key>
+	<string>作为新 Skill 导入</string>
+	<key>Import selected</key>
+	<string>导入所选项</string>
+	<key>Importing selected Skills…</key>
+	<string>正在导入所选 Skill…</string>
+	<key>Independent local Fork</key>
+	<string>独立本地 Fork</string>
+	<key>Install</key>
+	<string>安装</string>
+	<key>Install Bun</key>
+	<string>Install Bun</string>
+	<key>Install Bun to run the ClawHub CLI.</key>
+	<string>Install Bun to run the ClawHub CLI.</string>
+	<key>Install or Update Skill</key>
+	<string>安装或更新 Skill</string>
+	<key>Install this ClawHub Skill</key>
+	<string>安装此 ClawHub Skill</string>
+	<key>Installation unavailable</key>
+	<string>安装不可用</string>
+	<key>Installed version %arg</key>
+	<string>Installed version %arg</string>
+	<key>Invalid search</key>
+	<string>搜索无效</string>
+	<key>Keep as independent Fork</key>
+	<string>保留为独立 Fork</string>
+	<key>Keep changes as a Fork</key>
+	<string>Keep changes as a Fork</string>
+	<key>Kept for this session. Refreshing will show the finding again.</key>
+	<string>Kept for this session. Refreshing will show the finding again.</string>
+	<key>Latest version %arg</key>
+	<string>最新版本 %arg</string>
+	<key>Load More</key>
+	<string>加载更多</string>
+	<key>Loading </key>
+	<string>正在加载 </string>
+	<key>Loading %arg...</key>
+	<string>Loading %arg...</string>
+	<key>Loading SKILL.md…</key>
+	<string>正在加载 SKILL.md…</string>
+	<key>Loading and validating backups…</key>
+	<string>Loading and validating backups…</string>
+	<key>Loading distribution state…</key>
+	<string>正在加载分发状态…</string>
+	<key>Loading latest ClawHub Skills</key>
+	<string>正在加载最新 ClawHub Skill</string>
+	<key>Loading more ClawHub results</key>
+	<string>正在加载更多 ClawHub 结果</string>
+	<key>Loading more latest Skills</key>
+	<string>正在加载更多最新 Skill</string>
+	<key>Loading more skills.sh results</key>
+	<string>正在加载更多 skills.sh 结果</string>
+	<key>Loading reference…</key>
+	<string>正在加载引用…</string>
+	<key>Loading the last update check…</key>
+	<string>Loading the last update check…</string>
+	<key>Loads more ClawHub results</key>
+	<string>Loads more ClawHub results</string>
+	<key>Loads more skills.sh results</key>
+	<string>Loads more skills.sh results</string>
+	<key>Local</key>
+	<string>本地</string>
+	<key>Local Copy</key>
+	<string>本地副本</string>
+	<key>Local changes at %arg</key>
+	<string>Local changes at %arg</string>
+	<key>Local locations</key>
+	<string>本地位置</string>
+	<key>Location</key>
+	<string>位置</string>
+	<key>Maintained by MC and his Agents. Originally created by @Dimillian.</key>
+	<string>Maintained by MC and his Agents. Originally created by @Dimillian.</string>
+	<key>Manage Skill</key>
+	<string>管理 Skill</string>
+	<key>Managed</key>
+	<string>已托管</string>
+	<key>Managed Agent target %arg</key>
+	<string>托管 Agent 目标 %arg</string>
+	<key>Managed Skill status: %arg</key>
+	<string>托管 Skill 状态：%arg</string>
+	<key>Managed Skills</key>
+	<string>托管 Skill</string>
+	<key>Managed result</key>
+	<string>托管结果</string>
+	<key>Management</key>
+	<string>管理</string>
+	<key>Matched Skill ID</key>
+	<string>匹配的 Skill ID</string>
+	<key>Missing SKILL.md</key>
+	<string>缺少 SKILL.md</string>
+	<key>Missing reference</key>
+	<string>缺少引用</string>
+	<key>Mode</key>
+	<string>模式</string>
+	<key>Needs Import</key>
+	<string>需要导入</string>
+	<key>Needs Repair</key>
+	<string>需要修复</string>
+	<key>No ClawHub results.</key>
+	<string>没有 ClawHub 结果。</string>
+	<key>No Discovery candidates</key>
+	<string>没有发现候选项</string>
+	<key>No GitHub repositories</key>
+	<string>没有 GitHub 仓库</string>
+	<key>No GitHub repositories registered.</key>
+	<string>没有注册 GitHub 仓库。</string>
+	<key>No SKILL.md found in this skill folder.</key>
+	<string>此 Skill 文件夹中未找到 SKILL.md。</string>
+	<key>No Skills</key>
+	<string>没有 Skill</string>
+	<key>No Skills found</key>
+	<string>没有找到技能</string>
+	<key>No Skills found in the registered repositories.</key>
+	<string>注册仓库中没有找到 Skill。</string>
+	<key>No Skills match the current filters.</key>
+	<string>没有符合当前筛选条件的 Skill。</string>
+	<key>No backups</key>
+	<string>没有备份</string>
+	<key>No distribution changes are needed.</key>
+	<string>无需更改分发。</string>
+	<key>No distribution file changes are needed.</key>
+	<string>No distribution file changes are needed.</string>
+	<key>No latest Skills available.</key>
+	<string>没有可用的最新 Skill。</string>
+	<key>No local matches</key>
+	<string>没有匹配的本地 Skill</string>
+	<key>No managed Skills are available.</key>
+	<string>没有可用的托管 Skill。</string>
+	<key>No matching Skills</key>
+	<string>没有匹配的 Skill</string>
+	<key>No matching findings</key>
+	<string>没有匹配的发现</string>
+	<key>No more unique results.</key>
+	<string>没有更多唯一结果。</string>
+	<key>No skills.sh results.</key>
+	<string>没有 skills.sh 结果。</string>
+	<key>No usable discovery result</key>
+	<string>No usable discovery result</string>
+	<key>None will be created</key>
+	<string>不会创建</string>
+	<key>Not enabled for any Agent.</key>
+	<string>未为任何 Agent 启用。</string>
+	<key>Not refreshed</key>
+	<string>尚未刷新</string>
+	<key>Not selected</key>
+	<string>未选择</string>
+	<key>Not yet published on ClawHub.</key>
+	<string>Not yet published on ClawHub.</string>
+	<key>Nothing has been written. Confirm once to begin the ordered import.</key>
+	<string>Nothing has been written. Confirm once to begin the ordered import.</string>
+	<key>Nothing has been written. Confirm once to import the selected Skills in order.</key>
+	<string>Nothing has been written. Confirm once to import the selected Skills in order.</string>
+	<key>OK</key>
+	<string>OK</string>
+	<key>Observed directories</key>
+	<string>Observed directories</string>
+	<key>On This Mac</key>
+	<string>在此 Mac 上</string>
+	<key>Open Skill Backups</key>
+	<string>打开 Skill 备份</string>
+	<key>Open consistency audit</key>
+	<string>打开一致性审计</string>
+	<key>Open in Finder</key>
+	<string>在 Finder 中打开</string>
+	<key>Open on ClawHub</key>
+	<string>在 ClawHub 中打开</string>
+	<key>OpenCode</key>
+	<string>OpenCode</string>
+	<key>Opens a confirmation preview. No files are changed yet.</key>
+	<string>Opens a confirmation preview. No files are changed yet.</string>
+	<key>Opens a confirmation showing the backup, Agent links, and managed content that will be removed.</key>
+	<string>Opens a confirmation showing the backup, Agent links, and managed content that will be removed.</string>
+	<key>Opens a verified restore preview.</key>
+	<string>Opens a verified restore preview.</string>
+	<key>Opens the Skill folder in Finder</key>
+	<string>Opens the Skill folder in Finder</string>
+	<key>Opens the installation review. Nothing is written until you confirm.</key>
+	<string>Opens the installation review. Nothing is written until you confirm.</string>
+	<key>Optional Git branch, tag, or commit reference</key>
+	<string>Optional Git branch, tag, or commit reference</string>
+	<key>Original Project</key>
+	<string>Original Project</string>
+	<key>Original Skill ID</key>
+	<string>Original Skill ID</string>
+	<key>Original folder</key>
+	<string>Original folder</string>
+	<key>Pick a folder or zip</key>
+	<string>Pick a folder or zip</string>
+	<key>Pick a skill from ClawHub.</key>
+	<string>Pick a skill from ClawHub.</string>
+	<key>Pick a skill from the list.</key>
+	<string>Pick a skill from the list.</string>
+	<key>Preparing import preview…</key>
+	<string>正在准备导入预览…</string>
+	<key>Preparing previews…</key>
+	<string>正在准备预览…</string>
+	<key>Preparing preview…</key>
+	<string>正在准备预览…</string>
+	<key>Preparing restore preview</key>
+	<string>正在准备恢复预览</string>
+	<key>Preserves the local content as a separately managed Skill.</key>
+	<string>Preserves the local content as a separately managed Skill.</string>
+	<key>Preview changes</key>
+	<string>预览更改</string>
+	<key>Preview selected</key>
+	<string>预览所选项</string>
+	<key>Preview the change before anything is written to the managed library.</key>
+	<string>Preview the change before anything is written to the managed library.</string>
+	<key>Previews removal of managed distribution targets. The managed Skill is retained.</key>
+	<string>Previews removal of managed distribution targets. The managed Skill is retained.</string>
+	<key>Publish Skill</key>
+	<string>发布 Skill</string>
+	<key>Publish result</key>
+	<string>Publish result</string>
+	<key>Push changes for %arg to ClawHub.</key>
+	<string>Push changes for %arg to ClawHub.</string>
+	<key>Reason</key>
+	<string>Reason</string>
+	<key>Recheck %arg</key>
+	<string>Recheck %arg</string>
+	<key>Ref</key>
+	<string>Ref</string>
+	<key>References</key>
+	<string>References</string>
+	<key>Refresh %arg</key>
+	<string>Refresh %arg</string>
+	<key>Refresh All</key>
+	<string>全部刷新</string>
+	<key>Refresh Discovery before opening Batch Import.</key>
+	<string>Refresh Discovery before opening Batch Import.</string>
+	<key>Refresh Skills</key>
+	<string>刷新 Skill</string>
+	<key>Refresh audit</key>
+	<string>刷新审计</string>
+	<key>Refresh backups</key>
+	<string>刷新备份</string>
+	<key>Refresh consistency audit</key>
+	<string>刷新一致性审计</string>
+	<key>Refresh discovery or import a Skill to get started.</key>
+	<string>刷新发现或导入 Skill 以开始使用。</string>
+	<key>Refresh distribution</key>
+	<string>刷新分发</string>
+	<key>Refresh managed Skill</key>
+	<string>刷新托管 Skill</string>
+	<key>Refresh repository</key>
+	<string>刷新仓库</string>
+	<key>Refreshing</key>
+	<string>正在刷新</string>
+	<key>Refreshing GitHub repositories</key>
+	<string>正在刷新 GitHub 仓库</string>
+	<key>Refreshing library…</key>
+	<string>Refreshing library…</string>
+	<key>Refreshing local Skills</key>
+	<string>正在刷新本地 Skill</string>
+	<key>Releases</key>
+	<string>Releases</string>
+	<key>Remains unchanged</key>
+	<string>保持不变</string>
+	<key>Remove</key>
+	<string>移除</string>
+	<key>Remove %arg</key>
+	<string>Remove %arg</string>
+	<key>Remove Custom Path?</key>
+	<string>移除自定义路径？</string>
+	<key>Remove Path</key>
+	<string>移除路径</string>
+	<key>Remove Repository</key>
+	<string>移除仓库</string>
+	<key>Remove from all Agents…</key>
+	<string>从所有 Agent 移除…</string>
+	<key>Remove repository</key>
+	<string>移除仓库</string>
+	<key>Remove this discovery source?</key>
+	<string>Remove this discovery source?</string>
+	<key>Replaces this Copy with the current managed Skill.</key>
+	<string>Replaces this Copy with the current managed Skill.</string>
+	<key>Repo</key>
+	<string>仓库</string>
+	<key>Repositories</key>
+	<string>仓库</string>
+	<key>Repository</key>
+	<string>仓库</string>
+	<key>Resolve and Install %arg</key>
+	<string>解析并安装 %arg</string>
+	<key>Resolve and Install…</key>
+	<string>解析并安装…</string>
+	<key>Resolve and Review…</key>
+	<string>解析并查看…</string>
+	<key>Resolving and validating GitHub source…</key>
+	<string>Resolving and validating GitHub source…</string>
+	<key>Restore</key>
+	<string>恢复</string>
+	<key>Restore Skill</key>
+	<string>恢复 Skill</string>
+	<key>Restore mode</key>
+	<string>恢复模式</string>
+	<key>Restored Skill ID</key>
+	<string>Restored Skill ID</string>
+	<key>Restore…</key>
+	<string>恢复…</string>
+	<key>Restoring verified Skill backup</key>
+	<string>Restoring verified Skill backup</string>
+	<key>Restoring verified backup…</key>
+	<string>Restoring verified backup…</string>
+	<key>Result</key>
+	<string>结果</string>
+	<key>Result: %arg</key>
+	<string>结果：%arg</string>
+	<key>Retry</key>
+	<string>重试</string>
+	<key>Retry ClawHub latest Skills</key>
+	<string>重试加载最新 ClawHub Skill</string>
+	<key>Retry ClawHub latest page</key>
+	<string>重试加载最新 ClawHub 页面</string>
+	<key>Retry ClawHub search</key>
+	<string>重试搜索 ClawHub</string>
+	<key>Retry ClawHub search page</key>
+	<string>重试加载 ClawHub 搜索页面</string>
+	<key>Retry deletion</key>
+	<string>重试删除</string>
+	<key>Retry loading this Skill from ClawHub</key>
+	<string>重试从 ClawHub 加载此 Skill</string>
+	<key>Review Import…</key>
+	<string>查看导入…</string>
+	<key>Review Update</key>
+	<string>查看更新</string>
+	<key>Review and Install…</key>
+	<string>查看并安装…</string>
+	<key>Review discovered local Skills, then import them in a safe, stable order.</key>
+	<string>Review discovered local Skills, then import them in a safe, stable order.</string>
+	<key>Review every target before applying changes.</key>
+	<string>Review every target before applying changes.</string>
+	<key>Review its status, evidence, and available actions.</key>
+	<string>Review its status, evidence, and available actions.</string>
+	<key>Review selected…</key>
+	<string>查看所选项…</string>
+	<key>Review update</key>
+	<string>查看更新</string>
+	<key>Reviews the remote update before anything is written.</key>
+	<string>Reviews the remote update before anything is written.</string>
+	<key>Review…</key>
+	<string>查看…</string>
+	<key>Run bunx clawdhub@latest login in Terminal, then check again.</key>
+	<string>Run bunx clawdhub@latest login in Terminal, then check again.</string>
+	<key>Saved in Skill Backups</key>
+	<string>已保存到 Skill 备份</string>
+	<key>Scan Issues</key>
+	<string>扫描问题</string>
+	<key>Scan scope (%arg roots)</key>
+	<string>Scan scope (%arg roots)</string>
+	<key>Scanning for skills...</key>
+	<string>正在扫描 Skill…</string>
+	<key>Scanning registered folders</key>
+	<string>正在扫描已注册文件夹</string>
+	<key>Scanning registered folders…</key>
+	<string>正在扫描已注册文件夹…</string>
+	<key>Scope</key>
+	<string>Scope</string>
+	<key>Scrolls to the complete distribution editor</key>
+	<string>Scrolls to the complete distribution editor</string>
+	<key>Search Skills</key>
+	<string>搜索 Skill</string>
+	<key>Searching ClawHub</key>
+	<string>正在搜索 ClawHub</string>
+	<key>Searching skills.sh</key>
+	<string>正在搜索 skills.sh</string>
+	<key>Select %arg</key>
+	<string>Select %arg</string>
+	<key>Select Ready</key>
+	<string>Select Ready</string>
+	<key>Select a discovered Skill</key>
+	<string>Select a discovered Skill</string>
+	<key>Select a project folder</key>
+	<string>选择项目文件夹</string>
+	<key>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</key>
+	<string>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</string>
+	<key>Select a skill</key>
+	<string>选择一个 Skill</string>
+	<key>Select at least one Agent.</key>
+	<string>Select at least one Agent.</string>
+	<key>Select safe</key>
+	<string>选择安全项</string>
+	<key>Selected</key>
+	<string>已选择</string>
+	<key>Show filters</key>
+	<string>显示筛选器</string>
+	<key>Show in Finder</key>
+	<string>在 Finder 中显示</string>
+	<key>Shows planned distribution changes before anything is written.</key>
+	<string>Shows planned distribution changes before anything is written.</string>
+	<key>Signed in as %arg</key>
+	<string>Signed in as %arg</string>
+	<key>Size</key>
+	<string>大小</string>
+	<key>Skill %arg</key>
+	<string>Skill %arg</string>
+	<key>Skill Backups</key>
+	<string>Skill 备份</string>
+	<key>Skill Backups, %arg available</key>
+	<string>技能备份，可用 %arg 项</string>
+	<key>Skill unavailable</key>
+	<string>Skill 不可用</string>
+	<key>Skills</key>
+	<string>技能</string>
+	<key>Skills Manager</key>
+	<string>Skills Manager</string>
+	<key>Skills Manager will %arg</key>
+	<string>Skills Manager will %arg</string>
+	<key>Slug</key>
+	<string>Slug</string>
+	<key>Slug: %arg</key>
+	<string>Slug: %arg</string>
+	<key>Source</key>
+	<string>Source</string>
+	<key>Source %arg</key>
+	<string>Source %arg</string>
+	<key>Source: %arg</key>
+	<string>Source: %arg</string>
+	<key>Status</key>
+	<string>状态</string>
+	<key>Status: %arg</key>
+	<string>状态：%arg</string>
+	<key>Stop after the current Skill</key>
+	<string>当前 Skill 后停止</string>
+	<key>Symlink</key>
+	<string>符号链接</string>
+	<key>Target</key>
+	<string>目标</string>
+	<key>Target Skill ID</key>
+	<string>目标 Skill ID</string>
+	<key>Target: %arg</key>
+	<string>目标：%arg</string>
+	<key>The current managed content will be backed up before it is replaced.</key>
+	<string>The current managed content will be backed up before it is replaced.</string>
+	<key>This Skill has not been checked yet.</key>
+	<string>This Skill has not been checked yet.</string>
+	<key>This Skill is already managed. Change its Agent access from the Skill details.</key>
+	<string>This Skill is already managed. Change its Agent access from the Skill details.</string>
+	<key>This backup did not have any Agent targets.</key>
+	<string>This backup did not have any Agent targets.</string>
+	<key>This is different from removing Agent links. It backs up the Skill, removes all managed Agent links, and deletes the managed Skill itself.</key>
+	<string>这不同于移除 Agent 链接。此操作会备份 Skill、移除所有托管 Agent 链接，并删除托管 Skill 本身。</string>
+	<key>This managed Skill needs repair before it can be published.</key>
+	<string>This managed Skill needs repair before it can be published.</string>
+	<key>This reference file could not be found.</key>
+	<string>This reference file could not be found.</string>
+	<key>This removes only managed distribution targets. The Skill remains in the managed library.</key>
+	<string>This removes only managed distribution targets. The Skill remains in the managed library.</string>
+	<key>This removes only the discovery source. Installed Skills are not deleted.</key>
+	<string>This removes only the discovery source. Installed Skills are not deleted.</string>
+	<key>This will remove "%arg" from the sidebar. The skills will not be deleted from disk.</key>
+	<string>This will remove "%arg" from the sidebar. The skills will not be deleted from disk.</string>
+	<key>Try again without affecting your local Skills.</key>
+	<string>请重试，不会影响本地 Skill。</string>
+	<key>Unable to import</key>
+	<string>Unable to import</string>
+	<key>Unable to load</key>
+	<string>Unable to load</string>
+	<key>Unable to load reference</key>
+	<string>Unable to load reference</string>
+	<key>Unable to publish this skill.</key>
+	<string>无法发布此 Skill。</string>
+	<key>Unavailable Locations</key>
+	<string>Unavailable Locations</string>
+	<key>Unavailable scan location</key>
+	<string>Unavailable scan location</string>
+	<key>Update %arg</key>
+	<string>更新 %arg</string>
+	<key>Update Selected</key>
+	<string>更新所选项</string>
+	<key>Update available</key>
+	<string>有可用更新</string>
+	<key>Update available, version %arg</key>
+	<string>有可用更新，版本 %arg</string>
+	<key>Update available: v%arg</key>
+	<string>有可用更新：v%arg</string>
+	<key>Update check</key>
+	<string>更新检查</string>
+	<key>Update result: %arg</key>
+	<string>更新结果：%arg</string>
+	<key>Update status: %arg</key>
+	<string>Update status: %arg</string>
+	<key>Update the managed SSOT while keeping its Skill identity and current Agent access.</key>
+	<string>Update the managed SSOT while keeping its Skill identity and current Agent access.</string>
+	<key>Updating Skill</key>
+	<string>Updating Skill</string>
+	<key>Uses an Agent-specific target</key>
+	<string>Uses an Agent-specific target</string>
+	<key>Validating…</key>
+	<string>Validating…</string>
+	<key>Verified backups remain available after a managed Skill is deleted.</key>
+	<string>Verified backups remain available after a managed Skill is deleted.</string>
+	<key>Verified discovery</key>
+	<string>Verified discovery</string>
+	<key>Verified manifest</key>
+	<string>Verified manifest</string>
+	<key>Verified source</key>
+	<string>Verified source</string>
+	<key>Verifies the immutable GitHub source before installation</key>
+	<string>Verifies the immutable GitHub source before installation</string>
+	<key>Verifies the public GitHub source before showing an install preview</key>
+	<string>Verifies the public GitHub source before showing an install preview</string>
+	<key>Verifying managed Skill…</key>
+	<string>Verifying managed Skill…</string>
+	<key>Verifying with a fresh audit…</key>
+	<string>Verifying with a fresh audit…</string>
+	<key>Verifying, backing up, updating, and refreshing distribution…</key>
+	<string>Verifying, backing up, updating, and refreshing distribution…</string>
+	<key>Version %arg (%arg)</key>
+	<string>Version %1$arg (%2$arg)</string>
+	<key>Version bump</key>
+	<string>Version bump</string>
+	<key>We’ll verify it contains a SKILL.md and show a preview.</key>
+	<string>We’ll verify it contains a SKILL.md and show a preview.</string>
+	<key>Will publish v%arg</key>
+	<string>Will publish v%arg</string>
+	<key>You’re up to date.</key>
+	<string>You’re up to date.</string>
+	<key>https://github.com/owner/repository</key>
+	<string>https://github.com/owner/repository</string>
+	<key>skills.sh</key>
+	<string>skills.sh</string>
+	<key>skills.sh unavailable</key>
+	<string>skills.sh 不可用</string>
+	<key>↻ v%arg</key>
+	<string>↻ v%arg</string>
+	<key>关于 Skills Manager</key>
+	<string>关于 Skills Manager</string>
+</dict>
+</plist>

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import SkillsManager
@@ -91,9 +92,10 @@ struct SkillListFilterTests {
             origin: SkillListOriginProjection(hasRepositorySource: false, providers: []),
             enabledPlatforms: platforms
         ))
-        #expect(SkillListAgentSummary.text(count: 0) == "0 Agents")
-        #expect(SkillListAgentSummary.text(count: 1) == "1 Agent")
-        #expect(SkillListAgentSummary.text(count: 4) == "4 Agents")
+        let english = Locale(identifier: "en")
+        #expect(SkillListAgentSummary.text(count: 0, locale: english) == "0 Agents")
+        #expect(SkillListAgentSummary.text(count: 1, locale: english) == "1 Agent")
+        #expect(SkillListAgentSummary.text(count: 4, locale: english) == "4 Agents")
     }
 
     @Test("selection is retained only while its filtered row remains visible")

@@ -34,6 +34,15 @@ nonisolated enum SkillListSource: String, CaseIterable, Identifiable, Sendable {
         case .skillsSh: "magnifyingglass"
         }
     }
+
+    var storageKey: String {
+        switch self {
+        case .local: "local"
+        case .repository: "repository"
+        case .clawHub: "clawhub"
+        case .skillsSh: "skills-sh"
+        }
+    }
 }
 
 nonisolated enum SkillListSourceFilter: Hashable, Identifiable, Sendable {
@@ -44,7 +53,12 @@ nonisolated enum SkillListSourceFilter: Hashable, Identifiable, Sendable {
         [.all] + SkillListSource.allCases.map(Self.source)
     }
 
-    var id: String { displayName }
+    var id: String {
+        switch self {
+        case .all: "all"
+        case .source(let source): "source:\(source.storageKey)"
+        }
+    }
 
     var displayName: String {
         switch self {
@@ -62,7 +76,12 @@ nonisolated enum SkillListAgentFilter: Hashable, Identifiable, Sendable {
         [.all] + SkillPlatform.allCases.map(Self.agent)
     }
 
-    var id: String { displayName }
+    var id: String {
+        switch self {
+        case .all: "all"
+        case .agent(let platform): "agent:\(platform.storageKey)"
+        }
+    }
 
     var displayName: String {
         switch self {
@@ -177,7 +196,13 @@ nonisolated extension SkillDiscoveryObservation {
 }
 
 nonisolated enum SkillListAgentSummary {
-    static func text(count: Int) -> String {
-        count == 1 ? "1 Agent" : "\(count) Agents"
+    static func text(count: Int, locale: Locale? = nil) -> String {
+        let resource = LocalizedStringResource(
+            "%lld Agents",
+            defaultValue: "\(count) Agents",
+            locale: locale ?? .current,
+            bundle: .module
+        )
+        return String(localized: resource)
     }
 }

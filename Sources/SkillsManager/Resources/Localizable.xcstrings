@@ -1,0 +1,6070 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+"%arg Skills": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "%arg 个技能"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%arg Skills"
+          }
+        }
+      }
+    },
+"%arg candidates available": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "%arg 个候选项可用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%arg candidates available"
+          }
+        }
+      }
+    },
+"%arg distribution": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "%arg 分发"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%arg distribution"
+          }
+        }
+      }
+    },
+    "%arg of %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$arg of %2$arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$arg of %2$arg"
+          }
+        }
+      }
+    },
+"%arg selected": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "已选择 %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%arg selected"
+          }
+        }
+      }
+    },
+"%arg shown": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "显示 %arg 个"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%arg shown"
+          }
+        }
+      }
+    },
+"%arg skill(s)": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "%arg 个技能"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%arg skill(s)"
+          }
+        }
+      }
+    },
+"%arg target%arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "%1$arg 个目标%2$arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$arg target%2$arg"
+          }
+        }
+      }
+    },
+"%arg valid · %arg observed": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "%1$arg 个有效 · 已观察 %2$arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$arg valid · %2$arg observed"
+          }
+        }
+      }
+    },
+    "%arg: %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$arg: %2$arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$arg: %2$arg"
+          }
+        }
+      }
+    },
+    "+%arg verified alias locations": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%arg verified alias locations"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%arg verified alias locations"
+          }
+        }
+      }
+    },
+    "About Skills Manager": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于 Skills Manager"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About Skills Manager"
+          }
+        }
+      }
+    },
+"Action": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "操作"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action"
+          }
+        }
+      }
+    },
+    "Action for %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action for %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action for %arg"
+          }
+        }
+      }
+    },
+"Actions": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "操作"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions"
+          }
+        }
+      }
+    },
+"Active filters: %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "当前筛选：%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active filters: %arg"
+          }
+        }
+      }
+    },
+"Add": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "添加"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
+          }
+        }
+      }
+    },
+"Add %arg to the managed library or safely update it.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "将 %arg 添加到托管库，或安全地更新它。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add %arg to the managed library or safely update it."
+          }
+        }
+      }
+    },
+"Add Custom Path...": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "添加自定义路径…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Custom Path..."
+          }
+        }
+      }
+    },
+"Add Custom Skill Path": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "添加自定义 Skill 路径"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Custom Skill Path"
+          }
+        }
+      }
+    },
+"Add Repository": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "添加仓库"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Repository"
+          }
+        }
+      }
+    },
+"Add a public repository to discover its Skills.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "添加公开仓库以发现其中的 Skill。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a public repository to discover its Skills."
+          }
+        }
+      }
+    },
+"Affected items": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "受影响项目"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affected items"
+          }
+        }
+      }
+    },
+"Agent bindings": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Agent 绑定"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent bindings"
+          }
+        }
+      }
+    },
+"Agent selection has unapplied changes": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Agent 选择有未应用的更改"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent selection has unapplied changes"
+          }
+        }
+      }
+    },
+"Agent selection has unapplied changes.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Agent 选择有未应用的更改。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent selection has unapplied changes."
+          }
+        }
+      }
+    },
+"Agent: %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Agent：%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent: %arg"
+          }
+        }
+      }
+    },
+"Agents": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Agent"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agents"
+          }
+        }
+      }
+    },
+"All skills will be added automatically.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "所有 Skill 将自动添加。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All skills will be added automatically."
+          }
+        }
+      }
+    },
+"Also restore the original Agent targets": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "同时恢复原始 Agent 目标"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Also restore the original Agent targets"
+          }
+        }
+      }
+    },
+"Applying changes…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在应用更改…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applying changes…"
+          }
+        }
+      }
+    },
+    "Applying this selection will replace the global target with Agent-specific targets.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applying this selection will replace the global target with Agent-specific targets."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applying this selection will replace the global target with Agent-specific targets."
+          }
+        }
+      }
+    },
+"Audit summary": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "审计摘要"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audit summary"
+          }
+        }
+      }
+    },
+"Available action": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "可用操作"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available action"
+          }
+        }
+      }
+    },
+"Back": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "返回"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        }
+      }
+    },
+"Backs up the Skill, removes managed Agent links, and deletes the managed Skill.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "备份 Skill、移除托管 Agent 链接并删除托管 Skill。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backs up the Skill, removes managed Agent links, and deletes the managed Skill."
+          }
+        }
+      }
+    },
+"Backup": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "备份"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup"
+          }
+        }
+      }
+    },
+"Backups": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "备份"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backups"
+          }
+        }
+      }
+    },
+"Apply": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "应用"
+      }
+    },
+    "en": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Apply"
+      }
+    }
+  }
+},
+"Backups unavailable": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "备份不可用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backups unavailable"
+          }
+        }
+      }
+    },
+"Based on %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "基于 %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Based on %arg"
+          }
+        }
+      }
+    },
+"Batch Import": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "批量导入"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batch Import"
+          }
+        }
+      }
+    },
+"Batch Import discovered Skills": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "批量导入发现的 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batch Import discovered Skills"
+          }
+        }
+      }
+    },
+"Batch Updates": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "批量更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batch Updates"
+          }
+        }
+      }
+    },
+    "Built for Codex and your other agents to manage and inspect skills on your Mac.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Built for Codex and your other agents to manage and inspect skills on your Mac."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Built for Codex and your other agents to manage and inspect skills on your Mac."
+          }
+        }
+      }
+    },
+"Cancel": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "取消"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+"Cancel this update": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "取消此次更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel this update"
+          }
+        }
+      }
+    },
+"Candidate source": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "候选来源"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Candidate source"
+          }
+        }
+      }
+    },
+"Change preview": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "更改预览"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change preview"
+          }
+        }
+      }
+    },
+"Changelog": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "更新日志"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changelog"
+          }
+        }
+      }
+    },
+"Changes cannot be applied": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "无法应用更改"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes cannot be applied"
+          }
+        }
+      }
+    },
+"Check All": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "全部检查"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check All"
+          }
+        }
+      }
+    },
+"Check again": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "再次检查"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check again"
+          }
+        }
+      }
+    },
+"Check for Updates": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "检查更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for Updates"
+          }
+        }
+      }
+    },
+"Check for Updates…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "检查更新…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for Updates…"
+          }
+        }
+      }
+    },
+    "Check managed Skills, review every conflict, then update selected items.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check managed Skills, review every conflict, then update selected items."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check managed Skills, review every conflict, then update selected items."
+          }
+        }
+      }
+    },
+"Check now": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "立即检查"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check now"
+          }
+        }
+      }
+    },
+"Checking ClawHub status…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在检查 ClawHub 状态…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking ClawHub status…"
+          }
+        }
+      }
+    },
+"Checking for updates": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在检查更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking for updates"
+          }
+        }
+      }
+    },
+"Choose Folder...": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "选择文件夹…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Folder..."
+          }
+        }
+      }
+    },
+"Choose a Skill folder or zip, then add it to the managed library.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "选择 Skill 文件夹或 ZIP，然后将其添加到托管库。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a Skill folder or zip, then add it to the managed library."
+          }
+        }
+      }
+    },
+"Choose a ZIP archive": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "选择 ZIP 压缩包"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a ZIP archive"
+          }
+        }
+      }
+    },
+"Choose a folder containing platform skill directories": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "选择包含平台 Skill 目录的文件夹"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a folder containing platform skill directories"
+          }
+        }
+      }
+    },
+"Choose a skills.sh result.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "选择一个 skills.sh 结果。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a skills.sh result."
+          }
+        }
+      }
+    },
+"Choose an action": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "选择操作"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an action"
+          }
+        }
+      }
+    },
+    "Choose…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose…"
+          }
+        }
+      }
+    },
+    "ClawHub": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ClawHub"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ClawHub"
+          }
+        }
+      }
+    },
+"ClawHub Latest Drops": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "ClawHub 最新发布"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ClawHub Latest Drops"
+          }
+        }
+      }
+    },
+"Clear": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "清除"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear"
+          }
+        }
+      }
+    },
+"Clear the filter to restore the complete audit.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "清除筛选以恢复完整审计。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the filter to restore the complete audit."
+          }
+        }
+      }
+    },
+"Clear the filter to restore the complete batch.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "清除筛选以恢复完整批次。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear the filter to restore the complete batch."
+          }
+        }
+      }
+    },
+"Close": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "关闭"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        }
+      }
+    },
+"Confirm": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "确认"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm"
+          }
+        }
+      }
+    },
+"Confirm update": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "确认更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm update"
+          }
+        }
+      }
+    },
+"Consistency Audit": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "一致性审计"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consistency Audit"
+          }
+        }
+      }
+    },
+"Content": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "内容"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Content"
+          }
+        }
+      }
+    },
+"Content fingerprint": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "内容指纹"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Content fingerprint"
+          }
+        }
+      }
+    },
+    "Continues the interrupted deletion safely.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continues the interrupted deletion safely."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continues the interrupted deletion safely."
+          }
+        }
+      }
+    },
+    "Continues this journaled deletion operation.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continues this journaled deletion operation."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continues this journaled deletion operation."
+          }
+        }
+      }
+    },
+"Copy": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "复制"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
+          }
+        }
+      }
+    },
+    "Copy content is behind the managed Skill and needs to be synchronized.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy content is behind the managed Skill and needs to be synchronized."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy content is behind the managed Skill and needs to be synchronized."
+          }
+        }
+      }
+    },
+    "Copy decision for %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy decision for %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy decision for %arg"
+          }
+        }
+      }
+    },
+    "Copy login command": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy login command"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy login command"
+          }
+        }
+      }
+    },
+"Current Agent targets": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "当前 Agent 目标"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current Agent targets"
+          }
+        }
+      }
+    },
+"Current source": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "当前来源"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current source"
+          }
+        }
+      }
+    },
+"Current targets": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "当前目标"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current targets"
+          }
+        }
+      }
+    },
+"Default branch": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "默认分支"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default branch"
+          }
+        }
+      }
+    },
+"Delete": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "删除"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+"Delete from Skills Manager?": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "从 Skills Manager 删除？"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete from Skills Manager?"
+          }
+        }
+      }
+    },
+"Delete from Skills Manager…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "从 Skills Manager 删除…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete from Skills Manager…"
+          }
+        }
+      }
+    },
+"Deleting a managed Skill creates a verified backup here.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "删除托管 Skill 会在此创建已验证备份。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleting a managed Skill creates a verified backup here."
+          }
+        }
+      }
+    },
+"Deletion operations": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "删除操作"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deletion operations"
+          }
+        }
+      }
+    },
+"Discard local changes": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "放弃本地更改"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard local changes"
+          }
+        }
+      }
+    },
+"Discover Skills from public GitHub repositories.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "从公开 GitHub 仓库发现 Skill。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discover Skills from public GitHub repositories."
+          }
+        }
+      }
+    },
+"Discovered Skills": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "已发现的 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discovered Skills"
+          }
+        }
+      }
+    },
+    "Discovery evidence": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discovery evidence"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discovery evidence"
+          }
+        }
+      }
+    },
+"Distribution": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "分发"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distribution"
+          }
+        }
+      }
+    },
+    "Distribution is blocked. This Skill will be added without enabling.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distribution is blocked. This Skill will be added without enabling."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distribution is blocked. This Skill will be added without enabling."
+          }
+        }
+      }
+    },
+"Distribution mode": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "分发模式"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distribution mode"
+          }
+        }
+      }
+    },
+"Distribution preview": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "分发预览"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distribution preview"
+          }
+        }
+      }
+    },
+"Distribution scope": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "分发范围"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distribution scope"
+          }
+        }
+      }
+    },
+"Distribution status: %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "分发状态：%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distribution status: %arg"
+          }
+        }
+      }
+    },
+"Done": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "完成"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+"Downloading and validating…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在下载并验证…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading and validating…"
+          }
+        }
+      }
+    },
+"Enable for": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "启用范围"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable for"
+          }
+        }
+      }
+    },
+    "Every visible result is unavailable. Fix the folders below, then refresh.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every visible result is unavailable. Fix the folders below, then refresh."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every visible result is unavailable. Fix the folders below, then refresh."
+          }
+        }
+      }
+    },
+    "Explicitly selects this conflict for an independent import.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explicitly selects this conflict for an independent import."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explicitly selects this conflict for an independent import."
+          }
+        }
+      }
+    },
+"Failed": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "失败"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed"
+          }
+        }
+      }
+    },
+"Files": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "文件"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Files"
+          }
+        }
+      }
+    },
+"Filter audit findings": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "筛选审计发现"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter audit findings"
+          }
+        }
+      }
+    },
+"Filter batch updates": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "筛选批量更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter batch updates"
+          }
+        }
+      }
+    },
+"Findings": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "发现"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Findings"
+          }
+        }
+      }
+    },
+"Full Settings…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "完整设置…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full Settings…"
+          }
+        }
+      }
+    },
+    "GitHub": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub"
+          }
+        }
+      }
+    },
+"GitHub Repositories": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "GitHub 仓库"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Repositories"
+          }
+        }
+      }
+    },
+"GitHub Repository...": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "GitHub 仓库…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Repository..."
+          }
+        }
+      }
+    },
+"GitHub repository URL": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "GitHub 仓库 URL"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub repository URL"
+          }
+        }
+      }
+    },
+    "If a target conflicts, the Skill remains restored without Agent links.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If a target conflicts, the Skill remains restored without Agent links."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If a target conflicts, the Skill remains restored without Agent links."
+          }
+        }
+      }
+    },
+"Impact": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "影响"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impact"
+          }
+        }
+      }
+    },
+"Import Skill": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "导入 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import Skill"
+          }
+        }
+      }
+    },
+"Import Skill...": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "导入 Skill…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import Skill..."
+          }
+        }
+      }
+    },
+"Import as new": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "作为新 Skill 导入"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import as new"
+          }
+        }
+      }
+    },
+"Import selected": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "导入所选项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import selected"
+          }
+        }
+      }
+    },
+"Importing selected Skills…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在导入所选 Skill…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importing selected Skills…"
+          }
+        }
+      }
+    },
+"Independent local Fork": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "独立本地 Fork"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Independent local Fork"
+          }
+        }
+      }
+    },
+"Install": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "安装"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install"
+          }
+        }
+      }
+    },
+    "Install Bun": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install Bun"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install Bun"
+          }
+        }
+      }
+    },
+    "Install Bun to run the ClawHub CLI.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install Bun to run the ClawHub CLI."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install Bun to run the ClawHub CLI."
+          }
+        }
+      }
+    },
+"Install or Update Skill": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "安装或更新 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install or Update Skill"
+          }
+        }
+      }
+    },
+"Install this ClawHub Skill": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "安装此 ClawHub Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install this ClawHub Skill"
+          }
+        }
+      }
+    },
+"Installation unavailable": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "安装不可用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation unavailable"
+          }
+        }
+      }
+    },
+    "Installed version %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installed version %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installed version %arg"
+          }
+        }
+      }
+    },
+"Keep as independent Fork": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "保留为独立 Fork"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep as independent Fork"
+          }
+        }
+      }
+    },
+    "Keep changes as a Fork": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep changes as a Fork"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep changes as a Fork"
+          }
+        }
+      }
+    },
+    "Kept for this session. Refreshing will show the finding again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kept for this session. Refreshing will show the finding again."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kept for this session. Refreshing will show the finding again."
+          }
+        }
+      }
+    },
+"Latest version %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "最新版本 %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latest version %arg"
+          }
+        }
+      }
+    },
+"Load More": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "加载更多"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load More"
+          }
+        }
+      }
+    },
+    "Loading %arg...": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading %arg..."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading %arg..."
+          }
+        }
+      }
+    },
+"Loading SKILL.md…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在加载 SKILL.md…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading SKILL.md…"
+          }
+        }
+      }
+    },
+    "Loading and validating backups…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading and validating backups…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading and validating backups…"
+          }
+        }
+      }
+    },
+"Loading distribution state…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在加载分发状态…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading distribution state…"
+          }
+        }
+      }
+    },
+"Loading reference…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在加载引用…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading reference…"
+          }
+        }
+      }
+    },
+    "Loading the last update check…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading the last update check…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading the last update check…"
+          }
+        }
+      }
+    },
+    "Loads more ClawHub results": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loads more ClawHub results"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loads more ClawHub results"
+          }
+        }
+      }
+    },
+    "Loads more skills.sh results": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loads more skills.sh results"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loads more skills.sh results"
+          }
+        }
+      }
+    },
+"Local Copy": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "本地副本"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Copy"
+          }
+        }
+      }
+    },
+    "Local changes at %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local changes at %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local changes at %arg"
+          }
+        }
+      }
+    },
+"Local locations": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "本地位置"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local locations"
+          }
+        }
+      }
+    },
+"Location": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "位置"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location"
+          }
+        }
+      }
+    },
+    "Maintained by MC and his Agents. Originally created by @Dimillian.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maintained by MC and his Agents. Originally created by @Dimillian."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maintained by MC and his Agents. Originally created by @Dimillian."
+          }
+        }
+      }
+    },
+"Manage Skill": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "管理 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Skill"
+          }
+        }
+      }
+    },
+"Managed Agent target %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "托管 Agent 目标 %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Managed Agent target %arg"
+          }
+        }
+      }
+    },
+"Managed Skill status: %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "托管 Skill 状态：%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Managed Skill status: %arg"
+          }
+        }
+      }
+    },
+"Managed Skills": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "托管 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Managed Skills"
+          }
+        }
+      }
+    },
+"Managed result": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "托管结果"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Managed result"
+          }
+        }
+      }
+    },
+"Management": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "管理"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Management"
+          }
+        }
+      }
+    },
+"Matched Skill ID": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "匹配的 Skill ID"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matched Skill ID"
+          }
+        }
+      }
+    },
+"Missing SKILL.md": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "缺少 SKILL.md"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing SKILL.md"
+          }
+        }
+      }
+    },
+"Missing reference": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "缺少引用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing reference"
+          }
+        }
+      }
+    },
+"Mode": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "模式"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode"
+          }
+        }
+      }
+    },
+"Needs Repair": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "需要修复"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs Repair"
+          }
+        }
+      }
+    },
+"No Discovery candidates": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "没有发现候选项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Discovery candidates"
+          }
+        }
+      }
+    },
+"No GitHub repositories": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "没有 GitHub 仓库"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No GitHub repositories"
+          }
+        }
+      }
+    },
+"No SKILL.md found in this skill folder.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "此 Skill 文件夹中未找到 SKILL.md。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No SKILL.md found in this skill folder."
+          }
+        }
+      }
+    },
+"No Skills": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "没有 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Skills"
+          }
+        }
+      }
+    },
+"No backups": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "没有备份"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No backups"
+          }
+        }
+      }
+    },
+"No distribution changes are needed.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "无需更改分发。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No distribution changes are needed."
+          }
+        }
+      }
+    },
+    "No distribution file changes are needed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No distribution file changes are needed."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No distribution file changes are needed."
+          }
+        }
+      }
+    },
+"No managed Skills are available.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "没有可用的托管 Skill。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No managed Skills are available."
+          }
+        }
+      }
+    },
+"No matching Skills": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "没有匹配的 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching Skills"
+          }
+        }
+      }
+    },
+"No matching findings": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "没有匹配的发现"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching findings"
+          }
+        }
+      }
+    },
+    "No usable discovery result": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable discovery result"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable discovery result"
+          }
+        }
+      }
+    },
+"Not enabled for any Agent.": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "未为任何 Agent 启用。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not enabled for any Agent."
+          }
+        }
+      }
+    },
+"Not refreshed": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "尚未刷新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not refreshed"
+          }
+        }
+      }
+    },
+    "Not yet published on ClawHub.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not yet published on ClawHub."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not yet published on ClawHub."
+          }
+        }
+      }
+    },
+    "Nothing has been written. Confirm once to begin the ordered import.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing has been written. Confirm once to begin the ordered import."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing has been written. Confirm once to begin the ordered import."
+          }
+        }
+      }
+    },
+    "Nothing has been written. Confirm once to import the selected Skills in order.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing has been written. Confirm once to import the selected Skills in order."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing has been written. Confirm once to import the selected Skills in order."
+          }
+        }
+      }
+    },
+    "OK": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "Observed directories": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Observed directories"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Observed directories"
+          }
+        }
+      }
+    },
+"On This Mac": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "在此 Mac 上"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On This Mac"
+          }
+        }
+      }
+    },
+"Open Skill Backups": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "打开 Skill 备份"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Skill Backups"
+          }
+        }
+      }
+    },
+"Open consistency audit": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "打开一致性审计"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open consistency audit"
+          }
+        }
+      }
+    },
+"Open in Finder": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "在 Finder 中打开"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Finder"
+          }
+        }
+      }
+    },
+"Open on ClawHub": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "在 ClawHub 中打开"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open on ClawHub"
+          }
+        }
+      }
+    },
+    "Opens a confirmation preview. No files are changed yet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens a confirmation preview. No files are changed yet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens a confirmation preview. No files are changed yet."
+          }
+        }
+      }
+    },
+    "Opens a confirmation showing the backup, Agent links, and managed content that will be removed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens a confirmation showing the backup, Agent links, and managed content that will be removed."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens a confirmation showing the backup, Agent links, and managed content that will be removed."
+          }
+        }
+      }
+    },
+    "Opens a verified restore preview.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens a verified restore preview."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens a verified restore preview."
+          }
+        }
+      }
+    },
+    "Opens the Skill folder in Finder": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the Skill folder in Finder"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the Skill folder in Finder"
+          }
+        }
+      }
+    },
+    "Opens the installation review. Nothing is written until you confirm.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the installation review. Nothing is written until you confirm."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the installation review. Nothing is written until you confirm."
+          }
+        }
+      }
+    },
+    "Optional Git branch, tag, or commit reference": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional Git branch, tag, or commit reference"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional Git branch, tag, or commit reference"
+          }
+        }
+      }
+    },
+    "Original Project": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original Project"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original Project"
+          }
+        }
+      }
+    },
+    "Original Skill ID": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original Skill ID"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original Skill ID"
+          }
+        }
+      }
+    },
+    "Original folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original folder"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original folder"
+          }
+        }
+      }
+    },
+    "Pick a folder or zip": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a folder or zip"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a folder or zip"
+          }
+        }
+      }
+    },
+    "Pick a skill from ClawHub.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a skill from ClawHub."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a skill from ClawHub."
+          }
+        }
+      }
+    },
+    "Pick a skill from the list.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a skill from the list."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a skill from the list."
+          }
+        }
+      }
+    },
+"Preparing import preview…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在准备导入预览…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing import preview…"
+          }
+        }
+      }
+    },
+"Preparing previews…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在准备预览…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing previews…"
+          }
+        }
+      }
+    },
+"Preparing preview…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在准备预览…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing preview…"
+          }
+        }
+      }
+    },
+"Preparing restore preview": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在准备恢复预览"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing restore preview"
+          }
+        }
+      }
+    },
+    "Preserves the local content as a separately managed Skill.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preserves the local content as a separately managed Skill."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preserves the local content as a separately managed Skill."
+          }
+        }
+      }
+    },
+"Preview changes": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "预览更改"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview changes"
+          }
+        }
+      }
+    },
+"Preview selected": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "预览所选项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview selected"
+          }
+        }
+      }
+    },
+    "Preview the change before anything is written to the managed library.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview the change before anything is written to the managed library."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview the change before anything is written to the managed library."
+          }
+        }
+      }
+    },
+    "Previews removal of managed distribution targets. The managed Skill is retained.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previews removal of managed distribution targets. The managed Skill is retained."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previews removal of managed distribution targets. The managed Skill is retained."
+          }
+        }
+      }
+    },
+"Publish Skill": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "发布 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publish Skill"
+          }
+        }
+      }
+    },
+    "Publish result": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publish result"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publish result"
+          }
+        }
+      }
+    },
+    "Push changes for %arg to ClawHub.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push changes for %arg to ClawHub."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push changes for %arg to ClawHub."
+          }
+        }
+      }
+    },
+    "Reason": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reason"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reason"
+          }
+        }
+      }
+    },
+    "Recheck %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recheck %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recheck %arg"
+          }
+        }
+      }
+    },
+    "Ref": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ref"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ref"
+          }
+        }
+      }
+    },
+    "References": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "References"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "References"
+          }
+        }
+      }
+    },
+    "Refresh %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh %arg"
+          }
+        }
+      }
+    },
+"Refresh All": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "全部刷新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh All"
+          }
+        }
+      }
+    },
+    "Refresh Discovery before opening Batch Import.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Discovery before opening Batch Import."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Discovery before opening Batch Import."
+          }
+        }
+      }
+    },
+"Refresh Skills": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "刷新 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Skills"
+          }
+        }
+      }
+    },
+"Refresh audit": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "刷新审计"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh audit"
+          }
+        }
+      }
+    },
+"Refresh backups": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "刷新备份"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh backups"
+          }
+        }
+      }
+    },
+"Refresh consistency audit": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "刷新一致性审计"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh consistency audit"
+          }
+        }
+      }
+    },
+"Refresh distribution": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "刷新分发"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh distribution"
+          }
+        }
+      }
+    },
+"Refresh managed Skill": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "刷新托管 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh managed Skill"
+          }
+        }
+      }
+    },
+"Refresh repository": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "刷新仓库"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh repository"
+          }
+        }
+      }
+    },
+"Refreshing": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在刷新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshing"
+          }
+        }
+      }
+    },
+    "Refreshing library…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshing library…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshing library…"
+          }
+        }
+      }
+    },
+    "Releases": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Releases"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Releases"
+          }
+        }
+      }
+    },
+"Remove": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "移除"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        }
+      }
+    },
+    "Remove %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %arg"
+          }
+        }
+      }
+    },
+"Remove Custom Path?": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "移除自定义路径？"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Custom Path?"
+          }
+        }
+      }
+    },
+"Remove Path": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "移除路径"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Path"
+          }
+        }
+      }
+    },
+"Remove Repository": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "移除仓库"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Repository"
+          }
+        }
+      }
+    },
+"Remove from all Agents…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "从所有 Agent 移除…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from all Agents…"
+          }
+        }
+      }
+    },
+"Remove repository": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "移除仓库"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove repository"
+          }
+        }
+      }
+    },
+    "Remove this discovery source?": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove this discovery source?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove this discovery source?"
+          }
+        }
+      }
+    },
+    "Replaces this Copy with the current managed Skill.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replaces this Copy with the current managed Skill."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replaces this Copy with the current managed Skill."
+          }
+        }
+      }
+    },
+"Repositories": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "仓库"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repositories"
+          }
+        }
+      }
+    },
+"Repository": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "仓库"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repository"
+          }
+        }
+      }
+    },
+"Resolve and Install %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "解析并安装 %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolve and Install %arg"
+          }
+        }
+      }
+    },
+"Resolve and Install…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "解析并安装…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolve and Install…"
+          }
+        }
+      }
+    },
+"Resolve and Review…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "解析并查看…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolve and Review…"
+          }
+        }
+      }
+    },
+    "Resolving and validating GitHub source…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolving and validating GitHub source…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolving and validating GitHub source…"
+          }
+        }
+      }
+    },
+"Restore": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "恢复"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
+"Restore Skill": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "恢复 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Skill"
+          }
+        }
+      }
+    },
+"Restore mode": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "恢复模式"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore mode"
+          }
+        }
+      }
+    },
+    "Restored Skill ID": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restored Skill ID"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restored Skill ID"
+          }
+        }
+      }
+    },
+"Restore…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "恢复…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore…"
+          }
+        }
+      }
+    },
+    "Restoring verified Skill backup": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring verified Skill backup"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring verified Skill backup"
+          }
+        }
+      }
+    },
+    "Restoring verified backup…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring verified backup…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring verified backup…"
+          }
+        }
+      }
+    },
+"Result": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "结果"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Result"
+          }
+        }
+      }
+    },
+"Result: %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "结果：%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Result: %arg"
+          }
+        }
+      }
+    },
+"Retry": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "重试"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
+          }
+        }
+      }
+    },
+"Retry deletion": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "重试删除"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry deletion"
+          }
+        }
+      }
+    },
+"Retry loading this Skill from ClawHub": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "重试从 ClawHub 加载此 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry loading this Skill from ClawHub"
+          }
+        }
+      }
+    },
+"Review Import…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "查看导入…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review Import…"
+          }
+        }
+      }
+    },
+"Review Update": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "查看更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review Update"
+          }
+        }
+      }
+    },
+"Review and Install…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "查看并安装…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review and Install…"
+          }
+        }
+      }
+    },
+    "Review discovered local Skills, then import them in a safe, stable order.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review discovered local Skills, then import them in a safe, stable order."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review discovered local Skills, then import them in a safe, stable order."
+          }
+        }
+      }
+    },
+    "Review every target before applying changes.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review every target before applying changes."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review every target before applying changes."
+          }
+        }
+      }
+    },
+    "Review its status, evidence, and available actions.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review its status, evidence, and available actions."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review its status, evidence, and available actions."
+          }
+        }
+      }
+    },
+"Review selected…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "查看所选项…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review selected…"
+          }
+        }
+      }
+    },
+"Review update": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "查看更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review update"
+          }
+        }
+      }
+    },
+    "Reviews the remote update before anything is written.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reviews the remote update before anything is written."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reviews the remote update before anything is written."
+          }
+        }
+      }
+    },
+"Review…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "查看…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review…"
+          }
+        }
+      }
+    },
+    "Run bunx clawdhub@latest login in Terminal, then check again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run bunx clawdhub@latest login in Terminal, then check again."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run bunx clawdhub@latest login in Terminal, then check again."
+          }
+        }
+      }
+    },
+"Scan Issues": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "扫描问题"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan Issues"
+          }
+        }
+      }
+    },
+    "Scan scope (%arg roots)": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan scope (%arg roots)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan scope (%arg roots)"
+          }
+        }
+      }
+    },
+"Scanning for skills...": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在扫描 Skill…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanning for skills..."
+          }
+        }
+      }
+    },
+"Scanning registered folders…": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "正在扫描已注册文件夹…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanning registered folders…"
+          }
+        }
+      }
+    },
+    "Scope": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scope"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scope"
+          }
+        }
+      }
+    },
+    "Scrolls to the complete distribution editor": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scrolls to the complete distribution editor"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scrolls to the complete distribution editor"
+          }
+        }
+      }
+    },
+"Search Skills": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "搜索 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Skills"
+          }
+        }
+      }
+    },
+    "Select %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select %arg"
+          }
+        }
+      }
+    },
+    "Select Ready": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Ready"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select Ready"
+          }
+        }
+      }
+    },
+    "Select a discovered Skill": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a discovered Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a discovered Skill"
+          }
+        }
+      }
+    },
+"Select a project folder": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "选择项目文件夹"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a project folder"
+          }
+        }
+      }
+    },
+    "Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public)."
+          }
+        }
+      }
+    },
+"Select a skill": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "选择一个 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a skill"
+          }
+        }
+      }
+    },
+    "Select at least one Agent.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select at least one Agent."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select at least one Agent."
+          }
+        }
+      }
+    },
+"Select safe": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "选择安全项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select safe"
+          }
+        }
+      }
+    },
+"Show in Finder": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "在 Finder 中显示"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Finder"
+          }
+        }
+      }
+    },
+    "Shows planned distribution changes before anything is written.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows planned distribution changes before anything is written."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows planned distribution changes before anything is written."
+          }
+        }
+      }
+    },
+    "Signed in as %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in as %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in as %arg"
+          }
+        }
+      }
+    },
+"Size": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "大小"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Size"
+          }
+        }
+      }
+    },
+    "Skill %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill %arg"
+          }
+        }
+      }
+    },
+"Skill Backups": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Skill 备份"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill Backups"
+          }
+        }
+      }
+    },
+"Skill unavailable": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "Skill 不可用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skill unavailable"
+          }
+        }
+      }
+    },
+"Skills": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "技能"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills"
+          }
+        }
+      }
+    },
+    "Skills Manager": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills Manager"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills Manager"
+          }
+        }
+      }
+    },
+    "Skills Manager will %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills Manager will %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skills Manager will %arg"
+          }
+        }
+      }
+    },
+    "Slug": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slug"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slug"
+          }
+        }
+      }
+    },
+    "Slug: %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slug: %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slug: %arg"
+          }
+        }
+      }
+    },
+    "Source": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source"
+          }
+        }
+      }
+    },
+    "Source %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source %arg"
+          }
+        }
+      }
+    },
+    "Source: %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source: %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source: %arg"
+          }
+        }
+      }
+    },
+"Status": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "状态"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        }
+      }
+    },
+"Status: %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "状态：%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status: %arg"
+          }
+        }
+      }
+    },
+"Stop after the current Skill": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "当前 Skill 后停止"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop after the current Skill"
+          }
+        }
+      }
+    },
+"Symlink": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "符号链接"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Symlink"
+          }
+        }
+      }
+    },
+"Target": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "目标"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target"
+          }
+        }
+      }
+    },
+"Target Skill ID": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "目标 Skill ID"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target Skill ID"
+          }
+        }
+      }
+    },
+"Target: %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "目标：%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target: %arg"
+          }
+        }
+      }
+    },
+    "The current managed content will be backed up before it is replaced.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current managed content will be backed up before it is replaced."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current managed content will be backed up before it is replaced."
+          }
+        }
+      }
+    },
+    "This Skill has not been checked yet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Skill has not been checked yet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Skill has not been checked yet."
+          }
+        }
+      }
+    },
+    "This Skill is already managed. Change its Agent access from the Skill details.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Skill is already managed. Change its Agent access from the Skill details."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Skill is already managed. Change its Agent access from the Skill details."
+          }
+        }
+      }
+    },
+    "This backup did not have any Agent targets.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This backup did not have any Agent targets."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This backup did not have any Agent targets."
+          }
+        }
+      }
+    },
+    "This managed Skill needs repair before it can be published.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This managed Skill needs repair before it can be published."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This managed Skill needs repair before it can be published."
+          }
+        }
+      }
+    },
+    "This reference file could not be found.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This reference file could not be found."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This reference file could not be found."
+          }
+        }
+      }
+    },
+    "This removes only managed distribution targets. The Skill remains in the managed library.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes only managed distribution targets. The Skill remains in the managed library."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes only managed distribution targets. The Skill remains in the managed library."
+          }
+        }
+      }
+    },
+    "This removes only the discovery source. Installed Skills are not deleted.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes only the discovery source. Installed Skills are not deleted."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This removes only the discovery source. Installed Skills are not deleted."
+          }
+        }
+      }
+    },
+    "This will remove \"%arg\" from the sidebar. The skills will not be deleted from disk.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This will remove \"%arg\" from the sidebar. The skills will not be deleted from disk."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This will remove \"%arg\" from the sidebar. The skills will not be deleted from disk."
+          }
+        }
+      }
+    },
+    "Unable to import": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to import"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to import"
+          }
+        }
+      }
+    },
+    "Unable to load": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to load"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to load"
+          }
+        }
+      }
+    },
+    "Unable to load reference": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to load reference"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to load reference"
+          }
+        }
+      }
+    },
+    "Unavailable Locations": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable Locations"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable Locations"
+          }
+        }
+      }
+    },
+    "Unavailable scan location": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable scan location"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable scan location"
+          }
+        }
+      }
+    },
+"Update %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "更新 %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update %arg"
+          }
+        }
+      }
+    },
+"Update Selected": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "更新所选项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Selected"
+          }
+        }
+      }
+    },
+"Update available": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "有可用更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update available"
+          }
+        }
+      }
+    },
+"Update available, version %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "有可用更新，版本 %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update available, version %arg"
+          }
+        }
+      }
+    },
+"Update available: v%arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "有可用更新：v%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update available: v%arg"
+          }
+        }
+      }
+    },
+"Update check": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "更新检查"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update check"
+          }
+        }
+      }
+    },
+"Update result: %arg": {
+  "extractionState": "manual",
+  "localizations": {
+    "zh-Hans": {
+      "stringUnit": {
+        "state": "translated",
+        "value": "更新结果：%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update result: %arg"
+          }
+        }
+      }
+    },
+    "Update status: %arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update status: %arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update status: %arg"
+          }
+        }
+      }
+    },
+    "Update the managed SSOT while keeping its Skill identity and current Agent access.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update the managed SSOT while keeping its Skill identity and current Agent access."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update the managed SSOT while keeping its Skill identity and current Agent access."
+          }
+        }
+      }
+    },
+    "Updating Skill": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating Skill"
+          }
+        }
+      }
+    },
+    "Uses an Agent-specific target": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uses an Agent-specific target"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uses an Agent-specific target"
+          }
+        }
+      }
+    },
+    "Validating…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Validating…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Validating…"
+          }
+        }
+      }
+    },
+    "Verified backups remain available after a managed Skill is deleted.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified backups remain available after a managed Skill is deleted."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified backups remain available after a managed Skill is deleted."
+          }
+        }
+      }
+    },
+    "Verified discovery": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified discovery"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified discovery"
+          }
+        }
+      }
+    },
+    "Verified manifest": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified manifest"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified manifest"
+          }
+        }
+      }
+    },
+    "Verified source": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified source"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verified source"
+          }
+        }
+      }
+    },
+    "Verifies the immutable GitHub source before installation": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifies the immutable GitHub source before installation"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifies the immutable GitHub source before installation"
+          }
+        }
+      }
+    },
+    "Verifies the public GitHub source before showing an install preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifies the public GitHub source before showing an install preview"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifies the public GitHub source before showing an install preview"
+          }
+        }
+      }
+    },
+    "Verifying managed Skill…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying managed Skill…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying managed Skill…"
+          }
+        }
+      }
+    },
+    "Verifying with a fresh audit…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying with a fresh audit…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying with a fresh audit…"
+          }
+        }
+      }
+    },
+    "Verifying, backing up, updating, and refreshing distribution…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying, backing up, updating, and refreshing distribution…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying, backing up, updating, and refreshing distribution…"
+          }
+        }
+      }
+    },
+    "Version %arg (%arg)": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %1$arg (%2$arg)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %1$arg (%2$arg)"
+          }
+        }
+      }
+    },
+    "Version bump": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version bump"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version bump"
+          }
+        }
+      }
+    },
+    "We’ll verify it contains a SKILL.md and show a preview.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We’ll verify it contains a SKILL.md and show a preview."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We’ll verify it contains a SKILL.md and show a preview."
+          }
+        }
+      }
+    },
+    "Will publish v%arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will publish v%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will publish v%arg"
+          }
+        }
+      }
+    },
+    "You’re up to date.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You’re up to date."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You’re up to date."
+          }
+        }
+      }
+    },
+    "https://github.com/owner/repository": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "https://github.com/owner/repository"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "https://github.com/owner/repository"
+          }
+        }
+      }
+    },
+    "skills.sh": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "skills.sh"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "skills.sh"
+          }
+        }
+      }
+    },
+    "↻ v%arg": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "↻ v%arg"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "↻ v%arg"
+          }
+        }
+      }
+    },
+    "All": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "全部" } },
+        "en": { "stringUnit": { "state": "translated", "value": "All" } }
+      }
+    },
+    "All Agents": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "所有 Agent" } },
+        "en": { "stringUnit": { "state": "translated", "value": "All Agents" } }
+      }
+    },
+    "All Skills": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "所有技能" } },
+        "en": { "stringUnit": { "state": "translated", "value": "All Skills" } }
+      }
+    },
+    "All Sources": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "所有来源" } },
+        "en": { "stringUnit": { "state": "translated", "value": "All Sources" } }
+      }
+    },
+    "All Statuses": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "所有状态" } },
+        "en": { "stringUnit": { "state": "translated", "value": "All Statuses" } }
+      }
+    },
+    "Available": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "可用" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Available" } }
+      }
+    },
+    "Claude Code": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Claude Code" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Claude Code" } }
+      }
+    },
+    "Codex": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Codex" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Codex" } }
+      }
+    },
+    "GitHub Copilot": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "GitHub Copilot" } },
+        "en": { "stringUnit": { "state": "translated", "value": "GitHub Copilot" } }
+      }
+    },
+    "Local": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "本地" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Local" } }
+      }
+    },
+    "Managed": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已托管" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Managed" } }
+      }
+    },
+    "Needs Import": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要导入" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Needs Import" } }
+      }
+    },
+    "Not selected": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未选择" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Not selected" } }
+      }
+    },
+    "OpenCode": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "OpenCode" } },
+        "en": { "stringUnit": { "state": "translated", "value": "OpenCode" } }
+      }
+    },
+    "Repo": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "仓库" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Repo" } }
+      }
+    },
+    "Selected": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已选择" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Selected" } }
+      }
+    },
+    "1 Agent": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "1 个 Agent" } },
+        "en": { "stringUnit": { "state": "translated", "value": "1 Agent" } }
+      }
+    },
+    "%arg Agents": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": { "stringUnit": { "state": "translated", "value": "%(count)lld 个 Agent" } },
+              "other": { "stringUnit": { "state": "translated", "value": "%(count)lld 个 Agent" } }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": { "stringUnit": { "state": "translated", "value": "%(count)lld Agent" } },
+              "other": { "stringUnit": { "state": "translated", "value": "%(count)lld Agents" } }
+            }
+          }
+        }
+      }
+    },
+    "%lld Agents": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "variations": {
+            "plural": {
+              "one": { "stringUnit": { "state": "translated", "value": "%(count)lld 个 Agent" } },
+              "other": { "stringUnit": { "state": "translated", "value": "%(count)lld 个 Agent" } }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": { "stringUnit": { "state": "translated", "value": "%(count)lld Agent" } },
+              "other": { "stringUnit": { "state": "translated", "value": "%(count)lld Agents" } }
+            }
+          }
+        }
+      }
+    },
+    "No Skills found": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有找到技能" } }, "en": { "stringUnit": { "state": "translated", "value": "No Skills found" } } } },
+    "No local matches": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有匹配的本地 Skill" } }, "en": { "stringUnit": { "state": "translated", "value": "No local matches" } } } },
+    "No Skills match the current filters.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有符合当前筛选条件的 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "No Skills match the current filters." } } } },
+    "Refresh discovery or import a Skill to get started.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "刷新发现或导入 Skill 以开始使用。" } }, "en": { "stringUnit": { "state": "translated", "value": "Refresh discovery or import a Skill to get started." } } } },
+    "Discovery unavailable": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "发现不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "Discovery unavailable" } } } },
+    "Scanning registered folders": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在扫描已注册文件夹" } }, "en": { "stringUnit": { "state": "translated", "value": "Scanning registered folders" } } } },
+    "Discovery failed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "发现失败" } }, "en": { "stringUnit": { "state": "translated", "value": "Discovery failed" } } } },
+    "Refreshing local Skills": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在刷新本地 Skill" } }, "en": { "stringUnit": { "state": "translated", "value": "Refreshing local Skills" } } } },
+    "Refreshing GitHub repositories": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在刷新 GitHub 仓库" } }, "en": { "stringUnit": { "state": "translated", "value": "Refreshing GitHub repositories" } } } },
+    "No GitHub repositories registered.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有注册 GitHub 仓库。" } }, "en": { "stringUnit": { "state": "translated", "value": "No GitHub repositories registered." } } } },
+    "No Skills found in the registered repositories.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "注册仓库中没有找到 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "No Skills found in the registered repositories." } } } },
+    "Loading latest ClawHub Skills": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在加载最新 ClawHub Skill" } }, "en": { "stringUnit": { "state": "translated", "value": "Loading latest ClawHub Skills" } } } },
+    "Retry ClawHub latest Skills": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试加载最新 ClawHub Skill" } }, "en": { "stringUnit": { "state": "translated", "value": "Retry ClawHub latest Skills" } } } },
+    "No latest Skills available.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有可用的最新 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "No latest Skills available." } } } },
+    "Loading more latest Skills": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在加载更多最新 Skill" } }, "en": { "stringUnit": { "state": "translated", "value": "Loading more latest Skills" } } } },
+    "Retry ClawHub latest page": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试加载最新 ClawHub 页面" } }, "en": { "stringUnit": { "state": "translated", "value": "Retry ClawHub latest page" } } } },
+    "Searching ClawHub": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在搜索 ClawHub" } }, "en": { "stringUnit": { "state": "translated", "value": "Searching ClawHub" } } } },
+    "Retry ClawHub search": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试搜索 ClawHub" } }, "en": { "stringUnit": { "state": "translated", "value": "Retry ClawHub search" } } } },
+    "No ClawHub results.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有 ClawHub 结果。" } }, "en": { "stringUnit": { "state": "translated", "value": "No ClawHub results." } } } },
+    "Loading more ClawHub results": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在加载更多 ClawHub 结果" } }, "en": { "stringUnit": { "state": "translated", "value": "Loading more ClawHub results" } } } },
+    "Retry ClawHub search page": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试加载 ClawHub 搜索页面" } }, "en": { "stringUnit": { "state": "translated", "value": "Retry ClawHub search page" } } } },
+    "Searching skills.sh": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在搜索 skills.sh" } }, "en": { "stringUnit": { "state": "translated", "value": "Searching skills.sh" } } } },
+    "No skills.sh results.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有 skills.sh 结果。" } }, "en": { "stringUnit": { "state": "translated", "value": "No skills.sh results." } } } },
+    "Loading more skills.sh results": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在加载更多 skills.sh 结果" } }, "en": { "stringUnit": { "state": "translated", "value": "Loading more skills.sh results" } } } },
+    "No more unique results.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有更多唯一结果。" } }, "en": { "stringUnit": { "state": "translated", "value": "No more unique results." } } } },
+    "Invalid search": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "搜索无效" } }, "en": { "stringUnit": { "state": "translated", "value": "Invalid search" } } } },
+    "skills.sh unavailable": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "skills.sh 不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "skills.sh unavailable" } } } },
+    "Unavailable scan location": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "扫描位置不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "Unavailable scan location" } } } },
+    "ClawHub unavailable": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "ClawHub 不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "ClawHub unavailable" } } } },
+    "Try again without affecting your local Skills.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "请重试，不会影响本地 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "Try again without affecting your local Skills." } } } },
+    "ClawHub unavailable — cached content may be out of date.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "ClawHub 不可用 — 缓存内容可能已过期。" } }, "en": { "stringUnit": { "state": "translated", "value": "ClawHub unavailable — cached content may be out of date." } } } },
+    "Skill Backups, %arg available": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "技能备份，可用 %arg 项" } }, "en": { "stringUnit": { "state": "translated", "value": "Skill Backups, %arg available" } } } },
+    "关于 Skills Manager": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于 Skills Manager"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About Skills Manager"
+          }
+        }
+      }
+    },
+    "Batch update summary: %arg": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "批量更新摘要：%arg" } }, "en": { "stringUnit": { "state": "translated", "value": "Batch update summary: %arg" } } } },
+    "Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "安装前，Skills Manager 会验证唯一的仓库子路径和不可变 GitHub 修订版本。" } }, "en": { "stringUnit": { "state": "translated", "value": "Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision." } } } },
+    "Compatible Agents share one managed link in %arg.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "兼容的 Agent 在 %arg 中共享一个托管链接。" } }, "en": { "stringUnit": { "state": "translated", "value": "Compatible Agents share one managed link in %arg." } } } },
+    "Discovery": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "发现" } }, "en": { "stringUnit": { "state": "translated", "value": "Discovery" } } } },
+    "Loading ": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在加载 " } }, "en": { "stringUnit": { "state": "translated", "value": "Loading " } } } },
+    "None will be created": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "不会创建" } }, "en": { "stringUnit": { "state": "translated", "value": "None will be created" } } } },
+    "Remains unchanged": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "保持不变" } }, "en": { "stringUnit": { "state": "translated", "value": "Remains unchanged" } } } },
+    "Saved in Skill Backups": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已保存到 Skill 备份" } }, "en": { "stringUnit": { "state": "translated", "value": "Saved in Skill Backups" } } } },
+    "This is different from removing Agent links. It backs up the Skill, removes all managed Agent links, and deletes the managed Skill itself.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "这不同于移除 Agent 链接。此操作会备份 Skill、移除所有托管 Agent 链接，并删除托管 Skill 本身。" } }, "en": { "stringUnit": { "state": "translated", "value": "This is different from removing Agent links. It backs up the Skill, removes all managed Agent links, and deletes the managed Skill itself." } } } },
+    "%arg differs from the managed version.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 与托管版本不同。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg differs from the managed version." } } } },
+    "%arg is already in the managed library.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已在托管库中。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg is already in the managed library." } } } },
+    "%arg is managed and available to the selected Agents.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已托管，可供所选 Agent 使用。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg is managed and available to the selected Agents." } } } },
+    "%arg is managed, but its distribution state must be confirmed or repaired.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已托管，但必须确认或修复其分发状态。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg is managed, but its distribution state must be confirmed or repaired." } } } },
+    "%arg is managed; no distribution changes were needed.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已托管；无需更改分发。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg is managed; no distribution changes were needed." } } } },
+    "%arg is safe in the managed library, but distribution was not applied.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 在托管库中安全，但未应用分发。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg is safe in the managed library, but distribution was not applied." } } } },
+    "%arg was updated.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已更新。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg was updated." } } } },
+    "Confirm or repair the managed library before retrying.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试前请确认或修复托管库。" } }, "en": { "stringUnit": { "state": "translated", "value": "Confirm or repair the managed library before retrying." } } } },
+    "Refresh %arg's distribution from its details.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "请从 %arg 的详情刷新分发。" } }, "en": { "stringUnit": { "state": "translated", "value": "Refresh %arg's distribution from its details." } } } },
+    "Refresh the library.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "刷新托管库。" } }, "en": { "stringUnit": { "state": "translated", "value": "Refresh the library." } } } },
+    "The import state for %arg must be confirmed or repaired before retrying.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试前必须确认或修复 %arg 的导入状态。" } }, "en": { "stringUnit": { "state": "translated", "value": "The import state for %arg must be confirmed or repaired before retrying." } } } },
+    "Unable to publish this skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法发布此 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "Unable to publish this skill." } } } },
+    "Show filters": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "显示筛选器" } }, "en": { "stringUnit": { "state": "translated", "value": "Show filters" } } } },
+    "Hide filters": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "隐藏筛选器" } }, "en": { "stringUnit": { "state": "translated", "value": "Hide filters" } } } }
+  },
+  "version": "1.2"
+}

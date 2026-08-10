@@ -14,12 +14,14 @@ struct ManagedInstallScopePicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Enable for")
+            Text("Enable for", bundle: .module)
                 .font(.headline)
-            Picker("Distribution scope", selection: $mode) {
+            Picker(selection: $mode) {
                 ForEach(ManagedInstallDistributionMode.allCases) { option in
-                    Text(option.rawValue).tag(option)
+                    Text(verbatim: localized(option.rawValue)).tag(option)
                 }
+            } label: {
+                Text("Distribution scope", bundle: .module)
             }
             .pickerStyle(.segmented)
             .disabled(isDisabled)
@@ -36,14 +38,12 @@ struct ManagedInstallScopePicker: View {
     private var globalSummary: some View {
         Group {
             Text(
-                "Compatible Agents share one managed link in "
-                    + DistributionTargetCatalog.current.globalTarget.rootLocator + "."
+                "Compatible Agents share one managed link in \(DistributionTargetCatalog.current.globalTarget.rootLocator).",
+                bundle: .module
             )
-            Text(
-                DistributionTargetCatalog.current.globalReaders
-                    .map(\.rawValue)
-                    .joined(separator: ", ")
-            )
+            Text(verbatim: DistributionTargetCatalog.current.globalReaders
+                .map { localized($0.rawValue) }
+                .joined(separator: ", "))
             .font(.caption)
         }
         .foregroundStyle(.secondary)
@@ -53,7 +53,6 @@ struct ManagedInstallScopePicker: View {
         Group {
             ForEach(SkillPlatform.allCases) { platform in
                 Toggle(
-                    platform.rawValue,
                     isOn: Binding(
                         get: { selectedAgents.contains(platform) },
                         set: { selected in
@@ -64,14 +63,24 @@ struct ManagedInstallScopePicker: View {
                             }
                         }
                     )
-                )
+                ) {
+                    Text(verbatim: localized(platform.rawValue))
+                }
                 .toggleStyle(.checkbox)
                 .disabled(isDisabled)
             }
             if selectedAgents.isEmpty {
-                Label("Select at least one Agent.", systemImage: "exclamationmark.triangle")
+                Label {
+                    Text("Select at least one Agent.", bundle: .module)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle")
+                }
                     .foregroundStyle(.orange)
             }
         }
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

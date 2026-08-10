@@ -7,9 +7,9 @@ struct SkillDetailView: View {
         if let skill = store.selectedSkill {
             content(for: skill)
         } else {
-            ContentUnavailableView("Select a skill",
+            ContentUnavailableView(String(localized: "Select a skill", bundle: .module),
                                    systemImage: "sparkles",
-                                   description: Text("Pick a skill from the list."))
+                                   description: Text("Pick a skill from the list.", bundle: .module))
         }
     }
 
@@ -17,14 +17,18 @@ struct SkillDetailView: View {
     private func content(for skill: Skill) -> some View {
         switch store.detailState {
         case .idle, .loading:
-            ProgressView("Loading \(skill.name)...")
+            HStack {
+                ProgressView()
+                Text("Loading ", bundle: .module)
+                Text(skill.name)
+            }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .missing:
-            ContentUnavailableView("Missing SKILL.md",
+            ContentUnavailableView(String(localized: "Missing SKILL.md", bundle: .module),
                                    systemImage: "doc",
-                                   description: Text("No SKILL.md found in this skill folder."))
+                                   description: Text("No SKILL.md found in this skill folder.", bundle: .module))
         case .failed(let message):
-            ContentUnavailableView("Unable to load",
+            ContentUnavailableView(String(localized: "Unable to load", bundle: .module),
                                    systemImage: "exclamationmark.triangle",
                                    description: Text(message))
         case .loaded:

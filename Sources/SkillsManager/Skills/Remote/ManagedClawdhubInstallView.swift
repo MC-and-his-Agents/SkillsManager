@@ -32,7 +32,7 @@ struct ManagedClawdhubInstallView: View {
                     isDisabled: isWorking
                 )
                 if isDownloading {
-                    ProgressView("Downloading and validating…")
+                    ProgressView(localized("Downloading and validating…"))
                 }
                 if let problem = model.problem {
                     Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
@@ -70,14 +70,14 @@ struct ManagedClawdhubInstallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Install or Update Skill")
+            Text("Install or Update Skill", bundle: .module)
                 .font(.title.bold())
-            Text("Add \(skill.displayName) to the managed library or safely update it.")
+            Text("Add \(skill.displayName) to the managed library or safely update it.", bundle: .module)
                 .foregroundStyle(.secondary)
             Text(sourceSummary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel("Source \(sourceSummary)")
+                .accessibilityLabel(Text("Source \(sourceSummary)", bundle: .module))
         }
     }
 
@@ -90,16 +90,20 @@ struct ManagedClawdhubInstallView: View {
 
     private var actions: some View {
         HStack {
-            Button("Cancel") {
+            Button {
                 cancelAndDismiss()
+            } label: {
+                Text("Cancel", bundle: .module)
             }
             .keyboardShortcut(.cancelAction)
             .disabled(model.isExecuting || model.isFinalizing)
 
             Spacer()
 
-            Button("Review…") {
+            Button {
                 prepareInstall()
+            } label: {
+                Text("Review…", bundle: .module)
             }
             .buttonStyle(.borderedProminent)
             .disabled(!canPrepare)
@@ -196,14 +200,18 @@ struct ManagedClawdhubInstallView: View {
     private func resultView(_ result: ManagedLocalImportResult) -> some View {
         let presentation = managedInstallResultPresentation(result)
         ContentUnavailableView(
-            presentation.title,
+            localized(presentation.title),
             systemImage: presentation.systemImage,
             description: Text(presentation.message)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         HStack {
             Spacer()
-            Button("Close") { dismiss() }
+            Button {
+                dismiss()
+            } label: {
+                Text("Close", bundle: .module)
+            }
                 .keyboardShortcut(.defaultAction)
         }
     }
@@ -253,5 +261,9 @@ struct ManagedClawdhubInstallView: View {
                 error.localizedDescription
             )
         }
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

@@ -152,7 +152,7 @@ private struct ManagedGitHubInstallView: View {
                     isDisabled: isWorking
                 )
                 if isResolving {
-                    ProgressView("Resolving and validating GitHub source…")
+                    ProgressView(localized("Resolving and validating GitHub source…"))
                 }
                 if let problem = model.problem {
                     problemLabel(problem.localizedDescription)
@@ -185,27 +185,29 @@ private struct ManagedGitHubInstallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Resolve and Install \(request.displayName)")
+            Text("Resolve and Install \(request.displayName)", bundle: .module)
                 .font(.title.bold())
-            Text(
-                "Skills Manager will \(request.detail)"
-            )
+            Text("Skills Manager will \(request.detail)", bundle: .module)
             .foregroundStyle(.secondary)
         }
     }
 
     private var actions: some View {
         HStack {
-            Button("Cancel") {
+            Button {
                 cancelAndDismiss()
+            } label: {
+                Text("Cancel", bundle: .module)
             }
             .keyboardShortcut(.cancelAction)
             .disabled(model.isExecuting || model.isFinalizing)
 
             Spacer()
 
-            Button("Resolve and Review…") {
+            Button {
                 prepareInstall()
+            } label: {
+                Text("Resolve and Review…", bundle: .module)
             }
             .buttonStyle(.borderedProminent)
             .disabled(!canPrepare)
@@ -318,18 +320,26 @@ private struct ManagedGitHubInstallView: View {
             .accessibilityElement(children: .combine)
     }
 
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
+    }
+
     @ViewBuilder
     private func resultView(_ result: ManagedLocalImportResult) -> some View {
         let presentation = managedInstallResultPresentation(result)
         ContentUnavailableView(
-            presentation.title,
+            localized(presentation.title),
             systemImage: presentation.systemImage,
             description: Text(presentation.message)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         HStack {
             Spacer()
-            Button("Close") { dismiss() }
+            Button {
+                dismiss()
+            } label: {
+                Text("Close", bundle: .module)
+            }
                 .keyboardShortcut(.defaultAction)
         }
     }

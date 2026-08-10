@@ -29,29 +29,18 @@ struct SkillRowView: View {
         }
     }
 
-    private var badgeAccessibilityText: String? {
-        switch rowBadge {
-        case .updateAvailable(let version):
-            "Update available, version \(version)"
-        case .needsAttention:
-            "Needs Repair"
-        case nil:
-            nil
-        }
-    }
-
     var body: some View {
-        let badgeText = badgeAccessibilityText
+        let badgeText = rowBadge.map { Self.localizedBadgeAccessibilityText($0) }
         let labelParts: [String] = [
             skill.displayName,
-            statusText,
-            skill.listOrigin.labels.map(\.text).joined(separator: ", "),
+            localized(statusText),
+            skill.listOrigin.labels.map { localized($0.text) }.joined(separator: ", "),
             SkillListAgentSummary.text(count: skill.enabledPlatforms.count),
             badgeText,
         ].compactMap { $0 }
         let valueParts: [String] = [
-            statusText,
-            skill.listOrigin.labels.map(\.text).joined(separator: ", "),
+            localized(statusText),
+            skill.listOrigin.labels.map { localized($0.text) }.joined(separator: ", "),
             SkillListAgentSummary.text(count: skill.enabledPlatforms.count),
             badgeText,
         ].compactMap { $0 }
@@ -69,5 +58,33 @@ struct SkillRowView: View {
             ),
             badge: rowBadge
         )
+    }
+
+    static func localizedBadgeAccessibilityText(
+        _ badge: SkillRowBadge,
+        locale: Locale? = nil
+    ) -> String {
+        switch badge {
+        case .updateAvailable(let version):
+            let resource = LocalizedStringResource(
+                "Update available, version %arg",
+                defaultValue: "Update available, version %arg",
+                locale: locale ?? .current,
+                bundle: .module
+            )
+            return String(localized: resource).replacingOccurrences(of: "%arg", with: version)
+        case .needsAttention:
+            let resource = LocalizedStringResource(
+                "Needs Repair",
+                defaultValue: "Needs Repair",
+                locale: locale ?? .current,
+                bundle: .module
+            )
+            return String(localized: resource)
+        }
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

@@ -31,16 +31,21 @@ struct CustomPathSectionHeader: View {
         .contextMenu {
             menuContent
         }
-        .alert("Remove Custom Path?", isPresented: $showingRemoveAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Remove", role: .destructive) {
+        .alert(Text("Remove Custom Path?", bundle: .module), isPresented: $showingRemoveAlert) {
+            Button(role: .cancel) {
+            } label: {
+                Text("Cancel", bundle: .module)
+            }
+            Button(role: .destructive) {
                 Task {
                     try? await store.removeCustomPath(customPath)
                     await store.loadSkills()
                 }
+            } label: {
+                Text("Remove", bundle: .module)
             }
         } message: {
-            Text("This will remove \"\(customPath.displayName)\" from the sidebar. The skills will not be deleted from disk.")
+            Text("This will remove \"\(customPath.displayName)\" from the sidebar. The skills will not be deleted from disk.", bundle: .module)
         }
     }
 
@@ -49,13 +54,21 @@ struct CustomPathSectionHeader: View {
         Button {
             NSWorkspace.shared.open(customPath.url)
         } label: {
-            Label("Open in Finder", systemImage: "folder")
+            Label {
+                Text("Open in Finder", bundle: .module)
+            } icon: {
+                Image(systemName: "folder")
+            }
         }
         Divider()
         Button(role: .destructive) {
             showingRemoveAlert = true
         } label: {
-            Label("Remove Path", systemImage: "trash")
+            Label {
+                Text("Remove Path", bundle: .module)
+            } icon: {
+                Image(systemName: "trash")
+            }
         }
     }
 }

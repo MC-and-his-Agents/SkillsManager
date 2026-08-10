@@ -35,7 +35,7 @@ struct SkillListEmptyRow: View {
                 .font(.title2)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            Text(title)
+            Text(localized(title))
                 .font(.headline)
                 .multilineTextAlignment(.center)
             if let message {
@@ -45,16 +45,22 @@ struct SkillListEmptyRow: View {
                     .multilineTextAlignment(.center)
             }
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
+                Button(localized(actionTitle), action: action)
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .padding(.top, 2)
-                    .accessibilityLabel(actionAccessibilityLabel ?? actionTitle)
+                    .accessibilityLabel(localized(actionAccessibilityLabel ?? actionTitle))
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
         .accessibilityElement(children: action == nil ? .combine : .contain)
-        .accessibilityLabel([title, message].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityLabel(
+            [localized(title), message].compactMap { $0 }.joined(separator: ", ")
+        )
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

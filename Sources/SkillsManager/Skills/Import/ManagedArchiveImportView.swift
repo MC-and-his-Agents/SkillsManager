@@ -31,11 +31,11 @@ struct ManagedArchiveImportView: View {
     private var content: some View {
         switch model.state {
         case .idle:
-            ContentUnavailableView("Choose a ZIP archive", systemImage: "archivebox")
+            ContentUnavailableView(localized("Choose a ZIP archive"), systemImage: "archivebox")
         case .selecting:
             selection
         case .preparing:
-            ProgressView("Preparing previews…")
+            ProgressView(localized("Preparing previews…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
             preview
@@ -49,14 +49,22 @@ struct ManagedArchiveImportView: View {
     private var selection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Button("Select safe") { model.selectAllSafe() }
+                Button {
+                    model.selectAllSafe()
+                } label: {
+                    Text("Select safe", bundle: .module)
+                }
                     .disabled(model.availableCandidateCount == 0)
                     .accessibilityIdentifier("archive.select-safe")
-                Button("Clear") { model.clearSelection() }
+                Button {
+                    model.clearSelection()
+                } label: {
+                    Text("Clear", bundle: .module)
+                }
                     .disabled(model.selectedCount == 0)
                     .accessibilityIdentifier("archive.clear-selection")
                 Spacer()
-                Text("\(model.selectedCount) selected")
+                Text("\(model.selectedCount) selected", bundle: .module)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -67,8 +75,10 @@ struct ManagedArchiveImportView: View {
             .frame(minHeight: 260)
             HStack {
                 Spacer()
-                Button("Review selected…") {
+                Button {
                     onPrepare(requestedScope)
+                } label: {
+                    Text("Review selected…", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canPrepare || !scopeIsValid)
@@ -94,7 +104,7 @@ struct ManagedArchiveImportView: View {
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                     if let slug = candidate.slug {
-                        Text("Slug: \(slug.value)")
+                        Text("Slug: \(slug.value)", bundle: .module)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -116,10 +126,14 @@ struct ManagedArchiveImportView: View {
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(
-                "Nothing has been written. Confirm once to import the selected Skills in order.",
-                systemImage: "eye"
-            )
+            Label {
+                Text(
+                    "Nothing has been written. Confirm once to import the selected Skills in order.",
+                    bundle: .module
+                )
+            } icon: {
+                Image(systemName: "eye")
+            }
             .foregroundStyle(.secondary)
             List(model.previewItems) { item in
                 VStack(alignment: .leading, spacing: 3) {
@@ -128,28 +142,36 @@ struct ManagedArchiveImportView: View {
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                     if let slug = item.preview?.distributionSlug {
-                        Text("Slug: \(slug.value)")
+                        Text("Slug: \(slug.value)", bundle: .module)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     if let reason = item.reason {
-                        Label(reason, systemImage: "xmark.circle")
+                        Label {
+                            Text(verbatim: reason)
+                        } icon: {
+                            Image(systemName: "xmark.circle")
+                        }
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
                     if let preview = item.preview,
                        preview.plan.status == .blocked {
-                        Label(
-                            "Distribution is blocked. This Skill will be added without enabling.",
-                            systemImage: "exclamationmark.triangle"
-                        )
+                        Label {
+                            Text(
+                                "Distribution is blocked. This Skill will be added without enabling.",
+                                bundle: .module
+                            )
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle")
+                        }
                         .font(.caption)
                         .foregroundStyle(.orange)
                         ForEach(
                             Array(preview.plan.conflicts.enumerated()),
                             id: \.offset
                         ) { _, conflict in
-                            Text("\(conflict.reason.displayName): \(conflict.canonicalLocator)")
+                            Text("\(conflict.reason.displayName): \(conflict.canonicalLocator)", bundle: .module)
                                 .font(.caption.monospaced())
                                 .textSelection(.enabled)
                         }
@@ -161,14 +183,21 @@ struct ManagedArchiveImportView: View {
             .listStyle(.inset)
             .frame(minHeight: 260)
             HStack {
-                Button("Back") { model.cancelPreview() }
+                Button {
+                    model.cancelPreview()
+                } label: {
+                    Text("Back", bundle: .module)
+                }
                 Spacer()
-                Button(
-                    model.hasBlockedDistribution
-                        ? "Add selected to library"
-                        : "Import selected"
-                ) {
+                Button {
                     onConfirm()
+                } label: {
+                    Text(
+                        model.hasBlockedDistribution
+                            ? "Add selected to library"
+                            : "Import selected",
+                        bundle: .module
+                    )
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canConfirm)
@@ -179,7 +208,7 @@ struct ManagedArchiveImportView: View {
 
     private var execution: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ProgressView("Importing selected Skills…")
+            ProgressView(localized("Importing selected Skills…"))
             List(model.resultItems) { result in
                 resultRow(result)
             }
@@ -244,5 +273,9 @@ struct ManagedArchiveImportView: View {
         case .updatedDistributionNeedsAttention, .updateIndeterminate:
             "Updated; status needs attention"
         }
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

@@ -1,0 +1,814 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%arg Skills</key>
+	<string>%arg Skills</string>
+	<key>%arg candidates available</key>
+	<string>%arg candidates available</string>
+	<key>%arg distribution</key>
+	<string>%arg distribution</string>
+	<key>%arg of %arg</key>
+	<string>%1$arg of %2$arg</string>
+	<key>%arg selected</key>
+	<string>%arg selected</string>
+	<key>%arg shown</key>
+	<string>%arg shown</string>
+	<key>%arg skill(s)</key>
+	<string>%arg skill(s)</string>
+	<key>%arg target%arg</key>
+	<string>%1$arg target%2$arg</string>
+	<key>%arg valid · %arg observed</key>
+	<string>%1$arg valid · %2$arg observed</string>
+	<key>%arg: %arg</key>
+	<string>%1$arg: %2$arg</string>
+	<key>+%arg verified alias locations</key>
+	<string>+%arg verified alias locations</string>
+	<key>1 Agent</key>
+	<string>1 Agent</string>
+	<key>About Skills Manager</key>
+	<string>About Skills Manager</string>
+	<key>Action</key>
+	<string>Action</string>
+	<key>Action for %arg</key>
+	<string>Action for %arg</string>
+	<key>Actions</key>
+	<string>Actions</string>
+	<key>Active filters: %arg</key>
+	<string>Active filters: %arg</string>
+	<key>Add</key>
+	<string>Add</string>
+	<key>Add %arg to the managed library or safely update it.</key>
+	<string>Add %arg to the managed library or safely update it.</string>
+	<key>Add Custom Path...</key>
+	<string>Add Custom Path...</string>
+	<key>Add Custom Skill Path</key>
+	<string>Add Custom Skill Path</string>
+	<key>Add Repository</key>
+	<string>Add Repository</string>
+	<key>Add a public repository to discover its Skills.</key>
+	<string>Add a public repository to discover its Skills.</string>
+	<key>Affected items</key>
+	<string>Affected items</string>
+	<key>Agent bindings</key>
+	<string>Agent bindings</string>
+	<key>Agent selection has unapplied changes</key>
+	<string>Agent selection has unapplied changes</string>
+	<key>Agent selection has unapplied changes.</key>
+	<string>Agent selection has unapplied changes.</string>
+	<key>Agent: %arg</key>
+	<string>Agent: %arg</string>
+	<key>Agents</key>
+	<string>Agents</string>
+	<key>All</key>
+	<string>All</string>
+	<key>All Agents</key>
+	<string>All Agents</string>
+	<key>All Skills</key>
+	<string>All Skills</string>
+	<key>All Sources</key>
+	<string>All Sources</string>
+	<key>All Statuses</key>
+	<string>All Statuses</string>
+	<key>All skills will be added automatically.</key>
+	<string>All skills will be added automatically.</string>
+	<key>Also restore the original Agent targets</key>
+	<string>Also restore the original Agent targets</string>
+	<key>Apply</key>
+	<string>Apply</string>
+	<key>Applying changes…</key>
+	<string>Applying changes…</string>
+	<key>Applying this selection will replace the global target with Agent-specific targets.</key>
+	<string>Applying this selection will replace the global target with Agent-specific targets.</string>
+	<key>Audit summary</key>
+	<string>Audit summary</string>
+	<key>Available</key>
+	<string>Available</string>
+	<key>Available action</key>
+	<string>Available action</string>
+	<key>Back</key>
+	<string>Back</string>
+	<key>Backs up the Skill, removes managed Agent links, and deletes the managed Skill.</key>
+	<string>Backs up the Skill, removes managed Agent links, and deletes the managed Skill.</string>
+	<key>Backup</key>
+	<string>Backup</string>
+	<key>Backups</key>
+	<string>Backups</string>
+	<key>Backups unavailable</key>
+	<string>Backups unavailable</string>
+	<key>Based on %arg</key>
+	<string>Based on %arg</string>
+	<key>Batch Import</key>
+	<string>Batch Import</string>
+	<key>Batch Import discovered Skills</key>
+	<string>Batch Import discovered Skills</string>
+	<key>Batch Updates</key>
+	<string>Batch Updates</string>
+	<key>Batch update summary: %arg</key>
+	<string>Batch update summary: %arg</string>
+	<key>Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.</key>
+	<string>Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.</string>
+	<key>Built for Codex and your other agents to manage and inspect skills on your Mac.</key>
+	<string>Built for Codex and your other agents to manage and inspect skills on your Mac.</string>
+	<key>Cancel</key>
+	<string>Cancel</string>
+	<key>Cancel this update</key>
+	<string>Cancel this update</string>
+	<key>Candidate source</key>
+	<string>Candidate source</string>
+	<key>Change preview</key>
+	<string>Change preview</string>
+	<key>Changelog</key>
+	<string>Changelog</string>
+	<key>Changes cannot be applied</key>
+	<string>Changes cannot be applied</string>
+	<key>Check All</key>
+	<string>Check All</string>
+	<key>Check again</key>
+	<string>Check again</string>
+	<key>Check for Updates</key>
+	<string>Check for Updates</string>
+	<key>Check for Updates…</key>
+	<string>Check for Updates…</string>
+	<key>Check managed Skills, review every conflict, then update selected items.</key>
+	<string>Check managed Skills, review every conflict, then update selected items.</string>
+	<key>Check now</key>
+	<string>Check now</string>
+	<key>Checking ClawHub status…</key>
+	<string>Checking ClawHub status…</string>
+	<key>Checking for updates</key>
+	<string>Checking for updates</string>
+	<key>Choose Folder...</key>
+	<string>Choose Folder...</string>
+	<key>Choose a Skill folder or zip, then add it to the managed library.</key>
+	<string>Choose a Skill folder or zip, then add it to the managed library.</string>
+	<key>Choose a ZIP archive</key>
+	<string>Choose a ZIP archive</string>
+	<key>Choose a folder containing platform skill directories</key>
+	<string>Choose a folder containing platform skill directories</string>
+	<key>Choose a skills.sh result.</key>
+	<string>Choose a skills.sh result.</string>
+	<key>Choose an action</key>
+	<string>Choose an action</string>
+	<key>Choose…</key>
+	<string>Choose…</string>
+	<key>Claude Code</key>
+	<string>Claude Code</string>
+	<key>ClawHub</key>
+	<string>ClawHub</string>
+	<key>ClawHub Latest Drops</key>
+	<string>ClawHub Latest Drops</string>
+	<key>ClawHub unavailable</key>
+	<string>ClawHub unavailable</string>
+	<key>ClawHub unavailable — cached content may be out of date.</key>
+	<string>ClawHub unavailable — cached content may be out of date.</string>
+	<key>Clear</key>
+	<string>Clear</string>
+	<key>Clear the filter to restore the complete audit.</key>
+	<string>Clear the filter to restore the complete audit.</string>
+	<key>Clear the filter to restore the complete batch.</key>
+	<string>Clear the filter to restore the complete batch.</string>
+	<key>Close</key>
+	<string>Close</string>
+	<key>Codex</key>
+	<string>Codex</string>
+	<key>Compatible Agents share one managed link in %arg.</key>
+	<string>Compatible Agents share one managed link in %arg.</string>
+	<key>Confirm</key>
+	<string>Confirm</string>
+	<key>Confirm update</key>
+	<string>Confirm update</string>
+	<key>Consistency Audit</key>
+	<string>Consistency Audit</string>
+	<key>Content</key>
+	<string>Content</string>
+	<key>Content fingerprint</key>
+	<string>Content fingerprint</string>
+	<key>Continues the interrupted deletion safely.</key>
+	<string>Continues the interrupted deletion safely.</string>
+	<key>Continues this journaled deletion operation.</key>
+	<string>Continues this journaled deletion operation.</string>
+	<key>Copy</key>
+	<string>Copy</string>
+	<key>Copy content is behind the managed Skill and needs to be synchronized.</key>
+	<string>Copy content is behind the managed Skill and needs to be synchronized.</string>
+	<key>Copy decision for %arg</key>
+	<string>Copy decision for %arg</string>
+	<key>Copy login command</key>
+	<string>Copy login command</string>
+	<key>Current Agent targets</key>
+	<string>Current Agent targets</string>
+	<key>Current source</key>
+	<string>Current source</string>
+	<key>Current targets</key>
+	<string>Current targets</string>
+	<key>Default branch</key>
+	<string>Default branch</string>
+	<key>Delete</key>
+	<string>Delete</string>
+	<key>Delete from Skills Manager?</key>
+	<string>Delete from Skills Manager?</string>
+	<key>Delete from Skills Manager…</key>
+	<string>Delete from Skills Manager…</string>
+	<key>Deleting a managed Skill creates a verified backup here.</key>
+	<string>Deleting a managed Skill creates a verified backup here.</string>
+	<key>Deletion operations</key>
+	<string>Deletion operations</string>
+	<key>Discard local changes</key>
+	<string>Discard local changes</string>
+	<key>Discover Skills from public GitHub repositories.</key>
+	<string>Discover Skills from public GitHub repositories.</string>
+	<key>Discovered Skills</key>
+	<string>Discovered Skills</string>
+	<key>Discovery</key>
+	<string>Discovery</string>
+	<key>Discovery evidence</key>
+	<string>Discovery evidence</string>
+	<key>Discovery failed</key>
+	<string>Discovery failed</string>
+	<key>Discovery unavailable</key>
+	<string>Discovery unavailable</string>
+	<key>Distribution</key>
+	<string>Distribution</string>
+	<key>Distribution is blocked. This Skill will be added without enabling.</key>
+	<string>Distribution is blocked. This Skill will be added without enabling.</string>
+	<key>Distribution mode</key>
+	<string>Distribution mode</string>
+	<key>Distribution preview</key>
+	<string>Distribution preview</string>
+	<key>Distribution scope</key>
+	<string>Distribution scope</string>
+	<key>Distribution status: %arg</key>
+	<string>Distribution status: %arg</string>
+	<key>Done</key>
+	<string>Done</string>
+	<key>Downloading and validating…</key>
+	<string>Downloading and validating…</string>
+	<key>Enable for</key>
+	<string>Enable for</string>
+	<key>Every visible result is unavailable. Fix the folders below, then refresh.</key>
+	<string>Every visible result is unavailable. Fix the folders below, then refresh.</string>
+	<key>Explicitly selects this conflict for an independent import.</key>
+	<string>Explicitly selects this conflict for an independent import.</string>
+	<key>Failed</key>
+	<string>Failed</string>
+	<key>Files</key>
+	<string>Files</string>
+	<key>Filter audit findings</key>
+	<string>Filter audit findings</string>
+	<key>Filter batch updates</key>
+	<string>Filter batch updates</string>
+	<key>Findings</key>
+	<string>Findings</string>
+	<key>Full Settings…</key>
+	<string>Full Settings…</string>
+	<key>GitHub</key>
+	<string>GitHub</string>
+	<key>GitHub Copilot</key>
+	<string>GitHub Copilot</string>
+	<key>GitHub Repositories</key>
+	<string>GitHub Repositories</string>
+	<key>GitHub Repository...</key>
+	<string>GitHub Repository...</string>
+	<key>GitHub repository URL</key>
+	<string>GitHub repository URL</string>
+	<key>Hide filters</key>
+	<string>Hide filters</string>
+	<key>If a target conflicts, the Skill remains restored without Agent links.</key>
+	<string>If a target conflicts, the Skill remains restored without Agent links.</string>
+	<key>Impact</key>
+	<string>Impact</string>
+	<key>Import Skill</key>
+	<string>Import Skill</string>
+	<key>Import Skill...</key>
+	<string>Import Skill...</string>
+	<key>Import as new</key>
+	<string>Import as new</string>
+	<key>Import selected</key>
+	<string>Import selected</string>
+	<key>Importing selected Skills…</key>
+	<string>Importing selected Skills…</string>
+	<key>Independent local Fork</key>
+	<string>Independent local Fork</string>
+	<key>Install</key>
+	<string>Install</string>
+	<key>Install Bun</key>
+	<string>Install Bun</string>
+	<key>Install Bun to run the ClawHub CLI.</key>
+	<string>Install Bun to run the ClawHub CLI.</string>
+	<key>Install or Update Skill</key>
+	<string>Install or Update Skill</string>
+	<key>Install this ClawHub Skill</key>
+	<string>Install this ClawHub Skill</string>
+	<key>Installation unavailable</key>
+	<string>Installation unavailable</string>
+	<key>Installed version %arg</key>
+	<string>Installed version %arg</string>
+	<key>Invalid search</key>
+	<string>Invalid search</string>
+	<key>Keep as independent Fork</key>
+	<string>Keep as independent Fork</string>
+	<key>Keep changes as a Fork</key>
+	<string>Keep changes as a Fork</string>
+	<key>Kept for this session. Refreshing will show the finding again.</key>
+	<string>Kept for this session. Refreshing will show the finding again.</string>
+	<key>Latest version %arg</key>
+	<string>Latest version %arg</string>
+	<key>Load More</key>
+	<string>Load More</string>
+	<key>Loading </key>
+	<string>Loading </string>
+	<key>Loading %arg...</key>
+	<string>Loading %arg...</string>
+	<key>Loading SKILL.md…</key>
+	<string>Loading SKILL.md…</string>
+	<key>Loading and validating backups…</key>
+	<string>Loading and validating backups…</string>
+	<key>Loading distribution state…</key>
+	<string>Loading distribution state…</string>
+	<key>Loading latest ClawHub Skills</key>
+	<string>Loading latest ClawHub Skills</string>
+	<key>Loading more ClawHub results</key>
+	<string>Loading more ClawHub results</string>
+	<key>Loading more latest Skills</key>
+	<string>Loading more latest Skills</string>
+	<key>Loading more skills.sh results</key>
+	<string>Loading more skills.sh results</string>
+	<key>Loading reference…</key>
+	<string>Loading reference…</string>
+	<key>Loading the last update check…</key>
+	<string>Loading the last update check…</string>
+	<key>Loads more ClawHub results</key>
+	<string>Loads more ClawHub results</string>
+	<key>Loads more skills.sh results</key>
+	<string>Loads more skills.sh results</string>
+	<key>Local</key>
+	<string>Local</string>
+	<key>Local Copy</key>
+	<string>Local Copy</string>
+	<key>Local changes at %arg</key>
+	<string>Local changes at %arg</string>
+	<key>Local locations</key>
+	<string>Local locations</string>
+	<key>Location</key>
+	<string>Location</string>
+	<key>Maintained by MC and his Agents. Originally created by @Dimillian.</key>
+	<string>Maintained by MC and his Agents. Originally created by @Dimillian.</string>
+	<key>Manage Skill</key>
+	<string>Manage Skill</string>
+	<key>Managed</key>
+	<string>Managed</string>
+	<key>Managed Agent target %arg</key>
+	<string>Managed Agent target %arg</string>
+	<key>Managed Skill status: %arg</key>
+	<string>Managed Skill status: %arg</string>
+	<key>Managed Skills</key>
+	<string>Managed Skills</string>
+	<key>Managed result</key>
+	<string>Managed result</string>
+	<key>Management</key>
+	<string>Management</string>
+	<key>Matched Skill ID</key>
+	<string>Matched Skill ID</string>
+	<key>Missing SKILL.md</key>
+	<string>Missing SKILL.md</string>
+	<key>Missing reference</key>
+	<string>Missing reference</string>
+	<key>Mode</key>
+	<string>Mode</string>
+	<key>Needs Import</key>
+	<string>Needs Import</string>
+	<key>Needs Repair</key>
+	<string>Needs Repair</string>
+	<key>No ClawHub results.</key>
+	<string>No ClawHub results.</string>
+	<key>No Discovery candidates</key>
+	<string>No Discovery candidates</string>
+	<key>No GitHub repositories</key>
+	<string>No GitHub repositories</string>
+	<key>No GitHub repositories registered.</key>
+	<string>No GitHub repositories registered.</string>
+	<key>No SKILL.md found in this skill folder.</key>
+	<string>No SKILL.md found in this skill folder.</string>
+	<key>No Skills</key>
+	<string>No Skills</string>
+	<key>No Skills found</key>
+	<string>No Skills found</string>
+	<key>No Skills found in the registered repositories.</key>
+	<string>No Skills found in the registered repositories.</string>
+	<key>No Skills match the current filters.</key>
+	<string>No Skills match the current filters.</string>
+	<key>No backups</key>
+	<string>No backups</string>
+	<key>No distribution changes are needed.</key>
+	<string>No distribution changes are needed.</string>
+	<key>No distribution file changes are needed.</key>
+	<string>No distribution file changes are needed.</string>
+	<key>No latest Skills available.</key>
+	<string>No latest Skills available.</string>
+	<key>No local matches</key>
+	<string>No local matches</string>
+	<key>No managed Skills are available.</key>
+	<string>No managed Skills are available.</string>
+	<key>No matching Skills</key>
+	<string>No matching Skills</string>
+	<key>No matching findings</key>
+	<string>No matching findings</string>
+	<key>No more unique results.</key>
+	<string>No more unique results.</string>
+	<key>No skills.sh results.</key>
+	<string>No skills.sh results.</string>
+	<key>No usable discovery result</key>
+	<string>No usable discovery result</string>
+	<key>None will be created</key>
+	<string>None will be created</string>
+	<key>Not enabled for any Agent.</key>
+	<string>Not enabled for any Agent.</string>
+	<key>Not refreshed</key>
+	<string>Not refreshed</string>
+	<key>Not selected</key>
+	<string>Not selected</string>
+	<key>Not yet published on ClawHub.</key>
+	<string>Not yet published on ClawHub.</string>
+	<key>Nothing has been written. Confirm once to begin the ordered import.</key>
+	<string>Nothing has been written. Confirm once to begin the ordered import.</string>
+	<key>Nothing has been written. Confirm once to import the selected Skills in order.</key>
+	<string>Nothing has been written. Confirm once to import the selected Skills in order.</string>
+	<key>OK</key>
+	<string>OK</string>
+	<key>Observed directories</key>
+	<string>Observed directories</string>
+	<key>On This Mac</key>
+	<string>On This Mac</string>
+	<key>Open Skill Backups</key>
+	<string>Open Skill Backups</string>
+	<key>Open consistency audit</key>
+	<string>Open consistency audit</string>
+	<key>Open in Finder</key>
+	<string>Open in Finder</string>
+	<key>Open on ClawHub</key>
+	<string>Open on ClawHub</string>
+	<key>OpenCode</key>
+	<string>OpenCode</string>
+	<key>Opens a confirmation preview. No files are changed yet.</key>
+	<string>Opens a confirmation preview. No files are changed yet.</string>
+	<key>Opens a confirmation showing the backup, Agent links, and managed content that will be removed.</key>
+	<string>Opens a confirmation showing the backup, Agent links, and managed content that will be removed.</string>
+	<key>Opens a verified restore preview.</key>
+	<string>Opens a verified restore preview.</string>
+	<key>Opens the Skill folder in Finder</key>
+	<string>Opens the Skill folder in Finder</string>
+	<key>Opens the installation review. Nothing is written until you confirm.</key>
+	<string>Opens the installation review. Nothing is written until you confirm.</string>
+	<key>Optional Git branch, tag, or commit reference</key>
+	<string>Optional Git branch, tag, or commit reference</string>
+	<key>Original Project</key>
+	<string>Original Project</string>
+	<key>Original Skill ID</key>
+	<string>Original Skill ID</string>
+	<key>Original folder</key>
+	<string>Original folder</string>
+	<key>Pick a folder or zip</key>
+	<string>Pick a folder or zip</string>
+	<key>Pick a skill from ClawHub.</key>
+	<string>Pick a skill from ClawHub.</string>
+	<key>Pick a skill from the list.</key>
+	<string>Pick a skill from the list.</string>
+	<key>Preparing import preview…</key>
+	<string>Preparing import preview…</string>
+	<key>Preparing previews…</key>
+	<string>Preparing previews…</string>
+	<key>Preparing preview…</key>
+	<string>Preparing preview…</string>
+	<key>Preparing restore preview</key>
+	<string>Preparing restore preview</string>
+	<key>Preserves the local content as a separately managed Skill.</key>
+	<string>Preserves the local content as a separately managed Skill.</string>
+	<key>Preview changes</key>
+	<string>Preview changes</string>
+	<key>Preview selected</key>
+	<string>Preview selected</string>
+	<key>Preview the change before anything is written to the managed library.</key>
+	<string>Preview the change before anything is written to the managed library.</string>
+	<key>Previews removal of managed distribution targets. The managed Skill is retained.</key>
+	<string>Previews removal of managed distribution targets. The managed Skill is retained.</string>
+	<key>Publish Skill</key>
+	<string>Publish Skill</string>
+	<key>Publish result</key>
+	<string>Publish result</string>
+	<key>Push changes for %arg to ClawHub.</key>
+	<string>Push changes for %arg to ClawHub.</string>
+	<key>Reason</key>
+	<string>Reason</string>
+	<key>Recheck %arg</key>
+	<string>Recheck %arg</string>
+	<key>Ref</key>
+	<string>Ref</string>
+	<key>References</key>
+	<string>References</string>
+	<key>Refresh %arg</key>
+	<string>Refresh %arg</string>
+	<key>Refresh All</key>
+	<string>Refresh All</string>
+	<key>Refresh Discovery before opening Batch Import.</key>
+	<string>Refresh Discovery before opening Batch Import.</string>
+	<key>Refresh Skills</key>
+	<string>Refresh Skills</string>
+	<key>Refresh audit</key>
+	<string>Refresh audit</string>
+	<key>Refresh backups</key>
+	<string>Refresh backups</string>
+	<key>Refresh consistency audit</key>
+	<string>Refresh consistency audit</string>
+	<key>Refresh discovery or import a Skill to get started.</key>
+	<string>Refresh discovery or import a Skill to get started.</string>
+	<key>Refresh distribution</key>
+	<string>Refresh distribution</string>
+	<key>Refresh managed Skill</key>
+	<string>Refresh managed Skill</string>
+	<key>Refresh repository</key>
+	<string>Refresh repository</string>
+	<key>Refreshing</key>
+	<string>Refreshing</string>
+	<key>Refreshing GitHub repositories</key>
+	<string>Refreshing GitHub repositories</string>
+	<key>Refreshing library…</key>
+	<string>Refreshing library…</string>
+	<key>Refreshing local Skills</key>
+	<string>Refreshing local Skills</string>
+	<key>Releases</key>
+	<string>Releases</string>
+	<key>Remains unchanged</key>
+	<string>Remains unchanged</string>
+	<key>Remove</key>
+	<string>Remove</string>
+	<key>Remove %arg</key>
+	<string>Remove %arg</string>
+	<key>Remove Custom Path?</key>
+	<string>Remove Custom Path?</string>
+	<key>Remove Path</key>
+	<string>Remove Path</string>
+	<key>Remove Repository</key>
+	<string>Remove Repository</string>
+	<key>Remove from all Agents…</key>
+	<string>Remove from all Agents…</string>
+	<key>Remove repository</key>
+	<string>Remove repository</string>
+	<key>Remove this discovery source?</key>
+	<string>Remove this discovery source?</string>
+	<key>Replaces this Copy with the current managed Skill.</key>
+	<string>Replaces this Copy with the current managed Skill.</string>
+	<key>Repo</key>
+	<string>Repo</string>
+	<key>Repositories</key>
+	<string>Repositories</string>
+	<key>Repository</key>
+	<string>Repository</string>
+	<key>Resolve and Install %arg</key>
+	<string>Resolve and Install %arg</string>
+	<key>Resolve and Install…</key>
+	<string>Resolve and Install…</string>
+	<key>Resolve and Review…</key>
+	<string>Resolve and Review…</string>
+	<key>Resolving and validating GitHub source…</key>
+	<string>Resolving and validating GitHub source…</string>
+	<key>Restore</key>
+	<string>Restore</string>
+	<key>Restore Skill</key>
+	<string>Restore Skill</string>
+	<key>Restore mode</key>
+	<string>Restore mode</string>
+	<key>Restored Skill ID</key>
+	<string>Restored Skill ID</string>
+	<key>Restore…</key>
+	<string>Restore…</string>
+	<key>Restoring verified Skill backup</key>
+	<string>Restoring verified Skill backup</string>
+	<key>Restoring verified backup…</key>
+	<string>Restoring verified backup…</string>
+	<key>Result</key>
+	<string>Result</string>
+	<key>Result: %arg</key>
+	<string>Result: %arg</string>
+	<key>Retry</key>
+	<string>Retry</string>
+	<key>Retry ClawHub latest Skills</key>
+	<string>Retry ClawHub latest Skills</string>
+	<key>Retry ClawHub latest page</key>
+	<string>Retry ClawHub latest page</string>
+	<key>Retry ClawHub search</key>
+	<string>Retry ClawHub search</string>
+	<key>Retry ClawHub search page</key>
+	<string>Retry ClawHub search page</string>
+	<key>Retry deletion</key>
+	<string>Retry deletion</string>
+	<key>Retry loading this Skill from ClawHub</key>
+	<string>Retry loading this Skill from ClawHub</string>
+	<key>Review Import…</key>
+	<string>Review Import…</string>
+	<key>Review Update</key>
+	<string>Review Update</string>
+	<key>Review and Install…</key>
+	<string>Review and Install…</string>
+	<key>Review discovered local Skills, then import them in a safe, stable order.</key>
+	<string>Review discovered local Skills, then import them in a safe, stable order.</string>
+	<key>Review every target before applying changes.</key>
+	<string>Review every target before applying changes.</string>
+	<key>Review its status, evidence, and available actions.</key>
+	<string>Review its status, evidence, and available actions.</string>
+	<key>Review selected…</key>
+	<string>Review selected…</string>
+	<key>Review update</key>
+	<string>Review update</string>
+	<key>Reviews the remote update before anything is written.</key>
+	<string>Reviews the remote update before anything is written.</string>
+	<key>Review…</key>
+	<string>Review…</string>
+	<key>Run bunx clawdhub@latest login in Terminal, then check again.</key>
+	<string>Run bunx clawdhub@latest login in Terminal, then check again.</string>
+	<key>Saved in Skill Backups</key>
+	<string>Saved in Skill Backups</string>
+	<key>Scan Issues</key>
+	<string>Scan Issues</string>
+	<key>Scan scope (%arg roots)</key>
+	<string>Scan scope (%arg roots)</string>
+	<key>Scanning for skills...</key>
+	<string>Scanning for skills...</string>
+	<key>Scanning registered folders</key>
+	<string>Scanning registered folders</string>
+	<key>Scanning registered folders…</key>
+	<string>Scanning registered folders…</string>
+	<key>Scope</key>
+	<string>Scope</string>
+	<key>Scrolls to the complete distribution editor</key>
+	<string>Scrolls to the complete distribution editor</string>
+	<key>Search Skills</key>
+	<string>Search Skills</string>
+	<key>Searching ClawHub</key>
+	<string>Searching ClawHub</string>
+	<key>Searching skills.sh</key>
+	<string>Searching skills.sh</string>
+	<key>Select %arg</key>
+	<string>Select %arg</string>
+	<key>Select Ready</key>
+	<string>Select Ready</string>
+	<key>Select a discovered Skill</key>
+	<string>Select a discovered Skill</string>
+	<key>Select a project folder</key>
+	<string>Select a project folder</string>
+	<key>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</key>
+	<string>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</string>
+	<key>Select a skill</key>
+	<string>Select a skill</string>
+	<key>Select at least one Agent.</key>
+	<string>Select at least one Agent.</string>
+	<key>Select safe</key>
+	<string>Select safe</string>
+	<key>Selected</key>
+	<string>Selected</string>
+	<key>Show filters</key>
+	<string>Show filters</string>
+	<key>Show in Finder</key>
+	<string>Show in Finder</string>
+	<key>Shows planned distribution changes before anything is written.</key>
+	<string>Shows planned distribution changes before anything is written.</string>
+	<key>Signed in as %arg</key>
+	<string>Signed in as %arg</string>
+	<key>Size</key>
+	<string>Size</string>
+	<key>Skill %arg</key>
+	<string>Skill %arg</string>
+	<key>Skill Backups</key>
+	<string>Skill Backups</string>
+	<key>Skill Backups, %arg available</key>
+	<string>Skill Backups, %arg available</string>
+	<key>Skill unavailable</key>
+	<string>Skill unavailable</string>
+	<key>Skills</key>
+	<string>Skills</string>
+	<key>Skills Manager</key>
+	<string>Skills Manager</string>
+	<key>Skills Manager will %arg</key>
+	<string>Skills Manager will %arg</string>
+	<key>Slug</key>
+	<string>Slug</string>
+	<key>Slug: %arg</key>
+	<string>Slug: %arg</string>
+	<key>Source</key>
+	<string>Source</string>
+	<key>Source %arg</key>
+	<string>Source %arg</string>
+	<key>Source: %arg</key>
+	<string>Source: %arg</string>
+	<key>Status</key>
+	<string>Status</string>
+	<key>Status: %arg</key>
+	<string>Status: %arg</string>
+	<key>Stop after the current Skill</key>
+	<string>Stop after the current Skill</string>
+	<key>Symlink</key>
+	<string>Symlink</string>
+	<key>Target</key>
+	<string>Target</string>
+	<key>Target Skill ID</key>
+	<string>Target Skill ID</string>
+	<key>Target: %arg</key>
+	<string>Target: %arg</string>
+	<key>The current managed content will be backed up before it is replaced.</key>
+	<string>The current managed content will be backed up before it is replaced.</string>
+	<key>This Skill has not been checked yet.</key>
+	<string>This Skill has not been checked yet.</string>
+	<key>This Skill is already managed. Change its Agent access from the Skill details.</key>
+	<string>This Skill is already managed. Change its Agent access from the Skill details.</string>
+	<key>This backup did not have any Agent targets.</key>
+	<string>This backup did not have any Agent targets.</string>
+	<key>This is different from removing Agent links. It backs up the Skill, removes all managed Agent links, and deletes the managed Skill itself.</key>
+	<string>This is different from removing Agent links. It backs up the Skill, removes all managed Agent links, and deletes the managed Skill itself.</string>
+	<key>This managed Skill needs repair before it can be published.</key>
+	<string>This managed Skill needs repair before it can be published.</string>
+	<key>This reference file could not be found.</key>
+	<string>This reference file could not be found.</string>
+	<key>This removes only managed distribution targets. The Skill remains in the managed library.</key>
+	<string>This removes only managed distribution targets. The Skill remains in the managed library.</string>
+	<key>This removes only the discovery source. Installed Skills are not deleted.</key>
+	<string>This removes only the discovery source. Installed Skills are not deleted.</string>
+	<key>This will remove "%arg" from the sidebar. The skills will not be deleted from disk.</key>
+	<string>This will remove "%arg" from the sidebar. The skills will not be deleted from disk.</string>
+	<key>Try again without affecting your local Skills.</key>
+	<string>Try again without affecting your local Skills.</string>
+	<key>Unable to import</key>
+	<string>Unable to import</string>
+	<key>Unable to load</key>
+	<string>Unable to load</string>
+	<key>Unable to load reference</key>
+	<string>Unable to load reference</string>
+	<key>Unable to publish this skill.</key>
+	<string>Unable to publish this skill.</string>
+	<key>Unavailable Locations</key>
+	<string>Unavailable Locations</string>
+	<key>Unavailable scan location</key>
+	<string>Unavailable scan location</string>
+	<key>Update %arg</key>
+	<string>Update %arg</string>
+	<key>Update Selected</key>
+	<string>Update Selected</string>
+	<key>Update available</key>
+	<string>Update available</string>
+	<key>Update available, version %arg</key>
+	<string>Update available, version %arg</string>
+	<key>Update available: v%arg</key>
+	<string>Update available: v%arg</string>
+	<key>Update check</key>
+	<string>Update check</string>
+	<key>Update result: %arg</key>
+	<string>Update result: %arg</string>
+	<key>Update status: %arg</key>
+	<string>Update status: %arg</string>
+	<key>Update the managed SSOT while keeping its Skill identity and current Agent access.</key>
+	<string>Update the managed SSOT while keeping its Skill identity and current Agent access.</string>
+	<key>Updating Skill</key>
+	<string>Updating Skill</string>
+	<key>Uses an Agent-specific target</key>
+	<string>Uses an Agent-specific target</string>
+	<key>Validating…</key>
+	<string>Validating…</string>
+	<key>Verified backups remain available after a managed Skill is deleted.</key>
+	<string>Verified backups remain available after a managed Skill is deleted.</string>
+	<key>Verified discovery</key>
+	<string>Verified discovery</string>
+	<key>Verified manifest</key>
+	<string>Verified manifest</string>
+	<key>Verified source</key>
+	<string>Verified source</string>
+	<key>Verifies the immutable GitHub source before installation</key>
+	<string>Verifies the immutable GitHub source before installation</string>
+	<key>Verifies the public GitHub source before showing an install preview</key>
+	<string>Verifies the public GitHub source before showing an install preview</string>
+	<key>Verifying managed Skill…</key>
+	<string>Verifying managed Skill…</string>
+	<key>Verifying with a fresh audit…</key>
+	<string>Verifying with a fresh audit…</string>
+	<key>Verifying, backing up, updating, and refreshing distribution…</key>
+	<string>Verifying, backing up, updating, and refreshing distribution…</string>
+	<key>Version %arg (%arg)</key>
+	<string>Version %1$arg (%2$arg)</string>
+	<key>Version bump</key>
+	<string>Version bump</string>
+	<key>We’ll verify it contains a SKILL.md and show a preview.</key>
+	<string>We’ll verify it contains a SKILL.md and show a preview.</string>
+	<key>Will publish v%arg</key>
+	<string>Will publish v%arg</string>
+	<key>You’re up to date.</key>
+	<string>You’re up to date.</string>
+	<key>https://github.com/owner/repository</key>
+	<string>https://github.com/owner/repository</string>
+	<key>skills.sh</key>
+	<string>skills.sh</string>
+	<key>skills.sh unavailable</key>
+	<string>skills.sh unavailable</string>
+	<key>↻ v%arg</key>
+	<string>↻ v%arg</string>
+	<key>关于 Skills Manager</key>
+	<string>About Skills Manager</string>
+</dict>
+</plist>

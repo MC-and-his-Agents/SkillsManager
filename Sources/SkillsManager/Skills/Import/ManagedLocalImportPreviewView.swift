@@ -9,11 +9,15 @@ struct ManagedLocalImportPreviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(preview.disposition == .updateRequired ? "Review Update" : "Review Import")
+            Text(verbatim: localized(
+                preview.disposition == .updateRequired ? "Review Update" : "Review Import"
+            ))
                 .font(.title.bold())
-            Text(preview.disposition == .updateRequired
-                ? "The current managed content will be backed up before replacement."
-                : "The Skill will be added to the managed library before distribution.")
+            Text(verbatim: localized(
+                preview.disposition == .updateRequired
+                    ? "The current managed content will be backed up before replacement."
+                    : "The Skill will be added to the managed library before distribution."
+            ))
                 .foregroundStyle(.secondary)
 
             if let source = preview.source {
@@ -21,19 +25,31 @@ struct ManagedLocalImportPreviewView: View {
             }
 
             if preview.disposition == .alreadyManaged {
-                Label(
-                    "This Skill is already managed. Change its Agent access from the Skill details.",
-                    systemImage: "checkmark.circle"
-                )
+                Label {
+                    Text(
+                        "This Skill is already managed. Change its Agent access from the Skill details.",
+                        bundle: .module
+                    )
+                } icon: {
+                    Image(systemName: "checkmark.circle")
+                }
             } else if preview.disposition == .updateRequired {
-                Label(
-                    "Update the managed SSOT while keeping its Skill identity and current Agent access.",
-                    systemImage: "arrow.triangle.2.circlepath"
-                )
+                Label {
+                    Text(
+                        "Update the managed SSOT while keeping its Skill identity and current Agent access.",
+                        bundle: .module
+                    )
+                } icon: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                }
             } else if preview.plan.status == .blocked {
                 conflictList
             } else if preview.plan.filesystemActions.isEmpty {
-                Label("No distribution file changes are needed.", systemImage: "checkmark.circle")
+                Label {
+                    Text("No distribution file changes are needed.", bundle: .module)
+                } icon: {
+                    Image(systemName: "checkmark.circle")
+                }
             } else {
                 actionList
             }
@@ -60,7 +76,7 @@ struct ManagedLocalImportPreviewView: View {
         _ source: ManagedInstallSourcePreview,
         slug: DefaultDistributionSlug
     ) -> some View {
-        GroupBox("Verified source") {
+        GroupBox {
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                 sourceRow("Repository", source.repositoryURL.value)
                 sourceRow("Subpath", source.subpath.value)
@@ -73,6 +89,8 @@ struct ManagedLocalImportPreviewView: View {
                 )
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Text("Verified source", bundle: .module)
         }
     }
 
@@ -92,7 +110,11 @@ struct ManagedLocalImportPreviewView: View {
         List(preview.plan.filesystemActions, id: \.entry.canonicalLocator) { action in
             VStack(alignment: .leading, spacing: 3) {
                 let presentation = actionPresentation(action.kind)
-                Label(presentation.title, systemImage: presentation.systemImage)
+                Label {
+                    Text(verbatim: localized(presentation.title))
+                } icon: {
+                    Image(systemName: presentation.systemImage)
+                }
                 Text(action.entry.canonicalLocator)
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
@@ -103,9 +125,11 @@ struct ManagedLocalImportPreviewView: View {
 
     private var actions: some View {
         HStack {
-            Button(canConfirm ? "Cancel" : "Close") {
+            Button {
                 model.cancelPreview()
                 dismiss()
+            } label: {
+                Text(canConfirm ? "Cancel" : "Close", bundle: .module)
             }
             .keyboardShortcut(.cancelAction)
             .disabled(model.isExecuting)
@@ -119,29 +143,32 @@ struct ManagedLocalImportPreviewView: View {
                     if model.isExecuting {
                         ProgressView()
                     } else {
-                        Text(confirmTitle)
+                        Text(verbatim: localized(confirmTitle))
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(model.isExecuting)
                 .keyboardShortcut(.defaultAction)
-                .accessibilityLabel(
+                .accessibilityLabel(Text(verbatim: localized(
                     model.isExecuting ? "Updating managed Skill state" : confirmTitle
-                )
+                )))
             }
         }
     }
 
     private var conflictList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(
-                preview.allowsBlockedCreate
-                    ? "Distribution is blocked. The Skill can still be added to the managed library."
-                    : "Distribution is blocked. No Skill will be imported until this is resolved.",
-                systemImage: "exclamationmark.triangle"
-            )
+            Label {
+                Text(verbatim: localized(
+                    preview.allowsBlockedCreate
+                        ? "Distribution is blocked. The Skill can still be added to the managed library."
+                        : "Distribution is blocked. No Skill will be imported until this is resolved."
+                ))
+            } icon: {
+                Image(systemName: "exclamationmark.triangle")
+            }
             ForEach(Array(preview.plan.conflicts.enumerated()), id: \.offset) { _, conflict in
-                Text("\(conflict.reason.rawValue): \(conflict.canonicalLocator)")
+                Text("\(conflict.reason.rawValue): \(conflict.canonicalLocator)", bundle: .module)
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
             }
@@ -186,5 +213,9 @@ struct ManagedLocalImportPreviewView: View {
         case .replaceCopyWithSymlink:
             ("Replace copy with link", "link")
         }
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

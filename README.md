@@ -29,6 +29,10 @@ Skills Manager 是一款基于 SwiftPM 构建的 macOS SwiftUI 应用。它将�
 
 skills.sh 集成不可用时不会影响本地 Skill、ClawHub、GitHub 仓库或其他已管理功能。
 
+### 界面语言
+
+应用原生支持简体中文（`zh-Hans`）和英文（`en`）。简体中文是开发语言、默认语言和缺失翻译时的回退语言；Skill 内容、路径、Provider 数据、日志和持久化值保持原文不变。应用遵循 macOS 的 App 语言设置，不提供应用内语言切换器：在“系统设置 → 通用 → 语言与地区 → 应用程序”中为 Skills Manager 选择语言后重新打开应用即可。
+
 ### 环境要求
 
 - 运行环境：macOS 15 及以上

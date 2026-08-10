@@ -133,7 +133,11 @@ struct SkillSplitView: View {
         .toolbar(id: "main-toolbar") {
             toolbarContent()
         }
-        .searchable(text: $searchText, placement: .sidebar, prompt: "Search Skills")
+        .searchable(
+            text: $searchText,
+            placement: .sidebar,
+            prompt: Text("Search Skills", bundle: .module)
+        )
         .sheet(isPresented: $showingImport) {
             ImportSkillView().environment(store)
         }
@@ -212,7 +216,13 @@ struct SkillSplitView: View {
             if let candidate = customRepositoryModel.candidate(id: id) {
                 CustomRepositoryCandidateDetailView(candidate: candidate)
             } else {
-                ContentUnavailableView("Skill unavailable", systemImage: "shippingbox")
+                ContentUnavailableView {
+                    Label {
+                        Text("Skill unavailable", bundle: .module)
+                    } icon: {
+                        Image(systemName: "shippingbox")
+                    }
+                }
             }
         case .clawHub:
             RemoteSkillDetailView(
@@ -221,11 +231,15 @@ struct SkillSplitView: View {
         case .skillsSh:
             SkillsShSearchDetailView()
         case nil:
-            ContentUnavailableView(
-                "Select a skill",
-                systemImage: "sparkles",
-                description: Text("Pick a skill from the list.")
-            )
+            ContentUnavailableView {
+                Label {
+                    Text("Select a skill", bundle: .module)
+                } icon: {
+                    Image(systemName: "sparkles")
+                }
+            } description: {
+                Text("Pick a skill from the list.", bundle: .module)
+            }
         }
     }
 
@@ -248,11 +262,15 @@ struct SkillSplitView: View {
                 Button {
                     presentBatchImport()
                 } label: {
-                    Label("Batch Import", systemImage: "tray.and.arrow.down")
+                    Label {
+                        Text("Batch Import", bundle: .module)
+                    } icon: {
+                        Image(systemName: "tray.and.arrow.down")
+                    }
                 }
-                .help("Batch Import discovered Skills")
-                .accessibilityLabel("Batch Import discovered Skills")
-                .accessibilityValue("\(batchCandidateCount) candidates available")
+                .help(Text("Batch Import discovered Skills", bundle: .module))
+                .accessibilityLabel(Text("Batch Import discovered Skills", bundle: .module))
+                .accessibilityValue(Text("\(batchCandidateCount) candidates available", bundle: .module))
                 .accessibilityIdentifier("skills.batch-import")
             }
         }
@@ -262,11 +280,15 @@ struct SkillSplitView: View {
                 Button {
                     showingConsistency = true
                 } label: {
-                    Label("Consistency Audit", systemImage: "checkmark.shield")
+                    Label {
+                        Text("Consistency Audit", bundle: .module)
+                    } icon: {
+                        Image(systemName: "checkmark.shield")
+                    }
                 }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
-                .help("Consistency Audit")
-                .accessibilityLabel("Open consistency audit")
+                .help(Text("Consistency Audit", bundle: .module))
+                .accessibilityLabel(Text("Open consistency audit", bundle: .module))
             }
         }
 
@@ -276,23 +298,43 @@ struct SkillSplitView: View {
                     showingBackups = true
                     Task { await lifecycleModel.refreshBackupsOnly() }
                 } label: {
-                    Label("Skill Backups", systemImage: "archivebox")
+                    Label {
+                        Text("Skill Backups", bundle: .module)
+                    } icon: {
+                        Image(systemName: "archivebox")
+                    }
                 }
                 .disabled(lifecycleModel.isMutating)
-                .help("Skill Backups")
+                .help(Text("Skill Backups", bundle: .module))
                 .accessibilityLabel(backupAccessibilityLabel)
             }
         }
 
         ToolbarItem(id: "add") {
             Menu {
-                Button("Import Skill...") { showingImport = true }
-                Button("Add Custom Path...") { showingAddPath = true }
-                Button("GitHub Repository...") { showingRepositories = true }
+                Button {
+                    showingImport = true
+                } label: {
+                    Text("Import Skill...", bundle: .module)
+                }
+                Button {
+                    showingAddPath = true
+                } label: {
+                    Text("Add Custom Path...", bundle: .module)
+                }
+                Button {
+                    showingRepositories = true
+                } label: {
+                    Text("GitHub Repository...", bundle: .module)
+                }
             } label: {
-                Label("Add", systemImage: "plus")
+                Label {
+                    Text("Add", bundle: .module)
+                } icon: {
+                    Image(systemName: "plus")
+                }
             }
-            .accessibilityLabel("Add")
+            .accessibilityLabel(Text("Add", bundle: .module))
             .accessibilityIdentifier("skills.add.menu")
         }
     }
@@ -304,10 +346,14 @@ struct SkillSplitView: View {
         }
     }
 
-    private var backupAccessibilityLabel: String {
-        lifecycleModel.availableBackupCount == 0
-            ? "Skill Backups"
-            : "Skill Backups, \(lifecycleModel.availableBackupCount) available"
+    private var backupAccessibilityLabel: Text {
+        if lifecycleModel.availableBackupCount == 0 {
+            return Text("Skill Backups", bundle: .module)
+        }
+        return Text(
+            "Skill Backups, \(lifecycleModel.availableBackupCount) available",
+            bundle: .module
+        )
     }
 
     private var batchCandidateCount: Int {

@@ -8,9 +8,9 @@ struct SkillBackupLibraryView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Skill Backups")
+                    Text("Skill Backups", bundle: .module)
                         .font(.title.bold())
-                    Text("Verified backups remain available after a managed Skill is deleted.")
+                    Text("Verified backups remain available after a managed Skill is deleted.", bundle: .module)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -21,13 +21,17 @@ struct SkillBackupLibraryView: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Label("Refresh backups", systemImage: "arrow.clockwise")
+                        Label {
+                            Text("Refresh backups", bundle: .module)
+                        } icon: {
+                            Image(systemName: "arrow.clockwise")
+                        }
                             .labelStyle(.iconOnly)
                     }
                 }
                 .disabled(model.isRefreshingBackups || model.isMutating)
-                .help("Refresh backups")
-                .accessibilityLabel("Refresh backups")
+                .help(Text("Refresh backups", bundle: .module))
+                .accessibilityLabel(Text("Refresh backups", bundle: .module))
             }
 
             stateContent
@@ -40,7 +44,11 @@ struct SkillBackupLibraryView: View {
 
             HStack {
                 Spacer()
-                Button("Done") { dismiss() }
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Done", bundle: .module)
+                }
                     .keyboardShortcut(.cancelAction)
                     .disabled(model.isMutating)
             }
@@ -59,16 +67,16 @@ struct SkillBackupLibraryView: View {
         switch model.backupState {
         case .blocked(let message):
             ContentUnavailableView(
-                "Backups unavailable",
+                localized("Backups unavailable"),
                 systemImage: "lock.trianglebadge.exclamationmark",
                 description: Text(message)
             )
         case .loading:
-            ProgressView("Loading and validating backups…")
+            ProgressView(localized("Loading and validating backups…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed(let problem):
             ContentUnavailableView(
-                "Backups unavailable",
+                localized("Backups unavailable"),
                 systemImage: "exclamationmark.triangle",
                 description: Text(problem.message)
             )
@@ -81,24 +89,28 @@ struct SkillBackupLibraryView: View {
     private var loadedContent: some View {
         if model.backups.isEmpty, model.recoverableDeletions.isEmpty {
             ContentUnavailableView(
-                "No backups",
+                localized("No backups"),
                 systemImage: "archivebox",
-                description: Text("Deleting a managed Skill creates a verified backup here.")
+                description: Text("Deleting a managed Skill creates a verified backup here.", bundle: .module)
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List {
                 if !model.recoverableDeletions.isEmpty {
-                    Section("Deletion operations") {
+                    Section {
                         ForEach(model.recoverableDeletions, id: \.operationID) { readback in
                             deletionRow(readback)
                         }
+                    } header: {
+                        Text("Deletion operations", bundle: .module)
                     }
                 }
-                Section("Backups") {
+                Section {
                     ForEach(model.backups) { item in
                         backupRow(item)
                     }
+                } header: {
+                    Text("Backups", bundle: .module)
                 }
             }
         }
@@ -111,18 +123,23 @@ struct SkillBackupLibraryView: View {
                 .frame(width: 18)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text(readback.status.displayName)
+                Text(verbatim: localized(readback.status.displayName))
                     .font(.headline)
-                Text("Skill \(readback.skillID.directoryName)")
+                Text("Skill \(readback.skillID.directoryName)", bundle: .module)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Retry") {
+            Button {
                 Task { await model.retryDeletion(readback) }
+            } label: {
+                Text("Retry", bundle: .module)
             }
             .disabled(model.isMutating)
-            .accessibilityHint("Continues this journaled deletion operation.")
+            .accessibilityHint(Text(
+                "Continues this journaled deletion operation.",
+                bundle: .module
+            ))
         }
         .accessibilityElement(children: .contain)
     }
@@ -142,11 +159,11 @@ struct SkillBackupLibraryView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 8) {
-                    Text(item.availability.displayName)
+                Text(verbatim: localized(item.availability.displayName))
                     if let summary = item.summary {
                         Text(summary.content.contentFingerprint.shortDisplayName)
                         Text(summary.content.statistics.byteCountDescription)
-                        Text("\(summary.targets.count) target\(summary.targets.count == 1 ? "" : "s")")
+                        Text("\(summary.targets.count) target\(summary.targets.count == 1 ? "" : "s")", bundle: .module)
                     }
                 }
                 .font(.caption)
@@ -168,22 +185,32 @@ struct SkillBackupLibraryView: View {
             Spacer()
 
             if item.availability == .available {
-                Button(item.isPinned ? "Unpin" : "Pin") {
+                Button {
                     Task { await model.setBackupPinned(item, isPinned: !item.isPinned) }
+                } label: {
+                    Text(item.isPinned ? "Unpin" : "Pin", bundle: .module)
                 }
                 .disabled(model.isMutating)
-                .accessibilityLabel(item.isPinned ? "Unpin backup" : "Pin backup")
+                .accessibilityLabel(Text(
+                    item.isPinned ? "Unpin backup" : "Pin backup",
+                    bundle: .module
+                ))
 
                 if model.preparingRestoreBackupID == item.backupID {
                     ProgressView()
                         .controlSize(.small)
-                        .accessibilityLabel("Preparing restore preview")
+                        .accessibilityLabel(Text("Preparing restore preview", bundle: .module))
                 } else {
-                    Button("Restore…") {
+                    Button {
                         Task { await model.prepareRestore(item) }
+                    } label: {
+                        Text("Restore…", bundle: .module)
                     }
                     .disabled(model.isMutating)
-                    .accessibilityHint("Opens a verified restore preview.")
+                    .accessibilityHint(Text(
+                        "Opens a verified restore preview.",
+                        bundle: .module
+                    ))
                 }
             }
         }
@@ -197,6 +224,10 @@ struct SkillBackupLibraryView: View {
             set: { if $0 == nil { model.cancelRestorePreview() } }
         )
     }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
+    }
 }
 
 private struct SkillRestoreConfirmationView: View {
@@ -207,7 +238,7 @@ private struct SkillRestoreConfirmationView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Restore Skill")
+            Text("Restore Skill", bundle: .module)
                 .font(.title.bold())
             Text(pending.preview.summary.content.displayName)
                 .font(.title3)
@@ -220,8 +251,8 @@ private struct SkillRestoreConfirmationView: View {
             }
 
             if model.isRestoring {
-                ProgressView("Restoring verified backup…")
-                    .accessibilityLabel("Restoring verified Skill backup")
+                ProgressView(localized("Restoring verified backup…"))
+                    .accessibilityLabel(Text("Restoring verified Skill backup", bundle: .module))
             }
             if let problem = model.problem {
                 Label(problem.message, systemImage: "exclamationmark.triangle.fill")
@@ -243,51 +274,65 @@ private struct SkillRestoreConfirmationView: View {
     }
 
     private var previewContent: some View {
-        GroupBox("Verified manifest") {
+        GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                LabeledContent(
-                    "Original Skill ID",
-                    value: pending.preview.originalSkillID.directoryName
-                )
-                LabeledContent(
-                    "Target Skill ID",
-                    value: pending.preview.targetSkillID.directoryName
-                )
-                LabeledContent(
-                    "Restore mode",
-                    value: pending.preview.targetSkillID == pending.preview.originalSkillID
-                        ? "Original identity" : "Independent Skill"
-                )
-                LabeledContent(
-                    "Content",
-                    value: pending.preview.summary.content.contentFingerprint.shortDisplayName
-                )
-                LabeledContent(
-                    "Files",
-                    value: "\(pending.preview.summary.content.statistics.fileCount)"
-                )
-                LabeledContent(
-                    "Size",
-                    value: pending.preview.summary.content.statistics.byteCountDescription
-                )
+                LabeledContent {
+                    Text(pending.preview.originalSkillID.directoryName)
+                } label: {
+                    Text("Original Skill ID", bundle: .module)
+                }
+                LabeledContent {
+                    Text(pending.preview.targetSkillID.directoryName)
+                } label: {
+                    Text("Target Skill ID", bundle: .module)
+                }
+                LabeledContent {
+                    Text(verbatim: localized(
+                        pending.preview.targetSkillID == pending.preview.originalSkillID
+                            ? "Original identity" : "Independent Skill"
+                    ))
+                } label: {
+                    Text("Restore mode", bundle: .module)
+                }
+                LabeledContent {
+                    Text(pending.preview.summary.content.contentFingerprint.shortDisplayName)
+                } label: {
+                    Text("Content", bundle: .module)
+                }
+                LabeledContent {
+                    Text(pending.preview.summary.content.statistics.fileCount.formatted(.number))
+                } label: {
+                    Text("Files", bundle: .module)
+                }
+                LabeledContent {
+                    Text(pending.preview.summary.content.statistics.byteCountDescription)
+                } label: {
+                    Text("Size", bundle: .module)
+                }
                 if let source = pending.preview.summary.sourceLocator {
-                    LabeledContent("Source", value: source)
+                    LabeledContent {
+                        Text(source)
+                    } label: {
+                        Text("Source", bundle: .module)
+                    }
                 }
 
                 Divider()
                 Toggle(
-                    "Also restore the original Agent targets",
                     isOn: Binding(
                         get: { model.restoreDistribution },
                         set: { model.restoreDistribution = $0 }
                     )
-                )
+                ) {
+                    Text("Also restore the original Agent targets", bundle: .module)
+                }
                     .disabled(pending.preview.summary.targets.isEmpty || model.isRestoring)
-                    .accessibilityHint(
-                        "If a target conflicts, the Skill remains restored without Agent links."
-                    )
+                    .accessibilityHint(Text(
+                        "If a target conflicts, the Skill remains restored without Agent links.",
+                        bundle: .module
+                    ))
                 if pending.preview.summary.targets.isEmpty {
-                    Text("This backup did not have any Agent targets.")
+                    Text("This backup did not have any Agent targets.", bundle: .module)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -300,24 +345,33 @@ private struct SkillRestoreConfirmationView: View {
                 }
             }
             .padding(.top, 4)
+        } label: {
+            Text("Verified manifest", bundle: .module)
         }
     }
 
     private func resultContent(_ result: SkillRestoreResult) -> some View {
-        GroupBox("Result") {
+        GroupBox {
             VStack(alignment: .leading, spacing: 8) {
-                Text(result.status.displayName)
+                Text(verbatim: localized(result.status.displayName))
                     .font(.headline)
-                LabeledContent("Restored Skill ID", value: result.restoredSkillID.directoryName)
+                LabeledContent {
+                    Text(result.restoredSkillID.directoryName)
+                } label: {
+                    Text("Restored Skill ID", bundle: .module)
+                }
                 ForEach(result.warnings, id: \.self) { warning in
-                    Label(
-                        skillRestoreWarningDescription(warning),
-                        systemImage: "exclamationmark.triangle"
-                    )
+                    Label {
+                        Text(verbatim: localized(skillRestoreWarningDescription(warning)))
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                    }
                     .foregroundStyle(.orange)
                 }
             }
             .padding(.top, 4)
+        } label: {
+            Text("Result", bundle: .module)
         }
     }
 
@@ -325,9 +379,11 @@ private struct SkillRestoreConfirmationView: View {
     private var actions: some View {
         HStack {
             if model.restoreResult == nil {
-                Button("Cancel") {
+                Button {
                     model.cancelRestorePreview()
                     dismiss()
+                } label: {
+                    Text("Cancel", bundle: .module)
                 }
                 .keyboardShortcut(.cancelAction)
                 .disabled(model.isRestoring)
@@ -336,23 +392,32 @@ private struct SkillRestoreConfirmationView: View {
             Spacer()
 
             if model.restoreResult != nil {
-                Button("Done") {
+                Button {
                     model.finishRestorePresentation()
                     dismiss()
+                } label: {
+                    Text("Done", bundle: .module)
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.isRestoring)
             } else {
-                Button("Restore") {
+                Button {
                     Task { await model.confirmRestore() }
+                } label: {
+                    Text("Restore", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.isRestoring)
-                .accessibilityLabel(
-                    model.isRestoring ? "Restore in progress" : "Restore verified backup"
-                )
+                .accessibilityLabel(Text(
+                    model.isRestoring ? "Restore in progress" : "Restore verified backup",
+                    bundle: .module
+                ))
             }
         }
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

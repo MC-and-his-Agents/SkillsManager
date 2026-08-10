@@ -682,6 +682,105 @@ final class SkillsManagerUITests: XCTestCase {
         try auditSurface("ui-11-banner", app: app)
     }
 
+    // MARK: - SM194-UI-12
+
+    func testSM194UI12NativeLocalization() throws {
+        try launchLocalizedFixture(language: "zh-Hans", profile: "baseline", surface: "ui-12-zh")
+        try requireElement(app.staticTexts["技能"], surface: "ui-12-zh", app: app)
+        let zhStatus = app.buttons[SkillsManagerUILocators.filterStatus("all")]
+        try requireElement(zhStatus, surface: "ui-12-zh", app: app)
+        XCTAssertTrue(zhStatus.label.contains("所有状态"), "zh-Hans status label must be localized")
+        try selectRow(label: "Fixture Managed", value: "已托管", surface: "ui-12-zh", app: app)
+        try requireElement(
+            element(identifier: SkillsManagerUILocators.detailUpdate, app: app),
+            surface: "ui-12-zh-detail",
+            app: app
+        )
+        try requireElement(
+            element(identifier: SkillsManagerUILocators.detailFinder, app: app),
+            surface: "ui-12-zh-action",
+            app: app
+        )
+        try selectRow(label: "ClawHub Fixture 1", value: "可用", surface: "ui-12-zh-install", app: app)
+        try waitForHierarchyText("安装", surface: "ui-12-zh-install", app: app)
+        let installButton = app.buttons["skills.remote.install"]
+        try requireElement(installButton, surface: "ui-12-zh-install-action", app: app)
+        XCTAssertTrue(installButton.label.contains("安装"), "zh-Hans install accessibility label must be localized")
+        installButton.click()
+        try waitForHierarchyText("安装或更新 Skill", surface: "ui-12-zh-install-review", app: app)
+        let cancelInstall = app.buttons["取消"]
+        try requireElement(cancelInstall, surface: "ui-12-zh-install-review", app: app)
+        cancelInstall.click()
+    }
+
+    func testSM194UI12NativeLocalizationEnglish() throws {
+        try launchLocalizedFixture(language: "en", profile: "baseline", surface: "ui-12-en")
+        try requireElement(app.staticTexts["Skills"], surface: "ui-12-en", app: app)
+        let enStatus = app.buttons[SkillsManagerUILocators.filterStatus("all")]
+        try requireElement(enStatus, surface: "ui-12-en", app: app)
+        XCTAssertTrue(enStatus.label.contains("All Statuses"), "English status label must remain stable")
+        try waitForShownCount(6, surface: "ui-12-en", app: app)
+        try selectRow(label: "Fixture Managed", value: "Managed", surface: "ui-12-en-detail", app: app)
+        try requireElement(
+            element(identifier: SkillsManagerUILocators.detailUpdate, app: app),
+            surface: "ui-12-en-action",
+            app: app
+        )
+    }
+
+    func testSM194UI12NativeLocalizationError() throws {
+        try launchLocalizedFixture(language: "zh-Hans", profile: "failure-clawhub", surface: "ui-12-zh-error")
+        try waitForHierarchyText("ClawHub 不可用", surface: "ui-12-zh-error", app: app)
+        try auditSurface("ui-12-zh-error-state", app: app)
+    }
+
+    func testSM194UI12NativeLocalizationFeedbackDistribution() throws {
+        try launchLocalizedFixture(language: "zh-Hans", profile: "feedback", surface: "ui-12-zh-feedback")
+        try waitForHierarchyText("有可用更新", surface: "ui-12-zh-feedback", app: app)
+        try selectRow(label: "ClawHub Managed", value: "有可用更新", surface: "ui-12-zh-feedback", app: app)
+        let reviewUpdate = element(identifier: SkillsManagerUILocators.detailUpdate, app: app)
+        try requireElement(reviewUpdate, surface: "ui-12-zh-feedback-action", app: app)
+        XCTAssertTrue(reviewUpdate.label.contains("查看更新"), "zh-Hans update action must be localized")
+        try requireElement(
+            app.checkBoxes[SkillsManagerUILocators.detailAgent("claude")],
+            surface: "ui-12-zh-feedback-distribution",
+            app: app
+        )
+        let claudeChip = app.checkBoxes[SkillsManagerUILocators.detailAgent("claude")]
+        if (claudeChip.value as? NSNumber)?.intValue == 0 {
+            claudeChip.click()
+        }
+        let previewButton = app.buttons["预览更改"]
+        try requireElement(previewButton, surface: "ui-12-zh-feedback-preview", app: app)
+        if !previewButton.isHittable {
+            scrollDetailToReveal(previewButton, app: app)
+        }
+        previewButton.click()
+        let applyButton = app.buttons["应用"]
+        try requireElement(applyButton, surface: "ui-12-zh-feedback-apply", app: app)
+        applyButton.click()
+        try waitForDisappearance(applyButton, surface: "ui-12-zh-feedback-apply", app: app)
+        try waitForHierarchyText("结果：", surface: "ui-12-zh-feedback-banner", app: app)
+        try auditSurface("ui-12-zh-feedback-banner", app: app)
+    }
+
+    func testSM194UI12NativeLocalizationUnsupportedFallback() throws {
+        // No in-app language picker is involved: an unsupported App Language
+        // follows the bundle's zh-Hans development/fallback localization.
+        try launchLocalizedFixture(language: "ja", profile: "empty", surface: "ui-12-fallback")
+        try requireElement(app.staticTexts["技能"], surface: "ui-12-fallback", app: app)
+        try waitForHierarchyText("没有找到技能", surface: "ui-12-fallback", app: app)
+        try auditSurface("ui-12-fallback-empty", app: app)
+    }
+
+    private func launchLocalizedFixture(
+        language: String,
+        profile: String,
+        surface: String
+    ) throws {
+        try launchFixture(app: app, profile: profile, surface: surface, language: language)
+    }
+
     private func scrollDetailToReveal(_ element: XCUIElement, app: XCUIApplication) {
         for _ in 0..<14 {
             if element.isHittable { return }
@@ -817,4 +916,3 @@ private func posixLstat(_ url: URL) throws -> stat {
     }
     return value
 }
-

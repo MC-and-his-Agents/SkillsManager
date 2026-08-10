@@ -110,13 +110,17 @@ struct SkillsManagerApp: App {
         }
         .commands {
             CommandGroup(replacing: .appInfo) {
-                Button("About Skills Manager") {
+                Button {
                     openWindow(id: "about")
+                } label: {
+                    Text("About Skills Manager", bundle: .module)
                 }
             }
             CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") {
+                Button {
                     appDelegate.checkForUpdates()
+                } label: {
+                    Text("Check for Updates…", bundle: .module)
                 }
                 .keyboardShortcut("u", modifiers: [.command, .option])
             }

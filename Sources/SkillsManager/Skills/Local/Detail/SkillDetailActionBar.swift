@@ -112,12 +112,12 @@ private struct SkillDetailActionBarContent: View {
         HStack(spacing: 6) {
             Image(systemName: badge.systemImage)
                 .foregroundStyle(badge.tint)
-            Text(badge.title)
+            Text(localized(badge.title))
         }
         .font(.callout.weight(.semibold))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Status: \(badge.title)")
-        .accessibilityValue(badge.accessibilityValue)
+        .accessibilityLabel(Text("Status: \(localized(badge.title))", bundle: .module))
+        .accessibilityValue(Text(verbatim: localized(badge.accessibilityValue)))
         .accessibilityIdentifier("skills.detail.badge")
     }
 
@@ -125,8 +125,11 @@ private struct SkillDetailActionBarContent: View {
         HStack(spacing: 8) {
             ForEach(sourceLabels) { label in
                 Image(systemName: label.systemImage)
-                    .help(label.text)
-                    .accessibilityLabel("Source: \(label.text)")
+                    .help(Text(verbatim: localized(label.text)))
+                    .accessibilityLabel(Text(
+                        "Source: \(localized(label.text))",
+                        bundle: .module
+                    ))
                     .accessibilityIdentifier("skills.detail.source.\(label.text)")
             }
         }
@@ -145,18 +148,21 @@ private struct SkillDetailActionBarContent: View {
                         Image(systemName: row.isCurrentlyEnabled
                             ? "checkmark.circle.fill"
                             : "circle")
-                        Text(row.platform.rawValue)
+                        Text(localized(row.platform.rawValue))
                     }
                 }
                 .toggleStyle(.button)
                 .disabled(distributionModel.isApplying)
-                .accessibilityLabel("\(row.platform.rawValue) distribution")
+                .accessibilityLabel(Text("\(localized(row.platform.rawValue)) distribution", bundle: .module))
                 .accessibilityValue(
-                    row.isSelected
-                        ? "Selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")"
-                        : "Not selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")"
+                    Text(
+                        row.isSelected
+                            ? "Selected; currently \(localized(row.isCurrentlyEnabled ? "enabled" : "disabled"))"
+                            : "Not selected; currently \(localized(row.isCurrentlyEnabled ? "enabled" : "disabled"))",
+                        bundle: .module
+                    )
                 )
-                .accessibilityHint("Target: \(row.locator)")
+                .accessibilityHint(Text("Target: \(row.locator)", bundle: .module))
                 .accessibilityIdentifier("skills.detail.agent.\(row.platform.storageKey)")
             }
         }
@@ -169,30 +175,42 @@ private struct SkillDetailActionBarContent: View {
             || updateCheckModel.isUpdating {
             ProgressView()
                 .controlSize(.small)
-                .accessibilityLabel("Checking for updates")
+                .accessibilityLabel(Text("Checking for updates", bundle: .module))
         } else if let snapshot = loadedSnapshot, snapshot.hasExecutableRemoteUpdate {
             Button {
                 Task { await updateCheckModel.prepareUpdate(snapshot) }
             } label: {
-                Label("Review Update", systemImage: "arrow.down.circle.fill")
+            Label {
+                Text("Review Update", bundle: .module)
+            } icon: {
+                Image(systemName: "arrow.down.circle.fill")
+            }
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut("u", modifiers: [.command, .shift])
             .accessibilityIdentifier("skills.detail.update")
-            .accessibilityValue("Update available")
-            .accessibilityHint("Reviews the remote update before anything is written.")
+            .accessibilityValue(Text("Update available", bundle: .module))
+            .accessibilityHint(Text(
+                "Reviews the remote update before anything is written.",
+                bundle: .module
+            ))
         } else {
             Button {
                 Task { await updateCheckModel.checkCurrent() }
             } label: {
-                Label("Check for Updates", systemImage: "arrow.clockwise")
+                Label {
+                    Text("Check for Updates", bundle: .module)
+                } icon: {
+                    Image(systemName: "arrow.clockwise")
+                }
             }
             .disabled(loadedSnapshot == nil || updateCheckModel.isChecking)
             .keyboardShortcut("u", modifiers: [.command, .shift])
             .accessibilityIdentifier("skills.detail.update")
-            .accessibilityValue(
-                loadedSnapshot == nil ? "Update check unavailable" : "No update available"
-            )
+            .accessibilityValue(Text(
+                loadedSnapshot == nil ? "Update check unavailable" : "No update available",
+                bundle: .module
+            ))
         }
     }
 
@@ -206,12 +224,16 @@ private struct SkillDetailActionBarContent: View {
             configureBatchUpdates()
             showingBatchUpdates = true
         } label: {
-            Label("Batch Updates", systemImage: "arrow.down.circle")
+            Label {
+                Text("Batch Updates", bundle: .module)
+            } icon: {
+                Image(systemName: "arrow.down.circle")
+            }
         }
         .disabled(batchUpdatesDisabled)
         .accessibilityIdentifier("skills.detail.batch-updates")
-        .accessibilityValue(batchUpdateHelp)
-        .accessibilityHint(batchUpdateHelp)
+        .accessibilityValue(Text(verbatim: localized(batchUpdateHelp)))
+        .accessibilityHint(Text(verbatim: localized(batchUpdateHelp)))
     }
 
     private var batchUpdatesDisabled: Bool {
@@ -247,33 +269,46 @@ private struct SkillDetailActionBarContent: View {
             guard let finderURL else { return }
             NSWorkspace.shared.open(finderURL)
         } label: {
-            Label("Show in Finder", systemImage: "folder")
+            Label {
+                Text("Show in Finder", bundle: .module)
+            } icon: {
+                Image(systemName: "folder")
+            }
         }
         .disabled(finderURL == nil)
         .accessibilityIdentifier("skills.detail.finder")
-        .help("Opens the Skill folder in Finder")
+        .help(Text("Opens the Skill folder in Finder", bundle: .module))
     }
 
     private var fullSettingsButton: some View {
         Button(action: onFullSettings) {
-            Label("Full Settings…", systemImage: "slider.horizontal.3")
+            Label {
+                Text("Full Settings…", bundle: .module)
+            } icon: {
+                Image(systemName: "slider.horizontal.3")
+            }
         }
         .accessibilityIdentifier("skills.detail.full-settings")
-        .help("Scrolls to the complete distribution editor")
+        .help(Text("Scrolls to the complete distribution editor", bundle: .module))
     }
 
     private var deleteButton: some View {
         Button(role: .destructive) {
             lifecycleModel.prepareDeletion()
         } label: {
-            Label("Delete", systemImage: "trash")
+            Label {
+                Text("Delete", bundle: .module)
+            } icon: {
+                Image(systemName: "trash")
+            }
         }
         .keyboardShortcut(.delete, modifiers: .command)
         .disabled(!canDelete)
         .accessibilityIdentifier("skills.detail.delete")
-        .accessibilityHint(
-            "Backs up the Skill, removes managed Agent links, and deletes the managed Skill."
-        )
+        .accessibilityHint(Text(
+            "Backs up the Skill, removes managed Agent links, and deletes the managed Skill.",
+            bundle: .module
+        ))
     }
 
     private var canDelete: Bool {
@@ -282,5 +317,9 @@ private struct SkillDetailActionBarContent: View {
             return false
         }
         return preview.status == .ready && preview.token != nil
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

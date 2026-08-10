@@ -1,0 +1,23 @@
+{
+  "sourceLanguage" : "zh-Hans",
+  "strings" : {
+    "NSRemovableVolumesUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skills Manager 需要访问可移动宗卷，以发现和管理其中存储的 Agent Skill。"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skills Manager needs access to removable volumes to discover and manage Agent Skills stored there."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

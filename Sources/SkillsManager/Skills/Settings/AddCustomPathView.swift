@@ -50,9 +50,9 @@ struct AddCustomPathView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Add Custom Skill Path")
+            Text("Add Custom Skill Path", bundle: .module)
                 .font(.title.bold())
-            Text("Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).")
+            Text("Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).", bundle: .module)
                 .foregroundStyle(.secondary)
         }
     }
@@ -62,7 +62,7 @@ struct AddCustomPathView: View {
         if isValidating {
             HStack {
                 ProgressView()
-                Text("Scanning for skills...")
+                Text("Scanning for skills...", bundle: .module)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -82,7 +82,7 @@ struct AddCustomPathView: View {
             ContentUnavailableView(
                 "Select a project folder",
                 systemImage: "folder.badge.plus",
-                description: Text("Choose a folder containing platform skill directories")
+                description: Text("Choose a folder containing platform skill directories", bundle: .module)
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -114,15 +114,15 @@ struct AddCustomPathView: View {
     private var discoveredSkillsView: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Discovered Skills")
+                Text("Discovered Skills", bundle: .module)
                     .font(.headline)
                 Spacer()
-                Text("\(validSkillCount) valid · \(totalSkillCount) observed")
+                Text("\(validSkillCount) valid · \(totalSkillCount) observed", bundle: .module)
                     .font(.subheadline)
                     .foregroundStyle(validSkillCount > 0 ? .green : .secondary)
             }
 
-            Text("All skills will be added automatically.")
+            Text("All skills will be added automatically.", bundle: .module)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -138,7 +138,7 @@ struct AddCustomPathView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 TagView(text: platform.rawValue, tint: platform.badgeTint)
-                Text("\(skills.count) skill(s)")
+                Text("\(skills.count) skill(s)", bundle: .module)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -187,7 +187,7 @@ struct AddCustomPathView: View {
 
     private var diagnosticsView: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Scan Issues")
+            Text("Scan Issues", bundle: .module)
                 .font(.headline)
             ForEach(rootDiagnostics, id: \.self) { diagnostic in
                 Label(diagnostic.accessibilitySummary, systemImage: "exclamationmark.triangle")
@@ -199,14 +199,26 @@ struct AddCustomPathView: View {
 
     private var actions: some View {
         HStack {
-            Button("Cancel") { dismiss() }
+            Button {
+                dismiss()
+            } label: {
+                Text("Cancel", bundle: .module)
+            }
                 .keyboardShortcut(.cancelAction)
 
             Spacer()
 
-            Button("Choose Folder...") { showingPicker = true }
+            Button {
+                showingPicker = true
+            } label: {
+                Text("Choose Folder...", bundle: .module)
+            }
 
-            Button("Add") { addPath() }
+            Button {
+                addPath()
+            } label: {
+                Text("Add", bundle: .module)
+            }
                 .buttonStyle(.borderedProminent)
                 .disabled(selectedURL == nil || validSkillCount == 0 || isValidating)
                 .keyboardShortcut(.defaultAction)

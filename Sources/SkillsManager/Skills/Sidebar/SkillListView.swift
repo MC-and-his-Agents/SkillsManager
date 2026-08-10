@@ -25,39 +25,51 @@ struct SkillListView: View {
                 .listRowBackground(Color.clear)
 
             if filters.status != .available {
-                Section("On This Mac") {
+                Section {
                     localContent
+                } header: {
+                    Text("On This Mac", bundle: .module)
                 }
             }
 
             if normalizedQuery.isEmpty {
                 if filters.includesRemote(.clawHub) {
-                    Section("ClawHub Latest Drops") {
+                    Section {
                         clawHubLatestContent
+                    } header: {
+                        Text("ClawHub Latest Drops", bundle: .module)
                     }
                 }
             } else {
                 if filters.includesRemote(.clawHub) {
-                    Section("ClawHub") {
+                    Section {
                         clawHubSearchContent
+                    } header: {
+                        Text("ClawHub", bundle: .module)
                     }
                 }
                 if filters.includesRemote(.skillsSh) {
-                    Section("skills.sh") {
+                    Section {
                         skillsShSearchContent
+                    } header: {
+                        Text("skills.sh", bundle: .module)
                     }
                 }
             }
 
             if filters.includesRemote(.repository) {
-                Section("Repositories") {
+                Section {
                     repositoryContent
+                } header: {
+                    Text("Repositories", bundle: .module)
                 }
             }
 
             if !discoveryModel.rootDiagnostics.isEmpty {
-                Section("Unavailable Locations") {
+                Section {
                     discoveryDiagnostics
+                } header: {
+                    Text("Unavailable Locations", bundle: .module)
                 }
             }
 
@@ -76,15 +88,20 @@ struct SkillListView: View {
                     if discoveryModel.isRefreshing {
                         ProgressView().controlSize(.small)
                     } else {
-                        Label("Refresh Skills", systemImage: "arrow.clockwise")
+                        Label {
+                            Text("Refresh Skills", bundle: .module)
+                        } icon: {
+                            Image(systemName: "arrow.clockwise")
+                        }
                     }
                 }
                 .labelStyle(.iconOnly)
                 .disabled(discoveryModel.isRefreshing)
                 .keyboardShortcut("r", modifiers: .command)
-                .accessibilityLabel(
-                    discoveryModel.isRefreshing ? "Refreshing Skills" : "Refresh Skills"
-                )
+                .accessibilityLabel(Text(
+                    discoveryModel.isRefreshing ? "Refreshing Skills" : "Refresh Skills",
+                    bundle: .module
+                ))
                 .accessibilityIdentifier("skills.refresh")
             }
         }
@@ -119,9 +136,9 @@ struct SkillListView: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Skills")
+                Text("Skills", bundle: .module)
                     .font(.title2.bold())
-                Text("\(visibleCount) shown")
+                Text("\(visibleCount) shown", bundle: .module)
                     .font(.subheadline)
                     .foregroundStyle(.primary)
             }
@@ -282,10 +299,14 @@ struct SkillListView: View {
         case .loading:
             progressRow(loadingLabel)
         case .canLoadMore:
-            Button("Load More") { Task { await action() } }
+            Button {
+                Task { await action() }
+            } label: {
+                Text("Load More", bundle: .module)
+            }
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("clawhub.load-more")
-                .accessibilityHint("Loads more ClawHub results")
+                .accessibilityHint(Text("Loads more ClawHub results", bundle: .module))
         case .failed:
             clawHubFailure(retryLabel, action: action)
         }
@@ -321,10 +342,14 @@ struct SkillListView: View {
         case .loading:
             progressRow("Loading more skills.sh results")
         case .canLoadMore:
-            Button("Load More") { Task { await skillsShStore.loadNextPage() } }
+            Button {
+                Task { await skillsShStore.loadNextPage() }
+            } label: {
+                Text("Load More", bundle: .module)
+            }
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("skills-sh.load-more")
-                .accessibilityHint("Loads more skills.sh results")
+                .accessibilityHint(Text("Loads more skills.sh results", bundle: .module))
         case .finished:
             emptyRow("No more unique results.")
         case .failed(let problem):
@@ -349,7 +374,7 @@ struct SkillListView: View {
                     .foregroundStyle(.orange)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Unavailable scan location")
+            .accessibilityLabel(Text("Unavailable scan location", bundle: .module))
             .accessibilityValue(diagnostic.accessibilitySummary)
         }
     }
@@ -357,7 +382,7 @@ struct SkillListView: View {
     private func progressRow(_ label: String) -> some View {
         HStack(spacing: 8) {
             ProgressView()
-            Text(label).foregroundStyle(.secondary)
+            Text(localized(label)).foregroundStyle(.secondary)
         }
         .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
@@ -370,6 +395,10 @@ struct SkillListView: View {
 
     private func statusRow(_ title: String, message: String, icon: String) -> some View {
         SkillListEmptyRow(title: title, message: message, icon: icon)
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 
     private func clawHubFailure(

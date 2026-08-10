@@ -32,7 +32,7 @@ struct CustomRepositoryCandidateDetailView: View {
                     TagView(text: "Available", systemImage: "arrow.down.circle")
                     TagView(text: "Repository", systemImage: "shippingbox")
                 }
-                GroupBox("Verified discovery") {
+                GroupBox {
                     Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                         detailRow("Repository", candidate.repository.repositoryURL.value)
                         detailRow(
@@ -45,23 +45,32 @@ struct CustomRepositoryCandidateDetailView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                } label: {
+                    Text("Verified discovery", bundle: .module)
                 }
                 if let problem = candidate.installProblem {
                     Label(problem, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                         .accessibilityElement(children: .combine)
                 }
-                Button("Review and Install…") { showingInstall = true }
+                Button {
+                    showingInstall = true
+                } label: {
+                    Text("Review and Install…", bundle: .module)
+                }
                     .buttonStyle(.borderedProminent)
                     .disabled(candidate.distributionSlug == nil)
                     .accessibilityIdentifier("repository.review-install")
-                    .accessibilityHint("Verifies the immutable GitHub source before installation")
+                    .accessibilityHint(Text(
+                        "Verifies the immutable GitHub source before installation",
+                        bundle: .module
+                    ))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
         .navigationTitle(candidate.displayName)
-        .navigationSubtitle("Repository")
+        .navigationSubtitle(String(localized: "Repository", bundle: .module))
         .sheet(isPresented: $showingInstall) {
             ManagedCustomRepositoryInstallView(candidate: candidate)
         }

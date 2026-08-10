@@ -58,7 +58,7 @@ struct SkillMarkdownView: View {
 
                         if !skill.references.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("References")
+                                Text("References", bundle: .module)
                                     .font(.title2.bold())
                                 ReferenceListView(references: skill.references)
                             }
@@ -68,7 +68,7 @@ struct SkillMarkdownView: View {
                         Divider()
                             .padding(.vertical, 4)
 
-                        Text("Manage Skill")
+                        Text("Manage Skill", bundle: .module)
                             .font(.title2.bold())
                             .accessibilityAddTraits(.isHeader)
 
@@ -92,7 +92,7 @@ struct SkillMarkdownView: View {
                     } label: {
                         Image(systemName: "globe")
                     }
-                    .help("Open on ClawHub")
+                    .help(Text("Open on ClawHub", bundle: .module))
                 }
             }
         }
@@ -129,7 +129,7 @@ struct SkillMarkdownView: View {
 
     private var publishHeader: some View {
         HStack(spacing: 8) {
-            Text("ClawHub")
+            Text("ClawHub", bundle: .module)
                 .font(.headline)
             Spacer()
             if isCheckingPublish || isCheckingCli {
@@ -142,10 +142,10 @@ struct SkillMarkdownView: View {
     @ViewBuilder
     private var publishContent: some View {
         if skill.managedStatus == .needsRepair {
-            Text("This managed Skill needs repair before it can be published.")
+            Text("This managed Skill needs repair before it can be published.", bundle: .module)
                 .foregroundStyle(.secondary)
         } else if isCheckingCli || isCheckingPublish {
-            Text("Checking ClawHub status…")
+            Text("Checking ClawHub status…", bundle: .module)
                 .foregroundStyle(.secondary)
         } else if !cliStatus.isInstalled {
             publishInstallContent
@@ -158,11 +158,13 @@ struct SkillMarkdownView: View {
 
     private var publishInstallContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Install Bun to run the ClawHub CLI.")
+            Text("Install Bun to run the ClawHub CLI.", bundle: .module)
                 .foregroundStyle(.secondary)
 
-            Button("Install Bun") {
+            Button {
                 openInstallDocs()
+            } label: {
+                Text("Install Bun", bundle: .module)
             }
             .buttonStyle(.bordered)
         }
@@ -170,17 +172,21 @@ struct SkillMarkdownView: View {
 
     private var publishLoginContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Run bunx clawdhub@latest login in Terminal, then check again.")
+            Text("Run bunx clawdhub@latest login in Terminal, then check again.", bundle: .module)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
-                Button("Copy login command") {
+                Button {
                     copyLoginCommand()
+                } label: {
+                    Text("Copy login command", bundle: .module)
                 }
                 .buttonStyle(.bordered)
 
-                Button("Check again") {
+                Button {
                     Task { await refreshPublishState() }
+                } label: {
+                    Text("Check again", bundle: .module)
                 }
                 .buttonStyle(.bordered)
                 .disabled(isCheckingCli)
@@ -191,23 +197,29 @@ struct SkillMarkdownView: View {
     private var publishReadyContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let username = cliStatus.username {
-                Text("Signed in as \(username)")
+                Text("Signed in as \(username)", bundle: .module)
                     .foregroundStyle(.secondary)
             }
 
             if let publishedVersion {
-                Text("Latest version \(publishedVersion)")
+                Text("Latest version \(publishedVersion)", bundle: .module)
                     .foregroundStyle(.secondary)
-                Text(needsPublish ? "Changes detected. Publish an update." : "No unpublished changes.")
+                Text(verbatim: localized(
+                    needsPublish ? "Changes detected. Publish an update." : "No unpublished changes."
+                ))
                     .foregroundStyle(.secondary)
             } else {
-                Text("Not yet published on ClawHub.")
+                Text("Not yet published on ClawHub.", bundle: .module)
                     .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 12) {
-                Button(publishedVersion == nil ? "Publish to ClawHub" : "Update on ClawHub") {
+                Button {
                     publishSheetSkill = skill
+                } label: {
+                    Text(verbatim: localized(
+                        publishedVersion == nil ? "Publish to ClawHub" : "Update on ClawHub"
+                    ))
                 }
                 .buttonStyle(.borderedProminent)
 
@@ -233,18 +245,18 @@ struct SkillMarkdownView: View {
     @ViewBuilder
     private var installContent: some View {
         if isCheckingPublish {
-            Text("Checking ClawHub status…")
+            Text("Checking ClawHub status…", bundle: .module)
                 .foregroundStyle(.secondary)
         } else {
             if let installedVersion {
-                Text("Installed version \(installedVersion)")
+                Text("Installed version \(installedVersion)", bundle: .module)
                     .foregroundStyle(.secondary)
             }
             if let latestVersion, updateAvailable {
-                Text("Update available: v\(latestVersion)")
+                Text("Update available: v\(latestVersion)", bundle: .module)
                     .foregroundStyle(.secondary)
             } else if latestVersion != nil {
-                Text("You’re up to date.")
+                Text("You’re up to date.", bundle: .module)
                     .foregroundStyle(.secondary)
             }
 
@@ -360,6 +372,10 @@ struct SkillMarkdownView: View {
             return next
         }
         return "1.0.0"
+    }
+
+    private func localized(_ value: String) -> String {
+        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 
 }
