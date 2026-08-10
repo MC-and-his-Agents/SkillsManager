@@ -76,6 +76,11 @@ if [[ "${1:-}" == build-for-testing ]]; then
   exit 0
 fi
 if [[ "${1:-}" == test-without-building ]]; then
+  if [[ "$*" == *"-only-testing:"* ]]; then
+    : > "$FIXTURE_DIR/filter-present"
+  else
+    : > "$FIXTURE_DIR/filter-absent"
+  fi
   count_file="$FIXTURE_DIR/invocations"
   count=0
   [[ -f "$count_file" ]] && count=$(<"$count_file")
@@ -159,6 +164,7 @@ run_case() {
   make_stubs "$case_dir/stubs"
   set +e
   env \
+    -u UI_TEST_ONLY_TESTING \
     HOME="$home_dir" \
     TMPDIR="$tmp_dir" \
     PATH="$case_dir/stubs:$PATH" \
@@ -220,6 +226,8 @@ assert_local_artifacts() {
 assertion_dir=$(run_case assertion 1)
 assert_local_artifacts "$assertion_dir" test-failure not-run
 [[ "$(<"$assertion_dir/invocations")" == 1 ]] || fail "assertion failure retried"
+[[ -e "$assertion_dir/filter-absent" ]] || fail "empty filter did not reach xcodebuild without a filter"
+[[ ! -e "$assertion_dir/filter-present" ]] || fail "unexpected test filter was passed"
 assert_signing_scrubbed "$assertion_dir"
 
 runner_dir=$(run_case runner 0)

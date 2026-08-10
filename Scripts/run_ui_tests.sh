@@ -11,9 +11,9 @@ LSREGISTER="${LSREGISTER:-/System/Library/Frameworks/CoreServices.framework/Fram
 HOSTED_CI=0
 [[ "${GITHUB_ACTIONS:-}" == "true" ]] && HOSTED_CI=1
 GITHUB_RUN_ID_VALUE="${GITHUB_RUN_ID:-unknown}"
-TEST_FILTER_ARGS=()
+TEST_FILTER_ARG=""
 if [[ -n "${UI_TEST_ONLY_TESTING:-}" ]]; then
-  TEST_FILTER_ARGS+=("-only-testing:${UI_TEST_ONLY_TESTING}")
+  TEST_FILTER_ARG="-only-testing:${UI_TEST_ONLY_TESTING}"
 fi
 
 # UI tests must never consume a developer identity or inherited provisioning
@@ -237,12 +237,20 @@ run_attempt() {
   : > "$log"
   : > "$summary_stderr"
   set +e
-  DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
-    xcodebuild test-without-building \
-      -xctestrun "$XCTESTRUN" \
-      -destination 'platform=macOS,arch=arm64' \
-      "${TEST_FILTER_ARGS[@]}" \
-      -resultBundlePath "$result" >"$log" 2>&1
+  if [[ -n "$TEST_FILTER_ARG" ]]; then
+    DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
+      xcodebuild test-without-building \
+        -xctestrun "$XCTESTRUN" \
+        -destination 'platform=macOS,arch=arm64' \
+        "$TEST_FILTER_ARG" \
+        -resultBundlePath "$result" >"$log" 2>&1
+  else
+    DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
+      xcodebuild test-without-building \
+        -xctestrun "$XCTESTRUN" \
+        -destination 'platform=macOS,arch=arm64' \
+        -resultBundlePath "$result" >"$log" 2>&1
+  fi
   status=$?
   set -e
 
