@@ -226,23 +226,46 @@ validate_bundle_reference() {
 }
 
 validate_xctestrun_references() {
-  local test_root host_raw bundle_raw host_path bundle_path
+  local test_root runner_canonical host_raw bundle_raw host_path bundle_path
+  local host_canonical bundle_canonical
   test_root=$(cd "$(dirname "$XCTESTRUN")" && pwd -P)
+  runner_canonical=$(cd "$RUNNER_APP" && pwd -P)
   host_raw=$(plutil -extract "$SCHEME.TestHostPath" raw -o - "$XCTESTRUN" 2>/dev/null || true)
   [[ -n "$host_raw" ]] || {
     echo "ERROR: xctestrun TestHostPath is missing for $SCHEME." >&2
     return 1
   }
+  [[ "$host_raw" != *..* ]] || {
+    echo "ERROR: xctestrun TestHostPath contains traversal." >&2
+    return 1
+  }
   host_path=$(expand_xctestrun_path "$host_raw" "$test_root" "")
   validate_bundle_reference TestHostPath "$host_path" || return 1
+  host_canonical=$(cd "$host_path" && pwd -P)
+  [[ "$host_canonical" == "$runner_canonical" ]] || {
+    echo "ERROR: xctestrun TestHostPath does not identify Runner.app." >&2
+    return 1
+  }
 
   bundle_raw=$(plutil -extract "$SCHEME.TestBundlePath" raw -o - "$XCTESTRUN" 2>/dev/null || true)
   [[ -n "$bundle_raw" ]] || {
     echo "ERROR: xctestrun TestBundlePath is missing for $SCHEME." >&2
     return 1
   }
+  [[ "$bundle_raw" != *..* ]] || {
+    echo "ERROR: xctestrun TestBundlePath contains traversal." >&2
+    return 1
+  }
   bundle_path=$(expand_xctestrun_path "$bundle_raw" "$test_root" "$host_path")
   validate_bundle_reference TestBundlePath "$bundle_path" || return 1
+  bundle_canonical=$(cd "$bundle_path" && pwd -P)
+  case "$bundle_canonical" in
+    "$host_canonical/Contents/PlugIns/"*) ;;
+    *)
+      echo "ERROR: xctestrun TestBundlePath escapes Runner.app." >&2
+      return 1
+      ;;
+  esac
 }
 
 APP_DIR="$RUNNER_ROOT/app"

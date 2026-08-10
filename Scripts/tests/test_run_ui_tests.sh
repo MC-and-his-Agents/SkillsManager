@@ -74,7 +74,13 @@ if [[ "${1:-}" == build-for-testing ]]; then
   done
   mkdir -p "$derived/Build/Products"
   xctestrun="$derived/Build/Products/SkillsManagerUITests.xctestrun"
-  printf "%s\n" "{ SkillsManagerUITests = { TestHostPath = \"__TESTROOT__/Debug/SkillsManagerUITest.app\"; TestBundlePath = \"__TESTHOST__/Contents/PlugIns/SkillsManagerUITests.xctest\"; }; }" > "$xctestrun"
+  test_host_ref="__TESTROOT__/Debug/SkillsManagerUITests-Runner.app"
+  test_bundle_ref="__TESTHOST__/Contents/PlugIns/SkillsManagerUITests.xctest"
+  if [[ "${FIXTURE_MODE:-}" == host-mismatch ]]; then
+    test_host_ref="__TESTROOT__/Debug/OtherHost.app"
+  elif [[ "${FIXTURE_MODE:-}" == bundle-escape ]]; then
+    test_bundle_ref="__TESTHOST__/Contents/PlugIns/Escaped.xctest"
+  fi
   if [[ "${FIXTURE_MODE:-}" != missing-runner ]]; then
     runner_app="$derived/Build/Products/Debug/SkillsManagerUITests-Runner.app"
     mkdir -p "$runner_app/Contents/MacOS"
@@ -82,9 +88,16 @@ if [[ "${1:-}" == build-for-testing ]]; then
     : > "$runner_app/Contents/MacOS/SkillsManagerUITests-Runner"
     chmod +x "$runner_app/Contents/MacOS/SkillsManagerUITests-Runner"
   fi
-  if [[ "${FIXTURE_MODE:-}" != missing-reference ]]; then
-    host_app="$derived/Build/Products/Debug/SkillsManagerUITest.app"
-    test_bundle="$host_app/Contents/PlugIns/SkillsManagerUITests.xctest"
+  if [[ "${FIXTURE_MODE:-}" == host-mismatch ]]; then
+    mismatch_host="$derived/Build/Products/Debug/OtherHost.app"
+    mkdir -p "$mismatch_host/Contents/MacOS"
+    printf "%s\n" "{ CFBundleExecutable = OtherHost; }" > "$mismatch_host/Contents/Info.plist"
+    : > "$mismatch_host/Contents/MacOS/OtherHost"
+    chmod +x "$mismatch_host/Contents/MacOS/OtherHost"
+  fi
+  if [[ "${FIXTURE_MODE:-}" != missing-reference \
+    && "${FIXTURE_MODE:-}" != missing-runner ]]; then
+    test_bundle="$runner_app/Contents/PlugIns/SkillsManagerUITests.xctest"
     mkdir -p "$test_bundle/Contents/MacOS"
     printf "%s\n" "{ CFBundleExecutable = SkillsManagerUITests; }" > "$test_bundle/Contents/Info.plist"
     if [[ "${FIXTURE_MODE:-}" == directory-exec ]]; then
@@ -93,11 +106,16 @@ if [[ "${1:-}" == build-for-testing ]]; then
       : > "$test_bundle/Contents/MacOS/SkillsManagerUITests"
       chmod +x "$test_bundle/Contents/MacOS/SkillsManagerUITests"
     fi
-    mkdir -p "$host_app/Contents/MacOS"
-    printf "%s\n" "{ CFBundleExecutable = SkillsManager; }" > "$host_app/Contents/Info.plist"
-    : > "$host_app/Contents/MacOS/SkillsManager"
-    chmod +x "$host_app/Contents/MacOS/SkillsManager"
   fi
+  if [[ "${FIXTURE_MODE:-}" == bundle-escape ]]; then
+    escaped_bundle="$derived/Build/Products/Escaped.xctest"
+    mkdir -p "$escaped_bundle/Contents/MacOS"
+    printf "%s\n" "{ CFBundleExecutable = EscapedTests; }" > "$escaped_bundle/Contents/Info.plist"
+    : > "$escaped_bundle/Contents/MacOS/EscapedTests"
+    chmod +x "$escaped_bundle/Contents/MacOS/EscapedTests"
+    ln -s "$escaped_bundle" "$runner_app/Contents/PlugIns/Escaped.xctest"
+  fi
+  printf "%s\n" "{ SkillsManagerUITests = { TestHostPath = \"$test_host_ref\"; TestBundlePath = \"$test_bundle_ref\"; }; }" > "$xctestrun"
   exit 0
 fi
 if [[ "${1:-}" == test-without-building ]]; then
@@ -334,6 +352,18 @@ grep -Fq 'category=build-or-package-failure' "$directory_exec_dir/output" || fai
 grep -Fq 'UI test attempt 1: category=not-run' "$directory_exec_dir/output" || fail "directory executable invoked attempt 1"
 grep -Fq 'UI test attempt 2: category=not-run' "$directory_exec_dir/output" || fail "directory executable invoked attempt 2"
 [[ ! -e "$directory_exec_dir/invocations" ]] || fail "directory executable invoked tests"
+
+host_mismatch_dir=$(run_case host-mismatch 1)
+grep -Fq 'category=build-or-package-failure' "$host_mismatch_dir/output" || fail "host mismatch was not classified as build failure"
+grep -Fq 'UI test attempt 1: category=not-run' "$host_mismatch_dir/output" || fail "host mismatch invoked attempt 1"
+grep -Fq 'UI test attempt 2: category=not-run' "$host_mismatch_dir/output" || fail "host mismatch invoked attempt 2"
+[[ ! -e "$host_mismatch_dir/invocations" ]] || fail "host mismatch invoked tests"
+
+bundle_escape_dir=$(run_case bundle-escape 1)
+grep -Fq 'category=build-or-package-failure' "$bundle_escape_dir/output" || fail "bundle escape was not classified as build failure"
+grep -Fq 'UI test attempt 1: category=not-run' "$bundle_escape_dir/output" || fail "bundle escape invoked attempt 1"
+grep -Fq 'UI test attempt 2: category=not-run' "$bundle_escape_dir/output" || fail "bundle escape invoked attempt 2"
+[[ ! -e "$bundle_escape_dir/invocations" ]] || fail "bundle escape invoked tests"
 
 hosted_dir=$(run_case runner 0 true)
 grep -Fq 'github_run_id=195fixture' "$hosted_dir/output" || fail "hosted run ID missing"
