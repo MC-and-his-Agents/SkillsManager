@@ -42,7 +42,31 @@ if catalog.get("sourceLanguage") != "zh-Hans":
     raise SystemExit("ERROR: Localizable.xcstrings sourceLanguage must be zh-Hans")
 
 entries = catalog.get("strings", {})
-source_keys = set(extracted.get("strings", {}))
+raw_source_keys = set(extracted.get("strings", {}))
+
+# xcstringstool emits `%arg` for an interpolation-aware Swift resource. The
+# catalog intentionally keeps typed `%@`/`%lld` keys so Foundation can match
+# String and Int interpolation at runtime; compare the two representations by
+# their interpolation shape rather than introducing a second catalog key.
+def interpolation_shape(value):
+    return re.sub(r"%(\d+\$)?(?:arg|@|lld)", r"%\1arg", value)
+
+source_keys = set()
+for raw_key in raw_source_keys:
+    if raw_key in entries:
+        source_keys.add(raw_key)
+        continue
+    candidates = [
+        key for key in entries
+        if interpolation_shape(key) == raw_key
+    ]
+    if len(candidates) != 1:
+        raise SystemExit(
+            f"ERROR: extracted key {raw_key!r} does not map to one typed catalog key: "
+            + ", ".join(sorted(candidates))
+        )
+    source_keys.add(candidates[0])
+
 missing = sorted(source_keys - set(entries))
 if missing:
     raise SystemExit("ERROR: source keys missing from catalog: " + ", ".join(missing))
@@ -61,6 +85,7 @@ equal_allowlist = {
     "%1$@: %2$lld": "format shell: localized status plus count",
     "%@ · %@": "format shell: two opaque interpolation slots",
     "↻ v%@": "format shell: version token",
+    "SHA-256 %@…": "technical digest label with opaque prefix",
     "OK": "protocol acknowledgement",
     "ClawHub": "provider name",
     "GitHub": "vendor name",
@@ -137,6 +162,32 @@ for language in ("zh-Hans", "en"):
         )
 
 print(f"OK: {len(source_keys)} extracted keys; {len(entries)} catalog entries; zh-Hans/en complete")
+PY
+
+# Native interpolation-aware resources must not provide a rendered
+# `defaultValue:` beside a static format key. That shape bypasses Foundation's
+# interpolation metadata and leaves `%@`/`%lld` markers in the UI. Every
+# dynamic resource must put its interpolation directly in the first argument.
+python3 - "$ROOT_DIR/Sources/SkillsManager" <<'PY'
+import pathlib
+import re
+import sys
+
+source_root = pathlib.Path(sys.argv[1])
+forbidden = re.compile(r"LocalizedStringResource\s*\([\s\S]{0,1200}?\bdefaultValue\s*:")
+findings = []
+for path in sorted(source_root.rglob("*.swift")):
+    text = path.read_text(encoding="utf-8")
+    for match in forbidden.finditer(text):
+        line = text.count("\n", 0, match.start()) + 1
+        findings.append(f"{path}:{line}:LocalizedStringResource defaultValue bridge")
+
+if findings:
+    print("ERROR: format-key LocalizedStringResource defaultValue bridges:", file=sys.stderr)
+    print("\n".join(findings), file=sys.stderr)
+    raise SystemExit(1)
+
+print("OK: LocalizedStringResource uses interpolation-aware first arguments")
 PY
 
 # Static UI literal gate.  Only expression-backed external/user/provider/path/

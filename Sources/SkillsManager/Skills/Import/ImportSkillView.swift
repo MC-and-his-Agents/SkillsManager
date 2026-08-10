@@ -131,7 +131,7 @@ struct ImportSkillView: View {
         ContentUnavailableView(
             String(localized: "Unable to import", bundle: .module),
             systemImage: "xmark.octagon",
-            description: Text(errorMessage)
+            description: Text(verbatim: errorMessage)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -187,68 +187,68 @@ struct ImportSkillView: View {
         case .distributed:
             return Text(
                 String(
-                    localized: LocalizedStringResource( "%@ is managed and available to the selected Agents.",
-                    defaultValue: "\(result.displayName) is managed and available to the selected Agents.",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(result.displayName) is managed and available to the selected Agents.",
+            bundle: .module
+        ))
             )
         case .noDistributionChanges:
             return Text(
                 String(
-                    localized: LocalizedStringResource( "%@ is managed; no distribution changes were needed.",
-                    defaultValue: "\(result.displayName) is managed; no distribution changes were needed.",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(result.displayName) is managed; no distribution changes were needed.",
+            bundle: .module
+        ))
             )
         case .managedUndistributed:
             return Text(
                 String(
-                    localized: LocalizedStringResource( "%@ is safe in the managed library, but distribution was not applied.",
-                    defaultValue: "\(result.displayName) is safe in the managed library, but distribution was not applied.",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(result.displayName) is safe in the managed library, but distribution was not applied.",
+            bundle: .module
+        ))
             )
         case .managedDistributionIndeterminate:
             return Text(
                 String(
-                    localized: LocalizedStringResource( "%@ is managed, but its distribution state must be confirmed or repaired.",
-                    defaultValue: "\(result.displayName) is managed, but its distribution state must be confirmed or repaired.",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(result.displayName) is managed, but its distribution state must be confirmed or repaired.",
+            bundle: .module
+        ))
             )
         case .managementIndeterminate:
             return Text(
                 String(
-                    localized: LocalizedStringResource( "The import state for %@ must be confirmed or repaired before retrying.",
-                    defaultValue: "The import state for \(result.displayName) must be confirmed or repaired before retrying.",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "The import state for \(result.displayName) must be confirmed or repaired before retrying.",
+            bundle: .module
+        ))
             )
         case .alreadyManaged:
             return Text(String(
-                localized: LocalizedStringResource( "%@ is already in the managed library.",
-                defaultValue: "\(result.displayName) is already in the managed library.",
-                bundle: .module
-            )))
+                localized: LocalizedStringResource(
+            "\(result.displayName) is already in the managed library.",
+            bundle: .module
+        )))
         case .updateRequired:
             return Text(String(
-                localized: LocalizedStringResource( "%@ differs from the managed version.",
-                defaultValue: "\(result.displayName) differs from the managed version.",
-                bundle: .module
-            )))
+                localized: LocalizedStringResource(
+            "\(result.displayName) differs from the managed version.",
+            bundle: .module
+        )))
         case .updated:
             return Text(String(
-                localized: LocalizedStringResource( "%@ was updated.",
-                defaultValue: "\(result.displayName) was updated.",
-                bundle: .module
-            )))
+                localized: LocalizedStringResource(
+            "\(result.displayName) was updated.",
+            bundle: .module
+        )))
         case .updatedDistributionNeedsAttention:
             return Text(
                 String(
-                    localized: LocalizedStringResource( "Refresh %@'s distribution from its details.",
-                    defaultValue: "Refresh \(result.displayName)'s distribution from its details.",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "Refresh \(result.displayName)'s distribution from its details.",
+            bundle: .module
+        ))
             )
         case .updateIndeterminate:
             return Text("Confirm or repair the managed library before retrying.", bundle: .module)
@@ -261,9 +261,9 @@ struct ImportSkillView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(candidate.displayName)
+                        Text(verbatim: candidate.displayName)
                             .font(.title2.bold())
-                        Text(candidate.payload.rootURL.path)
+                        Text(verbatim: candidate.payload.rootURL.path)
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }

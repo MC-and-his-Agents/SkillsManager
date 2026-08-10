@@ -271,10 +271,10 @@ struct SkillSplitView: View {
                 .help(Text("Batch Import discovered Skills", bundle: .module))
                 .accessibilityLabel(Text("Batch Import discovered Skills", bundle: .module))
                 .accessibilityValue(Text(String(
-                    localized: LocalizedStringResource( "%lld candidates available",
-                    defaultValue: "\(batchCandidateCount) candidates available",
-                    bundle: .module
-                ))))
+                    localized: LocalizedStringResource(
+            "\(batchCandidateCount) candidates available",
+            bundle: .module
+        ))))
                 .accessibilityIdentifier("skills.batch-import")
             }
         }
@@ -355,8 +355,8 @@ struct SkillSplitView: View {
             return Text("Skill Backups", bundle: .module)
         }
         return Text(String(
-            localized: LocalizedStringResource( "Skill Backups, %lld available",
-            defaultValue: "Skill Backups, \(lifecycleModel.availableBackupCount) available",
+            localized: LocalizedStringResource(
+            "Skill Backups, \(lifecycleModel.availableBackupCount) available",
             bundle: .module
         )))
     }

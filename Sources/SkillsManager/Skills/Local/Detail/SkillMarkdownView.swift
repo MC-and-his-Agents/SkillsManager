@@ -198,19 +198,19 @@ struct SkillMarkdownView: View {
         VStack(alignment: .leading, spacing: 8) {
             if let username = cliStatus.username {
                 Text(String(
-                    localized: LocalizedStringResource( "Signed in as %@",
-                    defaultValue: "Signed in as \(username)",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "Signed in as \(username)",
+            bundle: .module
+        )))
                     .foregroundStyle(.secondary)
             }
 
             if let publishedVersion {
                 Text(String(
-                    localized: LocalizedStringResource( "Latest version %@",
-                    defaultValue: "Latest version \(publishedVersion)",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "Latest version \(publishedVersion)",
+            bundle: .module
+        )))
                     .foregroundStyle(.secondary)
                 Text(needsPublish
                     ? "Changes detected. Publish an update."
@@ -256,18 +256,18 @@ struct SkillMarkdownView: View {
         } else {
             if let installedVersion {
                 Text(String(
-                    localized: LocalizedStringResource( "Installed version %@",
-                    defaultValue: "Installed version \(installedVersion)",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "Installed version \(installedVersion)",
+            bundle: .module
+        )))
                     .foregroundStyle(.secondary)
             }
             if let latestVersion, updateAvailable {
                 Text(String(
-                    localized: LocalizedStringResource( "Update available: v%@",
-                    defaultValue: "Update available: v\(latestVersion)",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "Update available: v\(latestVersion)",
+            bundle: .module
+        )))
                     .foregroundStyle(.secondary)
             } else if latestVersion != nil {
                 Text("You’re up to date.", bundle: .module)

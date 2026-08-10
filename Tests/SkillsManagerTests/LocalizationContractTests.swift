@@ -147,6 +147,127 @@ struct LocalizationContractTests {
         }
     }
 
+    @Test("typed interpolation renders inserted values for representative journeys")
+    func typedInterpolationRendersValues() {
+        let zh = Locale(identifier: "zh-Hans")
+        let en = Locale(identifier: "en")
+        let bundle = SkillsManagerLocalizationResources.bundle
+
+        func assertRendered(
+            _ value: String,
+            contains inserted: String
+        ) {
+            #expect(value.contains(inserted))
+            #expect(!value.contains("%@"))
+            #expect(!value.contains("%lld"))
+            #expect(!value.contains("%1$"))
+        }
+
+        let version = "9.8.7"
+        let installName = "Probe Skill"
+        let batchName = "Batch Skill"
+        let resultMessage = "raw provider detail"
+        let zhBadge = String(localized: LocalizedStringResource(
+            "Update available, version \(version)",
+            locale: zh,
+            bundle: bundle
+        ))
+        let enBadge = String(localized: LocalizedStringResource(
+            "Update available, version \(version)",
+            locale: en,
+            bundle: bundle
+        ))
+        let zhInstall = String(localized: LocalizedStringResource(
+            "\(installName) is ready.",
+            locale: zh,
+            bundle: bundle
+        ))
+        let enInstall = String(localized: LocalizedStringResource(
+            "\(installName) is ready.",
+            locale: en,
+            bundle: bundle
+        ))
+        let zhDiscovery = String(localized: LocalizedStringResource(
+            "\(3) selected",
+            locale: zh,
+            bundle: bundle
+        ))
+        let enDiscovery = String(localized: LocalizedStringResource(
+            "\(3) selected",
+            locale: en,
+            bundle: bundle
+        ))
+        let zhSummary = String(localized: LocalizedStringResource(
+            "\(2) created · \(1) claimed · \(0) skipped · \(1) failed",
+            locale: zh,
+            bundle: bundle
+        ))
+        let enSummary = String(localized: LocalizedStringResource(
+            "\(2) created · \(1) claimed · \(0) skipped · \(1) failed",
+            locale: en,
+            bundle: bundle
+        ))
+        let zhBatch = String(localized: LocalizedStringResource(
+            "\(2) of \(4) complete. \(batchName)",
+            locale: zh,
+            bundle: bundle
+        ))
+        let enBatch = String(localized: LocalizedStringResource(
+            "\(2) of \(4) complete. \(batchName)",
+            locale: en,
+            bundle: bundle
+        ))
+        let zhConsistency = String(localized: LocalizedStringResource(
+            "\(5) item(s) need review.",
+            locale: zh,
+            bundle: bundle
+        ))
+        let enConsistency = String(localized: LocalizedStringResource(
+            "\(5) item(s) need review.",
+            locale: en,
+            bundle: bundle
+        ))
+        let zhRemote = String(localized: LocalizedStringResource(
+            "\(12) installs",
+            locale: zh,
+            bundle: bundle
+        ))
+        let enRemote = String(localized: LocalizedStringResource(
+            "\(12) installs",
+            locale: en,
+            bundle: bundle
+        ))
+        let zhResult = String(localized: LocalizedStringResource(
+            "Result: \(resultMessage)",
+            locale: zh,
+            bundle: bundle
+        ))
+        let enResult = String(localized: LocalizedStringResource(
+            "Result: \(resultMessage)",
+            locale: en,
+            bundle: bundle
+        ))
+
+        for value in [zhBadge, enBadge] { assertRendered(value, contains: version) }
+        for value in [zhInstall, enInstall] { assertRendered(value, contains: installName) }
+        for value in [zhDiscovery, enDiscovery] { assertRendered(value, contains: "3") }
+        for value in [zhSummary, enSummary] { assertRendered(value, contains: "1") }
+        for value in [zhBatch, enBatch] { assertRendered(value, contains: batchName) }
+        for value in [zhConsistency, enConsistency] { assertRendered(value, contains: "5") }
+        for value in [zhRemote, enRemote] { assertRendered(value, contains: "12") }
+        for value in [zhResult, enResult] { assertRendered(value, contains: resultMessage) }
+        #expect(zhBadge.contains("有可用更新"))
+        #expect(zhSummary.contains("已创建"))
+        #expect(zhConsistency.contains("需要检查"))
+        #expect(zhRemote.contains("安装"))
+        #expect(zhResult.contains("结果"))
+        #expect(enBadge.contains("Update available"))
+        #expect(enSummary.contains("created"))
+        #expect(enConsistency.contains("need review"))
+        #expect(enRemote.contains("installs"))
+        #expect(enResult.contains("Result"))
+    }
+
     private func localizationUnits(
         _ localization: [String: Any],
         key: String,

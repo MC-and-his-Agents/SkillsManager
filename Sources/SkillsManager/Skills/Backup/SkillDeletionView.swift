@@ -57,10 +57,10 @@ struct SkillDeletionView: View {
                     .font(.headline)
                     .accessibilityLabel(Text(
                         String(
-                            localized: LocalizedStringResource( "Managed Skill status: %@",
-                            defaultValue: "Managed Skill status: \(deletionStatusText(preview.status))",
-                            bundle: .module
-                        ))
+                            localized: LocalizedStringResource(
+            "Managed Skill status: \(deletionStatusText(preview.status))",
+            bundle: .module
+        ))
                     ))
                 Spacer()
                 Button {
@@ -86,7 +86,7 @@ struct SkillDeletionView: View {
             if let content = preview.content {
                 VStack(alignment: .leading, spacing: 6) {
                     LabeledContent {
-                        Text(content.contentFingerprint.shortDisplayName)
+                        Text(verbatim: content.contentFingerprint.shortDisplayName)
                     } label: {
                         Text("Content", bundle: .module)
                     }
@@ -96,7 +96,7 @@ struct SkillDeletionView: View {
                         Text("Files", bundle: .module)
                     }
                     LabeledContent {
-                        Text(content.statistics.byteCountDescription)
+                        Text(verbatim: content.statistics.byteCountDescription)
                     } label: {
                         Text("Size", bundle: .module)
                     }
@@ -111,7 +111,7 @@ struct SkillDeletionView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(preview.targets) { target in
-                        Text(target.canonicalLocator)
+                        Text(verbatim: target.canonicalLocator)
                             .font(.callout.monospaced())
                             .textSelection(.enabled)
                     }
@@ -217,7 +217,7 @@ private struct SkillDeletionConfirmationView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Delete from Skills Manager?", bundle: .module)
                 .font(.title.bold())
-            Text(pending.preview.displayName)
+            Text(verbatim: pending.preview.displayName)
                 .font(.title3)
                 .foregroundStyle(.secondary)
 
@@ -256,15 +256,15 @@ private struct SkillDeletionConfirmationView: View {
                 impactRow("Create a verified backup", systemImage: "archivebox")
                 targetImpactRow
                 ForEach(pending.preview.targets) { target in
-                    Text(target.canonicalLocator)
+                    Text(verbatim: target.canonicalLocator)
                         .font(.callout.monospaced())
                         .textSelection(.enabled)
                         .accessibilityLabel(Text(
                             String(
-                                localized: LocalizedStringResource( "Managed Agent target %@",
-                                defaultValue: "Managed Agent target \(target.canonicalLocator)",
-                                bundle: .module
-                            ))
+                                localized: LocalizedStringResource(
+            "Managed Agent target \(target.canonicalLocator)",
+            bundle: .module
+        ))
                         ))
                 }
                 impactRow("Delete the managed Skill and its library record", systemImage: "trash")
@@ -277,7 +277,7 @@ private struct SkillDeletionConfirmationView: View {
                         Text("Files", bundle: .module)
                     }
                     LabeledContent {
-                        Text(content.statistics.byteCountDescription)
+                        Text(verbatim: content.statistics.byteCountDescription)
                     } label: {
                         Text("Size", bundle: .module)
                     }
@@ -370,16 +370,16 @@ private struct SkillDeletionConfirmationView: View {
 
     private var targetImpactRow: some View {
         let targetDescription = String(
-            localized: LocalizedStringResource( "Managed Agent targets: %lld",
-            defaultValue: "Managed Agent targets: \(pending.preview.targets.count)",
+            localized: LocalizedStringResource(
+            "Managed Agent targets: \(pending.preview.targets.count)",
             bundle: .module
         ))
         return Label {
             Text(String(
-                localized: LocalizedStringResource( "Remove %@",
-                defaultValue: "Remove \(targetDescription)",
-                bundle: .module
-            )))
+                localized: LocalizedStringResource(
+            "Remove \(targetDescription)",
+            bundle: .module
+        )))
         } icon: {
             Image(systemName: "link.badge.minus")
         }

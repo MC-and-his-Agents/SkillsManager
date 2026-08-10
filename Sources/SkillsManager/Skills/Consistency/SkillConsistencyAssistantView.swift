@@ -65,11 +65,11 @@ struct SkillConsistencyAssistantView: View {
                 List(visibleFindings, selection: $selectedFindingID) { finding in
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(verbatim: finding.title)
+                            Text(findingTitleText(finding.title))
                                 .lineLimit(1)
                             Text(verbatim: model.isKept(finding.id)
                                 ? String(localized: "Kept for now", bundle: .module)
-                                : finding.detail)
+                                : findingDetailText(finding.detail))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
@@ -184,12 +184,12 @@ struct SkillConsistencyAssistantView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Label {
-                    Text(verbatim: finding.title)
+                    Text(findingTitleText(finding.title))
                 } icon: {
                     Image(systemName: systemImage(for: finding.severity))
                 }
                     .font(.title2)
-                Text(finding.detail)
+                Text(findingDetailText(finding.detail))
                     .foregroundStyle(.secondary)
                 if let locator = finding.locator {
                     GroupBox {
@@ -243,8 +243,8 @@ struct SkillConsistencyAssistantView: View {
                         || model.isVerifying
                         || model.snapshot?.allowsWrites != true
                 )
-                .accessibilityLabel(Text(verbatim: actionTitle(action) + ": " + finding.title))
-                .accessibilityHint(Text(verbatim: actionHintText(action)))
+                .accessibilityLabel(Text(actionAccessibilityLabel(action, finding: finding)))
+                .accessibilityHint(Text(actionHintText(action)))
             }
         }
     }
@@ -386,8 +386,8 @@ struct SkillConsistencyAssistantView: View {
 
     private func findingsStatusText(count: Int) -> String {
         String(
-            localized: LocalizedStringResource( "%lld item(s) need review.",
-            defaultValue: "\(count) item(s) need review.",
+            localized: LocalizedStringResource(
+            "\(count) item(s) need review.",
             bundle: .module
         ))
     }
@@ -455,6 +455,107 @@ struct SkillConsistencyAssistantView: View {
             String(localized: "Shows the source, SSOT target, backup and operation before writing.", bundle: .module)
         case .keepForNow:
             String(localized: "Makes no changes. The finding returns after the next audit.", bundle: .module)
+        }
+    }
+
+    private func actionAccessibilityLabel(
+        _ action: SkillConsistencyPresentation.Action,
+        finding: SkillConsistencyPresentation.Finding
+    ) -> String {
+        let title = findingTitleText(finding.title)
+        return String(localized: LocalizedStringResource(
+            "\(actionTitle(action)): \(title)",
+            bundle: .module
+        ))
+    }
+
+    private func findingTitleText(_ title: String) -> String {
+        guard let separator = title.range(of: " · ") else { return title }
+        let name = String(title[..<separator.lowerBound])
+        let scope = String(title[separator.upperBound...])
+        let localizedScope: String
+        switch scope {
+        case "All compatible Agents":
+            localizedScope = String(localized: "All compatible Agents", bundle: .module)
+        case SkillPlatform.codex.rawValue:
+            localizedScope = String(localized: "Codex", bundle: .module)
+        case SkillPlatform.claude.rawValue:
+            localizedScope = String(localized: "Claude Code", bundle: .module)
+        case SkillPlatform.opencode.rawValue:
+            localizedScope = String(localized: "OpenCode", bundle: .module)
+        case SkillPlatform.copilot.rawValue:
+            localizedScope = String(localized: "GitHub Copilot", bundle: .module)
+        default:
+            localizedScope = scope
+        }
+        return String(localized: LocalizedStringResource(
+            "\(name) · \(localizedScope)",
+            bundle: .module
+        ))
+    }
+
+    private func findingDetailText(_ detail: String) -> String {
+        switch detail {
+        case "The managed link points to a different Skill.":
+            return String(localized: "The managed link points to a different Skill.", bundle: .module)
+        case "The managed Symlink is missing.":
+            return String(localized: "The managed Symlink is missing.", bundle: .module)
+        case "The managed target is missing and requires a Copy/Fork decision.":
+            return String(localized: "The managed target is missing and requires a Copy/Fork decision.", bundle: .module)
+        case "The managed Copy has changed and requires an explicit Fork decision.":
+            return String(localized: "The managed Copy has changed and requires an explicit Fork decision.", bundle: .module)
+        case "Another file or directory occupies this managed target.":
+            return String(localized: "Another file or directory occupies this managed target.", bundle: .module)
+        case "This target could not be inspected.":
+            return String(localized: "This target could not be inspected.", bundle: .module)
+        case "The target state is not supported by this repair assistant.":
+            return String(localized: "The target state is not supported by this repair assistant.", bundle: .module)
+        case "The audit could not bind this directory to one stable observation.":
+            return String(localized: "The audit could not bind this directory to one stable observation.", bundle: .module)
+        case "The audit found duplicate observations for the same directory.":
+            return String(localized: "The audit found duplicate observations for the same directory.", bundle: .module)
+        case "Conflicting identity evidence requires import as an independent Skill.":
+            return String(localized: "Conflicting identity evidence requires import as an independent Skill.", bundle: .module)
+        case "This directory is not yet distributed through the managed library.":
+            return String(localized: "This directory is not yet distributed through the managed library.", bundle: .module)
+        case "This directory is not associated with a registered scan root.":
+            return String(localized: "This directory is not associated with a registered scan root.", bundle: .module)
+        case "This directory belongs to a custom scan root and cannot be migrated.":
+            return String(localized: "This directory belongs to a custom scan root and cannot be migrated.", bundle: .module)
+        case "This directory could not produce a stable content snapshot.":
+            return String(localized: "This directory could not produce a stable content snapshot.", bundle: .module)
+        case "This directory name is not a safe canonical locator.":
+            return String(localized: "This directory name is not a safe canonical locator.", bundle: .module)
+        case "This Agent directory is not a canonical managed distribution root.":
+            return String(localized: "This Agent directory is not a canonical managed distribution root.", bundle: .module)
+        case "This directory is not in a canonical managed distribution root.":
+            return String(localized: "This directory is not in a canonical managed distribution root.", bundle: .module)
+        case let value where value.hasPrefix("Recommended action: "):
+            let code = String(value.dropFirst("Recommended action: ".count))
+            return String(localized: LocalizedStringResource(
+                "Recommended action: \(code)",
+                bundle: .module
+            ))
+        case let value where value.hasPrefix("The root could not be fully audited: "):
+            let reason = String(value.dropFirst("The root could not be fully audited: ".count))
+            return String(localized: LocalizedStringResource(
+                "The root could not be fully audited: \(reason)",
+                bundle: .module
+            ))
+        case let value where value.hasPrefix("This directory cannot be safely imported: "):
+            let reason = String(value.dropFirst("This directory cannot be safely imported: ".count))
+            return String(localized: LocalizedStringResource(
+                "This directory cannot be safely imported: \(reason)",
+                bundle: .module
+            ))
+        case "This external Skill link changed after it was imported. Review it in Discovery; no files were changed.":
+            return String(localized: "This external Skill link changed after it was imported. Review it in Discovery; no files were changed.", bundle: .module)
+        case "This external Skill link can be imported from Discovery. The source link and target will remain unchanged.":
+            return String(localized: "This external Skill link can be imported from Discovery. The source link and target will remain unchanged.", bundle: .module)
+        case "This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.":
+            return String(localized: "This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.", bundle: .module)
+        default:
+            return detail
         }
     }
 

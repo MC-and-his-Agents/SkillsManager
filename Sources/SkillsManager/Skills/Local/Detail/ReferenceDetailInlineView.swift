@@ -18,7 +18,7 @@ struct ReferenceDetailInlineView: View {
         case .failed(let message):
             ContentUnavailableView(String(localized: "Unable to load reference", bundle: .module),
                                    systemImage: "exclamationmark.triangle",
-                                   description: Text(message))
+                                   description: Text(verbatim: message))
         case .loaded:
             Markdown(store.selectedReferenceMarkdown)
                 .textSelection(.enabled)

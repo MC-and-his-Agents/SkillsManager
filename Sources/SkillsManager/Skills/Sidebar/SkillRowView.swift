@@ -72,18 +72,17 @@ struct SkillRowView: View {
         switch badge {
         case .updateAvailable(let version):
             return String(
-                localized: LocalizedStringResource( "Update available, version %@",
-                defaultValue: "Update available, version \(version)",
-                locale: locale ?? .current,
-                bundle: .module
-            ))
+                localized: LocalizedStringResource(
+            "Update available, version \(version)",
+            locale: locale ?? .current,
+            bundle: .module
+        ))
         case .needsAttention:
             let resource = LocalizedStringResource(
-                "Needs Repair",
-                defaultValue: "Needs Repair",
-                locale: locale ?? .current,
-                bundle: .module
-            )
+            "Needs Repair",
+            locale: locale ?? .current,
+            bundle: .module
+        )
             return String(localized: resource)
         }
     }

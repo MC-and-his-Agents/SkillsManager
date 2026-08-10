@@ -22,48 +22,48 @@ func localizedManagedInstallResultMessage(_ result: ManagedLocalImportResult) ->
     switch result.status {
     case .distributed:
         return String(
-            localized: LocalizedStringResource( "%@ is ready.",
-            defaultValue: "\(name) is ready.",
+            localized: LocalizedStringResource(
+            "\(name) is ready.",
             bundle: .module
         ))
     case .noDistributionChanges:
         return String(
-            localized: LocalizedStringResource( "%@ is managed.",
-            defaultValue: "\(name) is managed.",
+            localized: LocalizedStringResource(
+            "\(name) is managed.",
             bundle: .module
         ))
     case .managedUndistributed:
         return String(
-            localized: LocalizedStringResource( "%@ is managed; resolve its distribution conflict from details.",
-            defaultValue: "\(name) is managed; resolve its distribution conflict from details.",
+            localized: LocalizedStringResource(
+            "\(name) is managed; resolve its distribution conflict from details.",
             bundle: .module
         ))
     case .managedDistributionIndeterminate:
         return String(
-            localized: LocalizedStringResource( "%@ is managed, but its Agent state must be confirmed.",
-            defaultValue: "\(name) is managed, but its Agent state must be confirmed.",
+            localized: LocalizedStringResource(
+            "\(name) is managed, but its Agent state must be confirmed.",
             bundle: .module
         ))
     case .managementIndeterminate:
         return String(localized: "Confirm or repair the managed library before retrying.", bundle: .module)
     case .alreadyManaged:
         return String(
-            localized: LocalizedStringResource( "Use the Skill details to change where %@ is enabled.",
-            defaultValue: "Use the Skill details to change where \(name) is enabled.",
+            localized: LocalizedStringResource(
+            "Use the Skill details to change where \(name) is enabled.",
             bundle: .module
         ))
     case .updateRequired:
         return String(localized: "The remote source has different content or revision. No files were changed.", bundle: .module)
     case .updated:
         return String(
-            localized: LocalizedStringResource( "%@ was backed up and updated. Current Agent access was preserved.",
-            defaultValue: "\(name) was backed up and updated. Current Agent access was preserved.",
+            localized: LocalizedStringResource(
+            "\(name) was backed up and updated. Current Agent access was preserved.",
             bundle: .module
         ))
     case .updatedDistributionNeedsAttention:
         return String(
-            localized: LocalizedStringResource( "%@ was updated and backed up. Refresh its distribution from details.",
-            defaultValue: "\(name) was updated and backed up. Refresh its distribution from details.",
+            localized: LocalizedStringResource(
+            "\(name) was updated and backed up. Refresh its distribution from details.",
             bundle: .module
         ))
     case .updateIndeterminate:
@@ -105,9 +105,15 @@ func localizedManagedLocalImportProblem(_ problem: ManagedLocalImportProblem) ->
     case .aliasLimitReached:
         String(localized: "This managed Skill has reached the Provider alias limit.", bundle: .module)
     case .failed(let detail):
-        String(localized: LocalizedStringResource( "Import failed: %@", defaultValue: "Import failed: \(detail)", bundle: .module))
+        String(localized: LocalizedStringResource(
+            "Import failed: \(detail)",
+            bundle: .module
+        ))
     case .updateFailed(let detail):
-        String(localized: LocalizedStringResource( "Update failed: %@", defaultValue: "Update failed: \(detail)", bundle: .module))
+        String(localized: LocalizedStringResource(
+            "Update failed: \(detail)",
+            bundle: .module
+        ))
     }
 }
 

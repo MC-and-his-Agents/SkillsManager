@@ -69,7 +69,7 @@ struct SkillBackupLibraryView: View {
             ContentUnavailableView(
                 String(localized: "Backups unavailable", bundle: .module),
                 systemImage: "lock.trianglebadge.exclamationmark",
-                description: Text(message)
+                description: Text(verbatim: message)
             )
         case .loading:
             ProgressView(String(localized: "Loading and validating backups…", bundle: .module))
@@ -78,7 +78,7 @@ struct SkillBackupLibraryView: View {
             ContentUnavailableView(
                 String(localized: "Backups unavailable", bundle: .module),
                 systemImage: "exclamationmark.triangle",
-                description: Text(problem.message)
+                description: Text(verbatim: problem.message)
             )
         case .loaded:
             loadedContent
@@ -127,10 +127,10 @@ struct SkillBackupLibraryView: View {
                     .font(.headline)
                 Text(
                     String(
-                        localized: LocalizedStringResource( "Skill %@",
-                        defaultValue: "Skill \(readback.skillID.directoryName)",
-                        bundle: .module
-                    ))
+                        localized: LocalizedStringResource(
+            "Skill \(readback.skillID.directoryName)",
+            bundle: .module
+        ))
                 )
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
@@ -159,40 +159,40 @@ struct SkillBackupLibraryView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: item.summary?.content.displayName ?? String(
-                    localized: LocalizedStringResource( "Backup %@",
-                    defaultValue: "Backup \(item.backupID.uuid.uuidString)",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "Backup \(item.backupID.uuid.uuidString)",
+            bundle: .module
+        )))
                     .font(.headline)
                     .lineLimit(1)
-                Text(item.createdAt.formatted(date: .abbreviated, time: .standard))
+                Text(verbatim: item.createdAt.formatted(date: .abbreviated, time: .standard))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 8) {
                 Text(verbatim: backupAvailabilityText(item.availability))
                     if let summary = item.summary {
-                        Text(summary.content.contentFingerprint.shortDisplayName)
-                        Text(summary.content.statistics.byteCountDescription)
+                        Text(verbatim: summary.content.contentFingerprint.shortDisplayName)
+                        Text(verbatim: summary.content.statistics.byteCountDescription)
                         Text(
                             String(
-                                localized: LocalizedStringResource( "%lld target%@",
-                                defaultValue: "\(summary.targets.count) target\(summary.targets.count == 1 ? "" : "s")",
-                                bundle: .module
-                            ))
+                                localized: LocalizedStringResource(
+            "\(summary.targets.count) target\(summary.targets.count == 1 ? "" : "s")",
+            bundle: .module
+        ))
                         )
                     }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 if let source = item.summary?.sourceLocator {
-                    Text(source)
+                    Text(verbatim: source)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .textSelection(.enabled)
                 }
                 if let problem = item.problem {
-                    Text(problem.localizedDescription)
+                    Text(deletionErrorText(problem))
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
@@ -263,6 +263,19 @@ struct SkillBackupLibraryView: View {
         case .unavailable: String(localized: "Unavailable", bundle: .module)
         }
     }
+
+    private func deletionErrorText(_ error: SkillDeletionError) -> String {
+        switch error {
+        case .skillNotFound: String(localized: "The managed Skill was not found.", bundle: .module)
+        case .conflict: String(localized: "The managed Skill changed during deletion.", bundle: .module)
+        case .previewExpired: String(localized: "The preview expired because the managed state changed.", bundle: .module)
+        case .operationInProgress: String(localized: "A deletion operation is already in progress.", bundle: .module)
+        case .needsRepair: String(localized: "The deletion operation requires repair.", bundle: .module)
+        case .backupCorrupt: String(localized: "The Skill backup is missing or corrupt.", bundle: .module)
+        case .permissionDenied: String(localized: "Skills Manager does not have permission for this operation.", bundle: .module)
+        case .unavailable: String(localized: "The deletion service is unavailable.", bundle: .module)
+        }
+    }
 }
 
 private struct SkillRestoreConfirmationView: View {
@@ -275,7 +288,7 @@ private struct SkillRestoreConfirmationView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Restore Skill", bundle: .module)
                 .font(.title.bold())
-            Text(pending.preview.summary.content.displayName)
+                    Text(verbatim: pending.preview.summary.content.displayName)
                 .font(.title3)
                 .foregroundStyle(.secondary)
 
@@ -345,7 +358,7 @@ private struct SkillRestoreConfirmationView: View {
                 }
                 if let source = pending.preview.summary.sourceLocator {
                     LabeledContent {
-                        Text(source)
+                        Text(verbatim: source)
                     } label: {
                         Text("Source", bundle: .module)
                     }
@@ -371,7 +384,7 @@ private struct SkillRestoreConfirmationView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(pending.preview.summary.targets) { target in
-                        Text(target.canonicalLocator)
+                    Text(verbatim: target.canonicalLocator)
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
@@ -390,7 +403,7 @@ private struct SkillRestoreConfirmationView: View {
                 Text(verbatim: restoreStatusText(result.status))
                     .font(.headline)
                 LabeledContent {
-                    Text(result.restoredSkillID.directoryName)
+                    Text(verbatim: result.restoredSkillID.directoryName)
                 } label: {
                     Text("Restored Skill ID", bundle: .module)
                 }

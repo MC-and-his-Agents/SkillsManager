@@ -17,10 +17,10 @@ struct CustomRepositoryCandidateRow: View {
             )],
             agentCount: 0,
             accessibilityLabel: String(
-                localized: LocalizedStringResource( "%@, Available, Repository, %@, %@",
-                defaultValue: "\(candidate.displayName), Available, Repository, \(candidate.repository.displayName), \(candidate.snapshot.subpath.value.isEmpty ? "root" : candidate.snapshot.subpath.value)",
-                bundle: .module
-            )),
+                localized: LocalizedStringResource(
+            "\(candidate.displayName), Available, Repository, \(candidate.repository.displayName), \(candidate.snapshot.subpath.value.isEmpty ? "root" : candidate.snapshot.subpath.value)",
+            bundle: .module
+        )),
             accessibilityValue: String(localized: "Available, Repository, 0 Agents", bundle: .module)
         ))
         .help(candidate.snapshot.subpath.value.isEmpty ? "/" : candidate.snapshot.subpath.value)
@@ -35,7 +35,7 @@ struct CustomRepositoryCandidateDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(candidate.displayName).font(.largeTitle.bold())
+                Text(verbatim: candidate.displayName).font(.largeTitle.bold())
                 HStack(spacing: 6) {
                     TagView(localized: "Available", systemImage: "arrow.down.circle")
                     TagView(localized: "Repository", systemImage: "shippingbox")
@@ -86,11 +86,21 @@ struct CustomRepositoryCandidateDetailView: View {
 
     private func detailRow(_ title: String, _ value: String) -> some View {
         GridRow {
-            Text(title).foregroundStyle(.secondary)
-            Text(value)
+            localizedDetailTitle(title).foregroundStyle(.secondary)
+            Text(verbatim: value)
                 .font(.callout.monospaced())
                 .textSelection(.enabled)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private func localizedDetailTitle(_ title: String) -> Text {
+        switch title {
+        case "Repository": Text("Repository", bundle: .module)
+        case "Subpath": Text("Subpath", bundle: .module)
+        case "Revision": Text("Revision", bundle: .module)
+        case "Target slug": Text("Target slug", bundle: .module)
+        default: Text(verbatim: title)
+        }
     }
 }

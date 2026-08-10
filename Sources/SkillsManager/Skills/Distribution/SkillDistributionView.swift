@@ -57,10 +57,10 @@ struct SkillDistributionView: View {
                     .font(.headline)
                     .accessibilityLabel(Text(
                         String(
-                            localized: LocalizedStringResource( "Distribution status: %@",
-                            defaultValue: "Distribution status: \(statusText(status))",
-                            bundle: .module
-                        ))
+                            localized: LocalizedStringResource(
+            "Distribution status: \(statusText(status))",
+            bundle: .module
+        ))
                     ))
                 Spacer()
                 Button {
@@ -134,7 +134,7 @@ struct SkillDistributionView: View {
                             Text(verbatim: syncModeText(target.syncMode))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Text(target.locator)
+                            Text(verbatim: target.locator)
                                 .font(.callout.monospaced())
                                 .textSelection(.enabled)
                         }
@@ -153,17 +153,17 @@ struct SkillDistributionView: View {
                         .font(.headline)
                     Text(
                         String(
-                            localized: LocalizedStringResource( "Based on %@",
-                            defaultValue: "Based on \(lineage.parentLabel)",
-                            bundle: .module
-                        ))
+                            localized: LocalizedStringResource(
+            "Based on \(lineage.parentLabel)",
+            bundle: .module
+        ))
                     )
                     Text(
                         String(
-                            localized: LocalizedStringResource( "Source %@",
-                            defaultValue: "Source \(lineage.fingerprintLabel)",
-                            bundle: .module
-                        ))
+                            localized: LocalizedStringResource(
+            "Source \(lineage.fingerprintLabel)",
+            bundle: .module
+        ))
                     )
                         .font(.caption.monospaced())
                     Text(
@@ -277,7 +277,7 @@ struct SkillDistributionView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Text(row.locator)
+                        Text(verbatim: row.locator)
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
@@ -290,28 +290,26 @@ struct SkillDistributionView: View {
                 }
                 .accessibilityLabel(Text(
                     String(
-                        localized: LocalizedStringResource( "%@ distribution",
-                        defaultValue: "\(platformText(row.platform)) distribution",
-                        bundle: .module
-                    ))
+                        localized: LocalizedStringResource(
+            "\(platformText(row.platform)) distribution",
+            bundle: .module
+        ))
                 ))
                 .accessibilityValue(Text(
                     String(
-                        localized: LocalizedStringResource( row.isSelected
-                            ? "Selected; currently %@"
-                            : "Not selected; currently %@",
-                        defaultValue: row.isSelected
+                        localized: LocalizedStringResource(
+            row.isSelected
                             ? "Selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")"
                             : "Not selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")",
-                        bundle: .module
-                    ))
+            bundle: .module
+        ))
                 ))
                 .accessibilityHint(Text(
                     String(
-                        localized: LocalizedStringResource( "Target: %@",
-                        defaultValue: "Target: \(row.locator)",
-                        bundle: .module
-                    ))
+                        localized: LocalizedStringResource(
+            "Target: \(row.locator)",
+            bundle: .module
+        ))
                 ))
                 .disabled(model.isApplying)
             }
@@ -405,7 +403,7 @@ private struct SkillDistributionPreviewView: View {
                             Image(systemName: row.kind.systemImage)
                         }
                             .font(.headline)
-                        Text(row.locator)
+                        Text(verbatim: row.locator)
                             .font(.callout.monospaced())
                             .textSelection(.enabled)
                     }
@@ -471,7 +469,7 @@ private struct SkillDistributionPreviewView: View {
             ForEach(Array(preview.plan.conflicts.enumerated()), id: \.offset) { _, conflict in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: conflict.reason.localizedDisplayName)
-                    Text(conflict.canonicalLocator)
+                    Text(verbatim: conflict.canonicalLocator)
                         .font(.callout.monospaced())
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -483,10 +481,10 @@ private struct SkillDistributionPreviewView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(
                         String(
-                            localized: LocalizedStringResource( "Local changes at %@",
-                            defaultValue: "Local changes at \(decision.locator)",
-                            bundle: .module
-                        ))
+                            localized: LocalizedStringResource(
+            "Local changes at \(decision.locator)",
+            bundle: .module
+        ))
                     )
                         .font(.headline)
                     Text(

@@ -10,8 +10,8 @@ struct CustomPathSectionHeader: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(customPath.displayName)
-                Text(customPath.url.path)
+                Text(verbatim: customPath.displayName)
+                Text(verbatim: customPath.url.path)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -46,10 +46,10 @@ struct CustomPathSectionHeader: View {
             }
         } message: {
             Text(String(
-                localized: LocalizedStringResource( "This will remove \"%@\" from the sidebar. The skills will not be deleted from disk.",
-                defaultValue: "This will remove \"\(customPath.displayName)\" from the sidebar. The skills will not be deleted from disk.",
-                bundle: .module
-            )))
+                localized: LocalizedStringResource(
+            "This will remove \"\(customPath.displayName)\" from the sidebar. The skills will not be deleted from disk.",
+            bundle: .module
+        )))
         }
     }
 

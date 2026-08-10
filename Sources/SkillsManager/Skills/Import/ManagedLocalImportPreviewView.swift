@@ -95,9 +95,9 @@ struct ManagedLocalImportPreviewView: View {
     @ViewBuilder
     private func sourceRow(_ title: String, _ value: String) -> some View {
         GridRow {
-            Text(title)
+            Text(verbatim: title)
                 .foregroundStyle(.secondary)
-            Text(value)
+            Text(verbatim: value)
                 .font(.callout.monospaced())
                 .textSelection(.enabled)
         }

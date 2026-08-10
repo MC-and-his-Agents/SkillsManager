@@ -65,10 +65,10 @@ struct ManagedArchiveImportView: View {
                     .accessibilityIdentifier("archive.clear-selection")
                 Spacer()
                 Text(String(
-                    localized: LocalizedStringResource( "%lld selected",
-                    defaultValue: "\(model.selectedCount) selected",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "\(model.selectedCount) selected",
+            bundle: .module
+        )))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -102,22 +102,22 @@ struct ManagedArchiveImportView: View {
                 )
             ) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(candidate.displayName)
+                    Text(verbatim: candidate.displayName)
                         .font(.headline)
-                    Text(candidate.canonicalSubpath.isEmpty ? "." : candidate.canonicalSubpath)
+                    Text(verbatim: candidate.canonicalSubpath.isEmpty ? "." : candidate.canonicalSubpath)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                     if let slug = candidate.slug {
                         Text(String(
-                            localized: LocalizedStringResource( "Slug: %@",
-                            defaultValue: "Slug: \(slug.value)",
-                            bundle: .module
-                        )))
+                            localized: LocalizedStringResource(
+            "Slug: \(slug.value)",
+            bundle: .module
+        )))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     if let reason = candidate.blockedReason {
-                        Text(reason)
+                        Text(blockedReasonText(reason))
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
@@ -127,7 +127,8 @@ struct ManagedArchiveImportView: View {
             .disabled(!candidate.isImportable)
             .accessibilityLabel(candidate.displayName)
             .accessibilityValue(
-                candidate.blockedReason
+            candidate.blockedReason
+                    .map(blockedReasonText)
                     ?? String(localized: "Importable", bundle: .module)
             )
             .accessibilityIdentifier("archive.candidate.\(candidate.canonicalSubpath)")
@@ -148,16 +149,16 @@ struct ManagedArchiveImportView: View {
             .foregroundStyle(.secondary)
             List(model.previewItems) { item in
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(item.candidate.displayName).font(.headline)
-                    Text(item.candidate.canonicalSubpath.isEmpty ? "." : item.candidate.canonicalSubpath)
+                    Text(verbatim: item.candidate.displayName).font(.headline)
+                    Text(verbatim: item.candidate.canonicalSubpath.isEmpty ? "." : item.candidate.canonicalSubpath)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                     if let slug = item.preview?.distributionSlug {
                         Text(String(
-                            localized: LocalizedStringResource( "Slug: %@",
-                            defaultValue: "Slug: \(slug.value)",
-                            bundle: .module
-                        )))
+                            localized: LocalizedStringResource(
+            "Slug: \(slug.value)",
+            bundle: .module
+        )))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -253,15 +254,15 @@ struct ManagedArchiveImportView: View {
         _ result: ManagedArchiveImportResultItem
     ) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(result.displayName).font(.headline)
-            Text(result.canonicalSubpath.isEmpty ? "." : result.canonicalSubpath)
+            Text(verbatim: result.displayName).font(.headline)
+            Text(verbatim: result.canonicalSubpath.isEmpty ? "." : result.canonicalSubpath)
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
             switch result.management {
             case .imported(let status):
                 Text(managementText(status)).foregroundStyle(.green)
             case .skipped(let reason), .failed(let reason):
-                Text(reason).foregroundStyle(.orange)
+                Text(verbatim: reason).foregroundStyle(.orange)
             }
         }
         .padding(.vertical, 3)
@@ -287,6 +288,39 @@ struct ManagedArchiveImportView: View {
         case .updated: String(localized: "Updated", bundle: .module)
         case .updatedDistributionNeedsAttention, .updateIndeterminate:
             String(localized: "Updated; status needs attention", bundle: .module)
+        }
+    }
+
+    private func blockedReasonText(_ reason: String) -> String {
+        switch reason {
+        case "The selected item must be a regular folder, not a symbolic link.":
+            return String(localized: "The selected item must be a regular folder, not a symbolic link.", bundle: .module)
+        case "The selected item doesn’t contain a SKILL.md file.":
+            return String(localized: "The selected item doesn’t contain a SKILL.md file.", bundle: .module)
+        case "The selected item contains more than one Skill folder.":
+            return String(localized: "The selected item contains more than one Skill folder.", bundle: .module)
+        case "The Skill candidate could not be validated safely.":
+            return String(localized: "The Skill candidate could not be validated safely.", bundle: .module)
+        case let value where value.hasPrefix("The Skill manifest must be a regular file: "):
+            let path = String(value.dropFirst("The Skill manifest must be a regular file: ".count))
+            return String(localized: LocalizedStringResource(
+                "The Skill manifest must be a regular file: \(path)",
+                bundle: .module
+            ))
+        case let value where value.hasPrefix("The zip archive is unsafe or invalid: "):
+            let detail = String(value.dropFirst("The zip archive is unsafe or invalid: ".count))
+            return String(localized: LocalizedStringResource(
+                "The zip archive is unsafe or invalid: \(detail)",
+                bundle: .module
+            ))
+        case let value where value.hasPrefix("The Skill contents are unsafe or invalid: "):
+            let detail = String(value.dropFirst("The Skill contents are unsafe or invalid: ".count))
+            return String(localized: LocalizedStringResource(
+                "The Skill contents are unsafe or invalid: \(detail)",
+                bundle: .module
+            ))
+        default:
+            return reason
         }
     }
 

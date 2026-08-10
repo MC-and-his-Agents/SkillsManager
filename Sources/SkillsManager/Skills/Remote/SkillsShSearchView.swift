@@ -9,16 +9,15 @@ struct SkillsShSearchDetailView: View {
             if let item = store.selectedItem {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(item.name)
+                        Text(verbatim: item.name)
                             .font(.largeTitle.bold())
 
                         HStack(spacing: 6) {
                             TagView(text: item.source)
                             TagView(localized: LocalizedStringResource(
-                                "%lld installs",
-                                defaultValue: "\(item.installs) installs",
-                                bundle: .module
-                            ))
+            "\(item.installs) installs",
+            bundle: .module
+        ))
                         }
 
                         Label {
@@ -86,10 +85,10 @@ struct SkillsShSearchRow: View {
                 )],
             agentCount: 0,
             accessibilityLabel: String(
-                localized: LocalizedStringResource( "%@, Available, skills.sh, %lld installs, source %@",
-                defaultValue: "\(item.name), Available, skills.sh, \(item.installs) installs, source \(item.source)",
-                bundle: .module
-            )),
+                localized: LocalizedStringResource(
+            "\(item.name), Available, skills.sh, \(item.installs) installs, source \(item.source)",
+            bundle: .module
+        )),
             accessibilityValue: String(localized: "Available, skills.sh, 0 Agents", bundle: .module)
         ))
     }

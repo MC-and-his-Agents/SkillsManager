@@ -21,10 +21,10 @@ struct PublishSkillSheet: View {
                 Text("Publish Skill", bundle: .module)
                     .font(.title.bold())
                 Text(String(
-                    localized: LocalizedStringResource( "Push changes for %@ to ClawHub.",
-                    defaultValue: "Push changes for \(displayName) to ClawHub.",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "Push changes for \(displayName) to ClawHub.",
+            bundle: .module
+        )))
                     .foregroundStyle(.secondary)
             }
 
@@ -38,10 +38,10 @@ struct PublishSkillSheet: View {
                         Text("Version bump", bundle: .module)
                     }
                     Text(String(
-                        localized: LocalizedStringResource( "Will publish v%@",
-                        defaultValue: "Will publish v\(nextVersion)",
-                        bundle: .module
-                    )))
+                        localized: LocalizedStringResource(
+            "Will publish v\(nextVersion)",
+            bundle: .module
+        )))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

@@ -139,10 +139,10 @@ struct SkillListView: View {
                 Text("Skills", bundle: .module)
                     .font(.title2.bold())
                 Text(String(
-                    localized: LocalizedStringResource( "%lld shown",
-                    defaultValue: "\(visibleCount) shown",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "\(visibleCount) shown",
+            bundle: .module
+        )))
                     .font(.subheadline)
                     .foregroundStyle(.primary)
             }
@@ -389,11 +389,7 @@ struct SkillListView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(Text("Unavailable scan location", bundle: .module))
-            .accessibilityValue(String(
-                localized: LocalizedStringResource( "%@, %@, %@",
-                defaultValue: "\(diagnostic.root.scope.localizedDisplayName), \(diagnostic.root.url.path), \(diagnostic.reason.localizedDisplayName)",
-                bundle: .module
-            )))
+            .accessibilityValue(Text(verbatim: diagnostic.localizedAccessibilitySummary))
         }
     }
 
@@ -423,7 +419,7 @@ struct SkillListView: View {
             title: ClawdhubAvailabilityPresentation.title,
             message: ClawdhubAvailabilityPresentation.detail,
             icon: "exclamationmark.triangle",
-            actionTitle: "Retry",
+            actionTitle: String(localized: "Retry", bundle: .module),
             actionAccessibilityLabel: retryLabel
         ) {
             Task { await action() }

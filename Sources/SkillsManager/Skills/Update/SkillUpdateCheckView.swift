@@ -9,7 +9,7 @@ struct SkillUpdateCheckView: View {
                 stateContent
                 if let problem = model.problem {
                     Label(
-                        problem.localizedDescription,
+                        localizedManagedSkillUpdateCheckProblem(problem),
                         systemImage: "exclamationmark.triangle"
                     )
                     .foregroundStyle(.orange)
@@ -17,7 +17,7 @@ struct SkillUpdateCheckView: View {
                 }
                 if let problem = model.updateProblem {
                     Label(
-                        problem.localizedDescription,
+                        localizedManagedSkillUpdateExecutionProblem(problem),
                         systemImage: "exclamationmark.triangle"
                     )
                     .foregroundStyle(.orange)
@@ -32,10 +32,10 @@ struct SkillUpdateCheckView: View {
                         .foregroundStyle(result.requiresAttention ? .orange : .secondary)
                         .accessibilityLabel(Text(
                             String(
-                                localized: LocalizedStringResource( "Update result: %@",
-                                defaultValue: "Update result: \(executionStatusText(result))",
-                                bundle: .module
-                            ))
+                                localized: LocalizedStringResource(
+            "Update result: \(executionStatusText(result))",
+            bundle: .module
+        ))
                         ))
                 }
             }
@@ -63,7 +63,7 @@ struct SkillUpdateCheckView: View {
             ProgressView(String(localized: "Loading the last update check…", bundle: .module))
         case .failed(let problem):
             VStack(alignment: .leading, spacing: 8) {
-                status(problem.localizedDescription, systemImage: "exclamationmark.triangle")
+                status(localizedManagedSkillUpdateCheckProblem(problem), systemImage: "exclamationmark.triangle")
                 Button {
                     Task { await model.refreshCurrent() }
                 } label: {
@@ -86,10 +86,10 @@ struct SkillUpdateCheckView: View {
                 .font(.headline)
                 .accessibilityLabel(Text(
                     String(
-                        localized: LocalizedStringResource( "Update status: %@",
-                        defaultValue: "Update status: \(checkStatusText(snapshot.status))",
-                        bundle: .module
-                    ))
+                        localized: LocalizedStringResource(
+            "Update status: \(checkStatusText(snapshot.status))",
+            bundle: .module
+        ))
                 ))
                 Text(
                     Date(
@@ -100,7 +100,7 @@ struct SkillUpdateCheckView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 if let reason = snapshot.capabilityReason {
-                    Text(reason).foregroundStyle(.secondary)
+                    Text(verbatim: reason).foregroundStyle(.secondary)
                 }
                 if !snapshot.sourceChangedScopeKeys.isEmpty {
                     Label {
@@ -227,20 +227,32 @@ private struct SkillUpdateConfirmationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(String(
-                localized: LocalizedStringResource( "Update %@",
-                defaultValue: "Update \(preview.displayName)",
-                bundle: .module
-            )))
+                localized: LocalizedStringResource(
+            "Update \(preview.displayName)",
+            bundle: .module
+        )))
                 .font(.title2.bold())
-            LabeledContent("Current source", value: preview.currentSourceDescription)
-            LabeledContent("Candidate source", value: preview.candidateSourceDescription)
-            LabeledContent("Distribution", value: preview.distributionDescription)
+            LabeledContent {
+                Text(verbatim: preview.currentSourceDescription)
+            } label: {
+                Text("Current source", bundle: .module)
+            }
+            LabeledContent {
+                Text(verbatim: preview.candidateSourceDescription)
+            } label: {
+                Text("Candidate source", bundle: .module)
+            }
+            LabeledContent {
+                Text(verbatim: preview.distributionDescription)
+            } label: {
+                Text("Distribution", bundle: .module)
+            }
             Text("The current managed content will be backed up before it is replaced.", bundle: .module)
                 .foregroundStyle(.secondary)
 
             ForEach(preview.copyChoices) { choice in
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(choice.targetDescription).font(.headline)
+                    Text(verbatim: choice.targetDescription).font(.headline)
                     Picker(
                         "Local Copy",
                         selection: decisionBinding(choice.scopeKey)
@@ -254,10 +266,10 @@ private struct SkillUpdateConfirmationView: View {
                             .tag(ManagedSkillUpdateCopyDecision.cancel as ManagedSkillUpdateCopyDecision?)
                     }
                     .accessibilityLabel(Text(String(
-                        localized: LocalizedStringResource( "Action for %@",
-                        defaultValue: "Action for \(choice.targetDescription)",
-                        bundle: .module
-                    ))))
+                        localized: LocalizedStringResource(
+            "Action for \(choice.targetDescription)",
+            bundle: .module
+        ))))
                 }
             }
 

@@ -77,10 +77,10 @@ struct SkillFilterBar: View {
                     .accessibilityAddTraits(filters.status == value ? .isSelected : [])
                     .accessibilityLabel(Text(
                         String(
-                            localized: LocalizedStringResource( "Status: %@",
-                            defaultValue: "Status: \(statusText(value))",
-                            bundle: .module
-                        ))
+                            localized: LocalizedStringResource(
+            "Status: \(statusText(value))",
+            bundle: .module
+        ))
                     ))
                     .accessibilityValue(
                         Text(
@@ -142,10 +142,10 @@ struct SkillFilterBar: View {
                     .accessibilityAddTraits(filters.source == value ? .isSelected : [])
                     .accessibilityLabel(Text(
                         String(
-                            localized: LocalizedStringResource( "Source: %@",
-                            defaultValue: "Source: \(sourceText(value))",
-                            bundle: .module
-                        ))
+                            localized: LocalizedStringResource(
+            "Source: \(sourceText(value))",
+            bundle: .module
+        ))
                     ))
                     .accessibilityValue(
                         Text(
@@ -219,10 +219,10 @@ struct SkillFilterBar: View {
                     .accessibilityAddTraits(filters.agent == value ? .isSelected : [])
                     .accessibilityLabel(Text(
                         String(
-                            localized: LocalizedStringResource( "Agent: %@",
-                            defaultValue: "Agent: \(agentText(value))",
-                            bundle: .module
-                        ))
+                            localized: LocalizedStringResource(
+            "Agent: \(agentText(value))",
+            bundle: .module
+        ))
                     ))
                     .accessibilityValue(
                         Text(
@@ -312,7 +312,7 @@ struct SkillFilterBar: View {
 
     private var summaryLine: some View {
         HStack(spacing: 6) {
-            Text(summaryText)
+            Text(verbatim: summaryText)
                 .font(.caption)
                 .foregroundStyle(filters.isActive ? .primary : .secondary)
             if filters.isActive {
@@ -325,10 +325,10 @@ struct SkillFilterBar: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(
             String(
-                localized: LocalizedStringResource( "Active filters: %@",
-                defaultValue: "Active filters: \(summaryText)",
-                bundle: .module
-            ))
+                localized: LocalizedStringResource(
+            "Active filters: \(summaryText)",
+            bundle: .module
+        ))
         ))
         .accessibilityIdentifier("skills.filter.summary")
     }

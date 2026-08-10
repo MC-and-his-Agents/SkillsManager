@@ -88,7 +88,7 @@ struct AddCustomPathView: View {
         }
 
         if let error = errorMessage {
-            Text(error)
+            Text(verbatim: error)
                 .foregroundStyle(.red)
                 .font(.caption)
         }
@@ -99,10 +99,10 @@ struct AddCustomPathView: View {
             HStack {
                 Image(systemName: "folder.fill")
                     .foregroundStyle(.blue)
-                Text(url.lastPathComponent)
+                Text(verbatim: url.lastPathComponent)
                     .font(.headline)
             }
-            Text(url.path)
+                Text(verbatim: url.path)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -118,10 +118,10 @@ struct AddCustomPathView: View {
                     .font(.headline)
                 Spacer()
                 Text(String(
-                    localized: LocalizedStringResource( "%lld valid · %lld observed",
-                    defaultValue: "\(validSkillCount) valid · \(totalSkillCount) observed",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "\(validSkillCount) valid · \(totalSkillCount) observed",
+            bundle: .module
+        )))
                     .font(.subheadline)
                     .foregroundStyle(validSkillCount > 0 ? .green : .secondary)
             }
@@ -141,16 +141,16 @@ struct AddCustomPathView: View {
     private func platformSkillsSection(platform: SkillPlatform, skills: [DiscoveredSkill]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                TagView(text: platform.rawValue, tint: platform.badgeTint)
+                TagView(localized: platformResource(platform), tint: platform.badgeTint)
                 Text(String(
-                    localized: LocalizedStringResource( "%lld skill(s)",
-                    defaultValue: "\(skills.count) skill(s)",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "\(skills.count) skill(s)",
+            bundle: .module
+        )))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(platform.relativePath)
+                Text(verbatim: platform.relativePath)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -162,9 +162,9 @@ struct AddCustomPathView: View {
                             .font(.caption)
                             .foregroundStyle(skill.status.tint)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(skill.displayName)
+                            Text(verbatim: skill.displayName)
                                 .font(.callout)
-                            Text(skill.location)
+                            Text(verbatim: skill.location)
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                             if let reason = skill.reason {
@@ -190,6 +190,15 @@ struct AddCustomPathView: View {
             .padding(.vertical, 4)
             .padding(.horizontal, 8)
             .background(RoundedRectangle(cornerRadius: 6).fill(.secondary.opacity(0.08)))
+        }
+    }
+
+    private func platformResource(_ platform: SkillPlatform) -> LocalizedStringResource {
+        switch platform {
+        case .codex: LocalizedStringResource("Codex", bundle: .module)
+        case .claude: LocalizedStringResource("Claude Code", bundle: .module)
+        case .opencode: LocalizedStringResource("OpenCode", bundle: .module)
+        case .copilot: LocalizedStringResource("GitHub Copilot", bundle: .module)
         }
     }
 
@@ -298,10 +307,10 @@ struct AddCustomPathView: View {
                 rootDiagnostics = result.rootDiagnostics
                 validSkillCount = result.observations.filter { $0.fingerprint != nil }.count
                 errorMessage = validSkillCount == 0
-                    ? "No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md."
+                    ? String(localized: "No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.", bundle: .module)
                     : nil
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = localizedPathError(error)
             }
             isValidating = false
         }
@@ -315,8 +324,20 @@ struct AddCustomPathView: View {
                 await store.loadSkills()
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = localizedPathError(error)
             }
+        }
+    }
+
+    private func localizedPathError(_ error: Error) -> String {
+        guard let error = error as? CustomPathError else {
+            return error.localizedDescription
+        }
+        switch error {
+        case .directoryNotFound:
+            return String(localized: "The selected directory does not exist.", bundle: .module)
+        case .duplicatePath:
+            return String(localized: "This path has already been added.", bundle: .module)
         }
     }
 }

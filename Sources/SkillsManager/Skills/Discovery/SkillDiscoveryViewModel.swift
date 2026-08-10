@@ -272,7 +272,7 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
 
     func confirmPendingImport() async {
         guard runtimeReady, let dependencies, let pendingImport else {
-            importErrorMessage = SkillDiscoveryFlowError.runtimeBlocked.localizedDescription
+            importErrorMessage = Self.localizedErrorMessage(SkillDiscoveryFlowError.runtimeBlocked)
             return
         }
         if let importTask {
@@ -358,7 +358,7 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
                 if generation != requestedGeneration || pendingRerun {
                     continue
                 }
-                loadState = .failed(error.localizedDescription)
+                loadState = .failed(Self.localizedErrorMessage(error))
             }
 
             if generation == requestedGeneration, !pendingRerun {
@@ -418,5 +418,31 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
         case .conflict:
             String(localized: "The source now conflicts with another managed Skill.", bundle: .module)
         }
+    }
+
+    static func localizedErrorMessage(_ error: Error) -> String {
+        if let error = error as? SkillDiscoveryPreflightError {
+            switch error {
+            case .runtimeBlocked:
+                return String(localized: "The managed library is not ready.", bundle: .module)
+            case .noUsableResult:
+                return String(localized: "No current discovery result is available.", bundle: .module)
+            case .rootUnavailable:
+                return String(localized: "One or more required discovery roots are unavailable.", bundle: .module)
+            }
+        }
+        if let error = error as? SkillDiscoveryFlowError {
+            switch error {
+            case .runtimeBlocked:
+                return String(localized: "The managed library is not ready.", bundle: .module)
+            case .itemUnavailable:
+                return String(localized: "The discovered Skill is no longer available.", bundle: .module)
+            case .operationInProgress:
+                return String(localized: "Another import operation is already in progress.", bundle: .module)
+            case .previewSuperseded:
+                return String(localized: "Discovery changed before the preview completed. Review the latest result and try again.", bundle: .module)
+            }
+        }
+        return error.localizedDescription
     }
 }

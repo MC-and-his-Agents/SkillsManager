@@ -1582,8 +1582,10 @@
 	<string>Verifying with a fresh audit…</string>
 	<key>Verifying, backing up, updating, and refreshing distribution…</key>
 	<string>Verifying, backing up, updating, and refreshing distribution…</string>
-	<key>Version %@ (%@)</key>
-	<string>Version %@ (%@)</string>
+	<key>Version %@ (%lld)</key>
+	<string>Version %@ (%lld)</string>
+	<key>Version %@</key>
+	<string>Version %@</string>
 	<key>Version bump</key>
 	<string>Version bump</string>
 	<key>Wait for the current operation, then refresh.</key>
@@ -1624,5 +1626,151 @@
 	<string>verify %@, find one matching SKILL.md, and pin the install to an immutable GitHub commit.</string>
 	<key>↻ v%@</key>
 	<string>↻ v%@</string>
+	<key>All compatible Agents</key>
+	<string>All compatible Agents</string>
+	<key>Another file or directory occupies this managed target.</key>
+	<string>Another file or directory occupies this managed target.</string>
+	<key>Conflicting identity evidence requires import as an independent Skill.</key>
+	<string>Conflicting identity evidence requires import as an independent Skill.</string>
+	<key>Recommended action: %@</key>
+	<string>Recommended action: %@</string>
+	<key>The audit could not bind this directory to one stable observation.</key>
+	<string>The audit could not bind this directory to one stable observation.</string>
+	<key>The audit found duplicate observations for the same directory.</key>
+	<string>The audit found duplicate observations for the same directory.</string>
+	<key>The managed Copy has changed and requires an explicit Fork decision.</key>
+	<string>The managed Copy has changed and requires an explicit Fork decision.</string>
+	<key>The managed Symlink is missing.</key>
+	<string>The managed Symlink is missing.</string>
+	<key>The managed link points to a different Skill.</key>
+	<string>The managed link points to a different Skill.</string>
+	<key>The managed target is missing and requires a Copy/Fork decision.</key>
+	<string>The managed target is missing and requires a Copy/Fork decision.</string>
+	<key>The root could not be fully audited: %@</key>
+	<string>The root could not be fully audited: %@</string>
+	<key>The target state is not supported by this repair assistant.</key>
+	<string>The target state is not supported by this repair assistant.</string>
+	<key>This Agent directory is not a canonical managed distribution root.</key>
+	<string>This Agent directory is not a canonical managed distribution root.</string>
+	<key>This directory belongs to a custom scan root and cannot be migrated.</key>
+	<string>This directory belongs to a custom scan root and cannot be migrated.</string>
+	<key>This directory cannot be safely imported: %@</key>
+	<string>This directory cannot be safely imported: %@</string>
+	<key>This directory could not produce a stable content snapshot.</key>
+	<string>This directory could not produce a stable content snapshot.</string>
+	<key>This directory is not associated with a registered scan root.</key>
+	<string>This directory is not associated with a registered scan root.</string>
+	<key>This directory is not in a canonical managed distribution root.</key>
+	<string>This directory is not in a canonical managed distribution root.</string>
+	<key>This directory is not yet distributed through the managed library.</key>
+	<string>This directory is not yet distributed through the managed library.</string>
+	<key>This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.</key>
+	<string>This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.</string>
+	<key>This directory name is not a safe canonical locator.</key>
+	<string>This directory name is not a safe canonical locator.</string>
+	<key>This external Skill link can be imported from Discovery. The source link and target will remain unchanged.</key>
+	<string>This external Skill link can be imported from Discovery. The source link and target will remain unchanged.</string>
+	<key>This external Skill link changed after it was imported. Review it in Discovery; no files were changed.</key>
+	<string>This external Skill link changed after it was imported. Review it in Discovery; no files were changed.</string>
+	<key>This target could not be inspected.</key>
+	<string>This target could not be inspected.</string>
+	<key>No issue detected.</key>
+	<string>No issue detected.</string>
+	<key>No source metadata</key>
+	<string>No source metadata</string>
+	<key>SHA-256 %@…</key>
+	<string>SHA-256 %@…</string>
+	<key>Verified locations disagree about the managed Skill identity.</key>
+	<string>Verified locations disagree about the managed Skill identity.</string>
+	<key>A Copy target changed in a way that cannot be updated safely.</key>
+	<string>A Copy target changed in a way that cannot be updated safely.</string>
+	<key>Choose how to handle every modified Copy before updating.</key>
+	<string>Choose how to handle every modified Copy before updating.</string>
+	<key>Skills Manager does not have permission to complete this update.</key>
+	<string>Skills Manager does not have permission to complete this update.</string>
+	<key>The Skill changed while it was being checked. Try again.</key>
+	<string>The Skill changed while it was being checked. Try again.</string>
+	<key>The Skill could not be updated.</key>
+	<string>The Skill could not be updated.</string>
+	<key>The Skill or remote source changed. Check for updates again.</key>
+	<string>The Skill or remote source changed. Check for updates again.</string>
+	<key>The last update check could not be saved.</key>
+	<string>The last update check could not be saved.</string>
+	<key>The managed Skill requires repair before it can be updated.</key>
+	<string>The managed Skill requires repair before it can be updated.</string>
+	<key>The network is offline.</key>
+	<string>The network is offline.</string>
+	<key>The remote Skill contents were rejected as unsafe or invalid.</key>
+	<string>The remote Skill contents were rejected as unsafe or invalid.</string>
+	<key>The remote Skill no longer contains an update.</key>
+	<string>The remote Skill no longer contains an update.</string>
+	<key>The remote source is rate limited. Try again later.</key>
+	<string>The remote source is rate limited. Try again later.</string>
+	<key>The remote source is temporarily unavailable.</key>
+	<string>The remote source is temporarily unavailable.</string>
+	<key>The remote source timed out.</key>
+	<string>The remote source timed out.</string>
+	<key>The update check failed.</key>
+	<string>The update check failed.</string>
+	<key>The update check was cancelled.</key>
+	<string>The update check was cancelled.</string>
+	<key>This Skill is already being prepared or updated.</key>
+	<string>This Skill is already being prepared or updated.</string>
+	<key>Update checking is unavailable for this Skill.</key>
+	<string>Update checking is unavailable for this Skill.</string>
+	<key>Updating is unavailable for this Skill.</key>
+	<string>Updating is unavailable for this Skill.</string>
+	<key>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</key>
+	<string>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</string>
+	<key>The selected directory does not exist.</key>
+	<string>The selected directory does not exist.</string>
+	<key>This path has already been added.</key>
+	<string>This path has already been added.</string>
+	<key>Another import operation is already in progress.</key>
+	<string>Another import operation is already in progress.</string>
+	<key>Discovery changed before the preview completed. Review the latest result and try again.</key>
+	<string>Discovery changed before the preview completed. Review the latest result and try again.</string>
+	<key>No current discovery result is available.</key>
+	<string>No current discovery result is available.</string>
+	<key>One or more required discovery roots are unavailable.</key>
+	<string>One or more required discovery roots are unavailable.</string>
+	<key>The discovered Skill is no longer available.</key>
+	<string>The discovered Skill is no longer available.</string>
+	<key>The managed library is not ready.</key>
+	<string>The managed library is not ready.</string>
+	<key>The selected item must be a regular folder, not a symbolic link.</key>
+	<string>The selected item must be a regular folder, not a symbolic link.</string>
+	<key>The selected item doesn’t contain a SKILL.md file.</key>
+	<string>The selected item doesn’t contain a SKILL.md file.</string>
+	<key>The selected item contains more than one Skill folder.</key>
+	<string>The selected item contains more than one Skill folder.</string>
+	<key>The Skill candidate could not be validated safely.</key>
+	<string>The Skill candidate could not be validated safely.</string>
+	<key>The Skill manifest must be a regular file: %@</key>
+	<string>The Skill manifest must be a regular file: %@</string>
+	<key>The zip archive is unsafe or invalid: %@</key>
+	<string>The zip archive is unsafe or invalid: %@</string>
+	<key>The Skill contents are unsafe or invalid: %@</key>
+	<string>The Skill contents are unsafe or invalid: %@</string>
+	<key>The managed Skill was not found.</key>
+	<string>The managed Skill was not found.</string>
+	<key>The managed Skill changed during deletion.</key>
+	<string>The managed Skill changed during deletion.</string>
+	<key>The preview expired because the managed state changed.</key>
+	<string>The preview expired because the managed state changed.</string>
+	<key>A deletion operation is already in progress.</key>
+	<string>A deletion operation is already in progress.</string>
+	<key>The deletion operation requires repair.</key>
+	<string>The deletion operation requires repair.</string>
+	<key>The Skill backup is missing or corrupt.</key>
+	<string>The Skill backup is missing or corrupt.</string>
+	<key>Skills Manager does not have permission for this operation.</key>
+	<string>Skills Manager does not have permission for this operation.</string>
+	<key>The deletion service is unavailable.</key>
+	<string>The deletion service is unavailable.</string>
+	<key>New Skill ID %@</key>
+	<string>New Skill ID %@</string>
+	<key>New managed Skill</key>
+	<string>New managed Skill</string>
 </dict>
 </plist>

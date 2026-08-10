@@ -38,7 +38,11 @@ struct ManagedClawdhubInstallView: View {
                     Label(localizedManagedLocalImportProblem(problem), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 } else if let errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle")
+                    Label {
+                        Text(verbatim: errorMessage)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                    }
                         .foregroundStyle(.orange)
                 }
                 Spacer()
@@ -75,23 +79,21 @@ struct ManagedClawdhubInstallView: View {
             Text(
                 String(
                     localized: LocalizedStringResource(
-                        "Add %@ to the managed library or safely update it.",
-                        defaultValue: "Add \(skill.displayName) to the managed library or safely update it.",
-                        bundle: .module
-                    )
+            "Add \(skill.displayName) to the managed library or safely update it.",
+            bundle: .module
+        )
                 )
             )
                 .foregroundStyle(.secondary)
-            Text(sourceSummary)
+            Text(verbatim: sourceSummary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .accessibilityLabel(Text(
                     String(
                         localized: LocalizedStringResource(
-                            "Source %@",
-                            defaultValue: "Source \(sourceSummary)",
-                            bundle: .module
-                        )
+            "Source \(sourceSummary)",
+            bundle: .module
+        )
                     )
                 ))
         }
@@ -101,18 +103,16 @@ struct ManagedClawdhubInstallView: View {
         guard let version = skill.latestVersion else {
             return String(
                 localized: LocalizedStringResource(
-                    "ClawHub · %@",
-                    defaultValue: "ClawHub · \(skill.slug)",
-                    bundle: .module
-                )
+            "ClawHub · \(skill.slug)",
+            bundle: .module
+        )
             )
         }
         return String(
             localized: LocalizedStringResource(
-                "ClawHub · %@ · %@",
-                defaultValue: "ClawHub · \(skill.slug) · \(version)",
-                bundle: .module
-            )
+            "ClawHub · \(skill.slug) · \(version)",
+            bundle: .module
+        )
         )
     }
 

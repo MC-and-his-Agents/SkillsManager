@@ -348,10 +348,22 @@ private actor SkillConsistencySession {
                 importAction
             )
             var details = [
-                String(localized: LocalizedStringResource( "Source: %@", defaultValue: "Source: \(migration.sourceLocator)", bundle: .module)),
-                String(localized: LocalizedStringResource( "SSOT: %@", defaultValue: "SSOT: \(migration.ssotAbsoluteTarget)", bundle: .module)),
-                String(localized: LocalizedStringResource( "Backup: %@", defaultValue: "Backup: \(migration.backupID.uuid.uuidString.lowercased())", bundle: .module)),
-                String(localized: LocalizedStringResource( "Operation: %@", defaultValue: "Operation: \(migration.operationID.uuid.uuidString.lowercased())", bundle: .module)),
+                String(localized: LocalizedStringResource(
+            "Source: \(migration.sourceLocator)",
+            bundle: .module
+        )),
+                String(localized: LocalizedStringResource(
+            "SSOT: \(migration.ssotAbsoluteTarget)",
+            bundle: .module
+        )),
+                String(localized: LocalizedStringResource(
+            "Backup: \(migration.backupID.uuid.uuidString.lowercased())",
+            bundle: .module
+        )),
+                String(localized: LocalizedStringResource(
+            "Operation: \(migration.operationID.uuid.uuidString.lowercased())",
+            bundle: .module
+        )),
             ]
             if independent {
                 details.insert(String(localized: "Identity: new independent Skill UUID", bundle: .module), at: 0)

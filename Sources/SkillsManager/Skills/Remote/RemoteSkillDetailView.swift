@@ -94,23 +94,25 @@ struct RemoteSkillDetailView: View {
 
     private func headerView(for skill: RemoteSkill) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(skill.displayName)
+            Text(verbatim: skill.displayName)
                 .font(.largeTitle.bold())
             if let summary = skill.summary {
-                Text(summary)
+                Text(verbatim: summary)
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 6) {
                 if let owner = ownerDisplayName {
                     TagView(localized: LocalizedStringResource(
-                        "By %@",
-                        defaultValue: "By \(owner)",
-                        bundle: .module
-                    ))
+            "By \(owner)",
+            bundle: .module
+        ))
                 }
                 if let version = skill.latestVersion {
-                    TagView(text: "v\(version)")
+                    TagView(localized: LocalizedStringResource(
+                        "Version \(version)",
+                        bundle: .module
+                    ))
                 }
                 if let statsText = statsText(for: skill) {
                     TagView(text: statsText)

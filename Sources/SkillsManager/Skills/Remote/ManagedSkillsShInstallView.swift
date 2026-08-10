@@ -60,10 +60,10 @@ nonisolated struct ManagedGitHubResolvedInstall: Sendable {
         Self(
             displayName: item.name,
             detail: String(
-                localized: LocalizedStringResource( "verify %@, find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
-                defaultValue: "verify \(item.source), find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
-                bundle: .module
-            )),
+                localized: LocalizedStringResource(
+            "verify \(item.source), find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
+            bundle: .module
+        )),
             resolve: {
                 let source = try await client.resolve(item.id, item.source, item.skillID)
                 let updateSource = SkillsShResolvedGitHubUpdateSource(
@@ -109,10 +109,10 @@ nonisolated struct ManagedGitHubResolvedInstall: Sendable {
         Self(
             displayName: candidate.displayName,
             detail: String(
-                localized: LocalizedStringResource( "verify %@ at the discovered commit and exact Skill subpath.",
-                defaultValue: "verify \(candidate.repository.displayName) at the discovered commit and exact Skill subpath.",
-                bundle: .module
-            )),
+                localized: LocalizedStringResource(
+            "verify \(candidate.repository.displayName) at the discovered commit and exact Skill subpath.",
+            bundle: .module
+        )),
             resolve: {
                 let source = try await client.resolveCustomRepository(candidate.snapshot)
                 return ManagedGitHubResolvedInstall(
@@ -196,18 +196,18 @@ private struct ManagedGitHubInstallView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(
                 String(
-                    localized: LocalizedStringResource( "Resolve and Install %@",
-                    defaultValue: "Resolve and Install \(request.displayName)",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "Resolve and Install \(request.displayName)",
+            bundle: .module
+        ))
             )
                 .font(.title.bold())
             Text(
                 verbatim: String(
-                    localized: LocalizedStringResource( "Skills Manager will %@",
-                    defaultValue: "Skills Manager will \(request.detail)",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "Skills Manager will \(request.detail)",
+            bundle: .module
+        ))
             )
                 .foregroundStyle(.secondary)
         }
@@ -336,7 +336,11 @@ private struct ManagedGitHubInstallView: View {
     }
 
     private func problemLabel(_ message: String) -> some View {
-        Label(message, systemImage: "exclamationmark.triangle")
+        Label {
+            Text(verbatim: message)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle")
+        }
             .foregroundStyle(.orange)
             .accessibilityElement(children: .combine)
     }

@@ -476,14 +476,14 @@ actor ManagedSkillUpdateExecutionService {
                 $0.storageKey.utf8.lexicographicallyPrecedes($1.storageKey.utf8)
             }.map(\.rawValue).joined(separator: ", ")
             scope = String(
-                localized: LocalizedStringResource( "Agents: %@",
-                defaultValue: "Agents: \(agents)",
-                bundle: .module
-            ))
+                localized: LocalizedStringResource(
+            "Agents: \(agents)",
+            bundle: .module
+        ))
         }
         return String(
-            localized: LocalizedStringResource( "%@ · %@",
-            defaultValue: "\(scope) · \(configuration.syncMode.displayName)",
+            localized: LocalizedStringResource(
+            "\(scope) · \(configuration.syncMode.displayName)",
             bundle: .module
         ))
     }

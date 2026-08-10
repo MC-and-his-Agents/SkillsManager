@@ -134,13 +134,19 @@ extension SkillDiscoveryScope {
         case .agent:
             let values = [adapter, pathVariant].compactMap { $0 }
             return values.dropFirst().reduce(values.first ?? "") { partial, value in
-                String(localized: LocalizedStringResource( "%@ · %@", defaultValue: "\(partial) · \(value)", bundle: .module))
+                String(localized: LocalizedStringResource(
+            "\(partial) · \(value)",
+            bundle: .module
+        ))
             }
         case .custom:
             let values = [String(localized: "Custom", bundle: .module), adapter, pathVariant]
                 .compactMap { $0 }
             return values.dropFirst().reduce(values.first ?? "") { partial, value in
-                String(localized: LocalizedStringResource( "%@ · %@", defaultValue: "\(partial) · \(value)", bundle: .module))
+                String(localized: LocalizedStringResource(
+            "\(partial) · \(value)",
+            bundle: .module
+        ))
             }
         }
     }
@@ -178,8 +184,60 @@ extension SkillDiscoveryObservation {
     }
 }
 
+@MainActor extension SkillDiscoveryObservation {
+    var localizedSourceSummary: String {
+        if let matchedSourceKey {
+            let suffix = matchedSourceKey.subpath.isEmpty ? "" : " · \(matchedSourceKey.subpath)"
+            return matchedSourceKey.repositoryURL + suffix
+        }
+        guard !providerAliases.isEmpty else {
+            return String(localized: "No source metadata", bundle: .module)
+        }
+        return providerAliases
+            .map { "\(localizedProviderName($0.provider)): \($0.identifier)" }
+            .sorted()
+            .joined(separator: ", ")
+    }
+
+    var localizedFingerprintSummary: String {
+        guard let fingerprint else {
+            return String(localized: "Unavailable", bundle: .module)
+        }
+        let prefix = fingerprint.digest.prefix(6).map { String(format: "%02x", $0) }.joined()
+        return String(localized: LocalizedStringResource(
+            "SHA-256 \(prefix)…",
+            bundle: .module
+        ))
+    }
+
+    var localizedReasonSummary: String {
+        reason?.localizedDisplayName
+            ?? String(localized: "No issue detected.", bundle: .module)
+    }
+
+    private func localizedProviderName(_ provider: String) -> String {
+        switch provider {
+        case "ClawHub": return String(localized: "ClawHub", bundle: .module)
+        case "skills.sh": return String(localized: "skills.sh", bundle: .module)
+        case "GitHub": return String(localized: "GitHub", bundle: .module)
+        default: return provider
+        }
+    }
+}
+
 extension SkillDiscoveryRootDiagnostic {
     var accessibilitySummary: String {
         "\(root.scope.displayName), \(root.url.path), \(reason.displayName)"
+    }
+}
+
+@MainActor extension SkillDiscoveryRootDiagnostic {
+    var localizedAccessibilitySummary: String {
+        let scope = root.scope.localizedDisplayName
+        let reason = reason.localizedDisplayName
+        return String(localized: LocalizedStringResource(
+            "\(scope), \(root.url.path), \(reason)",
+            bundle: .module
+        ))
     }
 }

@@ -156,6 +156,24 @@ nonisolated enum ManagedSkillUpdateCheckProblem: LocalizedError, Equatable, Send
     }
 }
 
+@MainActor
+func localizedManagedSkillUpdateCheckProblem(
+    _ problem: ManagedSkillUpdateCheckProblem
+) -> String {
+    switch problem {
+    case .unavailable: String(localized: "Update checking is unavailable for this Skill.", bundle: .module)
+    case .stale: String(localized: "The Skill changed while it was being checked. Try again.", bundle: .module)
+    case .cancelled: String(localized: "The update check was cancelled.", bundle: .module)
+    case .timeout: String(localized: "The remote source timed out.", bundle: .module)
+    case .offline: String(localized: "The network is offline.", bundle: .module)
+    case .rateLimited: String(localized: "The remote source is rate limited. Try again later.", bundle: .module)
+    case .providerUnavailable: String(localized: "The remote source is temporarily unavailable.", bundle: .module)
+    case .unsafeContent: String(localized: "The remote Skill contents were rejected as unsafe or invalid.", bundle: .module)
+    case .databaseUnavailable: String(localized: "The last update check could not be saved.", bundle: .module)
+    case .failed: String(localized: "The update check failed.", bundle: .module)
+    }
+}
+
 nonisolated struct ManagedSkillUpdateCheckToken: Hashable, Sendable {
     let uuid: UUID
 

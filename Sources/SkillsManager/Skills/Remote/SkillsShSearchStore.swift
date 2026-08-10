@@ -59,10 +59,10 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
                 }
                 let secondsText = String(seconds)
                 return String(
-                    localized: LocalizedStringResource( "skills.sh rate limited this request. Try again in %@ seconds.",
-                    defaultValue: "skills.sh rate limited this request. Try again in \(secondsText) seconds.",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "skills.sh rate limited this request. Try again in \(secondsText) seconds.",
+            bundle: .module
+        ))
             case .providerUnavailable:
                 return String(localized: "skills.sh is temporarily unavailable.", bundle: .module)
             case .responseTooLarge:

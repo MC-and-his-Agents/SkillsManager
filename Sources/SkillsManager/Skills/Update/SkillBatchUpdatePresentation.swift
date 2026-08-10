@@ -24,10 +24,10 @@ import Foundation
                 detail: nil,
                 systemImage: "clock",
                 accessibilityValue: String(
-                    localized: LocalizedStringResource( "%@, waiting",
-                    defaultValue: "\(item.displayName), waiting",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(item.displayName), waiting",
+            bundle: .module
+        ))
             )
         case .checking:
             Row(
@@ -35,10 +35,10 @@ import Foundation
                 detail: String(localized: "Reading the local Skill and remote source.", bundle: .module),
                 systemImage: "arrow.clockwise",
                 accessibilityValue: String(
-                    localized: LocalizedStringResource( "%@, checking for updates",
-                    defaultValue: "\(item.displayName), checking for updates",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(item.displayName), checking for updates",
+            bundle: .module
+        ))
             )
         case .ready:
             Row(
@@ -46,10 +46,10 @@ import Foundation
                 detail: String(localized: "This Skill can be updated safely.", bundle: .module),
                 systemImage: "arrow.down.circle",
                 accessibilityValue: String(
-                    localized: LocalizedStringResource( "%@, update available",
-                    defaultValue: "\(item.displayName), update available",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(item.displayName), update available",
+            bundle: .module
+        ))
             )
         case .decisionRequired:
             Row(
@@ -57,10 +57,10 @@ import Foundation
                 detail: String(localized: "Choose how to handle every modified Copy.", bundle: .module),
                 systemImage: "exclamationmark.arrow.triangle.2.circlepath",
                 accessibilityValue: String(
-                    localized: LocalizedStringResource( "%@, Copy decision required",
-                    defaultValue: "\(item.displayName), Copy decision required",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(item.displayName), Copy decision required",
+            bundle: .module
+        ))
             )
         case .preparing:
             Row(
@@ -68,10 +68,10 @@ import Foundation
                 detail: String(localized: "Revalidating the Skill and remote source.", bundle: .module),
                 systemImage: "arrow.triangle.2.circlepath",
                 accessibilityValue: String(
-                    localized: LocalizedStringResource( "%@, preparing update",
-                    defaultValue: "\(item.displayName), preparing update",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(item.displayName), preparing update",
+            bundle: .module
+        ))
             )
         case .updating:
             Row(
@@ -79,10 +79,10 @@ import Foundation
                 detail: String(localized: "Backing up, replacing, and refreshing distribution.", bundle: .module),
                 systemImage: "arrow.down.circle.fill",
                 accessibilityValue: String(
-                    localized: LocalizedStringResource( "%@, updating",
-                    defaultValue: "\(item.displayName), updating",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(item.displayName), updating",
+            bundle: .module
+        ))
             )
         case .result(let result, let detail):
             Row(
@@ -90,10 +90,10 @@ import Foundation
                 detail: detail ?? result.defaultDetail,
                 systemImage: result.systemImage,
                 accessibilityValue: String(
-                    localized: LocalizedStringResource( "%@, %@",
-                    defaultValue: "\(item.displayName), \(result.title)",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(item.displayName), \(result.title)",
+            bundle: .module
+        ))
             )
         }
     }
@@ -128,21 +128,21 @@ import Foundation
             return count == 0
                 ? nil
                 : String(
-                    localized: LocalizedStringResource( "%@: %lld",
-                    defaultValue: "\(result.title): \(count)",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "\(result.title): \(count)",
+            bundle: .module
+        ))
         }
         if values.isEmpty {
             return String(
-                localized: LocalizedStringResource( "0 of %lld complete.",
-                defaultValue: "0 of \(summary.total) complete.",
-                bundle: .module
-            ))
+                localized: LocalizedStringResource(
+            "0 of \(summary.total) complete.",
+            bundle: .module
+        ))
         }
         return String(
-            localized: LocalizedStringResource( "%lld of %lld complete. %@",
-            defaultValue: "\(summary.completed) of \(summary.total) complete. \(values.joined(separator: ", "))",
+            localized: LocalizedStringResource(
+            "\(summary.completed) of \(summary.total) complete. \(values.joined(separator: ", "))",
             bundle: .module
         ))
     }

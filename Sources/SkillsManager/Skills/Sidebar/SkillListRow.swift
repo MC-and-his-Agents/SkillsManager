@@ -17,10 +17,10 @@ struct SkillListRow: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(data.title)
+                Text(verbatim: data.title)
                     .font(.headline)
                     .lineLimit(1)
-                Text(data.detail)
+                Text(verbatim: data.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -37,14 +37,14 @@ struct SkillListRow: View {
                         .help(Text(verbatim: sourceText(label)))
                         .accessibilityLabel(Text(
                             String(
-                                localized: LocalizedStringResource( "Source: %@",
-                                defaultValue: "Source: \(sourceText(label))",
-                                bundle: .module
-                            ))
+                                localized: LocalizedStringResource(
+            "Source: \(sourceText(label))",
+            bundle: .module
+        ))
                         ))
                 }
                 if let agentCount = data.agentCount {
-                    Text(SkillListAgentSummary.text(count: agentCount))
+                    Text(verbatim: SkillListAgentSummary.text(count: agentCount))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .accessibilityLabel(
@@ -66,20 +66,20 @@ struct SkillListRow: View {
         case .updateAvailable(let version):
             Label {
                 Text(String(
-                    localized: LocalizedStringResource( "↻ v%@",
-                    defaultValue: "↻ v\(version)",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "↻ v\(version)",
+            bundle: .module
+        )))
             } icon: {
                 Image(systemName: "arrow.triangle.2.circlepath")
             }
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.green)
                 .accessibilityLabel(Text(String(
-                    localized: LocalizedStringResource( "Update available, version %@",
-                    defaultValue: "Update available, version \(version)",
-                    bundle: .module
-                ))))
+                    localized: LocalizedStringResource(
+            "Update available, version \(version)",
+            bundle: .module
+        ))))
         case .needsAttention:
             Label {
                 Text("Needs Repair", bundle: .module)

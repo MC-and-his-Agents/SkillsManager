@@ -84,7 +84,7 @@ struct SkillDiscoveryDetailView: View {
                                 .accessibilityHidden(true)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(observation.relativeLocator)
+                                Text(verbatim: observation.relativeLocator)
                                     .font(.largeTitle.bold())
                                 Text(verbatim: discoveryStatusText(observation.status))
                                     .font(.title3)
@@ -103,7 +103,7 @@ struct SkillDiscoveryDetailView: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(verbatim: scopeText(observation.roots[index].scope))
                                             .font(.headline)
-                                        Text(url.path)
+                                        Text(verbatim: url.path)
                                             .font(.callout.monospaced())
                                             .textSelection(.enabled)
                                     }
@@ -124,16 +124,24 @@ struct SkillDiscoveryDetailView: View {
                                 } label: {
                                     Text("Status", bundle: .module)
                                 }
-                                    LabeledContent("Scope", value: scopeSummaryText(observation))
-                                LabeledContent("Source", value: observation.sourceSummary)
                                 LabeledContent {
-                                    Text(observation.fingerprintSummary)
+                                    Text(scopeSummaryText(observation))
+                                } label: {
+                                    Text("Scope", bundle: .module)
+                                }
+                                LabeledContent {
+                                    Text(verbatim: observation.localizedSourceSummary)
+                                } label: {
+                                    Text("Source", bundle: .module)
+                                }
+                                LabeledContent {
+                                    Text(observation.localizedFingerprintSummary)
                                 } label: {
                                     Text("Content fingerprint", bundle: .module)
                                 }
                                 if let matchedSkillID = observation.matchedSkillID {
                                     LabeledContent {
-                                        Text(matchedSkillID.uuid.uuidString.lowercased())
+                                        Text(verbatim: matchedSkillID.uuid.uuidString.lowercased())
                                     } label: {
                                         Text("Matched Skill ID", bundle: .module)
                                     }
@@ -217,7 +225,7 @@ struct SkillDiscoveryDetailView: View {
                 do {
                     try await model.prepareImport(itemID: item.id, action: action)
                 } catch {
-                    flowErrorMessage = error.localizedDescription
+                    flowErrorMessage = SkillDiscoveryViewModel.localizedErrorMessage(error)
                 }
             }
         } label: {
@@ -265,7 +273,7 @@ struct SkillDiscoveryDetailView: View {
                 ForEach(model.rootDiagnostics, id: \.self) { diagnostic in
                     GroupBox {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(diagnostic.root.url.path)
+                            Text(verbatim: diagnostic.root.url.path)
                                 .font(.callout.monospaced())
                                 .textSelection(.enabled)
                             Text(verbatim: discoveryReasonText(diagnostic.reason))
@@ -288,7 +296,7 @@ struct SkillDiscoveryDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(verbatim: scopeText(root.scope))
                             .font(.headline)
-                        Text(root.url.path)
+                        Text(verbatim: root.url.path)
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
@@ -300,10 +308,10 @@ struct SkillDiscoveryDetailView: View {
         } label: {
             Text(
                 String(
-                    localized: LocalizedStringResource( "Scan scope (%lld roots)",
-                    defaultValue: "Scan scope (\(model.plannedRoots.count) roots)",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "Scan scope (\(model.plannedRoots.count) roots)",
+            bundle: .module
+        ))
             )
         }
     }
@@ -316,7 +324,7 @@ struct SkillDiscoveryDetailView: View {
         ContentUnavailableView(
             unavailableTitleText(title),
             systemImage: systemImage,
-            description: Text(message)
+            description: Text(verbatim: message)
         )
     }
 
@@ -433,7 +441,7 @@ private struct SkillDiscoveryImportConfirmationView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(verbatim: titleText)
                     .font(.title.bold())
-                Text(pending.preview.displayName)
+                Text(verbatim: pending.preview.displayName)
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
@@ -446,7 +454,7 @@ private struct SkillDiscoveryImportConfirmationView: View {
                         Text("Action", bundle: .module)
                     }
                     LabeledContent {
-                        Text(targetDescription)
+                        Text(verbatim: targetDescription)
                     } label: {
                         Text("Target", bundle: .module)
                     }
@@ -472,7 +480,11 @@ private struct SkillDiscoveryImportConfirmationView: View {
             }
 
             if let message = model.importErrorMessage {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
+                Label {
+                    Text(verbatim: message)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                }
                     .foregroundStyle(.orange)
                     .accessibilityElement(children: .combine)
             }
@@ -537,9 +549,12 @@ private struct SkillDiscoveryImportConfirmationView: View {
             return id.uuid.uuidString.lowercased()
         }
         if let id = pending.preview.newSkillID {
-            return "New Skill ID \(id.uuid.uuidString.lowercased())"
+            return String(localized: LocalizedStringResource(
+                "New Skill ID \(id.uuid.uuidString.lowercased())",
+                bundle: .module
+            ))
         }
-        return "New managed Skill"
+        return String(localized: "New managed Skill", bundle: .module)
     }
 
     private var managedResultDescription: String {

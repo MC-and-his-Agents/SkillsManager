@@ -9,7 +9,11 @@ struct SkillResultBanner: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Label(message, systemImage: systemImage)
+            Label {
+                Text(verbatim: message)
+            } icon: {
+                Image(systemName: systemImage)
+            }
                 .foregroundStyle(tint)
             Spacer(minLength: 4)
         }
@@ -18,8 +22,8 @@ struct SkillResultBanner: View {
         .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(String(
-            localized: LocalizedStringResource( "Result: %@",
-            defaultValue: "Result: \(message)",
+            localized: LocalizedStringResource(
+            "Result: \(message)",
             bundle: .module
         ))))
     }
@@ -65,7 +69,7 @@ struct SkillDetailFeedbackBanner: View {
         }
         if let problem = updateCheckModel.updateProblem {
             return Feedback(
-                text: problem.localizedDescription,
+                text: localizedManagedSkillUpdateExecutionProblem(problem),
                 systemImage: "exclamationmark.triangle.fill",
                 tint: .orange
             )

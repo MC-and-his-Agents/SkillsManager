@@ -1582,8 +1582,10 @@
 	<string>正在使用最新审计进行验证…</string>
 	<key>Verifying, backing up, updating, and refreshing distribution…</key>
 	<string>正在验证、备份、更新并刷新分发…</string>
-	<key>Version %@ (%@)</key>
-	<string>版本 %@（%@）</string>
+	<key>Version %@ (%lld)</key>
+	<string>版本 %@（%lld）</string>
+	<key>Version %@</key>
+	<string>版本 %@</string>
 	<key>Version bump</key>
 	<string>版本变更</string>
 	<key>Wait for the current operation, then refresh.</key>
@@ -1624,5 +1626,151 @@
 	<string>请验证 %@，找到一个匹配的 SKILL.md，并将安装固定到不可变的 GitHub 提交。</string>
 	<key>↻ v%@</key>
 	<string>↻ v%@</string>
+	<key>All compatible Agents</key>
+	<string>所有兼容的 Agent</string>
+	<key>Another file or directory occupies this managed target.</key>
+	<string>其他文件或目录占用了此托管目标。</string>
+	<key>Conflicting identity evidence requires import as an independent Skill.</key>
+	<string>冲突的身份证据需要作为独立技能导入。</string>
+	<key>Recommended action: %@</key>
+	<string>建议操作：%@</string>
+	<key>The audit could not bind this directory to one stable observation.</key>
+	<string>审计无法将此目录绑定到一个稳定的观测结果。</string>
+	<key>The audit found duplicate observations for the same directory.</key>
+	<string>审计发现同一目录存在重复观测结果。</string>
+	<key>The managed Copy has changed and requires an explicit Fork decision.</key>
+	<string>托管副本已更改，需要明确的分叉决策。</string>
+	<key>The managed Symlink is missing.</key>
+	<string>托管符号链接缺失。</string>
+	<key>The managed link points to a different Skill.</key>
+	<string>托管链接指向了不同的技能。</string>
+	<key>The managed target is missing and requires a Copy/Fork decision.</key>
+	<string>托管目标缺失，需要决定复制或分叉。</string>
+	<key>The root could not be fully audited: %@</key>
+	<string>无法完整审计根目录：%@</string>
+	<key>The target state is not supported by this repair assistant.</key>
+	<string>此目标状态不受修复助手支持。</string>
+	<key>This Agent directory is not a canonical managed distribution root.</key>
+	<string>此 Agent 目录不是规范的托管分发根目录。</string>
+	<key>This directory belongs to a custom scan root and cannot be migrated.</key>
+	<string>此目录属于自定义扫描根，无法迁移。</string>
+	<key>This directory cannot be safely imported: %@</key>
+	<string>无法安全导入此目录：%@</string>
+	<key>This directory could not produce a stable content snapshot.</key>
+	<string>此目录无法生成稳定的内容快照。</string>
+	<key>This directory is not associated with a registered scan root.</key>
+	<string>此目录未关联到已注册的扫描根。</string>
+	<key>This directory is not in a canonical managed distribution root.</key>
+	<string>此目录不在规范的托管分发根目录中。</string>
+	<key>This directory is not yet distributed through the managed library.</key>
+	<string>此目录尚未通过托管库分发。</string>
+	<key>This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.</key>
+	<string>此目录通过多个已注册根别名可见。请在发现中检查；已禁用自动迁移。</string>
+	<key>This directory name is not a safe canonical locator.</key>
+	<string>此目录名称不是安全的规范定位符。</string>
+	<key>This external Skill link can be imported from Discovery. The source link and target will remain unchanged.</key>
+	<string>此外部技能链接可从发现中导入。源链接和目标将保持不变。</string>
+	<key>This external Skill link changed after it was imported. Review it in Discovery; no files were changed.</key>
+	<string>此外部技能链接在导入后发生变化。请在发现中检查；未更改任何文件。</string>
+	<key>This target could not be inspected.</key>
+	<string>无法检查此目标。</string>
+	<key>No issue detected.</key>
+	<string>未检测到问题。</string>
+	<key>No source metadata</key>
+	<string>无来源元数据</string>
+	<key>SHA-256 %@…</key>
+	<string>SHA-256 %@…</string>
+	<key>Verified locations disagree about the managed Skill identity.</key>
+	<string>已验证的位置对托管技能身份存在分歧。</string>
+	<key>A Copy target changed in a way that cannot be updated safely.</key>
+	<string>副本目标发生了无法安全更新的变化。</string>
+	<key>Choose how to handle every modified Copy before updating.</key>
+	<string>更新前请选择如何处理每个已修改的副本。</string>
+	<key>Skills Manager does not have permission to complete this update.</key>
+	<string>Skills Manager 没有完成此更新的权限。</string>
+	<key>The Skill changed while it was being checked. Try again.</key>
+	<string>检查期间 Skill 发生了变化。请重试。</string>
+	<key>The Skill could not be updated.</key>
+	<string>无法更新 Skill。</string>
+	<key>The Skill or remote source changed. Check for updates again.</key>
+	<string>Skill 或远程来源已更改。请再次检查更新。</string>
+	<key>The last update check could not be saved.</key>
+	<string>无法保存上次更新检查。</string>
+	<key>The managed Skill requires repair before it can be updated.</key>
+	<string>托管 Skill 需要修复后才能更新。</string>
+	<key>The network is offline.</key>
+	<string>网络已离线。</string>
+	<key>The remote Skill contents were rejected as unsafe or invalid.</key>
+	<string>远程 Skill 内容因不安全或无效而被拒绝。</string>
+	<key>The remote Skill no longer contains an update.</key>
+	<string>远程 Skill 已不再包含更新。</string>
+	<key>The remote source is rate limited. Try again later.</key>
+	<string>远程来源受到速率限制。请稍后重试。</string>
+	<key>The remote source is temporarily unavailable.</key>
+	<string>远程来源暂时不可用。</string>
+	<key>The remote source timed out.</key>
+	<string>远程来源请求超时。</string>
+	<key>The update check failed.</key>
+	<string>更新检查失败。</string>
+	<key>The update check was cancelled.</key>
+	<string>更新检查已取消。</string>
+	<key>This Skill is already being prepared or updated.</key>
+	<string>此 Skill 已在准备或更新中。</string>
+	<key>Update checking is unavailable for this Skill.</key>
+	<string>此 Skill 的更新检查不可用。</string>
+	<key>Updating is unavailable for this Skill.</key>
+	<string>此 Skill 的更新不可用。</string>
+	<key>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</key>
+	<string>未找到有效 Skill。请检查报告的扫描问题，并确保每个 Skill 都有可读取的 SKILL.md。</string>
+	<key>The selected directory does not exist.</key>
+	<string>所选目录不存在。</string>
+	<key>This path has already been added.</key>
+	<string>此路径已添加。</string>
+	<key>Another import operation is already in progress.</key>
+	<string>另一个导入操作正在进行中。</string>
+	<key>Discovery changed before the preview completed. Review the latest result and try again.</key>
+	<string>预览完成前发现结果已更改。请检查最新结果并重试。</string>
+	<key>No current discovery result is available.</key>
+	<string>没有可用的当前发现结果。</string>
+	<key>One or more required discovery roots are unavailable.</key>
+	<string>一个或多个必需的发现根目录不可用。</string>
+	<key>The discovered Skill is no longer available.</key>
+	<string>发现的 Skill 已不再可用。</string>
+	<key>The managed library is not ready.</key>
+	<string>托管库尚未就绪。</string>
+	<key>The selected item must be a regular folder, not a symbolic link.</key>
+	<string>所选项目必须是普通文件夹，不能是符号链接。</string>
+	<key>The selected item doesn’t contain a SKILL.md file.</key>
+	<string>所选项目不包含 SKILL.md 文件。</string>
+	<key>The selected item contains more than one Skill folder.</key>
+	<string>所选项目包含多个 Skill 文件夹。</string>
+	<key>The Skill candidate could not be validated safely.</key>
+	<string>无法安全验证 Skill 候选项。</string>
+	<key>The Skill manifest must be a regular file: %@</key>
+	<string>Skill 清单必须是普通文件：%@</string>
+	<key>The zip archive is unsafe or invalid: %@</key>
+	<string>ZIP 归档不安全或无效：%@</string>
+	<key>The Skill contents are unsafe or invalid: %@</key>
+	<string>Skill 内容不安全或无效：%@</string>
+	<key>The managed Skill was not found.</key>
+	<string>未找到托管 Skill。</string>
+	<key>The managed Skill changed during deletion.</key>
+	<string>删除期间托管 Skill 发生了变化。</string>
+	<key>The preview expired because the managed state changed.</key>
+	<string>托管状态已更改，预览已过期。</string>
+	<key>A deletion operation is already in progress.</key>
+	<string>删除操作已在进行中。</string>
+	<key>The deletion operation requires repair.</key>
+	<string>删除操作需要修复。</string>
+	<key>The Skill backup is missing or corrupt.</key>
+	<string>Skill 备份缺失或已损坏。</string>
+	<key>Skills Manager does not have permission for this operation.</key>
+	<string>Skills Manager 没有执行此操作的权限。</string>
+	<key>The deletion service is unavailable.</key>
+	<string>删除服务不可用。</string>
+	<key>New Skill ID %@</key>
+	<string>新 Skill ID %@</string>
+	<key>New managed Skill</key>
+	<string>新建托管 Skill</string>
 </dict>
 </plist>

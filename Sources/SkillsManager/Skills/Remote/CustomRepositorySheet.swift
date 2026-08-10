@@ -135,11 +135,11 @@ struct CustomRepositorySheet: View {
     private func repositoryRow(_ record: CustomRepositoryCatalogRecord) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(record.displayName).font(.headline)
-                Text(record.repositoryURL.value)
+                Text(verbatim: record.displayName).font(.headline)
+                Text(verbatim: record.repositoryURL.value)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
-                Text(refLabel(record.requestedRef))
+                Text(verbatim: refLabel(record.requestedRef))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Label {
@@ -163,10 +163,10 @@ struct CustomRepositorySheet: View {
             .help(Text("Refresh repository", bundle: .module))
             .accessibilityLabel(Text(
                 String(
-                    localized: LocalizedStringResource( "Refresh %@",
-                    defaultValue: "Refresh \(record.displayName)",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "Refresh \(record.displayName)",
+            bundle: .module
+        ))
             ))
             Button(role: .destructive) {
                 pendingRemoval = record
@@ -178,10 +178,10 @@ struct CustomRepositorySheet: View {
             .help(Text("Remove repository", bundle: .module))
             .accessibilityLabel(Text(
                 String(
-                    localized: LocalizedStringResource( "Remove %@",
-                    defaultValue: "Remove \(record.displayName)",
-                    bundle: .module
-                ))
+                    localized: LocalizedStringResource(
+            "Remove \(record.displayName)",
+            bundle: .module
+        ))
             ))
         }
         .padding(.vertical, 4)
@@ -205,10 +205,10 @@ struct CustomRepositorySheet: View {
         case .loaded(let count):
             Label {
                 Text(String(
-                    localized: LocalizedStringResource( "%lld Skills",
-                    defaultValue: "\(count) Skills",
-                    bundle: .module
-                )))
+                    localized: LocalizedStringResource(
+            "\(count) Skills",
+            bundle: .module
+        )))
             } icon: {
                 Image(systemName: "checkmark.circle")
             }
@@ -224,8 +224,8 @@ struct CustomRepositorySheet: View {
             } icon: {
                 Image(systemName: "exclamationmark.triangle")
             }
-                .help(Text(problem.message))
-                .accessibilityValue(Text(problem.message))
+                .help(Text(verbatim: problem.message))
+                .accessibilityValue(Text(verbatim: problem.message))
         }
     }
 

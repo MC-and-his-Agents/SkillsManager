@@ -20,7 +20,7 @@ struct SkillDetailView: View {
             HStack {
                 ProgressView()
                 Text("Loading ", bundle: .module)
-                Text(skill.name)
+                Text(verbatim: skill.name)
             }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .missing:
@@ -30,7 +30,7 @@ struct SkillDetailView: View {
         case .failed(let message):
             ContentUnavailableView(String(localized: "Unable to load", bundle: .module),
                                    systemImage: "exclamationmark.triangle",
-                                   description: Text(message))
+                                   description: Text(verbatim: message))
         case .loaded:
             SkillMarkdownView(skill: skill, markdown: store.selectedMarkdown)
         }
