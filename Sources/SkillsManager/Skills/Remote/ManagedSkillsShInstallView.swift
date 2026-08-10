@@ -334,14 +334,15 @@ private struct ManagedGitHubInstallView: View {
         activeTask?.cancel()
         activeTask = Task {
             await model.confirm {
+                if let result = model.result {
+                    resultCenter.publishInstallResult(result, subject: subject)
+                }
                 await cleanupCandidate()
                 await store.loadSkills()
                 await discoveryModel.refresh()
                 await customRepositoryModel.refreshAll()
             }
-            if let result = model.result {
-                resultCenter.publishInstallResult(result, subject: subject)
-            } else if let problem = model.problem {
+            if let problem = model.problem {
                 let message = localizedManagedLocalImportProblem(problem)
                 errorMessage = message
                 resultCenter.publishInstallFailure(message, subject: subject)

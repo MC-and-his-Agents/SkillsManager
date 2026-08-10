@@ -219,14 +219,15 @@ struct ManagedClawdhubInstallView: View {
             isInstalling = true
             defer { isInstalling = false }
             await model.confirm {
+                if let result = model.result {
+                    didInstall = true
+                    resultCenter.publishInstallResult(result, subject: .clawHub(skill.id))
+                }
                 await store.loadSkills()
                 await discoveryModel.refresh()
                 await cleanupCandidate()
             }
-            if let result = model.result {
-                didInstall = true
-                resultCenter.publishInstallResult(result, subject: .clawHub(skill.id))
-            } else if let problem = model.problem {
+            if let problem = model.problem {
                 let message = localizedManagedLocalImportProblem(problem)
                 errorMessage = message
                 resultCenter.publishInstallFailure(message, subject: .clawHub(skill.id))
@@ -251,6 +252,7 @@ struct ManagedClawdhubInstallView: View {
                 Text("Close", bundle: .module)
             }
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("install.result.close")
         }
     }
 
