@@ -55,6 +55,7 @@ if [[ "${FIXTURE_MODE:-}" == build ]]; then
 fi
 mkdir -p "$APP_OUTPUT_DIR/SkillsManagerUITest.app/Contents/MacOS"
 : > "$APP_OUTPUT_DIR/SkillsManagerUITest.app/Contents/MacOS/SkillsManager"
+printf "%s\n" "{ CFBundleExecutable = SkillsManager; }" > "$APP_OUTPUT_DIR/SkillsManagerUITest.app/Contents/Info.plist"
 chmod +x "$APP_OUTPUT_DIR/SkillsManagerUITest.app/Contents/MacOS/SkillsManager"'
 
   write_stub "$stub_dir/xcodebuild" '#!/usr/bin/env bash
@@ -72,13 +73,30 @@ if [[ "${1:-}" == build-for-testing ]]; then
     fi
   done
   mkdir -p "$derived/Build/Products"
-  : > "$derived/Build/Products/SkillsManagerUITests.xctestrun"
+  xctestrun="$derived/Build/Products/SkillsManagerUITests.xctestrun"
+  printf "%s\n" "{ SkillsManagerUITests = { TestHostPath = \"__TESTROOT__/Debug/SkillsManagerUITest.app\"; TestBundlePath = \"__TESTHOST__/Contents/PlugIns/SkillsManagerUITests.xctest\"; }; }" > "$xctestrun"
   if [[ "${FIXTURE_MODE:-}" != missing-runner ]]; then
     runner_app="$derived/Build/Products/Debug/SkillsManagerUITests-Runner.app"
     mkdir -p "$runner_app/Contents/MacOS"
     printf "%s\n" "{ CFBundleExecutable = SkillsManagerUITests-Runner; }" > "$runner_app/Contents/Info.plist"
     : > "$runner_app/Contents/MacOS/SkillsManagerUITests-Runner"
     chmod +x "$runner_app/Contents/MacOS/SkillsManagerUITests-Runner"
+  fi
+  if [[ "${FIXTURE_MODE:-}" != missing-reference ]]; then
+    host_app="$derived/Build/Products/Debug/SkillsManagerUITest.app"
+    test_bundle="$host_app/Contents/PlugIns/SkillsManagerUITests.xctest"
+    mkdir -p "$test_bundle/Contents/MacOS"
+    printf "%s\n" "{ CFBundleExecutable = SkillsManagerUITests; }" > "$test_bundle/Contents/Info.plist"
+    if [[ "${FIXTURE_MODE:-}" == directory-exec ]]; then
+      mkdir -p "$test_bundle/Contents/MacOS/SkillsManagerUITests"
+    else
+      : > "$test_bundle/Contents/MacOS/SkillsManagerUITests"
+      chmod +x "$test_bundle/Contents/MacOS/SkillsManagerUITests"
+    fi
+    mkdir -p "$host_app/Contents/MacOS"
+    printf "%s\n" "{ CFBundleExecutable = SkillsManager; }" > "$host_app/Contents/Info.plist"
+    : > "$host_app/Contents/MacOS/SkillsManager"
+    chmod +x "$host_app/Contents/MacOS/SkillsManager"
   fi
   exit 0
 fi
@@ -165,6 +183,12 @@ case " $* " in
     printf "%s\n" "<key>testIdentifierString</key>"
     printf "%s\n" "<string>$identifier</string>"
     printf "%s\n" "<key>failureText</key><string>/Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123</string></dict></array></plist>" ;;
+  *" -extract SkillsManagerUITests.TestHostPath raw "*)
+    file="${@: -1}"
+    /usr/libexec/PlistBuddy -c "Print :SkillsManagerUITests:TestHostPath" "$file" ;;
+  *" -extract SkillsManagerUITests.TestBundlePath raw "*)
+    file="${@: -1}"
+    /usr/libexec/PlistBuddy -c "Print :SkillsManagerUITests:TestBundlePath" "$file" ;;
   *" -extract testsCount raw "*)
     file="${@: -1}"
     sed -nE "s/.*\\\"testsCount\\\"[[:space:]]*:[[:space:]]*([0-9]+).*/\\1/p" "$file" | head -1 ;;
@@ -298,6 +322,18 @@ grep -Fq 'category=build-or-package-failure' "$missing_runner_dir/output" || fai
 grep -Fq 'UI test attempt 1: category=not-run' "$missing_runner_dir/output" || fail "missing Runner.app invoked attempt 1"
 grep -Fq 'UI test attempt 2: category=not-run' "$missing_runner_dir/output" || fail "missing Runner.app invoked attempt 2"
 [[ ! -e "$missing_runner_dir/invocations" ]] || fail "missing Runner.app invoked tests"
+
+missing_reference_dir=$(run_case missing-reference 1)
+grep -Fq 'category=build-or-package-failure' "$missing_reference_dir/output" || fail "missing referenced bundle was not classified as build failure"
+grep -Fq 'UI test attempt 1: category=not-run' "$missing_reference_dir/output" || fail "missing referenced bundle invoked attempt 1"
+grep -Fq 'UI test attempt 2: category=not-run' "$missing_reference_dir/output" || fail "missing referenced bundle invoked attempt 2"
+[[ ! -e "$missing_reference_dir/invocations" ]] || fail "missing referenced bundle invoked tests"
+
+directory_exec_dir=$(run_case directory-exec 1)
+grep -Fq 'category=build-or-package-failure' "$directory_exec_dir/output" || fail "directory executable was not classified as build failure"
+grep -Fq 'UI test attempt 1: category=not-run' "$directory_exec_dir/output" || fail "directory executable invoked attempt 1"
+grep -Fq 'UI test attempt 2: category=not-run' "$directory_exec_dir/output" || fail "directory executable invoked attempt 2"
+[[ ! -e "$directory_exec_dir/invocations" ]] || fail "directory executable invoked tests"
 
 hosted_dir=$(run_case runner 0 true)
 grep -Fq 'github_run_id=195fixture' "$hosted_dir/output" || fail "hosted run ID missing"

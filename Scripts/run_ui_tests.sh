@@ -194,6 +194,57 @@ build_marker_check() {
   done
 }
 
+expand_xctestrun_path() {
+  local raw_path="$1" test_root="$2" test_host="$3"
+  raw_path="${raw_path//__TESTROOT__/$test_root}"
+  raw_path="${raw_path//__TESTHOST__/$test_host}"
+  printf '%s\n' "$raw_path"
+}
+
+validate_bundle_reference() {
+  local label="$1" bundle="$2" info executable_name executable
+  [[ -d "$bundle" ]] || {
+    echo "ERROR: $label bundle is missing." >&2
+    return 1
+  }
+  info="$bundle/Contents/Info.plist"
+  [[ -f "$info" ]] || {
+    echo "ERROR: $label Info.plist is missing." >&2
+    return 1
+  }
+  executable_name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" \
+    "$info" 2>/dev/null || true)
+  [[ -n "$executable_name" ]] || {
+    echo "ERROR: $label CFBundleExecutable is missing." >&2
+    return 1
+  }
+  executable="$bundle/Contents/MacOS/$executable_name"
+  [[ -f "$executable" && -x "$executable" ]] || {
+    echo "ERROR: $label executable is missing or not runnable." >&2
+    return 1
+  }
+}
+
+validate_xctestrun_references() {
+  local test_root host_raw bundle_raw host_path bundle_path
+  test_root=$(cd "$(dirname "$XCTESTRUN")" && pwd -P)
+  host_raw=$(plutil -extract "$SCHEME.TestHostPath" raw -o - "$XCTESTRUN" 2>/dev/null || true)
+  [[ -n "$host_raw" ]] || {
+    echo "ERROR: xctestrun TestHostPath is missing for $SCHEME." >&2
+    return 1
+  }
+  host_path=$(expand_xctestrun_path "$host_raw" "$test_root" "")
+  validate_bundle_reference TestHostPath "$host_path" || return 1
+
+  bundle_raw=$(plutil -extract "$SCHEME.TestBundlePath" raw -o - "$XCTESTRUN" 2>/dev/null || true)
+  [[ -n "$bundle_raw" ]] || {
+    echo "ERROR: xctestrun TestBundlePath is missing for $SCHEME." >&2
+    return 1
+  }
+  bundle_path=$(expand_xctestrun_path "$bundle_raw" "$test_root" "$host_path")
+  validate_bundle_reference TestBundlePath "$bundle_path" || return 1
+}
+
 APP_DIR="$RUNNER_ROOT/app"
 SCRATCH_DIR="$RUN_DIR/swiftpm-ui"
 DERIVED_DATA="$(mktemp -d "${TMPDIR:-/tmp}/skillsmanager-ui-derived-XXXXXX")"
@@ -231,7 +282,8 @@ preflight() {
       return 1
     }
   done
-  [[ -x "$TEST_APP_PATH/Contents/MacOS/SkillsManager" ]] || {
+  [[ -f "$TEST_APP_PATH/Contents/MacOS/SkillsManager" \
+    && -x "$TEST_APP_PATH/Contents/MacOS/SkillsManager" ]] || {
     echo "ERROR: test App executable is missing." >&2
     return 1
   }
@@ -274,7 +326,7 @@ preflight() {
       return 1
     fi
   fi
-  [[ -x "$runner_exec" ]] || {
+  [[ -f "$runner_exec" && -x "$runner_exec" ]] || {
     echo "ERROR: Runner.app executable is not runnable." >&2
     return 1
   }
@@ -284,6 +336,7 @@ preflight() {
     echo "ERROR: xctestrun file not found under derived data." >&2
     return 1
   }
+  validate_xctestrun_references || return 1
   "$LSREGISTER" -f "$RUNNER_APP" 2>/dev/null || true
   plutil -insert "SkillsManagerUITests.EnvironmentVariables.SKILLS_MANAGER_UI_TEST_ROOT" \
     -string "$RUNNER_ROOT" "$XCTESTRUN" || return 1
