@@ -73,6 +73,13 @@ if [[ "${1:-}" == build-for-testing ]]; then
   done
   mkdir -p "$derived/Build/Products"
   : > "$derived/Build/Products/SkillsManagerUITests.xctestrun"
+  if [[ "${FIXTURE_MODE:-}" != missing-runner ]]; then
+    runner_app="$derived/Build/Products/Debug/SkillsManagerUITests-Runner.app"
+    mkdir -p "$runner_app/Contents/MacOS"
+    printf "%s\n" "{ CFBundleExecutable = SkillsManagerUITests-Runner; }" > "$runner_app/Contents/Info.plist"
+    : > "$runner_app/Contents/MacOS/SkillsManagerUITests-Runner"
+    chmod +x "$runner_app/Contents/MacOS/SkillsManagerUITests-Runner"
+  fi
   exit 0
 fi
 if [[ "${1:-}" == test-without-building ]]; then
@@ -285,6 +292,12 @@ assert_local_artifacts "$invalid_dir" unclassified not-run
 build_dir=$(run_case build 1)
 grep -Fq 'category=build-or-package-failure' "$build_dir/output" || fail "build failure was not classified"
 [[ ! -e "$build_dir/invocations" ]] || fail "build failure invoked tests"
+
+missing_runner_dir=$(run_case missing-runner 1)
+grep -Fq 'category=build-or-package-failure' "$missing_runner_dir/output" || fail "missing Runner.app was not classified as build failure"
+grep -Fq 'UI test attempt 1: category=not-run' "$missing_runner_dir/output" || fail "missing Runner.app invoked attempt 1"
+grep -Fq 'UI test attempt 2: category=not-run' "$missing_runner_dir/output" || fail "missing Runner.app invoked attempt 2"
+[[ ! -e "$missing_runner_dir/invocations" ]] || fail "missing Runner.app invoked tests"
 
 hosted_dir=$(run_case runner 0 true)
 grep -Fq 'github_run_id=195fixture' "$hosted_dir/output" || fail "hosted run ID missing"

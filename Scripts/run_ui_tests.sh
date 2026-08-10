@@ -243,24 +243,41 @@ preflight() {
       -destination 'platform=macOS,arch=arm64' \
       -derivedDataPath "$DERIVED_DATA" || return 1
 
-  if [[ -d "$RUNNER_APP" ]]; then
-    local runner_exec_name runner_exec actual_exec
-    runner_exec_name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" \
-      "$RUNNER_APP/Contents/Info.plist" 2>/dev/null || true)
-    if [[ -n "$runner_exec_name" ]]; then
-      runner_exec="$RUNNER_APP/Contents/MacOS/$runner_exec_name"
-      if [[ ! -x "$runner_exec" ]]; then
-        actual_exec=$(find "$RUNNER_APP/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
-        if [[ -n "$actual_exec" ]]; then
-          mv "$actual_exec" "$runner_exec"
-          codesign --force --sign - "$RUNNER_APP" || return 1
-        else
-          echo "ERROR: Runner.app contains no executable." >&2
-          return 1
-        fi
-      fi
+  [[ -d "$RUNNER_APP" ]] || {
+    echo "ERROR: Runner.app is missing from derived data." >&2
+    return 1
+  }
+  local runner_info="$RUNNER_APP/Contents/Info.plist"
+  [[ -f "$runner_info" ]] || {
+    echo "ERROR: Runner.app Info.plist is missing." >&2
+    return 1
+  }
+  [[ -d "$RUNNER_APP/Contents/MacOS" ]] || {
+    echo "ERROR: Runner.app executable directory is missing." >&2
+    return 1
+  }
+  local runner_exec_name runner_exec actual_exec
+  runner_exec_name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" \
+    "$runner_info" 2>/dev/null || true)
+  [[ -n "$runner_exec_name" ]] || {
+    echo "ERROR: Runner.app CFBundleExecutable is missing." >&2
+    return 1
+  }
+  runner_exec="$RUNNER_APP/Contents/MacOS/$runner_exec_name"
+  if [[ ! -x "$runner_exec" ]]; then
+    actual_exec=$(find "$RUNNER_APP/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
+    if [[ -n "$actual_exec" ]]; then
+      mv "$actual_exec" "$runner_exec"
+      codesign --force --sign - "$RUNNER_APP" || return 1
+    else
+      echo "ERROR: Runner.app contains no executable." >&2
+      return 1
     fi
   fi
+  [[ -x "$runner_exec" ]] || {
+    echo "ERROR: Runner.app executable is not runnable." >&2
+    return 1
+  }
 
   XCTESTRUN=$(find "$DERIVED_DATA/Build/Products" -maxdepth 1 -name '*.xctestrun' | head -1)
   [[ -n "$XCTESTRUN" && -f "$XCTESTRUN" ]] || {
