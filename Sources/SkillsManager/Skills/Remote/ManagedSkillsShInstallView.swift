@@ -376,6 +376,7 @@ private struct ManagedGitHubInstallView: View {
                 Text("Close", bundle: .module)
             }
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("install.result.close")
         }
     }
 
