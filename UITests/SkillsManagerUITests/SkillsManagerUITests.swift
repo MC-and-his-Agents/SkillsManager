@@ -736,7 +736,6 @@ final class SkillsManagerUITests: XCTestCase {
 
     func testSM194UI12NativeLocalizationFeedbackDistribution() throws {
         try launchLocalizedFixture(language: "zh-Hans", profile: "feedback", surface: "ui-12-zh-feedback")
-        try waitForHierarchyText("有可用更新", surface: "ui-12-zh-feedback", app: app)
         try selectRow(label: "ClawHub Managed", value: "有可用更新", surface: "ui-12-zh-feedback", app: app)
         let reviewUpdate = element(identifier: SkillsManagerUILocators.detailUpdate, app: app)
         try requireElement(reviewUpdate, surface: "ui-12-zh-feedback-action", app: app)
