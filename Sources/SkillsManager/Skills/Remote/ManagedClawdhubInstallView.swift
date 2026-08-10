@@ -6,6 +6,7 @@ struct ManagedClawdhubInstallView: View {
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
+    @Environment(SkillResultCenter.self) private var resultCenter
 
     let skill: RemoteSkill
     @Binding var isInstalling: Bool
@@ -194,14 +195,20 @@ struct ManagedClawdhubInstallView: View {
                     skill: skill,
                     scope: distributionMode == .global ? .global : .agents(selectedAgents)
                 )
-                if model.problem != nil {
+                if let problem = model.problem {
+                    resultCenter.publishInstallFailure(
+                        localizedManagedLocalImportProblem(problem),
+                        skillID: skill.id
+                    )
                     await cleanupCandidate()
                 }
             } catch is CancellationError {
                 return
             } catch {
                 model.reset()
-                errorMessage = localizedManagedInstallError(error)
+                let message = localizedManagedInstallError(error)
+                errorMessage = message
+                resultCenter.publishInstallFailure(message, skillID: skill.id)
             }
         }
     }
@@ -216,10 +223,13 @@ struct ManagedClawdhubInstallView: View {
                 await discoveryModel.refresh()
                 await cleanupCandidate()
             }
-            if model.result != nil {
+            if let result = model.result {
                 didInstall = true
+                resultCenter.publishInstallResult(result, skillID: skill.id)
             } else if let problem = model.problem {
-                errorMessage = localizedManagedLocalImportProblem(problem)
+                let message = localizedManagedLocalImportProblem(problem)
+                errorMessage = message
+                resultCenter.publishInstallFailure(message, skillID: skill.id)
             }
         }
     }

@@ -151,6 +151,36 @@ struct SkillUpdateBadgeStoreTests {
         #expect(store.refreshGeneration == 1)
     }
 
+    @Test("refresh ignores a stale request and accepts the current request")
+    func staleRequestCannotOverwriteRefresh() async throws {
+        let gate = BadgeVersionRequestGate()
+        let store = SkillUpdateBadgeStore(
+            remote: client(latestVersion: { _ in await gate.fetch() })
+        )
+        let target = try skill()
+
+        let first = Task { @MainActor in
+            await store.checkIfNeeded(for: target)
+        }
+        await gate.waitUntilStarted(count: 1)
+
+        store.invalidateAll()
+
+        let second = Task { @MainActor in
+            await store.checkIfNeeded(for: target)
+        }
+        await gate.waitUntilStarted(count: 2)
+
+        await gate.releaseNext("9.9.9")
+        await first.value
+        #expect(store.badge(for: target) == nil)
+
+        await gate.releaseNext("1.0.1")
+        await second.value
+        #expect(store.badge(for: target) == .updateAvailable(version: "1.0.1"))
+        #expect(await gate.callCount == 2)
+    }
+
     @Test("backfill records a checked latest version without a request")
     func backfillAvoidsNetwork() async throws {
         let calls = CallCounter()
@@ -175,5 +205,28 @@ struct SkillUpdateBadgeStoreTests {
         #expect(!SkillVersionComparison.isNewer("1.0", than: "1.0.0"))
         #expect(!SkillVersionComparison.isNewer("v1.0.1", than: "1.0.0"))
         #expect(SkillVersionComparison.isNewer("1.0.0", than: "0.9.9"))
+    }
+}
+
+private actor BadgeVersionRequestGate {
+    private var continuations: [CheckedContinuation<String?, Never>] = []
+    private(set) var callCount = 0
+
+    func fetch() async -> String? {
+        callCount += 1
+        return await withCheckedContinuation { continuation in
+            continuations.append(continuation)
+        }
+    }
+
+    func waitUntilStarted(count: Int) async {
+        while callCount < count {
+            await Task.yield()
+        }
+    }
+
+    func releaseNext(_ value: String?) {
+        let continuation = continuations.removeFirst()
+        continuation.resume(returning: value)
     }
 }

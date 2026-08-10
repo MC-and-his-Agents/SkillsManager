@@ -9,6 +9,7 @@ APP_BUNDLE="${ROOT_DIR}/${APP_NAME}.app"
 APP_PROCESS_PATTERN="${APP_NAME}.app/Contents/MacOS/${EXECUTABLE_NAME}"
 DEBUG_PROCESS_PATTERN="${ROOT_DIR}/.build/debug/${EXECUTABLE_NAME}"
 RELEASE_PROCESS_PATTERN="${ROOT_DIR}/.build/release/${EXECUTABLE_NAME}"
+PACKAGE_APP_SCRIPT="${PACKAGE_APP_SCRIPT:-$ROOT_DIR/Scripts/package_app.sh}"
 RUN_TESTS=0
 RELEASE_ARCHES=""
 
@@ -27,6 +28,25 @@ for arg in "$@"; do
   esac
 done
 
+# Local builds are ad-hoc by default. A Developer ID identity is an explicit
+# opt-in; every other signing input is cleared before invoking package_app.
+SIGNING_MODE_VALUE="adhoc"
+APP_IDENTITY_VALUE=""
+case "${SIGNING_MODE:-}" in
+  ""|adhoc)
+    ;;
+  developer-id)
+    [[ -n "${APP_IDENTITY:-}" ]] || {
+      fail "SIGNING_MODE=developer-id requires a non-empty APP_IDENTITY."
+    }
+    SIGNING_MODE_VALUE="developer-id"
+    APP_IDENTITY_VALUE="${APP_IDENTITY}"
+    ;;
+  *)
+    fail "Unsupported SIGNING_MODE: ${SIGNING_MODE}"
+    ;;
+esac
+
 log "==> Killing existing ${APP_NAME} instances"
 pkill -f "${APP_PROCESS_PATTERN}" 2>/dev/null || true
 pkill -f "${DEBUG_PROCESS_PATTERN}" 2>/dev/null || true
@@ -35,7 +55,15 @@ pkill -x "${EXECUTABLE_NAME}" 2>/dev/null || true
 
 if [[ "${RUN_TESTS}" == "1" ]]; then
   log "==> swift test"
-  swift test -q
+  # SwiftPM tests never need a signing identity; keep this build ad-hoc too.
+  SIGNING_MODE="adhoc" \
+  APP_IDENTITY="" \
+  DEVELOPMENT_TEAM="" \
+  CODE_SIGN_IDENTITY="" \
+  CODE_SIGN_STYLE="" \
+  PROVISIONING_PROFILE="" \
+  PROVISIONING_PROFILE_SPECIFIER="" \
+    swift test -q
 fi
 
 HOST_ARCH="$(uname -m)"
@@ -45,15 +73,15 @@ if [[ -n "${RELEASE_ARCHES}" ]]; then
 fi
 
 log "==> package app"
-if [[ -n "${APP_IDENTITY:-}" ]]; then
-  if [[ "${SIGNING_MODE:-}" == "adhoc" ]]; then
-    fail "APP_IDENTITY cannot be combined with SIGNING_MODE=adhoc."
-  fi
-  SIGNING_MODE=developer-id APP_IDENTITY="${APP_IDENTITY}" ARCHES="${ARCHES_VALUE}" \
-    "${ROOT_DIR}/Scripts/package_app.sh" release
-else
-  SIGNING_MODE=adhoc ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/Scripts/package_app.sh" release
-fi
+SIGNING_MODE="${SIGNING_MODE_VALUE}" \
+APP_IDENTITY="${APP_IDENTITY_VALUE}" \
+DEVELOPMENT_TEAM="" \
+CODE_SIGN_IDENTITY="" \
+CODE_SIGN_STYLE="" \
+PROVISIONING_PROFILE="" \
+PROVISIONING_PROFILE_SPECIFIER="" \
+ARCHES="${ARCHES_VALUE}" \
+  "${PACKAGE_APP_SCRIPT}" release
 
 log "==> launch app"
 if ! open "${APP_BUNDLE}"; then

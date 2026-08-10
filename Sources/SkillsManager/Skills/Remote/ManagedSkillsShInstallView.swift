@@ -6,7 +6,8 @@ struct ManagedSkillsShInstallView: View {
 
     var body: some View {
         ManagedGitHubInstallView(
-            request: .skillsSh(item, client: githubClient)
+            request: .skillsSh(item, client: githubClient),
+            subjectID: item.resultID.id
         )
     }
 }
@@ -25,7 +26,8 @@ struct ManagedCustomRepositoryInstallView: View {
                     writer: writer,
                     slug: slug,
                     client: githubClient
-                )
+                ),
+                subjectID: candidate.resultSubjectID
             )
         } else {
             ContentUnavailableView(
@@ -136,8 +138,10 @@ private struct ManagedGitHubInstallView: View {
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
     @Environment(CustomRepositoryViewModel.self) private var customRepositoryModel
+    @Environment(SkillResultCenter.self) private var resultCenter
 
     let request: ManagedGitHubInstallRequest
+    let subjectID: String
 
     @State private var model = ManagedLocalImportViewModel()
     @State private var distributionMode: ManagedInstallDistributionMode = .global
@@ -309,13 +313,19 @@ private struct ManagedGitHubInstallView: View {
                     sourceInput: resolved.sourceInput,
                     scope: distributionMode == .global ? .global : .agents(selectedAgents)
                 )
-                if model.problem != nil {
+                if let problem = model.problem {
+                    resultCenter.publishInstallFailure(
+                        localizedManagedLocalImportProblem(problem),
+                        skillID: subjectID
+                    )
                     await cleanupCandidate()
                 }
             } catch {
                 if Task.isCancelled { return }
                 model.reset()
-                errorMessage = localizedManagedInstallError(error)
+                let message = localizedManagedInstallError(error)
+                errorMessage = message
+                resultCenter.publishInstallFailure(message, skillID: subjectID)
             }
         }
     }
@@ -329,8 +339,12 @@ private struct ManagedGitHubInstallView: View {
                 await discoveryModel.refresh()
                 await customRepositoryModel.refreshAll()
             }
-            if let problem = model.problem {
-                errorMessage = localizedManagedLocalImportProblem(problem)
+            if let result = model.result {
+                resultCenter.publishInstallResult(result, skillID: subjectID)
+            } else if let problem = model.problem {
+                let message = localizedManagedLocalImportProblem(problem)
+                errorMessage = message
+                resultCenter.publishInstallFailure(message, skillID: subjectID)
             }
         }
     }

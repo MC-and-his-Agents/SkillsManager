@@ -1,11 +1,17 @@
 import SwiftUI
 
+extension CustomRepositoryCandidate {
+    var resultSubjectID: String {
+        "\(id.repositoryID)-\(id.subpath.value)"
+    }
+}
+
 struct CustomRepositoryCandidateRow: View {
     let candidate: CustomRepositoryCandidate
 
     var body: some View {
         SkillListRow(data: SkillListRowData(
-            id: "\(candidate.id.repositoryID)-\(candidate.id.subpath.value)",
+            id: candidate.resultSubjectID,
             title: candidate.displayName,
             detail: candidate.repository.displayName,
             statusIcon: "arrow.down.circle",
@@ -35,6 +41,7 @@ struct CustomRepositoryCandidateDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                SkillResultCenterBanner(skillID: candidate.resultSubjectID)
                 Text(verbatim: candidate.displayName).font(.largeTitle.bold())
                 HStack(spacing: 6) {
                     TagView(localized: "Available", systemImage: "arrow.down.circle")

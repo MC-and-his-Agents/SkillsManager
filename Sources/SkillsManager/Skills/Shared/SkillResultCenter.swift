@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import SwiftUI
 
@@ -9,6 +10,7 @@ import SwiftUI
 @MainActor
 @Observable final class SkillResultCenter {
     struct Entry: Equatable {
+        let id = UUID()
         let skillID: String
         let text: String
         let systemImage: String
@@ -16,19 +18,30 @@ import SwiftUI
     }
 
     private(set) var current: Entry?
-    private var dismissed: Set<String> = []
+    private let autoDismissDelay: Duration
+    private var autoDismissTask: Task<Void, Never>?
+
+    init(autoDismissDelay: Duration = .seconds(20)) {
+        self.autoDismissDelay = autoDismissDelay
+    }
 
     func publish(_ entry: Entry) {
         current = entry
-        Task {
-            try? await Task.sleep(for: .seconds(20))
-            dismissed.insert(entry.text)
+        autoDismissTask?.cancel()
+        let delay = autoDismissDelay
+        autoDismissTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self?.dismiss(entryID: entry.id)
         }
     }
 
-    /// 当前可见结果（未消退且未被手动关闭）。
-    var visible: Entry? {
-        guard let current, !dismissed.contains(current.text) else { return nil }
-        return current
+    func dismiss(entryID: UUID) {
+        guard current?.id == entryID else { return }
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
+        current = nil
     }
+
+    var visible: Entry? { current }
 }

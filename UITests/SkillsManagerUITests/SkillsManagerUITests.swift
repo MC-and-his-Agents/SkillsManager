@@ -680,6 +680,10 @@ final class SkillsManagerUITests: XCTestCase {
         // 截断长 value，匹配 banner 独有前缀 "Result: Distributi"。
         try waitForHierarchyText("Result: Distributi", surface: "ui-11", app: app)
         try auditSurface("ui-11-banner", app: app)
+        let dismissResult = app.buttons[SkillsManagerUILocators.resultDismiss]
+        try requireElement(dismissResult, surface: "ui-11", app: app)
+        dismissResult.click()
+        try waitForDisappearance(dismissResult, surface: "ui-11", app: app)
     }
 
     // MARK: - SM194-UI-12

@@ -63,6 +63,9 @@ struct SkillRowView: View {
             ),
             badge: rowBadge
         )
+        .task(id: badgeStore.refreshGeneration) {
+            await badgeStore.checkIfNeeded(for: skill)
+        }
     }
 
     static func localizedBadgeAccessibilityText(

@@ -9,6 +9,7 @@ struct SkillsShSearchDetailView: View {
             if let item = store.selectedItem {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        SkillResultCenterBanner(skillID: item.resultID.id)
                         Text(verbatim: item.name)
                             .font(.largeTitle.bold())
 

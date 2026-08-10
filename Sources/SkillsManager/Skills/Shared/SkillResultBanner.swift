@@ -6,6 +6,7 @@ struct SkillResultBanner: View {
     let message: String
     let systemImage: String
     let tint: Color
+    let onDismiss: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -15,17 +16,44 @@ struct SkillResultBanner: View {
                 Image(systemName: systemImage)
             }
                 .foregroundStyle(tint)
+                .accessibilityLabel(Text(String(
+                    localized: LocalizedStringResource(
+                        "Result: \(message)",
+                        bundle: .module
+                    )
+                )))
             Spacer(minLength: 4)
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("skills.result.close")
+            .accessibilityLabel(Text("Close", bundle: .module))
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(String(
-            localized: LocalizedStringResource(
-            "Result: \(message)",
-            bundle: .module
-        ))))
+        .accessibilityElement(children: .contain)
+    }
+}
+
+struct SkillResultCenterBanner: View {
+    @Environment(SkillResultCenter.self) private var resultCenter
+
+    let skillID: String
+
+    var body: some View {
+        Group {
+            if let entry = resultCenter.visible, entry.skillID == skillID {
+                SkillResultBanner(
+                    message: entry.text,
+                    systemImage: entry.systemImage,
+                    tint: entry.tint,
+                    onDismiss: { resultCenter.dismiss(entryID: entry.id) }
+                )
+                .transition(.opacity)
+            }
+        }
     }
 }
 
@@ -108,16 +136,7 @@ struct SkillDetailFeedbackBanner: View {
     }
 
     var body: some View {
-        Group {
-            if let entry = resultCenter.visible, entry.skillID == skillID {
-                SkillResultBanner(
-                    message: entry.text,
-                    systemImage: entry.systemImage,
-                    tint: entry.tint
-                )
-                .transition(.opacity)
-            }
-        }
+        SkillResultCenterBanner(skillID: skillID)
         .onChange(of: feedback) { _, newValue in
             guard let newValue else { return }
             resultCenter.publish(SkillResultCenter.Entry(
@@ -126,6 +145,40 @@ struct SkillDetailFeedbackBanner: View {
                 systemImage: newValue.systemImage,
                 tint: newValue.tint
             ))
+        }
+    }
+}
+
+extension SkillResultCenter {
+    func publishInstallResult(_ result: ManagedLocalImportResult, skillID: String) {
+        let presentation = managedInstallResultPresentation(result)
+        publish(Entry(
+            skillID: skillID,
+            text: presentation.message,
+            systemImage: presentation.systemImage,
+            tint: result.status.requiresAttention ? .orange : .green
+        ))
+    }
+
+    func publishInstallFailure(_ message: String, skillID: String) {
+        publish(Entry(
+            skillID: skillID,
+            text: message,
+            systemImage: "exclamationmark.triangle.fill",
+            tint: .orange
+        ))
+    }
+}
+
+private extension ManagedLocalImportResultStatus {
+    var requiresAttention: Bool {
+        switch self {
+        case .distributed, .noDistributionChanges, .alreadyManaged, .updated:
+            false
+        case .managedUndistributed, .managedDistributionIndeterminate,
+             .managementIndeterminate, .updateRequired,
+             .updatedDistributionNeedsAttention, .updateIndeterminate:
+            true
         }
     }
 }
