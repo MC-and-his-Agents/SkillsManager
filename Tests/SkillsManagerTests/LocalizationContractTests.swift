@@ -44,14 +44,14 @@ struct LocalizationContractTests {
     func bundleLookup() {
         let bundle = SkillsManagerLocalizationResources.bundle
         let zh = String(localized: LocalizedStringResource(
-            "关于 Skills Manager",
-            defaultValue: "关于 Skills Manager",
+            "About Skills Manager",
+            defaultValue: "About Skills Manager",
             locale: Locale(identifier: "zh-Hans"),
             bundle: bundle
         ))
         let en = String(localized: LocalizedStringResource(
-            "关于 Skills Manager",
-            defaultValue: "关于 Skills Manager",
+            "About Skills Manager",
+            defaultValue: "About Skills Manager",
             locale: Locale(identifier: "en"),
             bundle: bundle
         ))

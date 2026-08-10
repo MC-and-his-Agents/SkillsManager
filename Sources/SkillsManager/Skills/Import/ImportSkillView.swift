@@ -105,14 +105,14 @@ struct ImportSkillView: View {
             case .idle:
                 emptyState
             case .validating:
-                ProgressView(localized("Validating…"))
+                ProgressView(String(localized: "Validating…", bundle: .module))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .valid:
                 candidatePreview
             case .invalid:
                 invalidState
             case .preparing:
-                ProgressView(localized("Preparing import preview…"))
+                ProgressView(String(localized: "Preparing import preview…", bundle: .module))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -120,7 +120,7 @@ struct ImportSkillView: View {
 
     private var emptyState: some View {
         ContentUnavailableView(
-            localized("Pick a folder or zip"),
+            String(localized: "Pick a folder or zip", bundle: .module),
             systemImage: "tray.and.arrow.down",
             description: Text("We’ll verify it contains a SKILL.md and show a preview.", bundle: .module)
         )
@@ -129,7 +129,7 @@ struct ImportSkillView: View {
 
     private var invalidState: some View {
         ContentUnavailableView(
-            localized("Unable to import"),
+            String(localized: "Unable to import", bundle: .module),
             systemImage: "xmark.octagon",
             description: Text(errorMessage)
         )
@@ -140,12 +140,12 @@ struct ImportSkillView: View {
         let presentation = resultPresentation
         return VStack {
             ContentUnavailableView(
-                localized(presentation.title),
+                presentation.title,
                 systemImage: presentation.systemImage,
                 description: resultMessage
             )
             if model.isFinalizing {
-                ProgressView(localized("Refreshing library…"))
+                ProgressView(String(localized: "Refreshing library…", bundle: .module))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -153,29 +153,29 @@ struct ImportSkillView: View {
 
     private var resultPresentation: (title: String, systemImage: String) {
         guard let result = model.result else {
-            return ("Import status unavailable", "exclamationmark.triangle")
+            return (String(localized: "Import status unavailable", bundle: .module), "exclamationmark.triangle")
         }
         switch result.status {
         case .distributed:
-            return ("Imported and enabled", "checkmark.seal")
+            return (String(localized: "Imported and enabled", bundle: .module), "checkmark.seal")
         case .noDistributionChanges:
-            return ("Imported", "checkmark.seal")
+            return (String(localized: "Imported", bundle: .module), "checkmark.seal")
         case .managedUndistributed:
-            return ("Imported but not enabled", "exclamationmark.triangle")
+            return (String(localized: "Imported but not enabled", bundle: .module), "exclamationmark.triangle")
         case .managedDistributionIndeterminate:
-            return ("Distribution needs attention", "wrench.and.screwdriver")
+            return (String(localized: "Distribution needs attention", bundle: .module), "wrench.and.screwdriver")
         case .managementIndeterminate:
-            return ("Import needs attention", "wrench.and.screwdriver")
+            return (String(localized: "Import needs attention", bundle: .module), "wrench.and.screwdriver")
         case .alreadyManaged:
-            return ("Already managed", "checkmark.circle")
+            return (String(localized: "Already managed", bundle: .module), "checkmark.circle")
         case .updateRequired:
-            return ("Update required", "arrow.triangle.2.circlepath")
+            return (String(localized: "Update required", bundle: .module), "arrow.triangle.2.circlepath")
         case .updated:
-            return ("Updated", "checkmark.seal")
+            return (String(localized: "Updated", bundle: .module), "checkmark.seal")
         case .updatedDistributionNeedsAttention:
-            return ("Updated; distribution needs attention", "exclamationmark.triangle")
+            return (String(localized: "Updated; distribution needs attention", bundle: .module), "exclamationmark.triangle")
         case .updateIndeterminate:
-            return ("Update needs confirmation", "wrench.and.screwdriver")
+            return (String(localized: "Update needs confirmation", bundle: .module), "wrench.and.screwdriver")
         }
     }
 
@@ -544,7 +544,4 @@ struct ImportSkillView: View {
         await discoveryModel.refresh()
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
-    }
 }

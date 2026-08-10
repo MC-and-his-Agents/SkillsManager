@@ -30,7 +30,7 @@ struct SkillDistributionView: View {
                 systemImage: "link"
             )
         case .loading:
-            ProgressView(localized("Loading distribution state…"))
+            ProgressView(String(localized: "Loading distribution state…", bundle: .module))
         case .failed(let problem):
             VStack(alignment: .leading, spacing: 10) {
                 statusMessage(problem.message, systemImage: "exclamationmark.triangle")
@@ -50,13 +50,13 @@ struct SkillDistributionView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label {
-                    Text(verbatim: localized(status.displayName))
+                    Text(verbatim: statusText(status))
                 } icon: {
                     Image(systemName: status.systemImage)
                 }
                     .font(.headline)
                     .accessibilityLabel(Text(
-                        "Distribution status: \(localized(status.displayName))",
+                        "Distribution status: \(statusText(status))",
                         bundle: .module
                     ))
                 Spacer()
@@ -100,11 +100,12 @@ struct SkillDistributionView: View {
                 }
                 .foregroundStyle(.secondary)
             } else if model.draftUsesGlobalTarget {
-                Text(verbatim: localized(
+                Text(
                     model.selectedSyncMode == .symlink
                         ? "The compatible Agent set uses one link in ~/.agents/skills."
                         : "The compatible Agent set uses one Copy in ~/.agents/skills."
-                ))
+                    , bundle: .module
+                )
                     .foregroundStyle(.secondary)
             }
 
@@ -127,7 +128,7 @@ struct SkillDistributionView: View {
                         .font(.headline)
                     ForEach(model.currentTargets) { target in
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(verbatim: localized(target.syncMode.displayName))
+                            Text(verbatim: syncModeText(target.syncMode))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Text(target.locator)
@@ -227,12 +228,13 @@ struct SkillDistributionView: View {
             }
             .pickerStyle(.segmented)
             .disabled(model.isApplying)
-            .accessibilityValue(Text(verbatim: localized(model.selectedSyncMode.displayName)))
-            Text(verbatim: localized(
+            .accessibilityValue(Text(verbatim: syncModeText(model.selectedSyncMode)))
+            Text(
                 model.selectedSyncMode == .symlink
                     ? "Agents use the managed Skill directly."
                     : "Each target receives a managed Copy."
-            ))
+                , bundle: .module
+            )
             .font(.caption)
             .foregroundStyle(.secondary)
         }
@@ -251,7 +253,7 @@ struct SkillDistributionView: View {
                 ) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text(verbatim: localized(row.platform.rawValue))
+                            Text(verbatim: platformText(row.platform))
                             Text(
                                 row.isCurrentlyEnabled ? "Enabled now" : "Disabled now",
                                 bundle: .module
@@ -271,7 +273,7 @@ struct SkillDistributionView: View {
                     }
                 }
                 .accessibilityLabel(Text(
-                    "\(localized(row.platform.rawValue)) distribution",
+                    "\(platformText(row.platform)) distribution",
                     bundle: .module
                 ))
                 .accessibilityValue(Text(
@@ -298,9 +300,12 @@ struct SkillDistributionView: View {
             .foregroundStyle(.secondary)
     }
 
-    private func localizedStatusMessage(_ message: String, systemImage: String) -> some View {
+    private func localizedStatusMessage(
+        _ message: LocalizedStringResource,
+        systemImage: String
+    ) -> some View {
         Label {
-            Text(verbatim: localized(message))
+            Text(message)
         } icon: {
             Image(systemName: systemImage)
         }
@@ -313,8 +318,30 @@ struct SkillDistributionView: View {
             .accessibilityElement(children: .combine)
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func statusText(_ status: SkillDistributionViewModel.Status) -> String {
+        return switch status {
+        case .notConfigured: String(localized: "Not configured", bundle: .module)
+        case .inSync: String(localized: "In sync", bundle: .module)
+        case .drifted: String(localized: "Needs update", bundle: .module)
+        case .needsRepair: String(localized: "Needs repair", bundle: .module)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
+        }
+    }
+
+    private func syncModeText(_ mode: DistributionSyncMode) -> String {
+        return switch mode {
+        case .symlink: String(localized: "Symlink", bundle: .module)
+        case .copy: String(localized: "Copy", bundle: .module)
+        }
+    }
+
+    private func platformText(_ platform: SkillPlatform) -> String {
+        return switch platform {
+        case .codex: String(localized: "Codex", bundle: .module)
+        case .claude: String(localized: "Claude Code", bundle: .module)
+        case .opencode: String(localized: "OpenCode", bundle: .module)
+        case .copilot: String(localized: "GitHub Copilot", bundle: .module)
+        }
     }
 }
 
@@ -343,7 +370,7 @@ private struct SkillDistributionPreviewView: View {
                 List(preview.rows) { row in
                     VStack(alignment: .leading, spacing: 3) {
                         Label {
-                            Text(verbatim: localized(row.kind.displayName))
+                            Text(verbatim: previewKindText(row.kind))
                         } icon: {
                             Image(systemName: row.kind.systemImage)
                         }
@@ -413,7 +440,7 @@ private struct SkillDistributionPreviewView: View {
                 .font(.headline)
             ForEach(Array(preview.plan.conflicts.enumerated()), id: \.offset) { _, conflict in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: localized(conflict.reason.displayName))
+                    Text(verbatim: conflictReasonText(conflict.reason))
                     Text(conflict.canonicalLocator)
                         .font(.callout.monospaced())
                         .foregroundStyle(.secondary)
@@ -460,7 +487,35 @@ private struct SkillDistributionPreviewView: View {
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func previewKindText(_ kind: SkillDistributionViewModel.PreviewRow.Kind) -> String {
+        return switch kind {
+        case .remove: String(localized: "Remove target", bundle: .module)
+        case .create: String(localized: "Create target", bundle: .module)
+        case .refresh: String(localized: "Refresh Copy", bundle: .module)
+        case .replace: String(localized: "Change distribution mode", bundle: .module)
+        case .binding: String(localized: "Update saved target", bundle: .module)
+        case .configuration: String(localized: "Save Agent selection", bundle: .module)
+        case .noChange: String(localized: "No change", bundle: .module)
+        }
+    }
+
+    private func conflictReasonText(_ reason: DistributionConflictReason) -> String {
+        return switch reason {
+        case .invalidDesiredScope: String(localized: "The selected scope is invalid.", bundle: .module)
+        case .unsupportedAdapter: String(localized: "The selected Agent is unsupported.", bundle: .module)
+        case .globalCoverageMismatch: String(localized: "The global Agent coverage is inconsistent.", bundle: .module)
+        case .dedicatedTargetUnavailable: String(localized: "An Agent-specific target is unavailable.", bundle: .module)
+        case .targetUnavailable: String(localized: "The target folder is unavailable.", bundle: .module)
+        case .currentBindingMissing: String(localized: "A saved link is missing.", bundle: .module)
+        case .managedTargetMismatch: String(localized: "The saved link points to a different managed Skill.", bundle: .module)
+        case .unknownObject: String(localized: "An unmanaged item already exists at this target.", bundle: .module)
+        case .slugOccupied: String(localized: "Another managed Skill already uses this name.", bundle: .module)
+        case .copyContentDrift: String(localized: "The managed copy contains local content changes.", bundle: .module)
+        case .copyPhysicalDrift: String(localized: "The managed copy contains unexpected files or permissions.", bundle: .module)
+        case .copyRootReplaced: String(localized: "The managed copy root was replaced.", bundle: .module)
+        case .copyTargetReplaced: String(localized: "The managed copy directory was replaced.", bundle: .module)
+        case .copyTargetMissing: String(localized: "The managed copy is missing.", bundle: .module)
+        case .copyBaselineInvalid: String(localized: "The managed copy baseline is unavailable or invalid.", bundle: .module)
+        }
     }
 }

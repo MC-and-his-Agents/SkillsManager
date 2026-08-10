@@ -39,6 +39,24 @@ struct SkillListFilterTests {
         ))
     }
 
+    @Test("known sources localize while unknown provider labels remain byte-identical")
+    func sourceLabelLocalizationBoundary() {
+        let known = SkillListOriginProjection(
+            hasRepositorySource: false,
+            providers: ["clawdhub"]
+        )
+        let opaque = "Future.Provider/v2"
+        let unknown = SkillListOriginProjection(
+            hasRepositorySource: false,
+            providers: [opaque]
+        )
+
+        #expect(known.labels.first?.knownSource == .clawHub)
+        #expect(known.labels.first?.text == "ClawHub")
+        #expect(unknown.labels.first?.knownSource == nil)
+        #expect(unknown.labels.first?.text == opaque)
+    }
+
     @Test("all discovery states stay in Needs Import without changing their identity")
     func discoveryStatusMembership() {
         let statuses: [SkillDiscoveryStatus] = [

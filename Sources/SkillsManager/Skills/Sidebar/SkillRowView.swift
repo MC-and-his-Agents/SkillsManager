@@ -14,7 +14,12 @@ struct SkillRowView: View {
     }
 
     private var statusText: String {
-        skill.managedStatus == .needsRepair ? "Needs Attention" : "Managed"
+        switch skill.managedStatus {
+        case .managed:
+            String(localized: "Managed", bundle: .module)
+        case .needsRepair:
+            String(localized: "Needs Attention", bundle: .module)
+        }
     }
 
     private var rowBadge: SkillRowBadge? {
@@ -33,14 +38,14 @@ struct SkillRowView: View {
         let badgeText = rowBadge.map { Self.localizedBadgeAccessibilityText($0) }
         let labelParts: [String] = [
             skill.displayName,
-            localized(statusText),
-            skill.listOrigin.labels.map { localized($0.text) }.joined(separator: ", "),
+            statusText,
+            skill.listOrigin.labels.map(sourceText).joined(separator: ", "),
             SkillListAgentSummary.text(count: skill.enabledPlatforms.count),
             badgeText,
         ].compactMap { $0 }
         let valueParts: [String] = [
-            localized(statusText),
-            skill.listOrigin.labels.map { localized($0.text) }.joined(separator: ", "),
+            statusText,
+            skill.listOrigin.labels.map(sourceText).joined(separator: ", "),
             SkillListAgentSummary.text(count: skill.enabledPlatforms.count),
             badgeText,
         ].compactMap { $0 }
@@ -84,7 +89,17 @@ struct SkillRowView: View {
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func sourceText(_ label: SkillListSourceLabel) -> String {
+        guard let source = label.knownSource else { return label.text }
+        switch source {
+        case .local:
+            return String(localized: "Local", bundle: .module)
+        case .repository:
+            return String(localized: "Repository", bundle: .module)
+        case .clawHub:
+            return String(localized: "ClawHub", bundle: .module)
+        case .skillsSh:
+            return String(localized: "skills.sh", bundle: .module)
+        }
     }
 }

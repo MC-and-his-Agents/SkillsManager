@@ -75,7 +75,11 @@ struct SkillsShSearchRow: View {
             detail: item.source,
             statusIcon: "arrow.down.circle",
             statusTint: .accentColor,
-            sources: [SkillListSourceLabel(text: "skills.sh", systemImage: "magnifyingglass")],
+                sources: [SkillListSourceLabel(
+                    text: "skills.sh",
+                    systemImage: "magnifyingglass",
+                    knownSource: .skillsSh
+                )],
             agentCount: 0,
             accessibilityLabel:
                 "\(item.name), Available, skills.sh, \(item.installs.formatted()) installs, source \(item.source)",

@@ -40,7 +40,7 @@ struct SkillDiscoveryBatchView: View {
         switch model.state {
         case .idle:
             ContentUnavailableView(
-                localized("No Discovery candidates"),
+                String(localized: "No Discovery candidates", bundle: .module),
                 systemImage: "tray",
                 description: Text("Refresh Discovery before opening Batch Import.", bundle: .module)
             )
@@ -107,12 +107,15 @@ struct SkillDiscoveryBatchView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(candidate.observation.displayName)
                         .font(.headline)
-                    Text(localized(candidate.observation.status.displayName))
+                    Text(verbatim: discoveryStatusText(candidate.observation.status))
                         .font(.caption)
                         .foregroundStyle(candidate.observation.status.tint)
-                    if let reason = candidate.selectionBlockReason
-                        ?? candidate.observation.reason?.displayName {
-                        Text(localized(reason))
+                    if let reason = candidate.selectionBlockReason {
+                        Text(verbatim: reason)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if let reason = candidate.observation.reason {
+                        Text(verbatim: discoveryReasonText(reason))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -198,7 +201,7 @@ struct SkillDiscoveryBatchView: View {
             }
             if let plan = item.plan {
                 LabeledContent {
-                    Text(localized(distributionName(plan.status)))
+                    Text(verbatim: distributionPlanText(plan.status))
                 } label: {
                     Text("Distribution", bundle: .module)
                 }
@@ -289,15 +292,37 @@ struct SkillDiscoveryBatchView: View {
                 value: Double(model.resultItems.count),
                 total: Double(max(model.preview?.items.count ?? model.selectedCount, 1))
             )
-            Text(verbatim: localized(title))
+            Text(verbatim: progressTitleText(title))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(verbatim: localized(title)))
-        .accessibilityValue(Text(verbatim: localized(
-            "\(model.resultItems.count) of \(model.preview?.items.count ?? model.selectedCount)"
-        )))
+        .accessibilityLabel(Text(verbatim: progressTitleText(title)))
+        .accessibilityValue(Text(verbatim: progressAccessibilityValue))
+    }
+
+    private var progressAccessibilityValue: String {
+        let total = model.preview?.items.count ?? model.selectedCount
+        return localizedTemplate(
+            LocalizedStringResource(
+                "%arg of %arg",
+                defaultValue: "%arg of %arg",
+                bundle: .module
+            ),
+            arguments: [String(model.resultItems.count), String(total)]
+        )
+    }
+
+    private func localizedTemplate(
+        _ resource: LocalizedStringResource,
+        arguments: [String]
+    ) -> String {
+        var value = String(localized: resource)
+        for argument in arguments {
+            guard let range = value.range(of: "%arg") else { break }
+            value.replaceSubrange(range, with: argument)
+        }
+        return value
     }
 
     @ViewBuilder
@@ -360,13 +385,13 @@ struct SkillDiscoveryBatchView: View {
     private var summaryText: String {
         switch model.state {
         case .completed:
-            "\(model.summary.created) \(localized("created")) · "
-                + "\(model.summary.claimed) \(localized("claimed")) · "
-                + "\(model.summary.skipped) \(localized("skipped")) · "
-                + "\(model.summary.failed) \(localized("failed"))"
+            "\(model.summary.created) \(String(localized: "created", bundle: .module)) · "
+                + "\(model.summary.claimed) \(String(localized: "claimed", bundle: .module)) · "
+                + "\(model.summary.skipped) \(String(localized: "skipped", bundle: .module)) · "
+                + "\(model.summary.failed) \(String(localized: "failed", bundle: .module))"
         default:
-            "\(model.availableCandidateCount) \(localized("candidates available")) · "
-                + "\(model.selectedCount) \(localized("selected"))"
+            "\(model.availableCandidateCount) \(String(localized: "candidates available", bundle: .module)) · "
+                + "\(model.selectedCount) \(String(localized: "selected", bundle: .module))"
         }
     }
 
@@ -387,53 +412,106 @@ struct SkillDiscoveryBatchView: View {
     private func candidateAccessibilityValue(
         _ candidate: SkillDiscoveryBatchCandidate
     ) -> String {
-        let selection = localized(model.isSelected(candidate.id) ? "Selected" : "Not selected")
-        let action = model.action(for: candidate.id).map(actionName)
-            .map(localized) ?? localized("No action selected")
-        return [selection, localized(candidate.observation.status.displayName), action]
+        let selection = model.isSelected(candidate.id)
+            ? String(localized: "Selected", bundle: .module)
+            : String(localized: "Not selected", bundle: .module)
+        let action = model.action(for: candidate.id)
+            .map(actionName)
+            ?? String(localized: "No action selected", bundle: .module)
+        return [selection, discoveryStatusText(candidate.observation.status), action]
             .joined(separator: ", ")
     }
 
     private func actionName(_ action: ManagedSkillImportAction) -> String {
-        switch action {
-        case .importNew: "Import as new"
-        case .claimExisting: "Claim existing"
+        return switch action {
+        case .importNew: String(localized: "Import as new", bundle: .module)
+        case .claimExisting: String(localized: "Claim existing", bundle: .module)
         }
     }
 
     private func distributionName(_ status: DistributionPlanStatus) -> String {
-        switch status {
-        case .executable: "Ready to enable with Symlink"
-        case .noOp: "No changes"
-        case .blocked: "Blocked; Skill remains managed"
+        return switch status {
+        case .executable: String(localized: "Ready to enable with Symlink", bundle: .module)
+        case .noOp: String(localized: "No changes", bundle: .module)
+        case .blocked: String(localized: "Blocked; Skill remains managed", bundle: .module)
         }
     }
 
     private func managementName(
         _ result: SkillDiscoveryBatchManagementResult
     ) -> String {
-        switch result {
-        case .created: localized("Created")
-        case .claimed: localized("Claimed; existing bindings preserved")
-        case .alreadyManaged: localized("Already managed")
-        case .failed(let message): "\(localized("Failed")): \(message)"
-        case .skipped(let reason): "\(localized("Skipped")): \(reason)"
+        return switch result {
+        case .created: String(localized: "Created", bundle: .module)
+        case .claimed: String(localized: "Claimed; existing bindings preserved", bundle: .module)
+        case .alreadyManaged: String(localized: "Already managed", bundle: .module)
+        case .failed(let message): "\(String(localized: "Failed", bundle: .module)): \(message)"
+        case .skipped(let reason): "\(String(localized: "Skipped", bundle: .module)): \(reason)"
         }
     }
 
     private func distributionName(
         _ result: SkillDiscoveryBatchDistributionResult
     ) -> String {
-        switch result {
-        case .distributed: localized("Distributed")
-        case .noChanges: localized("No changes")
-        case .managedUndistributed: localized("Managed but not enabled")
-        case .indeterminate(let message): "\(localized("Needs attention")): \(message)"
+        return switch result {
+        case .distributed: String(localized: "Distributed", bundle: .module)
+        case .noChanges: String(localized: "No changes", bundle: .module)
+        case .managedUndistributed: String(localized: "Managed but not enabled", bundle: .module)
+        case .indeterminate(let message): "\(String(localized: "Needs attention", bundle: .module)): \(message)"
         case .notApplicable(let message): message
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func discoveryStatusText(_ status: SkillDiscoveryStatus) -> String {
+        return switch status {
+        case .managed: String(localized: "Managed", bundle: .module)
+        case .claimable: String(localized: "Ready to claim", bundle: .module)
+        case .unmanaged: String(localized: "Unmanaged", bundle: .module)
+        case .conflict: String(localized: "Conflict", bundle: .module)
+        case .permissionDenied: String(localized: "Permission denied", bundle: .module)
+        case .damaged: String(localized: "Damaged", bundle: .module)
+        }
+    }
+
+    private func discoveryReasonText(_ reason: SkillDiscoveryReason) -> String {
+        return switch reason {
+        case .rootPermissionDenied: String(localized: "The scan root cannot be read.", bundle: .module)
+        case .rootChanged: String(localized: "The scan root changed while it was being inspected.", bundle: .module)
+        case .rootUnsupportedType: String(localized: "The scan root is not a directory or supported link.", bundle: .module)
+        case .rootReadFailed: String(localized: "The scan root could not be read.", bundle: .module)
+        case .unknownSymlink: String(localized: "The Skill uses a symbolic link that cannot be trusted.", bundle: .module)
+        case .symbolicLinkTargetUnavailable: String(localized: "The Skill link target is unavailable.", bundle: .module)
+        case .symbolicLinkTargetUnsupported: String(localized: "The Skill link target is not a directory.", bundle: .module)
+        case .candidatePermissionDenied: String(localized: "The Skill folder cannot be read.", bundle: .module)
+        case .sourceChanged: String(localized: "The Skill changed while it was being inspected.", bundle: .module)
+        case .missingSkillManifest: String(localized: "SKILL.md is missing.", bundle: .module)
+        case .containerDirectory: String(localized: "This folder contains Skill subdirectories.", bundle: .module)
+        case .invalidSkillManifest: String(localized: "SKILL.md is not valid UTF-8.", bundle: .module)
+        case .unsupportedEntryType: String(localized: "The Skill contains an unsupported file type.", bundle: .module)
+        case .unsafeContent: String(localized: "The Skill contains an unsafe path or link.", bundle: .module)
+        case .resourceLimitExceeded: String(localized: "The Skill exceeds the safe import limits.", bundle: .module)
+        case .candidateReadFailed: String(localized: "The Skill content could not be read.", bundle: .module)
+        case .ambiguousLocalAssociation: String(localized: "This location is linked to more than one managed Skill.", bundle: .module)
+        case .localAssociationDrift: String(localized: "This location no longer matches its managed Skill.", bundle: .module)
+        case .ambiguousSource: String(localized: "The source metadata matches more than one managed Skill.", bundle: .module)
+        case .ambiguousFingerprint: String(localized: "The content matches more than one managed Skill.", bundle: .module)
+        case .evidenceConflict: String(localized: "The source and content point to different managed Skills.", bundle: .module)
+        case .scopeSlugConflict: String(localized: "More than one Skill uses this name in the same scope.", bundle: .module)
+        }
+    }
+
+    private func distributionPlanText(_ status: DistributionPlanStatus) -> String {
+        return switch status {
+        case .executable: String(localized: "Ready to enable with Symlink", bundle: .module)
+        case .noOp: String(localized: "No changes", bundle: .module)
+        case .blocked: String(localized: "Blocked; Skill remains managed", bundle: .module)
+        }
+    }
+
+    private func progressTitleText(_ title: String) -> String {
+        return switch title {
+        case "Preparing secure previews…": String(localized: "Preparing secure previews…", bundle: .module)
+        case "Importing selected Skills…": String(localized: "Importing selected Skills…", bundle: .module)
+        default: title
+        }
     }
 }

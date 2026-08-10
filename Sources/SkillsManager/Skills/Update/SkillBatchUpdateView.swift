@@ -22,7 +22,7 @@ struct SkillBatchUpdateView: View {
                 .overlay {
                     if !model.items.isEmpty, visibleItems.isEmpty {
                         ContentUnavailableView(
-                            "No matching Skills",
+                            String(localized: "No matching Skills", bundle: .module),
                             systemImage: "magnifyingglass",
                             description: Text("Clear the filter to restore the complete batch.", bundle: .module)
                         )
@@ -54,13 +54,13 @@ struct SkillBatchUpdateView: View {
             Text("Check managed Skills, review every conflict, then update selected items.", bundle: .module)
                 .foregroundStyle(.secondary)
             Text(
-                "Batch update summary: \(SkillBatchUpdatePresentation.summary(model.summary))",
+                "Batch update summary: \(localizedSummary())",
                 bundle: .module
             )
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .accessibilityLabel(Text(
-                    "Batch update summary: \(SkillBatchUpdatePresentation.summary(model.summary))",
+                    "Batch update summary: \(localizedSummary())",
                     bundle: .module
                 )
                 )
@@ -82,13 +82,13 @@ struct SkillBatchUpdateView: View {
             }
                 .foregroundStyle(.secondary)
         case .checking:
-            progress("Checking Skills…")
+            progressText("Checking Skills…")
         case .executing:
-            progress(
-                model.stopRequested
-                    ? "Finishing the current Skill before stopping…"
-                    : "Updating selected Skills…"
-            )
+            if model.stopRequested {
+                progressText("Finishing the current Skill before stopping…")
+            } else {
+                progressText("Updating selected Skills…")
+            }
         case .completed:
             Label {
                 Text(
@@ -111,18 +111,18 @@ struct SkillBatchUpdateView: View {
         }
     }
 
-    private func progress(_ title: String) -> some View {
+    private func progressText(_ title: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ProgressView(
                 value: Double(model.summary.completed),
                 total: Double(max(model.summary.total, 1))
             )
-            Text(verbatim: localized(title))
+            Text(verbatim: progressTitleText(title))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(verbatim: localized(title)))
+        .accessibilityLabel(Text(verbatim: progressTitleText(title)))
         .accessibilityValue(Text(
             "\(model.summary.completed) of \(model.summary.total)",
             bundle: .module
@@ -178,9 +178,81 @@ struct SkillBatchUpdateView: View {
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func localizedSummary() -> String {
+        if model.summary.total == 0 {
+            return String(localized: "No managed Skills.", bundle: .module)
+        }
+        let values = SkillBatchUpdateResult.allCases.compactMap { result -> String? in
+            let count = model.summary[result]
+            guard count > 0 else { return nil }
+            let title = resultText(result)
+            return localizedBatchTemplate(
+                LocalizedStringResource(
+                    "%arg: %arg",
+                    defaultValue: "%arg: %arg",
+                    bundle: .module
+                ),
+                arguments: [title, String(count)]
+            )
+        }
+        if values.isEmpty {
+            return localizedCompletionText(
+                completed: model.summary.completed,
+                total: model.summary.total
+            )
+        }
+        let completed = localizedCompletionText(
+            completed: model.summary.completed,
+            total: model.summary.total
+        )
+        return completed + " " + values.joined(separator: ", ")
     }
+
+    private func localizedCompletionText(completed: Int, total: Int) -> String {
+        localizedBatchTemplate(
+            LocalizedStringResource(
+                "%arg of %arg complete.",
+                defaultValue: "%arg of %arg complete.",
+                bundle: .module
+            ),
+            arguments: [String(completed), String(total)]
+        )
+    }
+
+    private func resultText(_ result: SkillBatchUpdateResult) -> String {
+        return switch result {
+        case .updated: String(localized: "Updated", bundle: .module)
+        case .upToDate: String(localized: "Up to date", bundle: .module)
+        case .forked: String(localized: "Updated; local changes kept as Fork", bundle: .module)
+        case .conflict: String(localized: "Conflict", bundle: .module)
+        case .skipped: String(localized: "Skipped", bundle: .module)
+        case .cancelled: String(localized: "Cancelled", bundle: .module)
+        case .failed: String(localized: "Failed", bundle: .module)
+        case .needsAttention: String(localized: "Needs attention", bundle: .module)
+        }
+    }
+
+    private func progressTitleText(_ title: String) -> String {
+        return switch title {
+        case "Checking Skills…": String(localized: "Checking Skills…", bundle: .module)
+        case "Finishing the current Skill before stopping…":
+            String(localized: "Finishing the current Skill before stopping…", bundle: .module)
+        case "Updating selected Skills…": String(localized: "Updating selected Skills…", bundle: .module)
+        default: title
+        }
+    }
+}
+
+private func localizedBatchTemplate(
+    _ resource: LocalizedStringResource,
+    arguments: [String]
+) -> String {
+    var value = String(localized: resource)
+    for argument in arguments {
+        guard let range = value.range(of: "%arg") else { break }
+        value.replaceSubrange(range, with: argument)
+    }
+    return value
 }
 
 private struct SkillBatchUpdateRow: View {
@@ -200,9 +272,9 @@ private struct SkillBatchUpdateRow: View {
                         Text(item.displayName)
                             .font(.headline)
                             .lineLimit(1)
-                        Text(presentation.title)
-                        if let detail = presentation.detail {
-                            Text(detail)
+                        Text(verbatim: titleText(for: item, presentation: presentation))
+                        if let detail = detailText(for: item, presentation: presentation) {
+                            Text(verbatim: detail)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -210,7 +282,7 @@ private struct SkillBatchUpdateRow: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(item.displayName)
-                .accessibilityValue(presentation.accessibilityValue)
+                .accessibilityValue(Text(verbatim: accessibilityValue(for: item)))
                 Spacer()
                 if item.allowsRetry {
                     Button {
@@ -226,18 +298,21 @@ private struct SkillBatchUpdateRow: View {
             if item.phase == .decisionRequired {
                 ForEach(item.scopes) { scope in
                     Picker(
-                        scope.title,
+                        scopeTitle(scope),
                         selection: decisionBinding(scope.scopeKey)
                     ) {
                         Text("Choose an action", bundle: .module)
                             .tag(nil as ManagedSkillUpdateCopyDecision?)
                         ForEach(ManagedSkillUpdateCopyDecision.allCases, id: \.self) {
-                            Text($0.batchDisplayName)
+                            Text(verbatim: decisionText($0))
                                 .tag($0 as ManagedSkillUpdateCopyDecision?)
                         }
                     }
                     .disabled(model.operationActive)
-                    .accessibilityLabel(Text("Copy decision for \(scope.title)", bundle: .module))
+                    .accessibilityLabel(Text(
+                        "Copy decision for \(scopeTitle(scope))",
+                        bundle: .module
+                    ))
                 }
             }
         }
@@ -287,7 +362,166 @@ private struct SkillBatchUpdateRow: View {
         )
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func titleText(
+        for item: SkillBatchUpdateItem,
+        presentation: SkillBatchUpdatePresentation.Row
+    ) -> String {
+        if case .result(let result, _) = item.phase {
+            return resultText(result)
+        }
+        return switch presentation.title {
+        case "Waiting": String(localized: "Waiting", bundle: .module)
+        case "Checking": String(localized: "Checking", bundle: .module)
+        case "Update available": String(localized: "Update available", bundle: .module)
+        case "Copy decision required": String(localized: "Copy decision required", bundle: .module)
+        case "Preparing": String(localized: "Preparing", bundle: .module)
+        case "Updating": String(localized: "Updating", bundle: .module)
+        default: presentation.title
+        }
+    }
+
+    private func detailText(
+        for item: SkillBatchUpdateItem,
+        presentation: SkillBatchUpdatePresentation.Row
+    ) -> String? {
+        if case .result(_, let detail) = item.phase, detail != nil {
+            return detail
+        }
+        return switch presentation.detail {
+        case "Reading the local Skill and remote source.":
+            String(localized: "Reading the local Skill and remote source.", bundle: .module)
+        case "This Skill can be updated safely.":
+            String(localized: "This Skill can be updated safely.", bundle: .module)
+        case "Choose how to handle every modified Copy.":
+            String(localized: "Choose how to handle every modified Copy.", bundle: .module)
+        case "Revalidating the Skill and remote source.":
+            String(localized: "Revalidating the Skill and remote source.", bundle: .module)
+        case "Backing up, replacing, and refreshing distribution.":
+            String(localized: "Backing up, replacing, and refreshing distribution.", bundle: .module)
+        case "The managed Skill and its distribution are current.":
+            String(localized: "The managed Skill and its distribution are current.", bundle: .module)
+        case "No update was required.":
+            String(localized: "No update was required.", bundle: .module)
+        case "The parent Skill was updated and local changes are independent.":
+            String(localized: "The parent Skill was updated and local changes are independent.", bundle: .module)
+        case "Recheck after resolving local or remote changes.":
+            String(localized: "Recheck after resolving local or remote changes.", bundle: .module)
+        case "This available update was not selected.":
+            String(localized: "This available update was not selected.", bundle: .module)
+        case "No update was started for this Skill.":
+            String(localized: "No update was started for this Skill.", bundle: .module)
+        case "The operation did not complete.":
+            String(localized: "The operation did not complete.", bundle: .module)
+        case "Review this Skill before trying again.":
+            String(localized: "Review this Skill before trying again.", bundle: .module)
+        default:
+            presentation.detail
+        }
+    }
+
+    private func accessibilityValue(for item: SkillBatchUpdateItem) -> String {
+        switch item.phase {
+        case .queued:
+            return localizedBatchTemplate(
+                LocalizedStringResource(
+                    "%arg, waiting",
+                    defaultValue: "%arg, waiting",
+                    bundle: .module
+                ),
+                arguments: [item.displayName]
+            )
+        case .checking:
+            return localizedBatchTemplate(
+                LocalizedStringResource(
+                    "%arg, checking for updates",
+                    defaultValue: "%arg, checking for updates",
+                    bundle: .module
+                ),
+                arguments: [item.displayName]
+            )
+        case .ready:
+            return localizedBatchTemplate(
+                LocalizedStringResource(
+                    "%arg, update available",
+                    defaultValue: "%arg, update available",
+                    bundle: .module
+                ),
+                arguments: [item.displayName]
+            )
+        case .decisionRequired:
+            return localizedBatchTemplate(
+                LocalizedStringResource(
+                    "%arg, Copy decision required",
+                    defaultValue: "%arg, Copy decision required",
+                    bundle: .module
+                ),
+                arguments: [item.displayName]
+            )
+        case .preparing:
+            return localizedBatchTemplate(
+                LocalizedStringResource(
+                    "%arg, preparing update",
+                    defaultValue: "%arg, preparing update",
+                    bundle: .module
+                ),
+                arguments: [item.displayName]
+            )
+        case .updating:
+            return localizedBatchTemplate(
+                LocalizedStringResource(
+                    "%arg, updating",
+                    defaultValue: "%arg, updating",
+                    bundle: .module
+                ),
+                arguments: [item.displayName]
+            )
+        case .result(let result, _):
+            let resultText = resultText(result)
+            return localizedBatchTemplate(
+                LocalizedStringResource(
+                    "%arg, %arg",
+                    defaultValue: "%arg, %arg",
+                    bundle: .module
+                ),
+                arguments: [item.displayName, resultText]
+            )
+        }
+    }
+
+    private func scopeTitle(_ scope: SkillBatchUpdateScope) -> String {
+        if scope.scopeKey == "global" {
+            return String(localized: "Global shared target", bundle: .module)
+        }
+        let prefix = "agent:"
+        guard scope.scopeKey.hasPrefix(prefix) else { return scope.title }
+        let key = String(scope.scopeKey.dropFirst(prefix.count))
+        switch key {
+        case SkillPlatform.codex.storageKey: return String(localized: "Codex", bundle: .module)
+        case SkillPlatform.claude.storageKey: return String(localized: "Claude Code", bundle: .module)
+        case SkillPlatform.opencode.storageKey: return String(localized: "OpenCode", bundle: .module)
+        case SkillPlatform.copilot.storageKey: return String(localized: "GitHub Copilot", bundle: .module)
+        default: return scope.title
+        }
+    }
+
+    private func decisionText(_ decision: ManagedSkillUpdateCopyDecision) -> String {
+        return switch decision {
+        case .discard: String(localized: "Discard local changes", bundle: .module)
+        case .fork: String(localized: "Keep changes as a Fork", bundle: .module)
+        case .cancel: String(localized: "Cancel this Skill update", bundle: .module)
+        }
+    }
+
+    private func resultText(_ result: SkillBatchUpdateResult) -> String {
+        return switch result {
+        case .updated: String(localized: "Updated", bundle: .module)
+        case .upToDate: String(localized: "Up to date", bundle: .module)
+        case .forked: String(localized: "Updated; local changes kept as Fork", bundle: .module)
+        case .conflict: String(localized: "Conflict", bundle: .module)
+        case .skipped: String(localized: "Skipped", bundle: .module)
+        case .cancelled: String(localized: "Cancelled", bundle: .module)
+        case .failed: String(localized: "Failed", bundle: .module)
+        case .needsAttention: String(localized: "Needs attention", bundle: .module)
+        }
     }
 }

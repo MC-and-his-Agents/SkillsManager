@@ -112,12 +112,12 @@ private struct SkillDetailActionBarContent: View {
         HStack(spacing: 6) {
             Image(systemName: badge.systemImage)
                 .foregroundStyle(badge.tint)
-            Text(localized(badge.title))
+            Text(verbatim: badgeText(badge.title))
         }
         .font(.callout.weight(.semibold))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("Status: \(localized(badge.title))", bundle: .module))
-        .accessibilityValue(Text(verbatim: localized(badge.accessibilityValue)))
+        .accessibilityLabel(Text("Status: \(badgeText(badge.title))", bundle: .module))
+        .accessibilityValue(Text(verbatim: badgeAccessibilityText(badge.accessibilityValue)))
         .accessibilityIdentifier("skills.detail.badge")
     }
 
@@ -125,9 +125,9 @@ private struct SkillDetailActionBarContent: View {
         HStack(spacing: 8) {
             ForEach(sourceLabels) { label in
                 Image(systemName: label.systemImage)
-                    .help(Text(verbatim: localized(label.text)))
+                    .help(Text(verbatim: sourceText(label)))
                     .accessibilityLabel(Text(
-                        "Source: \(localized(label.text))",
+                        "Source: \(sourceText(label))",
                         bundle: .module
                     ))
                     .accessibilityIdentifier("skills.detail.source.\(label.text)")
@@ -148,17 +148,17 @@ private struct SkillDetailActionBarContent: View {
                         Image(systemName: row.isCurrentlyEnabled
                             ? "checkmark.circle.fill"
                             : "circle")
-                        Text(localized(row.platform.rawValue))
+                        Text(verbatim: platformText(row.platform))
                     }
                 }
                 .toggleStyle(.button)
                 .disabled(distributionModel.isApplying)
-                .accessibilityLabel(Text("\(localized(row.platform.rawValue)) distribution", bundle: .module))
+                .accessibilityLabel(Text("\(platformText(row.platform)) distribution", bundle: .module))
                 .accessibilityValue(
                     Text(
                         row.isSelected
-                            ? "Selected; currently \(localized(row.isCurrentlyEnabled ? "enabled" : "disabled"))"
-                            : "Not selected; currently \(localized(row.isCurrentlyEnabled ? "enabled" : "disabled"))",
+                            ? "Selected; currently \(enabledText(row.isCurrentlyEnabled))"
+                            : "Not selected; currently \(enabledText(row.isCurrentlyEnabled))",
                         bundle: .module
                     )
                 )
@@ -232,8 +232,8 @@ private struct SkillDetailActionBarContent: View {
         }
         .disabled(batchUpdatesDisabled)
         .accessibilityIdentifier("skills.detail.batch-updates")
-        .accessibilityValue(Text(verbatim: localized(batchUpdateHelp)))
-        .accessibilityHint(Text(verbatim: localized(batchUpdateHelp)))
+        .accessibilityValue(Text(verbatim: batchUpdateHelp))
+        .accessibilityHint(Text(verbatim: batchUpdateHelp))
     }
 
     private var batchUpdatesDisabled: Bool {
@@ -244,15 +244,15 @@ private struct SkillDetailActionBarContent: View {
 
     private var batchUpdateHelp: String {
         if libraryRuntime.readiness != .ready {
-            return "Batch updates are unavailable until the managed library is ready."
+            return String(localized: "Batch updates are unavailable until the managed library is ready.", bundle: .module)
         }
         if store.skills.isEmpty {
-            return "Import a managed Skill before checking for batch updates."
+            return String(localized: "Import a managed Skill before checking for batch updates.", bundle: .module)
         }
         if batchUpdateModel.operationActive {
-            return "A batch update is already running."
+            return String(localized: "A batch update is already running.", bundle: .module)
         }
-        return "Check all managed Skills for updates."
+        return String(localized: "Check all managed Skills for updates.", bundle: .module)
     }
 
     private func configureBatchUpdates() {
@@ -319,7 +319,61 @@ private struct SkillDetailActionBarContent: View {
         return preview.status == .ready && preview.token != nil
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func badgeText(_ value: String) -> String {
+        switch value {
+        case "Managed":
+            String(localized: "Managed", bundle: .module)
+        case "Needs Attention":
+            String(localized: "Needs Attention", bundle: .module)
+        default:
+            value
+        }
+    }
+
+    private func badgeAccessibilityText(_ value: String) -> String {
+        switch value {
+        case "Managed and in sync":
+            String(localized: "Managed and in sync", bundle: .module)
+        case "Managed Skill needs repair":
+            String(localized: "Managed Skill needs repair", bundle: .module)
+        case "Matches an existing managed Skill":
+            String(localized: "Matches an existing managed Skill", bundle: .module)
+        default:
+            value
+        }
+    }
+
+    private func sourceText(_ label: SkillListSourceLabel) -> String {
+        guard let source = label.knownSource else { return label.text }
+        switch source {
+        case .local:
+            return String(localized: "Local", bundle: .module)
+        case .repository:
+            return String(localized: "Repository", bundle: .module)
+        case .clawHub:
+            return String(localized: "ClawHub", bundle: .module)
+        case .skillsSh:
+            return String(localized: "skills.sh", bundle: .module)
+        }
+    }
+
+    private func platformText(_ platform: SkillPlatform) -> String {
+        switch platform {
+        case .codex:
+            String(localized: "Codex", bundle: .module)
+        case .claude:
+            String(localized: "Claude Code", bundle: .module)
+        case .opencode:
+            String(localized: "OpenCode", bundle: .module)
+        case .copilot:
+            String(localized: "GitHub Copilot", bundle: .module)
+        }
+    }
+
+    private func enabledText(_ enabled: Bool) -> String {
+        if enabled {
+            return String(localized: "enabled", bundle: .module)
+        }
+        return String(localized: "disabled", bundle: .module)
     }
 }

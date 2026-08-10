@@ -80,7 +80,7 @@ struct AddCustomPathView: View {
             }
         } else {
             ContentUnavailableView(
-                "Select a project folder",
+                String(localized: "Select a project folder", bundle: .module),
                 systemImage: "folder.badge.plus",
                 description: Text("Choose a folder containing platform skill directories", bundle: .module)
             )

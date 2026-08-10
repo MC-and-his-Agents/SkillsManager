@@ -204,9 +204,9 @@ struct SkillMarkdownView: View {
             if let publishedVersion {
                 Text("Latest version \(publishedVersion)", bundle: .module)
                     .foregroundStyle(.secondary)
-                Text(verbatim: localized(
-                    needsPublish ? "Changes detected. Publish an update." : "No unpublished changes."
-                ))
+                Text(needsPublish
+                    ? "Changes detected. Publish an update."
+                    : "No unpublished changes.", bundle: .module)
                     .foregroundStyle(.secondary)
             } else {
                 Text("Not yet published on ClawHub.", bundle: .module)
@@ -217,9 +217,7 @@ struct SkillMarkdownView: View {
                 Button {
                     publishSheetSkill = skill
                 } label: {
-                    Text(verbatim: localized(
-                        publishedVersion == nil ? "Publish to ClawHub" : "Update on ClawHub"
-                    ))
+                    Text(publishedVersion == nil ? "Publish to ClawHub" : "Update on ClawHub", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
 
@@ -372,10 +370,6 @@ struct SkillMarkdownView: View {
             return next
         }
         return "1.0.0"
-    }
-
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 
 }

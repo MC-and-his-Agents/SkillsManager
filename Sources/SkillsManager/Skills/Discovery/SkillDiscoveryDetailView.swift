@@ -15,7 +15,7 @@ struct SkillDiscoveryDetailView: View {
                     systemImage: "lock.trianglebadge.exclamationmark"
                 )
             case .idle, .loading:
-                ProgressView(localized("Scanning registered folders…"))
+                ProgressView(String(localized: "Scanning registered folders…", bundle: .module))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed(let message):
                 unavailableView(
@@ -86,10 +86,10 @@ struct SkillDiscoveryDetailView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(observation.relativeLocator)
                                     .font(.largeTitle.bold())
-                                Text(localized(observation.status.displayName))
+                                Text(verbatim: discoveryStatusText(observation.status))
                                     .font(.title3)
                                 if let reason = observation.reason {
-                                    Text(localized(reason.displayName))
+                                    Text(verbatim: discoveryReasonText(reason))
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -101,7 +101,7 @@ struct SkillDiscoveryDetailView: View {
                                 ForEach(Array(observation.displayURLs.enumerated()), id: \.offset) {
                                     index, url in
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(observation.roots[index].scope.displayName)
+                                        Text(verbatim: scopeText(observation.roots[index].scope))
                                             .font(.headline)
                                         Text(url.path)
                                             .font(.callout.monospaced())
@@ -120,11 +120,11 @@ struct SkillDiscoveryDetailView: View {
                         GroupBox {
                             VStack(alignment: .leading, spacing: 10) {
                                 LabeledContent {
-                                    Text(localized(observation.status.displayName))
+                                    Text(verbatim: discoveryStatusText(observation.status))
                                 } label: {
                                     Text("Status", bundle: .module)
                                 }
-                                LabeledContent("Scope", value: observation.scopeSummary)
+                                    LabeledContent("Scope", value: scopeSummaryText(observation))
                                 LabeledContent("Source", value: observation.sourceSummary)
                                 LabeledContent {
                                     Text(observation.fingerprintSummary)
@@ -140,7 +140,7 @@ struct SkillDiscoveryDetailView: View {
                                 }
                                 if let reason = observation.reason {
                                     LabeledContent {
-                                        Text(localized(reason.displayName))
+                                        Text(verbatim: discoveryReasonText(reason))
                                     } label: {
                                         Text("Reason", bundle: .module)
                                     }
@@ -222,7 +222,7 @@ struct SkillDiscoveryDetailView: View {
             }
         } label: {
             Label {
-                Text(verbatim: localized(title))
+                Text(verbatim: actionTitleText(title))
             } icon: {
                 Image(systemName: systemImage)
             }
@@ -239,7 +239,7 @@ struct SkillDiscoveryDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 ContentUnavailableView(
-                    "Select a discovered Skill",
+                    String(localized: "Select a discovered Skill", bundle: .module),
                     systemImage: "sparkle.magnifyingglass",
                     description: Text("Review its status, evidence, and available actions.", bundle: .module)
                 )
@@ -268,12 +268,12 @@ struct SkillDiscoveryDetailView: View {
                             Text(diagnostic.root.url.path)
                                 .font(.callout.monospaced())
                                 .textSelection(.enabled)
-                            Text(localized(diagnostic.reason.displayName))
+                            Text(verbatim: discoveryReasonText(diagnostic.reason))
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     } label: {
-                        Text(localized(diagnostic.root.scope.displayName))
+                        Text(verbatim: scopeText(diagnostic.root.scope))
                     }
                 }
             }
@@ -286,7 +286,7 @@ struct SkillDiscoveryDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(model.plannedRoots, id: \.self) { root in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(localized(root.scope.displayName))
+                        Text(verbatim: scopeText(root.scope))
                             .font(.headline)
                         Text(root.url.path)
                             .font(.caption.monospaced())
@@ -308,7 +308,7 @@ struct SkillDiscoveryDetailView: View {
         systemImage: String
     ) -> some View {
         ContentUnavailableView(
-            localized(title),
+            unavailableTitleText(title),
             systemImage: systemImage,
             description: Text(message)
         )
@@ -325,8 +325,94 @@ struct SkillDiscoveryDetailView: View {
         )
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func discoveryStatusText(_ status: SkillDiscoveryStatus) -> String {
+        return switch status {
+        case .managed: String(localized: "Managed", bundle: .module)
+        case .claimable: String(localized: "Ready to claim", bundle: .module)
+        case .unmanaged: String(localized: "Unmanaged", bundle: .module)
+        case .conflict: String(localized: "Conflict", bundle: .module)
+        case .permissionDenied: String(localized: "Permission denied", bundle: .module)
+        case .damaged: String(localized: "Damaged", bundle: .module)
+        }
+    }
+
+    private func discoveryReasonText(_ reason: SkillDiscoveryReason) -> String {
+        return switch reason {
+        case .rootPermissionDenied: String(localized: "The scan root cannot be read.", bundle: .module)
+        case .rootChanged: String(localized: "The scan root changed while it was being inspected.", bundle: .module)
+        case .rootUnsupportedType: String(localized: "The scan root is not a directory or supported link.", bundle: .module)
+        case .rootReadFailed: String(localized: "The scan root could not be read.", bundle: .module)
+        case .unknownSymlink: String(localized: "The Skill uses a symbolic link that cannot be trusted.", bundle: .module)
+        case .symbolicLinkTargetUnavailable: String(localized: "The Skill link target is unavailable.", bundle: .module)
+        case .symbolicLinkTargetUnsupported: String(localized: "The Skill link target is not a directory.", bundle: .module)
+        case .candidatePermissionDenied: String(localized: "The Skill folder cannot be read.", bundle: .module)
+        case .sourceChanged: String(localized: "The Skill changed while it was being inspected.", bundle: .module)
+        case .missingSkillManifest: String(localized: "SKILL.md is missing.", bundle: .module)
+        case .containerDirectory: String(localized: "This folder contains Skill subdirectories.", bundle: .module)
+        case .invalidSkillManifest: String(localized: "SKILL.md is not valid UTF-8.", bundle: .module)
+        case .unsupportedEntryType: String(localized: "The Skill contains an unsupported file type.", bundle: .module)
+        case .unsafeContent: String(localized: "The Skill contains an unsafe path or link.", bundle: .module)
+        case .resourceLimitExceeded: String(localized: "The Skill exceeds the safe import limits.", bundle: .module)
+        case .candidateReadFailed: String(localized: "The Skill content could not be read.", bundle: .module)
+        case .ambiguousLocalAssociation: String(localized: "This location is linked to more than one managed Skill.", bundle: .module)
+        case .localAssociationDrift: String(localized: "This location no longer matches its managed Skill.", bundle: .module)
+        case .ambiguousSource: String(localized: "The source metadata matches more than one managed Skill.", bundle: .module)
+        case .ambiguousFingerprint: String(localized: "The content matches more than one managed Skill.", bundle: .module)
+        case .evidenceConflict: String(localized: "The source and content point to different managed Skills.", bundle: .module)
+        case .scopeSlugConflict: String(localized: "More than one Skill uses this name in the same scope.", bundle: .module)
+        }
+    }
+
+    private func scopeText(_ scope: SkillDiscoveryScope) -> String {
+        let adapter: String?
+        if let adapterCode = scope.adapterCode {
+            switch adapterCode {
+            case SkillPlatform.codex.storageKey:
+                adapter = String(localized: "Codex", bundle: .module)
+            case SkillPlatform.claude.storageKey:
+                adapter = String(localized: "Claude Code", bundle: .module)
+            case SkillPlatform.opencode.storageKey:
+                adapter = String(localized: "OpenCode", bundle: .module)
+            case SkillPlatform.copilot.storageKey:
+                adapter = String(localized: "GitHub Copilot", bundle: .module)
+            default:
+                adapter = adapterCode
+            }
+        } else {
+            adapter = nil
+        }
+        switch scope.kind {
+        case .global: return String(localized: "Global", bundle: .module)
+        case .agent:
+            return [adapter, scope.pathVariant].compactMap { $0 }.joined(separator: " · ")
+        case .custom:
+            return [String(localized: "Custom", bundle: .module), adapter, scope.pathVariant]
+                .compactMap { $0 }
+                .joined(separator: " · ")
+        }
+    }
+
+    private func scopeSummaryText(_ observation: SkillDiscoveryObservation) -> String {
+        Array(Set(observation.roots.map { scopeText($0.scope) }))
+            .sorted()
+            .joined(separator: ", ")
+    }
+
+    private func actionTitleText(_ title: String) -> String {
+        return switch title {
+        case "Preview claim": String(localized: "Preview claim", bundle: .module)
+        case "Preview independent import": String(localized: "Preview independent import", bundle: .module)
+        case "Preview import": String(localized: "Preview import", bundle: .module)
+        default: title
+        }
+    }
+
+    private func unavailableTitleText(_ title: String) -> String {
+        return switch title {
+        case "Discovery unavailable": String(localized: "Discovery unavailable", bundle: .module)
+        case "Discovery failed": String(localized: "Discovery failed", bundle: .module)
+        default: title
+        }
     }
 }
 
@@ -339,7 +425,7 @@ private struct SkillDiscoveryImportConfirmationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 5) {
-                Text(title)
+                Text(verbatim: titleText)
                     .font(.title.bold())
                 Text(pending.preview.displayName)
                     .font(.title3)
@@ -349,7 +435,7 @@ private struct SkillDiscoveryImportConfirmationView: View {
             GroupBox {
                 VStack(alignment: .leading, spacing: 10) {
                     LabeledContent {
-                        Text(localized(actionName))
+                        Text(verbatim: actionNameText)
                     } label: {
                         Text("Action", bundle: .module)
                     }
@@ -359,7 +445,7 @@ private struct SkillDiscoveryImportConfirmationView: View {
                         Text("Target", bundle: .module)
                     }
                     LabeledContent {
-                        Text(localized(managedResultDescription))
+                        Text(verbatim: managedResultDescriptionText)
                     } label: {
                         Text("Managed result", bundle: .module)
                     }
@@ -406,15 +492,15 @@ private struct SkillDiscoveryImportConfirmationView: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Text(verbatim: localized(confirmButtonTitle))
+                        Text(verbatim: confirmButtonTitleText)
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.isImporting)
-                .accessibilityLabel(Text(verbatim: localized(
-                    model.isImporting ? "Import in progress" : confirmButtonTitle
-                )))
+                .accessibilityLabel(Text(verbatim: model.isImporting
+                    ? String(localized: "Import in progress", bundle: .module)
+                    : confirmButtonTitleText))
             }
         }
         .padding(20)
@@ -424,6 +510,14 @@ private struct SkillDiscoveryImportConfirmationView: View {
 
     private var title: String {
         pending.preview.action == .claimExisting ? "Confirm claim" : "Confirm import"
+    }
+
+    private var titleText: String {
+        switch title {
+        case "Confirm claim": String(localized: "Confirm claim", bundle: .module)
+        case "Confirm import": String(localized: "Confirm import", bundle: .module)
+        default: title
+        }
     }
 
     private var actionName: String {
@@ -452,7 +546,31 @@ private struct SkillDiscoveryImportConfirmationView: View {
         pending.preview.action == .claimExisting ? "Confirm claim" : "Confirm import"
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private var actionNameText: String {
+        return switch actionName {
+        case "Associate this local folder with an existing Skill":
+            String(localized: "Associate this local folder with an existing Skill", bundle: .module)
+        case "Import this local folder as a managed Skill":
+            String(localized: "Import this local folder as a managed Skill", bundle: .module)
+        default: actionName
+        }
+    }
+
+    private var managedResultDescriptionText: String {
+        return switch managedResultDescription {
+        case "A local-origin record will be added to the matched Skill":
+            String(localized: "A local-origin record will be added to the matched Skill", bundle: .module)
+        case "Content will be copied into the SSOT and recorded in the database":
+            String(localized: "Content will be copied into the SSOT and recorded in the database", bundle: .module)
+        default: managedResultDescription
+        }
+    }
+
+    private var confirmButtonTitleText: String {
+        return switch confirmButtonTitle {
+        case "Confirm claim": String(localized: "Confirm claim", bundle: .module)
+        case "Confirm import": String(localized: "Confirm import", bundle: .module)
+        default: confirmButtonTitle
+        }
     }
 }

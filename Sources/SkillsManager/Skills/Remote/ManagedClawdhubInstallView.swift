@@ -32,7 +32,7 @@ struct ManagedClawdhubInstallView: View {
                     isDisabled: isWorking
                 )
                 if isDownloading {
-                    ProgressView(localized("Downloading and validating…"))
+                    ProgressView(String(localized: "Downloading and validating…", bundle: .module))
                 }
                 if let problem = model.problem {
                     Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
@@ -200,9 +200,9 @@ struct ManagedClawdhubInstallView: View {
     private func resultView(_ result: ManagedLocalImportResult) -> some View {
         let presentation = managedInstallResultPresentation(result)
         ContentUnavailableView(
-            localized(presentation.title),
+            localizedManagedInstallResultTitle(result.status),
             systemImage: presentation.systemImage,
-            description: Text(presentation.message)
+            description: Text(verbatim: localizedManagedInstallResultMessage(result))
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         HStack {
@@ -263,7 +263,4 @@ struct ManagedClawdhubInstallView: View {
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
-    }
 }

@@ -35,32 +35,30 @@ struct SkillListEmptyRow: View {
                 .font(.title2)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            Text(localized(title))
+            Text(verbatim: title)
                 .font(.headline)
                 .multilineTextAlignment(.center)
             if let message {
-                Text(message)
+                Text(verbatim: message)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             if let actionTitle, let action {
-                Button(localized(actionTitle), action: action)
+                Button(actionTitle, action: action)
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .padding(.top, 2)
-                    .accessibilityLabel(localized(actionAccessibilityLabel ?? actionTitle))
+                    .accessibilityLabel(Text(verbatim: actionAccessibilityLabel ?? actionTitle))
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
         .accessibilityElement(children: action == nil ? .combine : .contain)
         .accessibilityLabel(
-            [localized(title), message].compactMap { $0 }.joined(separator: ", ")
+            [title, message]
+                .compactMap { $0 }
+                .joined(separator: ", ")
         )
-    }
-
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
     }
 }

@@ -31,11 +31,11 @@ struct ManagedArchiveImportView: View {
     private var content: some View {
         switch model.state {
         case .idle:
-            ContentUnavailableView(localized("Choose a ZIP archive"), systemImage: "archivebox")
+            ContentUnavailableView(String(localized: "Choose a ZIP archive", bundle: .module), systemImage: "archivebox")
         case .selecting:
             selection
         case .preparing:
-            ProgressView(localized("Preparing previews…"))
+            ProgressView(String(localized: "Preparing previews…", bundle: .module))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
             preview
@@ -208,7 +208,7 @@ struct ManagedArchiveImportView: View {
 
     private var execution: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ProgressView(localized("Importing selected Skills…"))
+            ProgressView(String(localized: "Importing selected Skills…", bundle: .module))
             List(model.resultItems) { result in
                 resultRow(result)
             }
@@ -275,7 +275,4 @@ struct ManagedArchiveImportView: View {
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
-    }
 }

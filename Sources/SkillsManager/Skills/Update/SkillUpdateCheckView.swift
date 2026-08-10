@@ -25,13 +25,13 @@ struct SkillUpdateCheckView: View {
                 }
                 if let result = model.updateResult {
                     Label {
-                        Text(localized(result.displayName))
+                        Text(verbatim: executionStatusText(result))
                     } icon: {
                         Image(systemName: result.systemImage)
                     }
                         .foregroundStyle(result.requiresAttention ? .orange : .secondary)
                         .accessibilityLabel(Text(
-                            "Update result: \(localized(result.displayName))",
+                            "Update result: \(executionStatusText(result))",
                             bundle: .module
                         ))
                 }
@@ -57,7 +57,7 @@ struct SkillUpdateCheckView: View {
                 systemImage: "arrow.clockwise"
             )
         case .loading:
-            ProgressView(localized("Loading the last update check…"))
+            ProgressView(String(localized: "Loading the last update check…", bundle: .module))
         case .failed(let problem):
             VStack(alignment: .leading, spacing: 8) {
                 status(problem.localizedDescription, systemImage: "exclamationmark.triangle")
@@ -76,13 +76,13 @@ struct SkillUpdateCheckView: View {
         VStack(alignment: .leading, spacing: 10) {
             if let snapshot {
                 Label {
-                    Text(localized(snapshot.status.displayName))
+                    Text(verbatim: checkStatusText(snapshot.status))
                 } icon: {
                     Image(systemName: snapshot.status.systemImage)
                 }
                 .font(.headline)
                 .accessibilityLabel(Text(
-                    "Update status: \(localized(snapshot.status.displayName))",
+                    "Update status: \(checkStatusText(snapshot.status))",
                     bundle: .module
                 ))
                 Text(
@@ -162,9 +162,12 @@ struct SkillUpdateCheckView: View {
             .accessibilityElement(children: .combine)
     }
 
-    private func localizedStatus(_ message: String, systemImage: String) -> some View {
+    private func localizedStatus(
+        _ message: LocalizedStringResource,
+        systemImage: String
+    ) -> some View {
         Label {
-            Text(verbatim: localized(message))
+            Text(message)
         } icon: {
             Image(systemName: systemImage)
         }
@@ -172,8 +175,32 @@ struct SkillUpdateCheckView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func executionStatusText(_ status: ManagedSkillUpdateExecutionStatus) -> String {
+        return switch status {
+        case .cancelled: String(localized: "Update cancelled", bundle: .module)
+        case .noChange: String(localized: "Already up to date", bundle: .module)
+        case .backupReadyUpdateNotStarted:
+            String(localized: "Backup completed; recheck before trying the update again", bundle: .module)
+        case .copyDecisionsAppliedUpdateNotCompleted:
+            String(localized: "Copy decisions were saved; recheck before updating the parent Skill", bundle: .module)
+        case .updated: String(localized: "Skill updated", bundle: .module)
+        case .updatedNeedsAttention:
+            String(localized: "Skill updated; distribution needs attention", bundle: .module)
+        case .updateRolledBack: String(localized: "Update rolled back", bundle: .module)
+        case .updateIndeterminate: String(localized: "Update state could not be confirmed", bundle: .module)
+        case .needsRepair: String(localized: "Managed Skill needs repair", bundle: .module)
+        }
+    }
+
+    private func checkStatusText(_ status: ManagedSkillUpdateCheckStatus) -> String {
+        return switch status {
+        case .upToDate: String(localized: "Up to date", bundle: .module)
+        case .remoteChanged: String(localized: "Update available", bundle: .module)
+        case .localModified: String(localized: "Managed content was modified locally", bundle: .module)
+        case .copyDrift: String(localized: "Copy target has local changes", bundle: .module)
+        case .capabilityUnavailable: String(localized: "Update checking unavailable", bundle: .module)
+        case .conflict: String(localized: "Update state needs attention", bundle: .module)
+        }
     }
 
     private var updatePreviewBinding: Binding<ManagedSkillUpdateExecutionPreview?> {
@@ -221,9 +248,7 @@ private struct SkillUpdateConfirmationView: View {
             }
 
             if model.isUpdating {
-                ProgressView(localized(
-                    "Verifying, backing up, updating, and refreshing distribution…"
-                ))
+                ProgressView(String(localized: "Verifying, backing up, updating, and refreshing distribution…", bundle: .module))
                     .accessibilityLabel(Text("Updating Skill", bundle: .module))
             }
 
@@ -260,9 +285,6 @@ private struct SkillUpdateConfirmationView: View {
         )
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
-    }
 }
 
 private extension ManagedSkillUpdateCheckStatus {

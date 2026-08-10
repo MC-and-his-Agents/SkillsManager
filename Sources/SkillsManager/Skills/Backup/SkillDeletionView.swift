@@ -30,7 +30,7 @@ struct SkillDeletionView: View {
                 systemImage: "archivebox"
             )
         case .loading:
-            ProgressView(localized("Verifying managed Skill…"))
+            ProgressView(String(localized: "Verifying managed Skill…", bundle: .module))
         case .failed(let problem):
             VStack(alignment: .leading, spacing: 10) {
                 status(problem.message, systemImage: "exclamationmark.triangle")
@@ -50,13 +50,13 @@ struct SkillDeletionView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label {
-                    Text(verbatim: localized(preview.status.displayName))
+                    Text(verbatim: deletionStatusText(preview.status))
                 } icon: {
                     Image(systemName: preview.status.systemImage)
                 }
                     .font(.headline)
                     .accessibilityLabel(Text(
-                        "Managed Skill status: \(localized(preview.status.displayName))",
+                        "Managed Skill status: \(deletionStatusText(preview.status))",
                         bundle: .module
                     ))
                 Spacer()
@@ -169,9 +169,12 @@ struct SkillDeletionView: View {
             .accessibilityElement(children: .combine)
     }
 
-    private func localizedStatus(_ message: String, systemImage: String) -> some View {
+    private func localizedStatus(
+        _ message: LocalizedStringResource,
+        systemImage: String
+    ) -> some View {
         Label {
-            Text(verbatim: localized(message))
+            Text(message)
         } icon: {
             Image(systemName: systemImage)
         }
@@ -189,8 +192,15 @@ struct SkillDeletionView: View {
             .accessibilityElement(children: .combine)
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func deletionStatusText(_ status: SkillDeletionStatus) -> String {
+        return switch status {
+        case .ready: String(localized: "Ready", bundle: .module)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
+        case .needsRepair: String(localized: "Needs repair", bundle: .module)
+        case .completed: String(localized: "Completed", bundle: .module)
+        case .cleanupPending: String(localized: "Cleanup pending", bundle: .module)
+        case .rolledBack: String(localized: "Rolled back", bundle: .module)
+        }
     }
 }
 
@@ -215,14 +225,8 @@ private struct SkillDeletionConfirmationView: View {
             }
 
             if model.isDeleting || model.isRetryingDeletion {
-                ProgressView(localized(
-                    model.isDeleting ? "Backing up and deleting…" : "Continuing deletion…"
-                ))
-                .accessibilityLabel(Text(verbatim: localized(
-                    model.isDeleting
-                        ? "Backing up and deleting the managed Skill"
-                        : "Continuing the managed Skill deletion"
-                )))
+                ProgressView(deletionProgressText())
+                .accessibilityLabel(Text(verbatim: deletionProgressAccessibilityText()))
             }
             if let problem = model.problem {
                 Label(problem.message, systemImage: "exclamationmark.triangle.fill")
@@ -284,7 +288,7 @@ private struct SkillDeletionConfirmationView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 8) {
                 Label {
-                    Text(verbatim: localized(result.status.displayName))
+                    Text(verbatim: deletionStatusText(result.status))
                 } icon: {
                     Image(systemName: result.status.systemImage)
                 }
@@ -349,9 +353,9 @@ private struct SkillDeletionConfirmationView: View {
         }
     }
 
-    private func impactRow(_ title: String, systemImage: String) -> some View {
+    private func impactRow(_ title: LocalizedStringResource, systemImage: String) -> some View {
         Label {
-            Text(verbatim: localized(title))
+            Text(title)
         } icon: {
             Image(systemName: systemImage)
         }
@@ -371,7 +375,30 @@ private struct SkillDeletionConfirmationView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func deletionProgressText() -> String {
+        String(
+            localized: model.isDeleting ? "Backing up and deleting…" : "Continuing deletion…",
+            bundle: .module
+        )
+    }
+
+    private func deletionProgressAccessibilityText() -> String {
+        String(
+            localized: model.isDeleting
+                ? "Backing up and deleting the managed Skill"
+                : "Continuing the managed Skill deletion",
+            bundle: .module
+        )
+    }
+
+    private func deletionStatusText(_ status: SkillDeletionStatus) -> String {
+        return switch status {
+        case .ready: String(localized: "Ready", bundle: .module)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
+        case .needsRepair: String(localized: "Needs repair", bundle: .module)
+        case .completed: String(localized: "Completed", bundle: .module)
+        case .cleanupPending: String(localized: "Cleanup pending", bundle: .module)
+        case .rolledBack: String(localized: "Rolled back", bundle: .module)
+        }
     }
 }

@@ -58,7 +58,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$arg of %2$arg"
+            "value": "%1$arg 的 %2$arg"
           }
         },
         "en": {
@@ -177,7 +177,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "+%arg verified alias locations"
+            "value": "+%arg 个已验证别名位置"
           }
         },
         "en": {
@@ -228,7 +228,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Action for %arg"
+            "value": "%arg 的操作"
           }
         },
         "en": {
@@ -534,7 +534,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Applying this selection will replace the global target with Agent-specific targets."
+            "value": "应用此选择将用 Agent 专属目标替换全局目标。"
           }
         },
         "en": {
@@ -755,7 +755,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Built for Codex and your other agents to manage and inspect skills on your Mac."
+            "value": "为 Codex 及你的其他 Agent 构建，用于在 Mac 上管理和检查 Skill。"
           }
         },
         "en": {
@@ -942,7 +942,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Check managed Skills, review every conflict, then update selected items."
+            "value": "检查已管理的 Skill，审查所有冲突，然后更新选定项目。"
           }
         },
         "en": {
@@ -1112,7 +1112,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose…"
+            "value": "选择…"
           }
         },
         "en": {
@@ -1316,7 +1316,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Continues the interrupted deletion safely."
+            "value": "安全地继续中断的删除操作。"
           }
         },
         "en": {
@@ -1333,7 +1333,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Continues this journaled deletion operation."
+            "value": "继续此日志记录的删除操作。"
           }
         },
         "en": {
@@ -1367,7 +1367,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Copy content is behind the managed Skill and needs to be synchronized."
+            "value": "副本内容落后于已管理的 Skill，需要同步。"
           }
         },
         "en": {
@@ -1384,7 +1384,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Copy decision for %arg"
+            "value": "%arg 的副本决策"
           }
         },
         "en": {
@@ -1401,7 +1401,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Copy login command"
+            "value": "复制登录命令"
           }
         },
         "en": {
@@ -1622,7 +1622,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Discovery evidence"
+            "value": "发现证据"
           }
         },
         "en": {
@@ -1656,7 +1656,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Distribution is blocked. This Skill will be added without enabling."
+            "value": "分发已阻止。此 Skill 将被添加但不会启用。"
           }
         },
         "en": {
@@ -1792,7 +1792,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Every visible result is unavailable. Fix the folders below, then refresh."
+            "value": "所有可见结果均不可用。请修复下方文件夹，然后刷新。"
           }
         },
         "en": {
@@ -1809,7 +1809,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Explicitly selects this conflict for an independent import."
+            "value": "明确选择此冲突以执行独立导入。"
           }
         },
         "en": {
@@ -1996,7 +1996,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "If a target conflicts, the Skill remains restored without Agent links."
+            "value": "如果目标发生冲突，Skill 仍会恢复，但不会恢复 Agent 链接。"
           }
         },
         "en": {
@@ -2149,7 +2149,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Install Bun"
+            "value": "安装 Bun"
           }
         },
         "en": {
@@ -2166,7 +2166,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Install Bun to run the ClawHub CLI."
+            "value": "安装 Bun 以运行 ClawHub CLI。"
           }
         },
         "en": {
@@ -2234,7 +2234,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Installed version %arg"
+            "value": "已安装版本 %arg"
           }
         },
         "en": {
@@ -2268,7 +2268,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Keep changes as a Fork"
+            "value": "将更改保留为 Fork"
           }
         },
         "en": {
@@ -2285,7 +2285,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kept for this session. Refreshing will show the finding again."
+            "value": "本次会话中保留。刷新后将再次显示此发现。"
           }
         },
         "en": {
@@ -2336,7 +2336,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loading %arg..."
+            "value": "正在加载 %arg…"
           }
         },
         "en": {
@@ -2370,7 +2370,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loading and validating backups…"
+            "value": "正在加载并验证备份…"
           }
         },
         "en": {
@@ -2421,7 +2421,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loading the last update check…"
+            "value": "正在加载上次更新检查…"
           }
         },
         "en": {
@@ -2438,7 +2438,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loads more ClawHub results"
+            "value": "加载更多 ClawHub 结果"
           }
         },
         "en": {
@@ -2455,7 +2455,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loads more skills.sh results"
+            "value": "加载更多 skills.sh 结果"
           }
         },
         "en": {
@@ -2489,7 +2489,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Local changes at %arg"
+            "value": "%arg 处有本地更改"
           }
         },
         "en": {
@@ -2540,7 +2540,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Maintained by MC and his Agents. Originally created by @Dimillian."
+            "value": "由 MC 和他的 Agent 维护。最初由 @Dimillian 创建。"
           }
         },
         "en": {
@@ -2846,7 +2846,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "No distribution file changes are needed."
+            "value": "无需更改分发文件。"
           }
         },
         "en": {
@@ -2914,7 +2914,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "No usable discovery result"
+            "value": "没有可用的发现结果"
           }
         },
         "en": {
@@ -2965,7 +2965,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Not yet published on ClawHub."
+            "value": "尚未发布到 ClawHub。"
           }
         },
         "en": {
@@ -2982,7 +2982,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nothing has been written. Confirm once to begin the ordered import."
+            "value": "尚未写入任何内容。请确认一次以开始按顺序导入。"
           }
         },
         "en": {
@@ -2999,7 +2999,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nothing has been written. Confirm once to import the selected Skills in order."
+            "value": "尚未写入任何内容。请确认一次以按顺序导入选定的 Skill。"
           }
         },
         "en": {
@@ -3033,7 +3033,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Observed directories"
+            "value": "已观察目录"
           }
         },
         "en": {
@@ -3135,7 +3135,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opens a confirmation preview. No files are changed yet."
+            "value": "打开确认预览。尚未更改任何文件。"
           }
         },
         "en": {
@@ -3152,7 +3152,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opens a confirmation showing the backup, Agent links, and managed content that will be removed."
+            "value": "打开确认窗口，显示将删除的备份、Agent 链接和已管理内容。"
           }
         },
         "en": {
@@ -3169,7 +3169,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opens a verified restore preview."
+            "value": "打开已验证的恢复预览。"
           }
         },
         "en": {
@@ -3186,7 +3186,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opens the Skill folder in Finder"
+            "value": "在 Finder 中打开 Skill 文件夹"
           }
         },
         "en": {
@@ -3203,7 +3203,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opens the installation review. Nothing is written until you confirm."
+            "value": "打开安装审查。确认前不会写入任何内容。"
           }
         },
         "en": {
@@ -3220,7 +3220,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Optional Git branch, tag, or commit reference"
+            "value": "可选的 Git 分支、标签或提交引用"
           }
         },
         "en": {
@@ -3237,7 +3237,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Original Project"
+            "value": "原始项目"
           }
         },
         "en": {
@@ -3254,7 +3254,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Original Skill ID"
+            "value": "原始 Skill ID"
           }
         },
         "en": {
@@ -3271,7 +3271,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Original folder"
+            "value": "原始文件夹"
           }
         },
         "en": {
@@ -3288,7 +3288,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pick a folder or zip"
+            "value": "选择文件夹或 zip"
           }
         },
         "en": {
@@ -3305,7 +3305,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pick a skill from ClawHub."
+            "value": "从 ClawHub 选择 Skill。"
           }
         },
         "en": {
@@ -3322,7 +3322,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pick a skill from the list."
+            "value": "从列表中选择 Skill。"
           }
         },
         "en": {
@@ -3407,7 +3407,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Preserves the local content as a separately managed Skill."
+            "value": "将本地内容保留为单独管理的 Skill。"
           }
         },
         "en": {
@@ -3458,7 +3458,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Preview the change before anything is written to the managed library."
+            "value": "在向已管理库写入任何内容前预览更改。"
           }
         },
         "en": {
@@ -3475,7 +3475,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Previews removal of managed distribution targets. The managed Skill is retained."
+            "value": "预览删除已管理分发目标。已管理的 Skill 将保留。"
           }
         },
         "en": {
@@ -3509,7 +3509,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Publish result"
+            "value": "发布结果"
           }
         },
         "en": {
@@ -3526,7 +3526,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Push changes for %arg to ClawHub."
+            "value": "将 %arg 的更改推送到 ClawHub。"
           }
         },
         "en": {
@@ -3543,7 +3543,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reason"
+            "value": "原因"
           }
         },
         "en": {
@@ -3560,7 +3560,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recheck %arg"
+            "value": "重新检查 %arg"
           }
         },
         "en": {
@@ -3577,7 +3577,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ref"
+            "value": "引用"
           }
         },
         "en": {
@@ -3594,7 +3594,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "References"
+            "value": "引用"
           }
         },
         "en": {
@@ -3611,7 +3611,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Refresh %arg"
+            "value": "刷新 %arg"
           }
         },
         "en": {
@@ -3645,7 +3645,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Refresh Discovery before opening Batch Import."
+            "value": "打开批量导入前刷新发现。"
           }
         },
         "en": {
@@ -3798,7 +3798,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Refreshing library…"
+            "value": "正在刷新库…"
           }
         },
         "en": {
@@ -3815,7 +3815,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Releases"
+            "value": "发布"
           }
         },
         "en": {
@@ -3849,7 +3849,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Remove %arg"
+            "value": "移除 %arg"
           }
         },
         "en": {
@@ -3951,7 +3951,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Remove this discovery source?"
+            "value": "移除此发现来源？"
           }
         },
         "en": {
@@ -3968,7 +3968,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Replaces this Copy with the current managed Skill."
+            "value": "用当前已管理的 Skill 替换此副本。"
           }
         },
         "en": {
@@ -4070,7 +4070,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Resolving and validating GitHub source…"
+            "value": "正在解析并验证 GitHub 来源…"
           }
         },
         "en": {
@@ -4138,7 +4138,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Restored Skill ID"
+            "value": "已恢复的 Skill ID"
           }
         },
         "en": {
@@ -4172,7 +4172,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Restoring verified Skill backup"
+            "value": "正在恢复已验证的 Skill 备份"
           }
         },
         "en": {
@@ -4189,7 +4189,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Restoring verified backup…"
+            "value": "正在恢复已验证的备份…"
           }
         },
         "en": {
@@ -4342,7 +4342,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Review discovered local Skills, then import them in a safe, stable order."
+            "value": "审查发现的本地 Skill，然后以安全、稳定的顺序导入。"
           }
         },
         "en": {
@@ -4359,7 +4359,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Review every target before applying changes."
+            "value": "应用更改前审查每个目标。"
           }
         },
         "en": {
@@ -4376,7 +4376,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Review its status, evidence, and available actions."
+            "value": "审查其状态、证据和可用操作。"
           }
         },
         "en": {
@@ -4427,7 +4427,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reviews the remote update before anything is written."
+            "value": "在写入任何内容前审查远程更新。"
           }
         },
         "en": {
@@ -4461,7 +4461,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Run bunx clawdhub@latest login in Terminal, then check again."
+            "value": "在终端运行 bunx clawdhub@latest login，然后再次检查。"
           }
         },
         "en": {
@@ -4495,7 +4495,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scan scope (%arg roots)"
+            "value": "扫描范围（%arg 个根目录）"
           }
         },
         "en": {
@@ -4546,7 +4546,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scope"
+            "value": "范围"
           }
         },
         "en": {
@@ -4563,7 +4563,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scrolls to the complete distribution editor"
+            "value": "滚动到完整的分发编辑器"
           }
         },
         "en": {
@@ -4597,7 +4597,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Select %arg"
+            "value": "选择 %arg"
           }
         },
         "en": {
@@ -4614,7 +4614,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Select Ready"
+            "value": "选择“就绪”"
           }
         },
         "en": {
@@ -4631,7 +4631,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Select a discovered Skill"
+            "value": "选择发现的 Skill"
           }
         },
         "en": {
@@ -4665,7 +4665,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public)."
+            "value": "选择项目文件夹。系统将从平台目录自动发现 Skill（例如 .claude/skills、.codex/skills、.codex/skills/public）。"
           }
         },
         "en": {
@@ -4699,7 +4699,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Select at least one Agent."
+            "value": "至少选择一个 Agent。"
           }
         },
         "en": {
@@ -4750,7 +4750,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Shows planned distribution changes before anything is written."
+            "value": "在写入任何内容前显示计划的分发更改。"
           }
         },
         "en": {
@@ -4767,7 +4767,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signed in as %arg"
+            "value": "已登录为 %arg"
           }
         },
         "en": {
@@ -4801,7 +4801,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skill %arg"
+            "value": "技能 %arg"
           }
         },
         "en": {
@@ -4886,7 +4886,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Skills Manager will %arg"
+            "value": "Skills Manager 将%arg"
           }
         },
         "en": {
@@ -4903,7 +4903,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Slug"
+            "value": "标识"
           }
         },
         "en": {
@@ -4920,7 +4920,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Slug: %arg"
+            "value": "标识：%arg"
           }
         },
         "en": {
@@ -4937,7 +4937,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Source"
+            "value": "来源"
           }
         },
         "en": {
@@ -4954,7 +4954,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Source %arg"
+            "value": "来源 %arg"
           }
         },
         "en": {
@@ -4971,7 +4971,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Source: %arg"
+            "value": "来源：%arg"
           }
         },
         "en": {
@@ -5107,7 +5107,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "The current managed content will be backed up before it is replaced."
+            "value": "替换前将备份当前已管理内容。"
           }
         },
         "en": {
@@ -5124,7 +5124,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "This Skill has not been checked yet."
+            "value": "此 Skill 尚未检查。"
           }
         },
         "en": {
@@ -5141,7 +5141,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "This Skill is already managed. Change its Agent access from the Skill details."
+            "value": "此 Skill 已被管理。请从 Skill 详情更改其 Agent 访问权限。"
           }
         },
         "en": {
@@ -5158,7 +5158,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "This backup did not have any Agent targets."
+            "value": "此备份没有任何 Agent 目标。"
           }
         },
         "en": {
@@ -5175,7 +5175,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "This managed Skill needs repair before it can be published."
+            "value": "此已管理 Skill 需要修复后才能发布。"
           }
         },
         "en": {
@@ -5192,7 +5192,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "This reference file could not be found."
+            "value": "找不到此引用文件。"
           }
         },
         "en": {
@@ -5209,7 +5209,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "This removes only managed distribution targets. The Skill remains in the managed library."
+            "value": "这只会移除已管理的分发目标。Skill 会保留在已管理库中。"
           }
         },
         "en": {
@@ -5226,7 +5226,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "This removes only the discovery source. Installed Skills are not deleted."
+            "value": "这只会移除发现来源。不会删除已安装的 Skill。"
           }
         },
         "en": {
@@ -5243,7 +5243,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "This will remove \"%arg\" from the sidebar. The skills will not be deleted from disk."
+            "value": "这会从侧边栏移除“%arg”。不会从磁盘删除这些 Skill。"
           }
         },
         "en": {
@@ -5260,7 +5260,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unable to import"
+            "value": "无法导入"
           }
         },
         "en": {
@@ -5277,7 +5277,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unable to load"
+            "value": "无法加载"
           }
         },
         "en": {
@@ -5294,7 +5294,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unable to load reference"
+            "value": "无法加载引用"
           }
         },
         "en": {
@@ -5311,30 +5311,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unavailable Locations"
+            "value": "不可用位置"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Unavailable Locations"
-          }
-        }
-      }
-    },
-    "Unavailable scan location": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unavailable scan location"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unavailable scan location"
           }
         }
       }
@@ -5464,7 +5447,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update status: %arg"
+            "value": "更新状态：%arg"
           }
         },
         "en": {
@@ -5481,7 +5464,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update the managed SSOT while keeping its Skill identity and current Agent access."
+            "value": "在保留 Skill 身份和当前 Agent 访问权限的同时更新已管理 SSOT。"
           }
         },
         "en": {
@@ -5498,7 +5481,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Updating Skill"
+            "value": "正在更新 Skill"
           }
         },
         "en": {
@@ -5515,7 +5498,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uses an Agent-specific target"
+            "value": "使用 Agent 专属目标"
           }
         },
         "en": {
@@ -5532,7 +5515,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Validating…"
+            "value": "正在验证…"
           }
         },
         "en": {
@@ -5549,7 +5532,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verified backups remain available after a managed Skill is deleted."
+            "value": "删除已管理 Skill 后，已验证的备份仍可用。"
           }
         },
         "en": {
@@ -5566,7 +5549,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verified discovery"
+            "value": "已验证发现结果"
           }
         },
         "en": {
@@ -5583,7 +5566,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verified manifest"
+            "value": "已验证清单"
           }
         },
         "en": {
@@ -5600,7 +5583,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verified source"
+            "value": "已验证来源"
           }
         },
         "en": {
@@ -5617,7 +5600,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verifies the immutable GitHub source before installation"
+            "value": "安装前验证不可变的 GitHub 来源"
           }
         },
         "en": {
@@ -5634,7 +5617,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verifies the public GitHub source before showing an install preview"
+            "value": "显示安装预览前验证公开 GitHub 来源"
           }
         },
         "en": {
@@ -5651,7 +5634,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verifying managed Skill…"
+            "value": "正在验证已管理 Skill…"
           }
         },
         "en": {
@@ -5668,7 +5651,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verifying with a fresh audit…"
+            "value": "正在使用最新审计进行验证…"
           }
         },
         "en": {
@@ -5685,7 +5668,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verifying, backing up, updating, and refreshing distribution…"
+            "value": "正在验证、备份、更新并刷新分发…"
           }
         },
         "en": {
@@ -5702,7 +5685,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Version %1$arg (%2$arg)"
+            "value": "版本 %1$arg（%2$arg）"
           }
         },
         "en": {
@@ -5719,7 +5702,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Version bump"
+            "value": "版本变更"
           }
         },
         "en": {
@@ -5736,7 +5719,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "We’ll verify it contains a SKILL.md and show a preview."
+            "value": "我们将验证其中包含 SKILL.md 并显示预览。"
           }
         },
         "en": {
@@ -5753,7 +5736,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Will publish v%arg"
+            "value": "将发布 v%arg"
           }
         },
         "en": {
@@ -5770,7 +5753,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "You’re up to date."
+            "value": "已是最新版本。"
           }
         },
         "en": {
@@ -6025,23 +6008,6 @@
     "Try again without affecting your local Skills.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "请重试，不会影响本地 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "Try again without affecting your local Skills." } } } },
     "ClawHub unavailable — cached content may be out of date.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "ClawHub 不可用 — 缓存内容可能已过期。" } }, "en": { "stringUnit": { "state": "translated", "value": "ClawHub unavailable — cached content may be out of date." } } } },
     "Skill Backups, %arg available": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "技能备份，可用 %arg 项" } }, "en": { "stringUnit": { "state": "translated", "value": "Skill Backups, %arg available" } } } },
-    "关于 Skills Manager": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "关于 Skills Manager"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "About Skills Manager"
-          }
-        }
-      }
-    },
     "Batch update summary: %arg": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "批量更新摘要：%arg" } }, "en": { "stringUnit": { "state": "translated", "value": "Batch update summary: %arg" } } } },
     "Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "安装前，Skills Manager 会验证唯一的仓库子路径和不可变 GitHub 修订版本。" } }, "en": { "stringUnit": { "state": "translated", "value": "Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision." } } } },
     "Compatible Agents share one managed link in %arg.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "兼容的 Agent 在 %arg 中共享一个托管链接。" } }, "en": { "stringUnit": { "state": "translated", "value": "Compatible Agents share one managed link in %arg." } } } },
@@ -6064,7 +6030,253 @@
     "The import state for %arg must be confirmed or repaired before retrying.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试前必须确认或修复 %arg 的导入状态。" } }, "en": { "stringUnit": { "state": "translated", "value": "The import state for %arg must be confirmed or repaired before retrying." } } } },
     "Unable to publish this skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法发布此 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "Unable to publish this skill." } } } },
     "Show filters": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "显示筛选器" } }, "en": { "stringUnit": { "state": "translated", "value": "Show filters" } } } },
-    "Hide filters": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "隐藏筛选器" } }, "en": { "stringUnit": { "state": "translated", "value": "Hide filters" } } } }
+    "Hide filters": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "隐藏筛选器" } }, "en": { "stringUnit": { "state": "translated", "value": "Hide filters" } } } },
+    "%arg is managed, but its Agent state must be confirmed.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已托管，但必须确认其 Agent 状态。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg is managed, but its Agent state must be confirmed." } } } },
+    "%arg is managed.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已托管。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg is managed." } } } },
+    "%arg is managed; resolve its distribution conflict from details.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已托管；请从详情解决其分发冲突。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg is managed; resolve its distribution conflict from details." } } } },
+    "%arg is ready.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已准备就绪。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg is ready." } } } },
+    "%arg item(s) need review.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "有 %arg 项需要检查。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg item(s) need review." } } } },
+    "%arg of %arg complete.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已完成 %arg/%arg。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg of %arg complete." } } } },
+    "%arg was backed up and updated. Current Agent access was preserved.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已备份并更新。当前 Agent 访问保持不变。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg was backed up and updated. Current Agent access was preserved." } } } },
+    "%arg was updated and backed up. Refresh its distribution from details.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg 已更新并备份。请从详情刷新其分发。" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg was updated and backed up. Refresh its distribution from details." } } } },
+    "%arg, %arg": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg，%arg" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg, %arg" } } } },
+    "%arg, Copy decision required": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg，需要决定 Copy 处理方式" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg, Copy decision required" } } } },
+    "%arg, checking for updates": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg，正在检查更新" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg, checking for updates" } } } },
+    "%arg, preparing update": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg，正在准备更新" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg, preparing update" } } } },
+    "%arg, update available": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg，有可用更新" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg, update available" } } } },
+    "%arg, updating": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg，正在更新" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg, updating" } } } },
+    "%arg, waiting": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "%arg，正在等待" } }, "en": { "stringUnit": { "state": "translated", "value": "%arg, waiting" } } } },
+    "A batch update is already running.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "批量更新已在运行。" } }, "en": { "stringUnit": { "state": "translated", "value": "A batch update is already running." } } } },
+    "A blocking library diagnostic prevents changes.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管库诊断阻止了更改。" } }, "en": { "stringUnit": { "state": "translated", "value": "A blocking library diagnostic prevents changes." } } } },
+    "A local origin is already used and was not restored.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "本地来源已被使用，未恢复。" } }, "en": { "stringUnit": { "state": "translated", "value": "A local origin is already used and was not restored." } } } },
+    "A local-origin record will be added to the matched Skill": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "将向匹配的 Skill 添加本地来源记录" } }, "en": { "stringUnit": { "state": "translated", "value": "A local-origin record will be added to the matched Skill" } } } },
+    "A provider alias is already used and was not restored.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "提供商别名已被使用，未恢复。" } }, "en": { "stringUnit": { "state": "translated", "value": "A provider alias is already used and was not restored." } } } },
+    "A saved link is missing.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "保存的链接缺失。" } }, "en": { "stringUnit": { "state": "translated", "value": "A saved link is missing." } } } },
+    "Add without enabling": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "添加但不启用" } }, "en": { "stringUnit": { "state": "translated", "value": "Add without enabling" } } } },
+    "Agent-specific": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Agent 专属" } }, "en": { "stringUnit": { "state": "translated", "value": "Agent-specific" } } } },
+    "Already managed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已托管" } }, "en": { "stringUnit": { "state": "translated", "value": "Already managed" } } } },
+    "Already up to date": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已是最新" } }, "en": { "stringUnit": { "state": "translated", "value": "Already up to date" } } } },
+    "An Agent-specific target is unavailable.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Agent 专属目标不可用。" } }, "en": { "stringUnit": { "state": "translated", "value": "An Agent-specific target is unavailable." } } } },
+    "An unmanaged item already exists at this target.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "此目标已有未托管项目。" } }, "en": { "stringUnit": { "state": "translated", "value": "An unmanaged item already exists at this target." } } } },
+    "Another managed Skill already uses this name.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已有其他托管 Skill 使用此名称。" } }, "en": { "stringUnit": { "state": "translated", "value": "Another managed Skill already uses this name." } } } },
+    "Archive": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "归档" } }, "en": { "stringUnit": { "state": "translated", "value": "Archive" } } } },
+    "Associate this local folder with an existing Skill": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "将此本地文件夹关联到现有 Skill" } }, "en": { "stringUnit": { "state": "translated", "value": "Associate this local folder with an existing Skill" } } } },
+    "Audit incomplete": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "审计未完成" } }, "en": { "stringUnit": { "state": "translated", "value": "Audit incomplete" } } } },
+    "Audit unavailable": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "审计不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "Audit unavailable" } } } },
+    "Auditing": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在审计" } }, "en": { "stringUnit": { "state": "translated", "value": "Auditing" } } } },
+    "Back up and migrate": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "备份并迁移" } }, "en": { "stringUnit": { "state": "translated", "value": "Back up and migrate" } } } },
+    "Back up the original directory, then replace it with a managed Symlink.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "备份原目录，然后替换为托管 Symlink。" } }, "en": { "stringUnit": { "state": "translated", "value": "Back up the original directory, then replace it with a managed Symlink." } } } },
+    "Backing up, replacing, and refreshing distribution.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在备份、替换并刷新分发。" } }, "en": { "stringUnit": { "state": "translated", "value": "Backing up, replacing, and refreshing distribution." } } } },
+    "Backup completed; recheck before trying the update again": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "备份已完成；再次尝试更新前请重新检查" } }, "en": { "stringUnit": { "state": "translated", "value": "Backup completed; recheck before trying the update again" } } } },
+    "Batch updates are unavailable until the managed library is ready.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管库准备就绪前，批量更新不可用。" } }, "en": { "stringUnit": { "state": "translated", "value": "Batch updates are unavailable until the managed library is ready." } } } },
+    "Blocked; Skill remains managed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已阻止；Skill 仍保持托管" } }, "en": { "stringUnit": { "state": "translated", "value": "Blocked; Skill remains managed" } } } },
+    "Cancel this Skill update": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "取消此 Skill 更新" } }, "en": { "stringUnit": { "state": "translated", "value": "Cancel this Skill update" } } } },
+    "Cancelled": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已取消" } }, "en": { "stringUnit": { "state": "translated", "value": "Cancelled" } } } },
+    "Change distribution mode": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "更改分发模式" } }, "en": { "stringUnit": { "state": "translated", "value": "Change distribution mode" } } } },
+    "Check all managed Skills for updates.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "检查所有托管 Skill 的更新。" } }, "en": { "stringUnit": { "state": "translated", "value": "Check all managed Skills for updates." } } } },
+    "Checking": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在检查" } }, "en": { "stringUnit": { "state": "translated", "value": "Checking" } } } },
+    "Checking Skills…": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在检查 Skill…" } }, "en": { "stringUnit": { "state": "translated", "value": "Checking Skills…" } } } },
+    "Choose how to handle every modified Copy.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择如何处理每个已修改的 Copy。" } }, "en": { "stringUnit": { "state": "translated", "value": "Choose how to handle every modified Copy." } } } },
+    "Claim existing": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "认领现有项目" } }, "en": { "stringUnit": { "state": "translated", "value": "Claim existing" } } } },
+    "Claim, back up and migrate": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "认领、备份并迁移" } }, "en": { "stringUnit": { "state": "translated", "value": "Claim, back up and migrate" } } } },
+    "Claimed; existing bindings preserved": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已认领；现有绑定已保留" } }, "en": { "stringUnit": { "state": "translated", "value": "Claimed; existing bindings preserved" } } } },
+    "Claude": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Claude" } }, "en": { "stringUnit": { "state": "translated", "value": "Claude" } } } },
+    "Cleaning up": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在清理" } }, "en": { "stringUnit": { "state": "translated", "value": "Cleaning up" } } } },
+    "Cleanup pending": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "等待清理" } }, "en": { "stringUnit": { "state": "translated", "value": "Cleanup pending" } } } },
+    "Completed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已完成" } }, "en": { "stringUnit": { "state": "translated", "value": "Completed" } } } },
+    "Confirm claim": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "确认认领" } }, "en": { "stringUnit": { "state": "translated", "value": "Confirm claim" } } } },
+    "Confirm import": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "确认导入" } }, "en": { "stringUnit": { "state": "translated", "value": "Confirm import" } } } },
+    "Confirm or repair the managed library before retrying this update.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试此更新前请确认或修复托管库。" } }, "en": { "stringUnit": { "state": "translated", "value": "Confirm or repair the managed library before retrying this update." } } } },
+    "Conflict": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "冲突" } }, "en": { "stringUnit": { "state": "translated", "value": "Conflict" } } } },
+    "Consistency audit": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "一致性审计" } }, "en": { "stringUnit": { "state": "translated", "value": "Consistency audit" } } } },
+    "Content will be copied into the SSOT and recorded in the database": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "内容将复制到 SSOT 并记录到数据库" } }, "en": { "stringUnit": { "state": "translated", "value": "Content will be copied into the SSOT and recorded in the database" } } } },
+    "Copilot": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Copilot" } }, "en": { "stringUnit": { "state": "translated", "value": "Copilot" } } } },
+    "Copy decision required": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要决定 Copy 处理方式" } }, "en": { "stringUnit": { "state": "translated", "value": "Copy decision required" } } } },
+    "Copy decisions were saved; recheck before updating the parent Skill": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Copy 决定已保存；更新父 Skill 前请重新检查" } }, "en": { "stringUnit": { "state": "translated", "value": "Copy decisions were saved; recheck before updating the parent Skill" } } } },
+    "Copy target has local changes": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Copy 目标有本地更改" } }, "en": { "stringUnit": { "state": "translated", "value": "Copy target has local changes" } } } },
+    "Corrupt": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已损坏" } }, "en": { "stringUnit": { "state": "translated", "value": "Corrupt" } } } },
+    "Create managed copy": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "创建托管 Copy" } }, "en": { "stringUnit": { "state": "translated", "value": "Create managed copy" } } } },
+    "Create managed link": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "创建托管链接" } }, "en": { "stringUnit": { "state": "translated", "value": "Create managed link" } } } },
+    "Create target": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "创建目标" } }, "en": { "stringUnit": { "state": "translated", "value": "Create target" } } } },
+    "Created": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已创建" } }, "en": { "stringUnit": { "state": "translated", "value": "Created" } } } },
+    "Custom": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "自定义" } }, "en": { "stringUnit": { "state": "translated", "value": "Custom" } } } },
+    "Damaged": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已损坏" } }, "en": { "stringUnit": { "state": "translated", "value": "Damaged" } } } },
+    "Disable missing target": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "停用缺失目标" } }, "en": { "stringUnit": { "state": "translated", "value": "Disable missing target" } } } },
+    "Distributed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已分发" } }, "en": { "stringUnit": { "state": "translated", "value": "Distributed" } } } },
+    "Distribution is blocked. No Skill will be imported until this is resolved.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "分发已阻止。解决此问题前不会导入 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "Distribution is blocked. No Skill will be imported until this is resolved." } } } },
+    "Distribution is blocked. The Skill can still be added to the managed library.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "分发已阻止。仍可将 Skill 添加到托管库。" } }, "en": { "stringUnit": { "state": "translated", "value": "Distribution is blocked. The Skill can still be added to the managed library." } } } },
+    "Distribution needs attention": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "分发需要关注" } }, "en": { "stringUnit": { "state": "translated", "value": "Distribution needs attention" } } } },
+    "Finishing the current Skill before stopping…": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在完成当前 Skill，然后停止…" } }, "en": { "stringUnit": { "state": "translated", "value": "Finishing the current Skill before stopping…" } } } },
+    "Global": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "全局" } }, "en": { "stringUnit": { "state": "translated", "value": "Global" } } } },
+    "Global shared target": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "全局共享目标" } }, "en": { "stringUnit": { "state": "translated", "value": "Global shared target" } } } },
+    "Healthy": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "健康" } }, "en": { "stringUnit": { "state": "translated", "value": "Healthy" } } } },
+    "Import": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "导入" } }, "en": { "stringUnit": { "state": "translated", "value": "Import" } } } },
+    "Import a managed Skill before checking for batch updates.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "请先导入托管 Skill，再检查批量更新。" } }, "en": { "stringUnit": { "state": "translated", "value": "Import a managed Skill before checking for batch updates." } } } },
+    "Import as independent Skill, back up and migrate": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "作为独立 Skill 导入、备份并迁移" } }, "en": { "stringUnit": { "state": "translated", "value": "Import as independent Skill, back up and migrate" } } } },
+    "Import in progress": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在导入" } }, "en": { "stringUnit": { "state": "translated", "value": "Import in progress" } } } },
+    "Import needs attention": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "导入需要关注" } }, "en": { "stringUnit": { "state": "translated", "value": "Import needs attention" } } } },
+    "Import status unavailable": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "导入状态不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "Import status unavailable" } } } },
+    "Import this local folder as a managed Skill": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "将此本地文件夹导入为托管 Skill" } }, "en": { "stringUnit": { "state": "translated", "value": "Import this local folder as a managed Skill" } } } },
+    "Import, back up and migrate": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "导入、备份并迁移" } }, "en": { "stringUnit": { "state": "translated", "value": "Import, back up and migrate" } } } },
+    "Imported": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已导入" } }, "en": { "stringUnit": { "state": "translated", "value": "Imported" } } } },
+    "Imported and enabled": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已导入并启用" } }, "en": { "stringUnit": { "state": "translated", "value": "Imported and enabled" } } } },
+    "Imported but not enabled": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已导入但未启用" } }, "en": { "stringUnit": { "state": "translated", "value": "Imported but not enabled" } } } },
+    "In sync": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "同步" } }, "en": { "stringUnit": { "state": "translated", "value": "In sync" } } } },
+    "Independent Skill": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "独立 Skill" } }, "en": { "stringUnit": { "state": "translated", "value": "Independent Skill" } } } },
+    "Install needs attention": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "安装需要关注" } }, "en": { "stringUnit": { "state": "translated", "value": "Install needs attention" } } } },
+    "Installed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已安装" } }, "en": { "stringUnit": { "state": "translated", "value": "Installed" } } } },
+    "Installed and enabled": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已安装并启用" } }, "en": { "stringUnit": { "state": "translated", "value": "Installed and enabled" } } } },
+    "Installed but not enabled": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已安装但未启用" } }, "en": { "stringUnit": { "state": "translated", "value": "Installed but not enabled" } } } },
+    "Keep for now": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "暂时保留" } }, "en": { "stringUnit": { "state": "translated", "value": "Keep for now" } } } },
+    "Kept for now": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "暂时保留" } }, "en": { "stringUnit": { "state": "translated", "value": "Kept for now" } } } },
+    "Library unavailable": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管库不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "Library unavailable" } } } },
+    "Major": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "主要版本" } }, "en": { "stringUnit": { "state": "translated", "value": "Major" } } } },
+    "Makes no changes. The finding returns after the next audit.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "不作任何更改。下次审计时该发现会再次出现。" } }, "en": { "stringUnit": { "state": "translated", "value": "Makes no changes. The finding returns after the next audit." } } } },
+    "Managed Skill needs repair": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管 Skill 需要修复" } }, "en": { "stringUnit": { "state": "translated", "value": "Managed Skill needs repair" } } } },
+    "Managed and in sync": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已托管且同步" } }, "en": { "stringUnit": { "state": "translated", "value": "Managed and in sync" } } } },
+    "Managed but not enabled": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已托管但未启用" } }, "en": { "stringUnit": { "state": "translated", "value": "Managed but not enabled" } } } },
+    "Managed content was modified locally": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管内容已在本地修改" } }, "en": { "stringUnit": { "state": "translated", "value": "Managed content was modified locally" } } } },
+    "Matches an existing managed Skill": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "匹配现有托管 Skill" } }, "en": { "stringUnit": { "state": "translated", "value": "Matches an existing managed Skill" } } } },
+    "Matching Skill already exists": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "匹配的 Skill 已存在" } }, "en": { "stringUnit": { "state": "translated", "value": "Matching Skill already exists" } } } },
+    "Minor": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "次要版本" } }, "en": { "stringUnit": { "state": "translated", "value": "Minor" } } } },
+    "More than one Skill uses this name in the same scope.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "同一作用域中有多个 Skill 使用此名称。" } }, "en": { "stringUnit": { "state": "translated", "value": "More than one Skill uses this name in the same scope." } } } },
+    "Needs Attention": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要关注" } }, "en": { "stringUnit": { "state": "translated", "value": "Needs Attention" } } } },
+    "Needs attention": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要关注" } }, "en": { "stringUnit": { "state": "translated", "value": "Needs attention" } } } },
+    "Needs repair": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要修复" } }, "en": { "stringUnit": { "state": "translated", "value": "Needs repair" } } } },
+    "Needs update": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要更新" } }, "en": { "stringUnit": { "state": "translated", "value": "Needs update" } } } },
+    "No action selected": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "未选择操作" } }, "en": { "stringUnit": { "state": "translated", "value": "No action selected" } } } },
+    "No change": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无更改" } }, "en": { "stringUnit": { "state": "translated", "value": "No change" } } } },
+    "No changes": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无更改" } }, "en": { "stringUnit": { "state": "translated", "value": "No changes" } } } },
+    "No local Skills match the current search and filters.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有本地 Skill 匹配当前搜索和筛选条件。" } }, "en": { "stringUnit": { "state": "translated", "value": "No local Skills match the current search and filters." } } } },
+    "No managed Skills.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有托管 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "No managed Skills." } } } },
+    "No update was required.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无需更新。" } }, "en": { "stringUnit": { "state": "translated", "value": "No update was required." } } } },
+    "No update was started for this Skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "未开始更新此 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "No update was started for this Skill." } } } },
+    "Not configured": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "未配置" } }, "en": { "stringUnit": { "state": "translated", "value": "Not configured" } } } },
+    "Operation in progress": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "操作进行中" } }, "en": { "stringUnit": { "state": "translated", "value": "Operation in progress" } } } },
+    "Original identity": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "原始身份" } }, "en": { "stringUnit": { "state": "translated", "value": "Original identity" } } } },
+    "Patch": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "补丁版本" } }, "en": { "stringUnit": { "state": "translated", "value": "Patch" } } } },
+    "Permission denied": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "权限被拒绝" } }, "en": { "stringUnit": { "state": "translated", "value": "Permission denied" } } } },
+    "Permission required": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要权限" } }, "en": { "stringUnit": { "state": "translated", "value": "Permission required" } } } },
+    "Preparing": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在准备" } }, "en": { "stringUnit": { "state": "translated", "value": "Preparing" } } } },
+    "Preparing secure previews…": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在准备安全预览…" } }, "en": { "stringUnit": { "state": "translated", "value": "Preparing secure previews…" } } } },
+    "Preview claim": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "预览认领" } }, "en": { "stringUnit": { "state": "translated", "value": "Preview claim" } } } },
+    "Preview import": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "预览导入" } }, "en": { "stringUnit": { "state": "translated", "value": "Preview import" } } } },
+    "Preview independent import": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "预览独立导入" } }, "en": { "stringUnit": { "state": "translated", "value": "Preview independent import" } } } },
+    "Provider alias": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "提供商别名" } }, "en": { "stringUnit": { "state": "translated", "value": "Provider alias" } } } },
+    "Reading SSOT, database, distribution targets and discovered directories.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在读取 SSOT、数据库、分发目标和发现的目录。" } }, "en": { "stringUnit": { "state": "translated", "value": "Reading SSOT, database, distribution targets and discovered directories." } } } },
+    "Reading the local Skill and remote source.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在读取本地 Skill 和远程来源。" } }, "en": { "stringUnit": { "state": "translated", "value": "Reading the local Skill and remote source." } } } },
+    "Ready": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "就绪" } }, "en": { "stringUnit": { "state": "translated", "value": "Ready" } } } },
+    "Ready to claim": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "可认领" } }, "en": { "stringUnit": { "state": "translated", "value": "Ready to claim" } } } },
+    "Ready to enable with Symlink": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "可使用 Symlink 启用" } }, "en": { "stringUnit": { "state": "translated", "value": "Ready to enable with Symlink" } } } },
+    "Ready to restore": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "可恢复" } }, "en": { "stringUnit": { "state": "translated", "value": "Ready to restore" } } } },
+    "Rebuild missing links": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重建缺失链接" } }, "en": { "stringUnit": { "state": "translated", "value": "Rebuild missing links" } } } },
+    "Recheck after resolving local or remote changes.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "解决本地或远程更改后重新检查。" } }, "en": { "stringUnit": { "state": "translated", "value": "Recheck after resolving local or remote changes." } } } },
+    "Recreate every missing managed Symlink for this Skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "为此 Skill 重建所有缺失的托管 Symlink。" } }, "en": { "stringUnit": { "state": "translated", "value": "Recreate every missing managed Symlink for this Skill." } } } },
+    "Refresh Copy": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "刷新 Copy" } }, "en": { "stringUnit": { "state": "translated", "value": "Refresh Copy" } } } },
+    "Refresh managed copy": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "刷新托管 Copy" } }, "en": { "stringUnit": { "state": "translated", "value": "Refresh managed copy" } } } },
+    "Remove managed copy": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "移除托管 Copy" } }, "en": { "stringUnit": { "state": "translated", "value": "Remove managed copy" } } } },
+    "Remove managed link": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "移除托管链接" } }, "en": { "stringUnit": { "state": "translated", "value": "Remove managed link" } } } },
+    "Remove target": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "移除目标" } }, "en": { "stringUnit": { "state": "translated", "value": "Remove target" } } } },
+    "Remove the selected missing target from managed distribution.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "从托管分发中移除所选缺失目标。" } }, "en": { "stringUnit": { "state": "translated", "value": "Remove the selected missing target from managed distribution." } } } },
+    "Repair required": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要修复" } }, "en": { "stringUnit": { "state": "translated", "value": "Repair required" } } } },
+    "Replace copy with link": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "将 Copy 替换为链接" } }, "en": { "stringUnit": { "state": "translated", "value": "Replace copy with link" } } } },
+    "Replace link with copy": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "将链接替换为 Copy" } }, "en": { "stringUnit": { "state": "translated", "value": "Replace link with copy" } } } },
+    "Repository unavailable": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "仓库不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "Repository unavailable" } } } },
+    "Restored": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已恢复" } }, "en": { "stringUnit": { "state": "translated", "value": "Restored" } } } },
+    "Restored without Agent targets": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已恢复但没有 Agent 目标" } }, "en": { "stringUnit": { "state": "translated", "value": "Restored without Agent targets" } } } },
+    "Retry Page": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试页面" } }, "en": { "stringUnit": { "state": "translated", "value": "Retry Page" } } } },
+    "Revalidating the Skill and remote source.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在重新验证 Skill 和远程来源。" } }, "en": { "stringUnit": { "state": "translated", "value": "Revalidating the Skill and remote source." } } } },
+    "Review Import": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "检查导入" } }, "en": { "stringUnit": { "state": "translated", "value": "Review Import" } } } },
+    "Review needed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要检查" } }, "en": { "stringUnit": { "state": "translated", "value": "Review needed" } } } },
+    "Review this Skill before trying again.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "再次尝试前请检查此 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "Review this Skill before trying again." } } } },
+    "Revision": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "修订版本" } }, "en": { "stringUnit": { "state": "translated", "value": "Revision" } } } },
+    "Rolled back": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已回滚" } }, "en": { "stringUnit": { "state": "translated", "value": "Rolled back" } } } },
+    "SKILL.md is missing.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "缺少 SKILL.md。" } }, "en": { "stringUnit": { "state": "translated", "value": "SKILL.md is missing." } } } },
+    "SKILL.md is not valid UTF-8.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "SKILL.md 不是有效的 UTF-8。" } }, "en": { "stringUnit": { "state": "translated", "value": "SKILL.md is not valid UTF-8." } } } },
+    "SSOT, database and managed targets are consistent.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "SSOT、数据库和托管目标一致。" } }, "en": { "stringUnit": { "state": "translated", "value": "SSOT, database and managed targets are consistent." } } } },
+    "Save Agent selection": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "保存 Agent 选择" } }, "en": { "stringUnit": { "state": "translated", "value": "Save Agent selection" } } } },
+    "Shows every missing Symlink before recreating them.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "显示所有缺失的 Symlink，然后再重建。" } }, "en": { "stringUnit": { "state": "translated", "value": "Shows every missing Symlink before recreating them." } } } },
+    "Shows the selected managed target before disabling it.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "停用前显示所选托管目标。" } }, "en": { "stringUnit": { "state": "translated", "value": "Shows the selected managed target before disabling it." } } } },
+    "Shows the source, SSOT target, backup and operation before writing.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "写入前显示来源、SSOT 目标、备份和操作。" } }, "en": { "stringUnit": { "state": "translated", "value": "Shows the source, SSOT target, backup and operation before writing." } } } },
+    "Skill updated": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Skill 已更新" } }, "en": { "stringUnit": { "state": "translated", "value": "Skill updated" } } } },
+    "Skill updated; distribution needs attention": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Skill 已更新；分发需要关注" } }, "en": { "stringUnit": { "state": "translated", "value": "Skill updated; distribution needs attention" } } } },
+    "Skipped": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已跳过" } }, "en": { "stringUnit": { "state": "translated", "value": "Skipped" } } } },
+    "Some roots could not be inspected. Write actions are disabled.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "部分根目录无法检查。写入操作已禁用。" } }, "en": { "stringUnit": { "state": "translated", "value": "Some roots could not be inspected. Write actions are disabled." } } } },
+    "Subpath": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "子路径" } }, "en": { "stringUnit": { "state": "translated", "value": "Subpath" } } } },
+    "Target slug": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "目标标识" } }, "en": { "stringUnit": { "state": "translated", "value": "Target slug" } } } },
+    "The Skill changed while it was being inspected.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "检查期间 Skill 发生了更改。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill changed while it was being inspected." } } } },
+    "The Skill contains an unsafe path or link.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Skill 包含不安全的路径或链接。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill contains an unsafe path or link." } } } },
+    "The Skill contains an unsupported file type.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Skill 包含不支持的文件类型。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill contains an unsupported file type." } } } },
+    "The Skill content could not be read.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取 Skill 内容。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill content could not be read." } } } },
+    "The Skill exceeds the safe import limits.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Skill 超出安全导入限制。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill exceeds the safe import limits." } } } },
+    "The Skill folder cannot be read.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取 Skill 文件夹。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill folder cannot be read." } } } },
+    "The Skill link target is not a directory.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Skill 链接目标不是目录。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill link target is not a directory." } } } },
+    "The Skill link target is unavailable.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Skill 链接目标不可用。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill link target is unavailable." } } } },
+    "The Skill uses a symbolic link that cannot be trusted.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "Skill 使用的符号链接不可信。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill uses a symbolic link that cannot be trusted." } } } },
+    "The Skill will be added to the managed library before distribution.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "分发前会先将 Skill 添加到托管库。" } }, "en": { "stringUnit": { "state": "translated", "value": "The Skill will be added to the managed library before distribution." } } } },
+    "The content matches more than one managed Skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "内容匹配多个托管 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "The content matches more than one managed Skill." } } } },
+    "The current managed content will be backed up before replacement.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "替换前会备份当前托管内容。" } }, "en": { "stringUnit": { "state": "translated", "value": "The current managed content will be backed up before replacement." } } } },
+    "The global Agent coverage is inconsistent.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "全局 Agent 覆盖范围不一致。" } }, "en": { "stringUnit": { "state": "translated", "value": "The global Agent coverage is inconsistent." } } } },
+    "The managed Skill and its distribution are current.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管 Skill 及其分发均为最新。" } }, "en": { "stringUnit": { "state": "translated", "value": "The managed Skill and its distribution are current." } } } },
+    "The managed copy baseline is unavailable or invalid.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管 Copy 基线不可用或无效。" } }, "en": { "stringUnit": { "state": "translated", "value": "The managed copy baseline is unavailable or invalid." } } } },
+    "The managed copy contains local content changes.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管 Copy 包含本地内容更改。" } }, "en": { "stringUnit": { "state": "translated", "value": "The managed copy contains local content changes." } } } },
+    "The managed copy contains unexpected files or permissions.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管 Copy 包含意外文件或权限。" } }, "en": { "stringUnit": { "state": "translated", "value": "The managed copy contains unexpected files or permissions." } } } },
+    "The managed copy directory was replaced.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管 Copy 目录已被替换。" } }, "en": { "stringUnit": { "state": "translated", "value": "The managed copy directory was replaced." } } } },
+    "The managed copy is missing.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管 Copy 缺失。" } }, "en": { "stringUnit": { "state": "translated", "value": "The managed copy is missing." } } } },
+    "The managed copy root was replaced.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管 Copy 根目录已被替换。" } }, "en": { "stringUnit": { "state": "translated", "value": "The managed copy root was replaced." } } } },
+    "The operation did not complete.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "操作未完成。" } }, "en": { "stringUnit": { "state": "translated", "value": "The operation did not complete." } } } },
+    "The original Agent targets conflict with current managed content.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "原始 Agent 目标与当前托管内容冲突。" } }, "en": { "stringUnit": { "state": "translated", "value": "The original Agent targets conflict with current managed content." } } } },
+    "The original repository identity is already used by another Skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "原始仓库身份已被其他 Skill 使用。" } }, "en": { "stringUnit": { "state": "translated", "value": "The original repository identity is already used by another Skill." } } } },
+    "The original source could not be restored.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法恢复原始来源。" } }, "en": { "stringUnit": { "state": "translated", "value": "The original source could not be restored." } } } },
+    "The parent Skill was updated and local changes are independent.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "父 Skill 已更新，本地更改已独立保留。" } }, "en": { "stringUnit": { "state": "translated", "value": "The parent Skill was updated and local changes are independent." } } } },
+    "The remote source has different content or revision. No files were changed.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "远程来源的内容或修订版本不同。未更改任何文件。" } }, "en": { "stringUnit": { "state": "translated", "value": "The remote source has different content or revision. No files were changed." } } } },
+    "The saved link points to a different managed Skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "保存的链接指向其他托管 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "The saved link points to a different managed Skill." } } } },
+    "The scan root cannot be read.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取扫描根目录。" } }, "en": { "stringUnit": { "state": "translated", "value": "The scan root cannot be read." } } } },
+    "The scan root changed while it was being inspected.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "检查期间扫描根目录发生了更改。" } }, "en": { "stringUnit": { "state": "translated", "value": "The scan root changed while it was being inspected." } } } },
+    "The scan root could not be read.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法读取扫描根目录。" } }, "en": { "stringUnit": { "state": "translated", "value": "The scan root could not be read." } } } },
+    "The scan root is not a directory or supported link.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "扫描根目录不是目录或受支持的链接。" } }, "en": { "stringUnit": { "state": "translated", "value": "The scan root is not a directory or supported link." } } } },
+    "The selected Agent is unsupported.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "所选 Agent 不受支持。" } }, "en": { "stringUnit": { "state": "translated", "value": "The selected Agent is unsupported." } } } },
+    "The selected scope is invalid.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "所选作用域无效。" } }, "en": { "stringUnit": { "state": "translated", "value": "The selected scope is invalid." } } } },
+    "The source and content point to different managed Skills.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "来源和内容指向不同的托管 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "The source and content point to different managed Skills." } } } },
+    "The source metadata matches more than one managed Skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "来源元数据匹配多个托管 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "The source metadata matches more than one managed Skill." } } } },
+    "The target folder is unavailable.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "目标文件夹不可用。" } }, "en": { "stringUnit": { "state": "translated", "value": "The target folder is unavailable." } } } },
+    "This Skill can be updated safely.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "此 Skill 可以安全更新。" } }, "en": { "stringUnit": { "state": "translated", "value": "This Skill can be updated safely." } } } },
+    "This available update was not selected.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "未选择此可用更新。" } }, "en": { "stringUnit": { "state": "translated", "value": "This available update was not selected." } } } },
+    "This folder contains Skill subdirectories.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "此文件夹包含 Skill 子目录。" } }, "en": { "stringUnit": { "state": "translated", "value": "This folder contains Skill subdirectories." } } } },
+    "This location is linked to more than one managed Skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "此位置关联了多个托管 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "This location is linked to more than one managed Skill." } } } },
+    "This location no longer matches its managed Skill.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "此位置已不再匹配其托管 Skill。" } }, "en": { "stringUnit": { "state": "translated", "value": "This location no longer matches its managed Skill." } } } },
+    "Unavailable": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "Unavailable" } } } },
+    "Unmanaged": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "未托管" } }, "en": { "stringUnit": { "state": "translated", "value": "Unmanaged" } } } },
+    "Up to date": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已是最新" } }, "en": { "stringUnit": { "state": "translated", "value": "Up to date" } } } },
+    "Update": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新" } }, "en": { "stringUnit": { "state": "translated", "value": "Update" } } } },
+    "Update cancelled": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新已取消" } }, "en": { "stringUnit": { "state": "translated", "value": "Update cancelled" } } } },
+    "Update checking unavailable": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新检查不可用" } }, "en": { "stringUnit": { "state": "translated", "value": "Update checking unavailable" } } } },
+    "Update needs confirmation": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新需要确认" } }, "en": { "stringUnit": { "state": "translated", "value": "Update needs confirmation" } } } },
+    "Update required": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要更新" } }, "en": { "stringUnit": { "state": "translated", "value": "Update required" } } } },
+    "Update rolled back": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新已回滚" } }, "en": { "stringUnit": { "state": "translated", "value": "Update rolled back" } } } },
+    "Update saved target": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新已保存目标" } }, "en": { "stringUnit": { "state": "translated", "value": "Update saved target" } } } },
+    "Update state could not be confirmed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法确认更新状态" } }, "en": { "stringUnit": { "state": "translated", "value": "Update state could not be confirmed" } } } },
+    "Update state needs attention": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新状态需要关注" } }, "en": { "stringUnit": { "state": "translated", "value": "Update state needs attention" } } } },
+    "Updated": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已更新" } }, "en": { "stringUnit": { "state": "translated", "value": "Updated" } } } },
+    "Updated; Agent state needs attention": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已更新；Agent 状态需要关注" } }, "en": { "stringUnit": { "state": "translated", "value": "Updated; Agent state needs attention" } } } },
+    "Updated; distribution needs attention": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已更新；分发需要关注" } }, "en": { "stringUnit": { "state": "translated", "value": "Updated; distribution needs attention" } } } },
+    "Updated; local changes kept as Fork": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已更新；本地更改已作为 Fork 保留" } }, "en": { "stringUnit": { "state": "translated", "value": "Updated; local changes kept as Fork" } } } },
+    "Updating": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在更新" } }, "en": { "stringUnit": { "state": "translated", "value": "Updating" } } } },
+    "Updating managed Skill state": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在更新托管 Skill 状态" } }, "en": { "stringUnit": { "state": "translated", "value": "Updating managed Skill state" } } } },
+    "Updating selected Skills…": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在更新所选 Skill…" } }, "en": { "stringUnit": { "state": "translated", "value": "Updating selected Skills…" } } } },
+    "Use the Skill details to change where %arg is enabled.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "请使用 Skill 详情更改启用 %arg 的位置。" } }, "en": { "stringUnit": { "state": "translated", "value": "Use the Skill details to change where %arg is enabled." } } } },
+    "Use the existing backup and recovery tools before making more changes.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "进行更多更改前，请使用现有备份和恢复工具。" } }, "en": { "stringUnit": { "state": "translated", "value": "Use the existing backup and recovery tools before making more changes." } } } },
+    "Wait for the current operation, then refresh.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "等待当前操作完成，然后刷新。" } }, "en": { "stringUnit": { "state": "translated", "value": "Wait for the current operation, then refresh." } } } },
+    "Waiting": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "等待中" } }, "en": { "stringUnit": { "state": "translated", "value": "Waiting" } } } },
+    "candidates available": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "个候选项可用" } }, "en": { "stringUnit": { "state": "translated", "value": "candidates available" } } } },
+    "claimed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已认领" } }, "en": { "stringUnit": { "state": "translated", "value": "claimed" } } } },
+    "created": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已创建" } }, "en": { "stringUnit": { "state": "translated", "value": "created" } } } },
+    "failed": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "失败" } }, "en": { "stringUnit": { "state": "translated", "value": "failed" } } } },
+    "selected": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已选择" } }, "en": { "stringUnit": { "state": "translated", "value": "selected" } } } },
+    "skipped": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已跳过" } }, "en": { "stringUnit": { "state": "translated", "value": "skipped" } } } },
+    "enabled": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已启用" } }, "en": { "stringUnit": { "state": "translated", "value": "enabled" } } } },
+    "disabled": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "已停用" } }, "en": { "stringUnit": { "state": "translated", "value": "disabled" } } } },
+    "The managed library is unavailable.": { "extractionState": "manual", "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "托管库不可用。" } }, "en": { "stringUnit": { "state": "translated", "value": "The managed library is unavailable." } } } }
   },
   "version": "1.2"
 }

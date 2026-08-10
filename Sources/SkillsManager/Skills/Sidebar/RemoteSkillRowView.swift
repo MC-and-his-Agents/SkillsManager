@@ -6,15 +6,19 @@ struct RemoteSkillRowView: View {
     let onInstall: () -> Void
 
     var body: some View {
-        let status = localized("Available")
-        let source = localized("ClawHub")
+        let status = String(localized: "Available", bundle: .module)
+        let source = String(localized: "ClawHub", bundle: .module)
         SkillListRow(data: SkillListRowData(
             id: skill.id,
             title: skill.displayName,
             detail: skill.summary ?? "",
             statusIcon: "arrow.down.circle",
             statusTint: .accentColor,
-            sources: [SkillListSourceLabel(text: "ClawHub", systemImage: "sparkles")],
+            sources: [SkillListSourceLabel(
+                text: "ClawHub",
+                systemImage: "sparkles",
+                knownSource: .clawHub
+            )],
             agentCount: installedTargets.count,
             accessibilityLabel: [
                 skill.displayName,
@@ -50,7 +54,4 @@ struct RemoteSkillRowView: View {
 
     private var isInstalled: Bool { !installedTargets.isEmpty }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
-    }
 }

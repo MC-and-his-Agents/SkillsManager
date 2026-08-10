@@ -10,7 +10,11 @@ struct CustomRepositoryCandidateRow: View {
             detail: candidate.repository.displayName,
             statusIcon: "arrow.down.circle",
             statusTint: .accentColor,
-            sources: [SkillListSourceLabel(text: "Repository", systemImage: "shippingbox")],
+            sources: [SkillListSourceLabel(
+                text: "Repository",
+                systemImage: "shippingbox",
+                knownSource: .repository
+            )],
             agentCount: 0,
             accessibilityLabel: candidate.accessibilitySummary,
             accessibilityValue: "Available, Repository, 0 Agents"

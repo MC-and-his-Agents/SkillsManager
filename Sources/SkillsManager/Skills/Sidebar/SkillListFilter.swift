@@ -114,11 +114,19 @@ nonisolated struct SkillListOriginProjection: Hashable, Sendable {
     var labels: [SkillListSourceLabel] {
         let known = SkillListSource.allCases.compactMap { source in
             sources.contains(source)
-                ? SkillListSourceLabel(text: source.rawValue, systemImage: source.systemImage)
+                ? SkillListSourceLabel(
+                    text: source.rawValue,
+                    systemImage: source.systemImage,
+                    knownSource: source
+                )
                 : nil
         }
         return known + unknownProviders.map {
-            SkillListSourceLabel(text: $0, systemImage: "questionmark.circle")
+            SkillListSourceLabel(
+                text: $0,
+                systemImage: "questionmark.circle",
+                knownSource: nil
+            )
         }
     }
 }
@@ -126,6 +134,7 @@ nonisolated struct SkillListOriginProjection: Hashable, Sendable {
 nonisolated struct SkillListSourceLabel: Hashable, Identifiable, Sendable {
     let text: String
     let systemImage: String
+    let knownSource: SkillListSource?
 
     var id: String { "\(systemImage):\(text)" }
 }

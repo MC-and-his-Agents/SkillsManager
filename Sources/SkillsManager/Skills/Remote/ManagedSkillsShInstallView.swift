@@ -29,10 +29,11 @@ struct ManagedCustomRepositoryInstallView: View {
             )
         } else {
             ContentUnavailableView(
-                "Installation unavailable",
+                String(localized: "Installation unavailable", bundle: .module),
                 systemImage: "exclamationmark.triangle",
                 description: Text(
-                    candidate.installProblem ?? "The managed library is unavailable."
+                    candidate.installProblem
+                        ?? String(localized: "The managed library is unavailable.", bundle: .module)
                 )
             )
             .frame(minWidth: 520, minHeight: 320)
@@ -152,7 +153,7 @@ private struct ManagedGitHubInstallView: View {
                     isDisabled: isWorking
                 )
                 if isResolving {
-                    ProgressView(localized("Resolving and validating GitHub source…"))
+                    ProgressView(String(localized: "Resolving and validating GitHub source…", bundle: .module))
                 }
                 if let problem = model.problem {
                     problemLabel(problem.localizedDescription)
@@ -320,17 +321,13 @@ private struct ManagedGitHubInstallView: View {
             .accessibilityElement(children: .combine)
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
-    }
-
     @ViewBuilder
     private func resultView(_ result: ManagedLocalImportResult) -> some View {
         let presentation = managedInstallResultPresentation(result)
         ContentUnavailableView(
-            localized(presentation.title),
+            localizedManagedInstallResultTitle(result.status),
             systemImage: presentation.systemImage,
-            description: Text(presentation.message)
+            description: Text(verbatim: localizedManagedInstallResultMessage(result))
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         HStack {

@@ -18,7 +18,7 @@ struct ManagedInstallScopePicker: View {
                 .font(.headline)
             Picker(selection: $mode) {
                 ForEach(ManagedInstallDistributionMode.allCases) { option in
-                    Text(verbatim: localized(option.rawValue)).tag(option)
+                    Text(verbatim: modeText(option)).tag(option)
                 }
             } label: {
                 Text("Distribution scope", bundle: .module)
@@ -42,7 +42,7 @@ struct ManagedInstallScopePicker: View {
                 bundle: .module
             )
             Text(verbatim: DistributionTargetCatalog.current.globalReaders
-                .map { localized($0.rawValue) }
+                .map(platformText)
                 .joined(separator: ", "))
             .font(.caption)
         }
@@ -64,7 +64,7 @@ struct ManagedInstallScopePicker: View {
                         }
                     )
                 ) {
-                    Text(verbatim: localized(platform.rawValue))
+                    Text(verbatim: platformText(platform))
                 }
                 .toggleStyle(.checkbox)
                 .disabled(isDisabled)
@@ -80,7 +80,19 @@ struct ManagedInstallScopePicker: View {
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func modeText(_ mode: ManagedInstallDistributionMode) -> String {
+        switch mode {
+        case .global: String(localized: "Global", bundle: .module)
+        case .agents: String(localized: "Agent-specific", bundle: .module)
+        }
+    }
+
+    private func platformText(_ platform: SkillPlatform) -> String {
+        switch platform {
+        case .codex: String(localized: "Codex", bundle: .module)
+        case .claude: String(localized: "Claude Code", bundle: .module)
+        case .opencode: String(localized: "OpenCode", bundle: .module)
+        case .copilot: String(localized: "GitHub Copilot", bundle: .module)
+        }
     }
 }

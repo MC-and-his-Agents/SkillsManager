@@ -28,7 +28,7 @@ struct PublishSkillSheet: View {
                 HStack(alignment: .firstTextBaseline) {
                     Picker(selection: $bump) {
                         ForEach(PublishBump.allCases) { bump in
-                            Text(verbatim: localized(bump.label)).tag(bump)
+                            Text(verbatim: bumpText(bump)).tag(bump)
                         }
                     } label: {
                         Text("Version bump", bundle: .module)
@@ -64,7 +64,7 @@ struct PublishSkillSheet: View {
                 Button {
                     Task { await publishSkill() }
                 } label: {
-                    Text(verbatim: localized(isPublishing ? "Publishing…" : "Publish"))
+                    Text(isPublishing ? "Publishing…" : "Publish", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isPublishing || changelog.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -118,7 +118,11 @@ struct PublishSkillSheet: View {
         )
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func bumpText(_ bump: PublishBump) -> String {
+        switch bump {
+        case .patch: String(localized: "Patch", bundle: .module)
+        case .minor: String(localized: "Minor", bundle: .module)
+        case .major: String(localized: "Major", bundle: .module)
+        }
     }
 }

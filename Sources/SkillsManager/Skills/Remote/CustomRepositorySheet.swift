@@ -119,7 +119,7 @@ struct CustomRepositorySheet: View {
     private var repositoryList: some View {
         if model.repositories.isEmpty {
             ContentUnavailableView(
-                localized("No GitHub repositories"),
+                String(localized: "No GitHub repositories", bundle: .module),
                 systemImage: "shippingbox",
                 description: Text("Add a public repository to discover its Skills.", bundle: .module)
             )
@@ -220,7 +220,4 @@ struct CustomRepositorySheet: View {
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
-    }
 }

@@ -67,16 +67,16 @@ struct SkillBackupLibraryView: View {
         switch model.backupState {
         case .blocked(let message):
             ContentUnavailableView(
-                localized("Backups unavailable"),
+                String(localized: "Backups unavailable", bundle: .module),
                 systemImage: "lock.trianglebadge.exclamationmark",
                 description: Text(message)
             )
         case .loading:
-            ProgressView(localized("Loading and validating backups…"))
+            ProgressView(String(localized: "Loading and validating backups…", bundle: .module))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed(let problem):
             ContentUnavailableView(
-                localized("Backups unavailable"),
+                String(localized: "Backups unavailable", bundle: .module),
                 systemImage: "exclamationmark.triangle",
                 description: Text(problem.message)
             )
@@ -89,7 +89,7 @@ struct SkillBackupLibraryView: View {
     private var loadedContent: some View {
         if model.backups.isEmpty, model.recoverableDeletions.isEmpty {
             ContentUnavailableView(
-                localized("No backups"),
+                String(localized: "No backups", bundle: .module),
                 systemImage: "archivebox",
                 description: Text("Deleting a managed Skill creates a verified backup here.", bundle: .module)
             )
@@ -123,7 +123,7 @@ struct SkillBackupLibraryView: View {
                 .frame(width: 18)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: localized(readback.status.displayName))
+                Text(verbatim: deletionStatusText(readback.status))
                     .font(.headline)
                 Text("Skill \(readback.skillID.directoryName)", bundle: .module)
                     .font(.caption.monospaced())
@@ -159,7 +159,7 @@ struct SkillBackupLibraryView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 8) {
-                Text(verbatim: localized(item.availability.displayName))
+                Text(verbatim: backupAvailabilityText(item.availability))
                     if let summary = item.summary {
                         Text(summary.content.contentFingerprint.shortDisplayName)
                         Text(summary.content.statistics.byteCountDescription)
@@ -225,8 +225,27 @@ struct SkillBackupLibraryView: View {
         )
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func deletionStatusText(_ status: SkillDeletionStatus) -> String {
+        return switch status {
+        case .ready: String(localized: "Ready", bundle: .module)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
+        case .needsRepair: String(localized: "Needs repair", bundle: .module)
+        case .completed: String(localized: "Completed", bundle: .module)
+        case .cleanupPending: String(localized: "Cleanup pending", bundle: .module)
+        case .rolledBack: String(localized: "Rolled back", bundle: .module)
+        }
+    }
+
+    private func backupAvailabilityText(_ availability: SkillBackupCatalogAvailability) -> String {
+        return switch availability {
+        case .available: String(localized: "Available", bundle: .module)
+        case .preparing: String(localized: "Preparing", bundle: .module)
+        case .pruning: String(localized: "Cleaning up", bundle: .module)
+        case .needsRepair: String(localized: "Needs repair", bundle: .module)
+        case .corrupt: String(localized: "Corrupt", bundle: .module)
+        case .permissionDenied: String(localized: "Permission required", bundle: .module)
+        case .unavailable: String(localized: "Unavailable", bundle: .module)
+        }
     }
 }
 
@@ -251,7 +270,7 @@ private struct SkillRestoreConfirmationView: View {
             }
 
             if model.isRestoring {
-                ProgressView(localized("Restoring verified backup…"))
+                ProgressView(String(localized: "Restoring verified backup…", bundle: .module))
                     .accessibilityLabel(Text("Restoring verified Skill backup", bundle: .module))
             }
             if let problem = model.problem {
@@ -287,10 +306,9 @@ private struct SkillRestoreConfirmationView: View {
                     Text("Target Skill ID", bundle: .module)
                 }
                 LabeledContent {
-                    Text(verbatim: localized(
-                        pending.preview.targetSkillID == pending.preview.originalSkillID
-                            ? "Original identity" : "Independent Skill"
-                    ))
+                    Text(verbatim: pending.preview.targetSkillID == pending.preview.originalSkillID
+                        ? String(localized: "Original identity", bundle: .module)
+                        : String(localized: "Independent Skill", bundle: .module))
                 } label: {
                     Text("Restore mode", bundle: .module)
                 }
@@ -353,7 +371,7 @@ private struct SkillRestoreConfirmationView: View {
     private func resultContent(_ result: SkillRestoreResult) -> some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 8) {
-                Text(verbatim: localized(result.status.displayName))
+                Text(verbatim: restoreStatusText(result.status))
                     .font(.headline)
                 LabeledContent {
                     Text(result.restoredSkillID.directoryName)
@@ -362,7 +380,7 @@ private struct SkillRestoreConfirmationView: View {
                 }
                 ForEach(result.warnings, id: \.self) { warning in
                     Label {
-                        Text(verbatim: localized(skillRestoreWarningDescription(warning)))
+                        Text(verbatim: restoreWarningText(warning))
                     } icon: {
                         Image(systemName: "exclamationmark.triangle")
                     }
@@ -417,7 +435,31 @@ private struct SkillRestoreConfirmationView: View {
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func restoreStatusText(_ status: SkillRestoreStatus) -> String {
+        return switch status {
+        case .ready: String(localized: "Ready to restore", bundle: .module)
+        case .noOp: String(localized: "Matching Skill already exists", bundle: .module)
+        case .completed: String(localized: "Restored", bundle: .module)
+        case .restoredUndistributed: String(localized: "Restored without Agent targets", bundle: .module)
+        }
+    }
+
+    private func restoreWarningText(_ warning: String) -> String {
+        switch warning {
+        case "distribution_conflict":
+            return String(localized: "The original Agent targets conflict with current managed content.", bundle: .module)
+        case "source_conflict":
+            return String(localized: "The original repository identity is already used by another Skill.", bundle: .module)
+        case "source_unavailable":
+            return String(localized: "The original source could not be restored.", bundle: .module)
+        default:
+            if warning.hasPrefix("alias_conflict:") {
+                return String(localized: "A provider alias is already used and was not restored.", bundle: .module)
+            }
+            if warning.hasPrefix("origin_conflict:") {
+                return String(localized: "A local origin is already used and was not restored.", bundle: .module)
+            }
+            return warning
+        }
     }
 }

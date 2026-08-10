@@ -34,8 +34,8 @@ struct SkillListRow: View {
             HStack(spacing: 8) {
                 ForEach(data.sources) { label in
                     Image(systemName: label.systemImage)
-                        .help(localized(label.text))
-                        .accessibilityLabel(Text("Source: \(localized(label.text))", bundle: .module))
+                        .help(Text(verbatim: sourceText(label)))
+                        .accessibilityLabel(Text("Source: \(sourceText(label))", bundle: .module))
                 }
                 if let agentCount = data.agentCount {
                     Text(SkillListAgentSummary.text(count: agentCount))
@@ -78,8 +78,18 @@ struct SkillListRow: View {
         }
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
+    private func sourceText(_ label: SkillListSourceLabel) -> String {
+        guard let source = label.knownSource else { return label.text }
+        switch source {
+        case .local:
+            return String(localized: "Local", bundle: .module)
+        case .repository:
+            return String(localized: "Repository", bundle: .module)
+        case .clawHub:
+            return String(localized: "ClawHub", bundle: .module)
+        case .skillsSh:
+            return String(localized: "skills.sh", bundle: .module)
+        }
     }
 }
 

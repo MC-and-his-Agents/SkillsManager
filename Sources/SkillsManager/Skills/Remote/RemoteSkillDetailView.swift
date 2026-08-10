@@ -22,7 +22,7 @@ struct RemoteSkillDetailView: View {
             .navigationSubtitle(String(localized: "ClawHub", bundle: .module))
         } else {
             ContentUnavailableView(
-                "Select a skill",
+                String(localized: "Select a skill", bundle: .module),
                 systemImage: "sparkles",
                 description: Text("Pick a skill from ClawHub.", bundle: .module)
             )
@@ -46,11 +46,11 @@ struct RemoteSkillDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             headerView(for: skill)
             Label {
-                Text(localized(ClawdhubAvailabilityPresentation.title))
+                Text("ClawHub unavailable", bundle: .module)
             } icon: {
                 Image(systemName: "exclamationmark.triangle")
             }
-            Text(localized(ClawdhubAvailabilityPresentation.detail))
+            Text("Try again without affecting your local Skills.", bundle: .module)
                 .foregroundStyle(.secondary)
             retryButton
             Spacer()
@@ -65,7 +65,7 @@ struct RemoteSkillDetailView: View {
                 if store.detailState == .cachedUnavailable {
                     HStack {
                         Label {
-                            Text(localized(ClawdhubAvailabilityPresentation.cachedDetail))
+                            Text("ClawHub unavailable — cached content may be out of date.", bundle: .module)
                         } icon: {
                             Image(systemName: "exclamationmark.triangle")
                         }
@@ -167,7 +167,4 @@ struct RemoteSkillDetailView: View {
         return nil
     }
 
-    private func localized(_ value: String) -> String {
-        String(localized: String.LocalizationValue(value), bundle: .module)
-    }
 }
