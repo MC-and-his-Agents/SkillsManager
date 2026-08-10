@@ -41,7 +41,7 @@ struct CustomRepositoryCandidateDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                SkillResultCenterBanner(skillID: candidate.resultSubjectID)
+                SkillResultCenterBanner(subject: .repository(candidate.id))
                 Text(verbatim: candidate.displayName).font(.largeTitle.bold())
                 HStack(spacing: 6) {
                     TagView(localized: "Available", systemImage: "arrow.down.circle")

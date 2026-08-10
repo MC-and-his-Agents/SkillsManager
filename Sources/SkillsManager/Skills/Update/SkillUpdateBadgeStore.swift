@@ -62,10 +62,12 @@ import Observation
     }
 
     /// 详情更新检查结果回填，避免重复网络请求。
-    func backfill(_ skill: Skill, latestVersion: String?) {
-        guard let latest = latestVersion,
+    func backfill(_ skill: Skill, latestVersion: String?, generation: UInt64) {
+        guard generation == refreshGeneration,
+              let latest = latestVersion,
               !latest.isEmpty,
               let installed = skill.clawdhubVersion else { return }
+        inFlight[skill.id] = nil
         badges[skill.id] = SkillVersionComparison.isNewer(latest, than: installed)
             ? .updateAvailable(version: latest)
             : .upToDate

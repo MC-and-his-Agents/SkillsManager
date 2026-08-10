@@ -9,28 +9,30 @@ import SwiftUI
 /// 新结果覆盖，banner 组件按 skillID 匹配显示，跨视图重建不丢失。
 @MainActor
 @Observable final class SkillResultCenter {
+    enum Subject: Hashable {
+        case managed(String)
+        case discovery(SkillDiscoveryItemID)
+        case clawHub(String)
+        case skillsSh(SkillsShSearchResultID)
+        case repository(CustomRepositoryCandidateID)
+    }
+
     struct Entry: Equatable {
         let id = UUID()
-        let skillID: String
+        let subject: Subject
         let text: String
         let systemImage: String
         let tint: Color
     }
 
     private(set) var current: Entry?
-    private let autoDismissDelay: Duration
     private var autoDismissTask: Task<Void, Never>?
-
-    init(autoDismissDelay: Duration = .seconds(20)) {
-        self.autoDismissDelay = autoDismissDelay
-    }
 
     func publish(_ entry: Entry) {
         current = entry
         autoDismissTask?.cancel()
-        let delay = autoDismissDelay
         autoDismissTask = Task { [weak self] in
-            try? await Task.sleep(for: delay)
+            try? await Task.sleep(for: .seconds(20))
             guard !Task.isCancelled else { return }
             self?.dismiss(entryID: entry.id)
         }

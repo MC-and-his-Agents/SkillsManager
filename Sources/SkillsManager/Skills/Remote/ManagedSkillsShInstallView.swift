@@ -7,7 +7,7 @@ struct ManagedSkillsShInstallView: View {
     var body: some View {
         ManagedGitHubInstallView(
             request: .skillsSh(item, client: githubClient),
-            subjectID: item.resultID.id
+            subject: .skillsSh(item.resultID)
         )
     }
 }
@@ -27,7 +27,7 @@ struct ManagedCustomRepositoryInstallView: View {
                     slug: slug,
                     client: githubClient
                 ),
-                subjectID: candidate.resultSubjectID
+                subject: .repository(candidate.id)
             )
         } else {
             ContentUnavailableView(
@@ -141,7 +141,7 @@ private struct ManagedGitHubInstallView: View {
     @Environment(SkillResultCenter.self) private var resultCenter
 
     let request: ManagedGitHubInstallRequest
-    let subjectID: String
+    let subject: SkillResultCenter.Subject
 
     @State private var model = ManagedLocalImportViewModel()
     @State private var distributionMode: ManagedInstallDistributionMode = .global
@@ -316,7 +316,7 @@ private struct ManagedGitHubInstallView: View {
                 if let problem = model.problem {
                     resultCenter.publishInstallFailure(
                         localizedManagedLocalImportProblem(problem),
-                        skillID: subjectID
+                        subject: subject
                     )
                     await cleanupCandidate()
                 }
@@ -325,7 +325,7 @@ private struct ManagedGitHubInstallView: View {
                 model.reset()
                 let message = localizedManagedInstallError(error)
                 errorMessage = message
-                resultCenter.publishInstallFailure(message, skillID: subjectID)
+                resultCenter.publishInstallFailure(message, subject: subject)
             }
         }
     }
@@ -340,11 +340,11 @@ private struct ManagedGitHubInstallView: View {
                 await customRepositoryModel.refreshAll()
             }
             if let result = model.result {
-                resultCenter.publishInstallResult(result, skillID: subjectID)
+                resultCenter.publishInstallResult(result, subject: subject)
             } else if let problem = model.problem {
                 let message = localizedManagedLocalImportProblem(problem)
                 errorMessage = message
-                resultCenter.publishInstallFailure(message, skillID: subjectID)
+                resultCenter.publishInstallFailure(message, subject: subject)
             }
         }
     }

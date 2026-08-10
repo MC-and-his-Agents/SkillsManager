@@ -345,6 +345,10 @@ final class SkillsManagerUITests: XCTestCase {
         try requireElement(app.buttons["Close"], surface: "ui-07", app: app)
         try auditSurface("ui-07-install-result", app: app)
         app.buttons["Close"].click()
+        let dismissResult = app.buttons[SkillsManagerUILocators.resultDismiss]
+        try requireElement(dismissResult, surface: "ui-07-result-banner", app: app)
+        dismissResult.click()
+        try waitForDisappearance(dismissResult, surface: "ui-07-result-banner", app: app)
         app.terminate()
 
         let after = try snapshotFilesystem(childHome)

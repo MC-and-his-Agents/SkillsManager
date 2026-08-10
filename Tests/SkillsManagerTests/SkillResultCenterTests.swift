@@ -18,21 +18,7 @@ struct SkillResultCenterTests {
         #expect(center.visible?.id == second.id)
     }
 
-    @Test("an old timer cannot dismiss a newer result")
-    func staleTimerCannotDismissCurrentResult() async throws {
-        let center = SkillResultCenter(autoDismissDelay: .milliseconds(200))
-        let first = entry(text: "First")
-        let second = entry(text: "Second")
-
-        center.publish(first)
-        try await Task.sleep(for: .milliseconds(50))
-        center.publish(second)
-        try await Task.sleep(for: .milliseconds(170))
-
-        #expect(center.visible?.id == second.id)
-    }
-
-    @Test("manual dismissal only affects the matching result")
+    @Test("stale timer or manual dismissal only affects the matching result")
     func dismissalIsIdentityGated() {
         let center = SkillResultCenter()
         let first = entry(text: "First")
@@ -56,21 +42,40 @@ struct SkillResultCenterTests {
             status: .distributed
         )
 
-        center.publishInstallResult(result, skillID: "remote-id")
-        #expect(center.visible?.skillID == "remote-id")
+        center.publishInstallResult(result, subject: .clawHub("remote-id"))
+        #expect(center.visible?.subject == .clawHub("remote-id"))
         #expect(center.visible?.systemImage == "checkmark.seal")
 
-        center.publishInstallFailure("Failed", skillID: "remote-id")
+        center.publishInstallFailure("Failed", subject: .clawHub("remote-id"))
         #expect(center.visible?.text == "Failed")
         #expect(center.visible?.systemImage == "exclamationmark.triangle.fill")
     }
 
+    @Test("provider namespaces and complete skills.sh identities do not collide")
+    func subjectsDoNotCollide() {
+        let first = SkillsShSearchResultID(searchItem(source: "one"))
+        let second = SkillsShSearchResultID(searchItem(source: "two"))
+
+        #expect(SkillResultCenter.Subject.managed("same") != .clawHub("same"))
+        #expect(SkillResultCenter.Subject.skillsSh(first) != .skillsSh(second))
+    }
+
     private func entry(text: String) -> SkillResultCenter.Entry {
         SkillResultCenter.Entry(
-            skillID: "skill-id",
+            subject: .managed("skill-id"),
             text: text,
             systemImage: "checkmark.circle",
             tint: .green
+        )
+    }
+
+    private func searchItem(source: String) -> SkillsShSearchItem {
+        SkillsShSearchItem(
+            id: "same",
+            skillID: "skill",
+            name: "Demo",
+            installs: 0,
+            source: source
         )
     }
 }

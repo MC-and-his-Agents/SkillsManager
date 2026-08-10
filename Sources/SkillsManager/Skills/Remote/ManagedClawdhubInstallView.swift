@@ -198,7 +198,7 @@ struct ManagedClawdhubInstallView: View {
                 if let problem = model.problem {
                     resultCenter.publishInstallFailure(
                         localizedManagedLocalImportProblem(problem),
-                        skillID: skill.id
+                        subject: .clawHub(skill.id)
                     )
                     await cleanupCandidate()
                 }
@@ -208,7 +208,7 @@ struct ManagedClawdhubInstallView: View {
                 model.reset()
                 let message = localizedManagedInstallError(error)
                 errorMessage = message
-                resultCenter.publishInstallFailure(message, skillID: skill.id)
+                resultCenter.publishInstallFailure(message, subject: .clawHub(skill.id))
             }
         }
     }
@@ -225,11 +225,11 @@ struct ManagedClawdhubInstallView: View {
             }
             if let result = model.result {
                 didInstall = true
-                resultCenter.publishInstallResult(result, skillID: skill.id)
+                resultCenter.publishInstallResult(result, subject: .clawHub(skill.id))
             } else if let problem = model.problem {
                 let message = localizedManagedLocalImportProblem(problem)
                 errorMessage = message
-                resultCenter.publishInstallFailure(message, skillID: skill.id)
+                resultCenter.publishInstallFailure(message, subject: .clawHub(skill.id))
             }
         }
     }

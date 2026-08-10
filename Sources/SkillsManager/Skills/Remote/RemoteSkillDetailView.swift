@@ -9,7 +9,7 @@ struct RemoteSkillDetailView: View {
     var body: some View {
         if let skill = store.selectedSkill {
             VStack(spacing: 0) {
-                SkillResultCenterBanner(skillID: skill.id)
+                SkillResultCenterBanner(subject: .clawHub(skill.id))
                     .padding([.top, .horizontal])
                 Group {
                     switch store.detailState {

@@ -40,11 +40,11 @@ struct SkillResultBanner: View {
 struct SkillResultCenterBanner: View {
     @Environment(SkillResultCenter.self) private var resultCenter
 
-    let skillID: String
+    let subject: SkillResultCenter.Subject
 
     var body: some View {
         Group {
-            if let entry = resultCenter.visible, entry.skillID == skillID {
+            if let entry = resultCenter.visible, entry.subject == subject {
                 SkillResultBanner(
                     message: entry.text,
                     systemImage: entry.systemImage,
@@ -69,8 +69,7 @@ struct SkillDetailFeedbackBanner: View {
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(SkillResultCenter.self) private var resultCenter
 
-    /// 当前详情视图对应的 Skill 身份（managed 用 `Skill.id`，discovered 用 item id）。
-    let skillID: String
+    let subject: SkillResultCenter.Subject
     /// 视图本地错误通道（如 discovered 详情预览/导入流程错误）。
     var extraErrorMessage: String? = nil
 
@@ -136,11 +135,11 @@ struct SkillDetailFeedbackBanner: View {
     }
 
     var body: some View {
-        SkillResultCenterBanner(skillID: skillID)
+        SkillResultCenterBanner(subject: subject)
         .onChange(of: feedback) { _, newValue in
             guard let newValue else { return }
             resultCenter.publish(SkillResultCenter.Entry(
-                skillID: skillID,
+                subject: subject,
                 text: newValue.text,
                 systemImage: newValue.systemImage,
                 tint: newValue.tint
@@ -150,19 +149,19 @@ struct SkillDetailFeedbackBanner: View {
 }
 
 extension SkillResultCenter {
-    func publishInstallResult(_ result: ManagedLocalImportResult, skillID: String) {
+    func publishInstallResult(_ result: ManagedLocalImportResult, subject: Subject) {
         let presentation = managedInstallResultPresentation(result)
         publish(Entry(
-            skillID: skillID,
+            subject: subject,
             text: presentation.message,
             systemImage: presentation.systemImage,
             tint: result.status.requiresAttention ? .orange : .green
         ))
     }
 
-    func publishInstallFailure(_ message: String, skillID: String) {
+    func publishInstallFailure(_ message: String, subject: Subject) {
         publish(Entry(
-            skillID: skillID,
+            subject: subject,
             text: message,
             systemImage: "exclamationmark.triangle.fill",
             tint: .orange
