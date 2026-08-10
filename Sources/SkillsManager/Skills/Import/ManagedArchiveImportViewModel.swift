@@ -85,7 +85,7 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
         generation &+= 1
         guard let writer else {
             service = nil
-            errorMessage = "The managed library session is unavailable."
+            errorMessage = String(localized: "The managed library session is unavailable.", bundle: .module)
             return
         }
         service = ManagedInstallService(dependencies: .live(writer: writer))
@@ -140,7 +140,7 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
         do {
             try session.requireCurrent()
         } catch {
-            errorMessage = "The archive preview is no longer available."
+            errorMessage = String(localized: "The archive preview is no longer available.", bundle: .module)
             state = .selecting
             return
         }
@@ -156,7 +156,8 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
                 previewItems.append(.init(
                     candidate: candidate,
                     preview: nil,
-                    reason: candidate.blockedReason ?? "This candidate is not importable."
+                    reason: candidate.blockedReason
+                        ?? String(localized: "This candidate is not importable.", bundle: .module)
                 ))
                 continue
             }
@@ -213,7 +214,9 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
                     id: item.id,
                     canonicalSubpath: item.candidate.canonicalSubpath,
                     displayName: item.candidate.displayName,
-                    management: .skipped(item.reason ?? "This candidate was skipped.")
+                    management: .skipped(
+                        item.reason ?? String(localized: "This candidate was skipped.", bundle: .module)
+                    )
                 )
                 resultItems.append(result)
                 summary = ManagedArchiveImportSummary(items: resultItems)
@@ -273,9 +276,9 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
         state = .idle
     }
 
-    nonisolated static func message(for error: Error) -> String {
+    @MainActor static func message(for error: Error) -> String {
         if let error = error as? ManagedLocalImportProblem {
-            return error.errorDescription ?? "The import could not be completed safely."
+            return localizedManagedLocalImportProblem(error)
         }
         if let error = error as? SkillImportValidationError {
             return error.localizedDescription

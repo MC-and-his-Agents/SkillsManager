@@ -31,8 +31,11 @@ struct SkillUpdateCheckView: View {
                     }
                         .foregroundStyle(result.requiresAttention ? .orange : .secondary)
                         .accessibilityLabel(Text(
-                            "Update result: \(executionStatusText(result))",
-                            bundle: .module
+                            String(
+                                localized: LocalizedStringResource( "Update result: %@",
+                                defaultValue: "Update result: \(executionStatusText(result))",
+                                bundle: .module
+                            ))
                         ))
                 }
             }
@@ -82,8 +85,11 @@ struct SkillUpdateCheckView: View {
                 }
                 .font(.headline)
                 .accessibilityLabel(Text(
-                    "Update status: \(checkStatusText(snapshot.status))",
-                    bundle: .module
+                    String(
+                        localized: LocalizedStringResource( "Update status: %@",
+                        defaultValue: "Update status: \(checkStatusText(snapshot.status))",
+                        bundle: .module
+                    ))
                 ))
                 Text(
                     Date(
@@ -220,7 +226,11 @@ private struct SkillUpdateConfirmationView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Update \(preview.displayName)", bundle: .module)
+            Text(String(
+                localized: LocalizedStringResource( "Update %@",
+                defaultValue: "Update \(preview.displayName)",
+                bundle: .module
+            )))
                 .font(.title2.bold())
             LabeledContent("Current source", value: preview.currentSourceDescription)
             LabeledContent("Candidate source", value: preview.candidateSourceDescription)
@@ -243,7 +253,11 @@ private struct SkillUpdateConfirmationView: View {
                         Text("Cancel this update", bundle: .module)
                             .tag(ManagedSkillUpdateCopyDecision.cancel as ManagedSkillUpdateCopyDecision?)
                     }
-                    .accessibilityLabel(Text("Action for \(choice.targetDescription)", bundle: .module))
+                    .accessibilityLabel(Text(String(
+                        localized: LocalizedStringResource( "Action for %@",
+                        defaultValue: "Action for \(choice.targetDescription)",
+                        bundle: .module
+                    ))))
                 }
             }
 

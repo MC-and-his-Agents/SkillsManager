@@ -53,7 +53,7 @@ struct ManagedLocalImportPreviewView: View {
             }
 
             if let problem = model.problem {
-                Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
+                Label(localizedManagedLocalImportProblem(problem), systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
             }
 
@@ -164,7 +164,7 @@ struct ManagedLocalImportPreviewView: View {
                 Image(systemName: "exclamationmark.triangle")
             }
             ForEach(Array(preview.plan.conflicts.enumerated()), id: \.offset) { _, conflict in
-                Text("\(conflict.reason.rawValue): \(conflict.canonicalLocator)", bundle: .module)
+                Text(verbatim: "\(conflict.reason.localizedDisplayName): \(conflict.canonicalLocator)")
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
             }

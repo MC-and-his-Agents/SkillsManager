@@ -104,7 +104,7 @@ actor ManagedSkillUpdateExecutionService {
                 candidate: candidate
             ),
             candidateSourceDescription: candidate.locator.updateDisplayName,
-            distributionDescription: distributionDescription(configuration),
+            distributionDescription: await distributionDescription(configuration),
             currentFingerprint: readback.domain.payload.skill.contentFingerprint,
             candidate: candidate,
             copyChoices: choices
@@ -461,20 +461,31 @@ actor ManagedSkillUpdateExecutionService {
         }
     }
 
+    @MainActor
     private func distributionDescription(
         _ configuration: DistributionDesiredConfiguration
     ) -> String {
-        let scope = switch configuration.scope {
+        let scope: String
+        switch configuration.scope {
         case .disabled:
-            "Disabled"
+            scope = String(localized: "Disabled", bundle: .module)
         case .global:
-            "Global"
+            scope = String(localized: "Global", bundle: .module)
         case .agents(let platforms, _):
-            "Agents: " + platforms.sorted {
+            let agents = platforms.sorted {
                 $0.storageKey.utf8.lexicographicallyPrecedes($1.storageKey.utf8)
             }.map(\.rawValue).joined(separator: ", ")
+            scope = String(
+                localized: LocalizedStringResource( "Agents: %@",
+                defaultValue: "Agents: \(agents)",
+                bundle: .module
+            ))
         }
-        return "\(scope) · \(configuration.syncMode.displayName)"
+        return String(
+            localized: LocalizedStringResource( "%@ · %@",
+            defaultValue: "\(scope) · \(configuration.syncMode.displayName)",
+            bundle: .module
+        ))
     }
 
 }

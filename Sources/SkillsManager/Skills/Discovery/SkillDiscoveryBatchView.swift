@@ -75,7 +75,13 @@ struct SkillDiscoveryBatchView: View {
                     .keyboardShortcut(.delete, modifiers: [.command])
                     .disabled(model.selectedCount == 0)
                 Spacer()
-                Text("\(model.selectedCount) selected", bundle: .module)
+                Text(
+                    String(
+                        localized: LocalizedStringResource( "%lld selected",
+                        defaultValue: "\(model.selectedCount) selected",
+                        bundle: .module
+                    ))
+                )
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -126,7 +132,13 @@ struct SkillDiscoveryBatchView: View {
                             .textSelection(.enabled)
                     }
                     if candidate.aliases.count > 1 {
-                        Text("+\(candidate.aliases.count - 1) verified alias locations", bundle: .module)
+                        Text(
+                            String(
+                                localized: LocalizedStringResource( "+%lld verified alias locations",
+                                defaultValue: "+\(candidate.aliases.count - 1) verified alias locations",
+                                bundle: .module
+                            ))
+                        )
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -303,26 +315,11 @@ struct SkillDiscoveryBatchView: View {
 
     private var progressAccessibilityValue: String {
         let total = model.preview?.items.count ?? model.selectedCount
-        return localizedTemplate(
-            LocalizedStringResource(
-                "%arg of %arg",
-                defaultValue: "%arg of %arg",
-                bundle: .module
-            ),
-            arguments: [String(model.resultItems.count), String(total)]
-        )
-    }
-
-    private func localizedTemplate(
-        _ resource: LocalizedStringResource,
-        arguments: [String]
-    ) -> String {
-        var value = String(localized: resource)
-        for argument in arguments {
-            guard let range = value.range(of: "%arg") else { break }
-            value.replaceSubrange(range, with: argument)
-        }
-        return value
+        return String(
+            localized: LocalizedStringResource( "%lld of %lld",
+            defaultValue: "\(model.resultItems.count) of \(total)",
+            bundle: .module
+        ))
     }
 
     @ViewBuilder
@@ -385,13 +382,17 @@ struct SkillDiscoveryBatchView: View {
     private var summaryText: String {
         switch model.state {
         case .completed:
-            "\(model.summary.created) \(String(localized: "created", bundle: .module)) · "
-                + "\(model.summary.claimed) \(String(localized: "claimed", bundle: .module)) · "
-                + "\(model.summary.skipped) \(String(localized: "skipped", bundle: .module)) · "
-                + "\(model.summary.failed) \(String(localized: "failed", bundle: .module))"
+            String(
+                localized: LocalizedStringResource( "%lld created · %lld claimed · %lld skipped · %lld failed",
+                defaultValue: "\(model.summary.created) created · \(model.summary.claimed) claimed · \(model.summary.skipped) skipped · \(model.summary.failed) failed",
+                bundle: .module
+            ))
         default:
-            "\(model.availableCandidateCount) \(String(localized: "candidates available", bundle: .module)) · "
-                + "\(model.selectedCount) \(String(localized: "selected", bundle: .module))"
+            String(
+                localized: LocalizedStringResource( "%lld candidates available · %lld selected",
+                defaultValue: "\(model.availableCandidateCount) candidates available · \(model.selectedCount) selected",
+                bundle: .module
+            ))
         }
     }
 
@@ -444,8 +445,16 @@ struct SkillDiscoveryBatchView: View {
         case .created: String(localized: "Created", bundle: .module)
         case .claimed: String(localized: "Claimed; existing bindings preserved", bundle: .module)
         case .alreadyManaged: String(localized: "Already managed", bundle: .module)
-        case .failed(let message): "\(String(localized: "Failed", bundle: .module)): \(message)"
-        case .skipped(let reason): "\(String(localized: "Skipped", bundle: .module)): \(reason)"
+        case .failed(let message): String(
+            localized: LocalizedStringResource( "Failed: %@",
+            defaultValue: "Failed: \(message)",
+            bundle: .module
+        ))
+        case .skipped(let reason): String(
+            localized: LocalizedStringResource( "Skipped: %@",
+            defaultValue: "Skipped: \(reason)",
+            bundle: .module
+        ))
         }
     }
 
@@ -456,7 +465,11 @@ struct SkillDiscoveryBatchView: View {
         case .distributed: String(localized: "Distributed", bundle: .module)
         case .noChanges: String(localized: "No changes", bundle: .module)
         case .managedUndistributed: String(localized: "Managed but not enabled", bundle: .module)
-        case .indeterminate(let message): "\(String(localized: "Needs attention", bundle: .module)): \(message)"
+        case .indeterminate(let message): String(
+            localized: LocalizedStringResource( "Needs attention: %@",
+            defaultValue: "Needs attention: \(message)",
+            bundle: .module
+        ))
         case .notApplicable(let message): message
         }
     }

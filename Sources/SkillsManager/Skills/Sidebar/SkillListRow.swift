@@ -35,7 +35,13 @@ struct SkillListRow: View {
                 ForEach(data.sources) { label in
                     Image(systemName: label.systemImage)
                         .help(Text(verbatim: sourceText(label)))
-                        .accessibilityLabel(Text("Source: \(sourceText(label))", bundle: .module))
+                        .accessibilityLabel(Text(
+                            String(
+                                localized: LocalizedStringResource( "Source: %@",
+                                defaultValue: "Source: \(sourceText(label))",
+                                bundle: .module
+                            ))
+                        ))
                 }
                 if let agentCount = data.agentCount {
                     Text(SkillListAgentSummary.text(count: agentCount))
@@ -59,13 +65,21 @@ struct SkillListRow: View {
         switch badge {
         case .updateAvailable(let version):
             Label {
-                Text("↻ v\(version)", bundle: .module)
+                Text(String(
+                    localized: LocalizedStringResource( "↻ v%@",
+                    defaultValue: "↻ v\(version)",
+                    bundle: .module
+                )))
             } icon: {
                 Image(systemName: "arrow.triangle.2.circlepath")
             }
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.green)
-                .accessibilityLabel(Text("Update available, version \(version)", bundle: .module))
+                .accessibilityLabel(Text(String(
+                    localized: LocalizedStringResource( "Update available, version %@",
+                    defaultValue: "Update available, version \(version)",
+                    bundle: .module
+                ))))
         case .needsAttention:
             Label {
                 Text("Needs Repair", bundle: .module)

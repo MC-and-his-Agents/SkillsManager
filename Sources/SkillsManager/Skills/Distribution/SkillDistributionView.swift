@@ -56,8 +56,11 @@ struct SkillDistributionView: View {
                 }
                     .font(.headline)
                     .accessibilityLabel(Text(
-                        "Distribution status: \(statusText(status))",
-                        bundle: .module
+                        String(
+                            localized: LocalizedStringResource( "Distribution status: %@",
+                            defaultValue: "Distribution status: \(statusText(status))",
+                            bundle: .module
+                        ))
                     ))
                 Spacer()
                 Button {
@@ -148,8 +151,20 @@ struct SkillDistributionView: View {
                         Image(systemName: "arrow.triangle.branch")
                     }
                         .font(.headline)
-                    Text("Based on \(lineage.parentLabel)", bundle: .module)
-                    Text("Source \(lineage.fingerprintLabel)", bundle: .module)
+                    Text(
+                        String(
+                            localized: LocalizedStringResource( "Based on %@",
+                            defaultValue: "Based on \(lineage.parentLabel)",
+                            bundle: .module
+                        ))
+                    )
+                    Text(
+                        String(
+                            localized: LocalizedStringResource( "Source %@",
+                            defaultValue: "Source \(lineage.fingerprintLabel)",
+                            bundle: .module
+                        ))
+                    )
                         .font(.caption.monospaced())
                     Text(
                         Date(
@@ -229,14 +244,15 @@ struct SkillDistributionView: View {
             .pickerStyle(.segmented)
             .disabled(model.isApplying)
             .accessibilityValue(Text(verbatim: syncModeText(model.selectedSyncMode)))
-            Text(
-                model.selectedSyncMode == .symlink
-                    ? "Agents use the managed Skill directly."
-                    : "Each target receives a managed Copy."
-                , bundle: .module
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            if model.selectedSyncMode == .symlink {
+                Text("Agents use the managed Skill directly.", bundle: .module)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Each target receives a managed Copy.", bundle: .module)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -273,16 +289,30 @@ struct SkillDistributionView: View {
                     }
                 }
                 .accessibilityLabel(Text(
-                    "\(platformText(row.platform)) distribution",
-                    bundle: .module
+                    String(
+                        localized: LocalizedStringResource( "%@ distribution",
+                        defaultValue: "\(platformText(row.platform)) distribution",
+                        bundle: .module
+                    ))
                 ))
                 .accessibilityValue(Text(
-                    row.isSelected
-                        ? "Selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")"
-                        : "Not selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")",
-                    bundle: .module
+                    String(
+                        localized: LocalizedStringResource( row.isSelected
+                            ? "Selected; currently %@"
+                            : "Not selected; currently %@",
+                        defaultValue: row.isSelected
+                            ? "Selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")"
+                            : "Not selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")",
+                        bundle: .module
+                    ))
                 ))
-                .accessibilityHint(Text("Target: \(row.locator)", bundle: .module))
+                .accessibilityHint(Text(
+                    String(
+                        localized: LocalizedStringResource( "Target: %@",
+                        defaultValue: "Target: \(row.locator)",
+                        bundle: .module
+                    ))
+                ))
                 .disabled(model.isApplying)
             }
         }
@@ -440,7 +470,7 @@ private struct SkillDistributionPreviewView: View {
                 .font(.headline)
             ForEach(Array(preview.plan.conflicts.enumerated()), id: \.offset) { _, conflict in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: conflictReasonText(conflict.reason))
+                    Text(verbatim: conflict.reason.localizedDisplayName)
                     Text(conflict.canonicalLocator)
                         .font(.callout.monospaced())
                         .foregroundStyle(.secondary)
@@ -451,11 +481,19 @@ private struct SkillDistributionPreviewView: View {
 
             ForEach(preview.driftDecisions) { decision in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Local changes at \(decision.locator)", bundle: .module)
+                    Text(
+                        String(
+                            localized: LocalizedStringResource( "Local changes at %@",
+                            defaultValue: "Local changes at \(decision.locator)",
+                            bundle: .module
+                        ))
+                    )
                         .font(.headline)
                     Text(
-                        "Discard restores the managed Skill and cannot be undone. "
-                            + "Choose Fork to preserve the local content independently."
+                        String(
+                            localized: "Discard restores the managed Skill and cannot be undone. Choose Fork to preserve the local content independently.",
+                            bundle: .module
+                        )
                     )
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -499,23 +537,4 @@ private struct SkillDistributionPreviewView: View {
         }
     }
 
-    private func conflictReasonText(_ reason: DistributionConflictReason) -> String {
-        return switch reason {
-        case .invalidDesiredScope: String(localized: "The selected scope is invalid.", bundle: .module)
-        case .unsupportedAdapter: String(localized: "The selected Agent is unsupported.", bundle: .module)
-        case .globalCoverageMismatch: String(localized: "The global Agent coverage is inconsistent.", bundle: .module)
-        case .dedicatedTargetUnavailable: String(localized: "An Agent-specific target is unavailable.", bundle: .module)
-        case .targetUnavailable: String(localized: "The target folder is unavailable.", bundle: .module)
-        case .currentBindingMissing: String(localized: "A saved link is missing.", bundle: .module)
-        case .managedTargetMismatch: String(localized: "The saved link points to a different managed Skill.", bundle: .module)
-        case .unknownObject: String(localized: "An unmanaged item already exists at this target.", bundle: .module)
-        case .slugOccupied: String(localized: "Another managed Skill already uses this name.", bundle: .module)
-        case .copyContentDrift: String(localized: "The managed copy contains local content changes.", bundle: .module)
-        case .copyPhysicalDrift: String(localized: "The managed copy contains unexpected files or permissions.", bundle: .module)
-        case .copyRootReplaced: String(localized: "The managed copy root was replaced.", bundle: .module)
-        case .copyTargetReplaced: String(localized: "The managed copy directory was replaced.", bundle: .module)
-        case .copyTargetMissing: String(localized: "The managed copy is missing.", bundle: .module)
-        case .copyBaselineInvalid: String(localized: "The managed copy baseline is unavailable or invalid.", bundle: .module)
-        }
-    }
 }

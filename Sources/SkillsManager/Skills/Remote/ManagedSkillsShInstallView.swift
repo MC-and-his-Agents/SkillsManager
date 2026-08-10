@@ -46,7 +46,7 @@ nonisolated struct ManagedGitHubResolvedInstall: Sendable {
     let sourceInput: ManagedSourceInstallInput
 }
 
-nonisolated struct ManagedGitHubInstallRequest: Sendable {
+@MainActor struct ManagedGitHubInstallRequest: Sendable {
     let displayName: String
     let detail: String
     let resolve: @Sendable () async throws -> ManagedGitHubResolvedInstall
@@ -59,7 +59,11 @@ nonisolated struct ManagedGitHubInstallRequest: Sendable {
     ) -> Self {
         Self(
             displayName: item.name,
-            detail: "verify \(item.source), find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
+            detail: String(
+                localized: LocalizedStringResource( "verify %@, find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
+                defaultValue: "verify \(item.source), find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
+                bundle: .module
+            )),
             resolve: {
                 let source = try await client.resolve(item.id, item.source, item.skillID)
                 let updateSource = SkillsShResolvedGitHubUpdateSource(
@@ -104,7 +108,11 @@ nonisolated struct ManagedGitHubInstallRequest: Sendable {
     ) -> Self {
         Self(
             displayName: candidate.displayName,
-            detail: "verify \(candidate.repository.displayName) at the discovered commit and exact Skill subpath.",
+            detail: String(
+                localized: LocalizedStringResource( "verify %@ at the discovered commit and exact Skill subpath.",
+                defaultValue: "verify \(candidate.repository.displayName) at the discovered commit and exact Skill subpath.",
+                bundle: .module
+            )),
             resolve: {
                 let source = try await client.resolveCustomRepository(candidate.snapshot)
                 return ManagedGitHubResolvedInstall(
@@ -156,7 +164,7 @@ private struct ManagedGitHubInstallView: View {
                     ProgressView(String(localized: "Resolving and validating GitHub source…", bundle: .module))
                 }
                 if let problem = model.problem {
-                    problemLabel(problem.localizedDescription)
+                    problemLabel(localizedManagedLocalImportProblem(problem))
                 } else if let errorMessage {
                     problemLabel(errorMessage)
                 }
@@ -186,10 +194,22 @@ private struct ManagedGitHubInstallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Resolve and Install \(request.displayName)", bundle: .module)
+            Text(
+                String(
+                    localized: LocalizedStringResource( "Resolve and Install %@",
+                    defaultValue: "Resolve and Install \(request.displayName)",
+                    bundle: .module
+                ))
+            )
                 .font(.title.bold())
-            Text("Skills Manager will \(request.detail)", bundle: .module)
-            .foregroundStyle(.secondary)
+            Text(
+                verbatim: String(
+                    localized: LocalizedStringResource( "Skills Manager will %@",
+                    defaultValue: "Skills Manager will \(request.detail)",
+                    bundle: .module
+                ))
+            )
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -310,7 +330,7 @@ private struct ManagedGitHubInstallView: View {
                 await customRepositoryModel.refreshAll()
             }
             if let problem = model.problem {
-                errorMessage = problem.localizedDescription
+                errorMessage = localizedManagedLocalImportProblem(problem)
             }
         }
     }

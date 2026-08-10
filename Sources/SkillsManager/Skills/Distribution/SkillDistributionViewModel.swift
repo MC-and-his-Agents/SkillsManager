@@ -2,7 +2,9 @@ import Foundation
 import Observation
 @MainActor
 @Observable final class SkillDistributionViewModel {
-    private(set) var loadState: LoadState = .blocked("Preparing the managed library…")
+    private(set) var loadState: LoadState = .blocked(
+        String(localized: "Preparing the managed library…", bundle: .module)
+    )
     private(set) var activeSkillID: SkillID?
     private(set) var activeDisplayName = ""
     private(set) var currentBindings: [DistributionBinding] = []
@@ -25,7 +27,7 @@ import Observation
 
     private var dependencies: SkillDistributionDependencies?
     private var runtimeReady = false
-    private var runtimeBlockMessage = "Preparing the managed library…"
+    private var runtimeBlockMessage = String(localized: "Preparing the managed library…", bundle: .module)
     private(set) var refreshGeneration: UInt64 = 0
 
     var canPreparePreview: Bool {
@@ -283,7 +285,7 @@ import Observation
             if currentPlan.status == .noOp {
                 pendingPreview = nil
                 await refreshPreservingFeedback(skillID: preview.skillID)
-                successMessage = "No distribution changes were needed."
+                successMessage = String(localized: "No distribution changes were needed.", bundle: .module)
                 return
             }
 
@@ -297,7 +299,10 @@ import Observation
                 return
             }
             await refreshPreservingFeedback(skillID: preview.skillID)
-            successMessage = "Distribution completed and the current state was refreshed."
+            successMessage = String(
+                localized: "Distribution completed and the current state was refreshed.",
+                bundle: .module
+            )
         } catch {
             if !didStartApply, !previewIsCurrent(preview) {
                 if activeSkillID == preview.skillID {
@@ -327,7 +332,10 @@ import Observation
                 return
             }
             await refreshPreservingFeedback(skillID: decision.preview.forkPreview.parentSkillID)
-            successMessage = "Local Copy changes were discarded and restored from the managed Skill."
+            successMessage = String(
+                localized: "Local Copy changes were discarded and restored from the managed Skill.",
+                bundle: .module
+            )
         } catch {
             await finishDecisionFailure(error, decision: decision)
         }
@@ -341,7 +349,7 @@ import Observation
             guard activeSkillID == result.parentSkillID else { return }
             pendingPreview = nil
             await refreshPreservingFeedback(skillID: result.parentSkillID)
-            successMessage = "An independent local Fork was created."
+            successMessage = String(localized: "An independent local Fork was created.", bundle: .module)
             requestedForkChildSkillID = result.childSkillID
             publishedForkSelectionGeneration &+= 1
         } catch {

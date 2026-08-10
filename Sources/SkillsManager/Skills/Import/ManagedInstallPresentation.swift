@@ -21,145 +21,115 @@ func localizedManagedInstallResultMessage(_ result: ManagedLocalImportResult) ->
     let name = result.displayName
     switch result.status {
     case .distributed:
-        return localizedInstallTemplate(
-            LocalizedStringResource(
-                "%arg is ready.",
-                defaultValue: "%arg is ready.",
-                bundle: .module
-            ),
-            arguments: [name]
-        )
+        return String(
+            localized: LocalizedStringResource( "%@ is ready.",
+            defaultValue: "\(name) is ready.",
+            bundle: .module
+        ))
     case .noDistributionChanges:
-        return localizedInstallTemplate(
-            LocalizedStringResource(
-                "%arg is managed.",
-                defaultValue: "%arg is managed.",
-                bundle: .module
-            ),
-            arguments: [name]
-        )
+        return String(
+            localized: LocalizedStringResource( "%@ is managed.",
+            defaultValue: "\(name) is managed.",
+            bundle: .module
+        ))
     case .managedUndistributed:
-        return localizedInstallTemplate(
-            LocalizedStringResource(
-                "%arg is managed; resolve its distribution conflict from details.",
-                defaultValue: "%arg is managed; resolve its distribution conflict from details.",
-                bundle: .module
-            ),
-            arguments: [name]
-        )
+        return String(
+            localized: LocalizedStringResource( "%@ is managed; resolve its distribution conflict from details.",
+            defaultValue: "\(name) is managed; resolve its distribution conflict from details.",
+            bundle: .module
+        ))
     case .managedDistributionIndeterminate:
-        return localizedInstallTemplate(
-            LocalizedStringResource(
-                "%arg is managed, but its Agent state must be confirmed.",
-                defaultValue: "%arg is managed, but its Agent state must be confirmed.",
-                bundle: .module
-            ),
-            arguments: [name]
-        )
+        return String(
+            localized: LocalizedStringResource( "%@ is managed, but its Agent state must be confirmed.",
+            defaultValue: "\(name) is managed, but its Agent state must be confirmed.",
+            bundle: .module
+        ))
     case .managementIndeterminate:
         return String(localized: "Confirm or repair the managed library before retrying.", bundle: .module)
     case .alreadyManaged:
-        return localizedInstallTemplate(
-            LocalizedStringResource(
-                "Use the Skill details to change where %arg is enabled.",
-                defaultValue: "Use the Skill details to change where %arg is enabled.",
-                bundle: .module
-            ),
-            arguments: [name]
-        )
+        return String(
+            localized: LocalizedStringResource( "Use the Skill details to change where %@ is enabled.",
+            defaultValue: "Use the Skill details to change where \(name) is enabled.",
+            bundle: .module
+        ))
     case .updateRequired:
         return String(localized: "The remote source has different content or revision. No files were changed.", bundle: .module)
     case .updated:
-        return localizedInstallTemplate(
-            LocalizedStringResource(
-                "%arg was backed up and updated. Current Agent access was preserved.",
-                defaultValue: "%arg was backed up and updated. Current Agent access was preserved.",
-                bundle: .module
-            ),
-            arguments: [name]
-        )
+        return String(
+            localized: LocalizedStringResource( "%@ was backed up and updated. Current Agent access was preserved.",
+            defaultValue: "\(name) was backed up and updated. Current Agent access was preserved.",
+            bundle: .module
+        ))
     case .updatedDistributionNeedsAttention:
-        return localizedInstallTemplate(
-            LocalizedStringResource(
-                "%arg was updated and backed up. Refresh its distribution from details.",
-                defaultValue: "%arg was updated and backed up. Refresh its distribution from details.",
-                bundle: .module
-            ),
-            arguments: [name]
-        )
+        return String(
+            localized: LocalizedStringResource( "%@ was updated and backed up. Refresh its distribution from details.",
+            defaultValue: "\(name) was updated and backed up. Refresh its distribution from details.",
+            bundle: .module
+        ))
     case .updateIndeterminate:
         return String(localized: "Confirm or repair the managed library before retrying this update.", bundle: .module)
     }
 }
 
 @MainActor
-private func localizedInstallTemplate(
-    _ resource: LocalizedStringResource,
-    arguments: [String]
-) -> String {
-    var value = String(localized: resource)
-    for argument in arguments {
-        guard let range = value.range(of: "%arg") else { break }
-        value.replaceSubrange(range, with: argument)
+func localizedManagedLocalImportProblem(_ problem: ManagedLocalImportProblem) -> String {
+    switch problem {
+    case .emptyAgentSelection:
+        String(localized: "Select at least one Agent.", bundle: .module)
+    case .invalidCandidate:
+        String(localized: "The selected Skill is no longer valid.", bundle: .module)
+    case .operationInProgress:
+        String(localized: "This import is already in progress.", bundle: .module)
+    case .permissionDenied:
+        String(localized: "Skills Manager does not have permission to import this Skill.", bundle: .module)
+    case .previewBlocked:
+        String(localized: "Resolve the distribution conflicts before importing.", bundle: .module)
+    case .previewExpired:
+        String(localized: "The import preview changed. Review it again before importing.", bundle: .module)
+    case .createRolledBack:
+        String(localized: "The Skill was not imported because the managed write was rolled back.", bundle: .module)
+    case .updateRolledBack:
+        String(localized: "The update was rolled back. The previous managed content is still available.", bundle: .module)
+    case .needsRepair:
+        String(localized: "The managed library requires repair before another import can start.", bundle: .module)
+    case .sourceChanged:
+        String(localized: "The selected Skill changed after validation. Choose it again.", bundle: .module)
+    case .tokenExpired:
+        String(localized: "The import preview expired. Prepare a new preview.", bundle: .module)
+    case .providerConflict:
+        String(localized: "The ClawHub source record conflicts with another managed Skill.", bundle: .module)
+    case .providerAliasConflict:
+        String(localized: "This skills.sh result is already linked to a different managed source.", bundle: .module)
+    case .sourceUpdateUnsupportedLocalOrigins:
+        String(localized: "This managed Skill also has local origins and cannot be safely updated from skills.sh.", bundle: .module)
+    case .aliasLimitReached:
+        String(localized: "This managed Skill has reached the Provider alias limit.", bundle: .module)
+    case .failed(let detail):
+        String(localized: LocalizedStringResource( "Import failed: %@", defaultValue: "Import failed: \(detail)", bundle: .module))
+    case .updateFailed(let detail):
+        String(localized: LocalizedStringResource( "Update failed: %@", defaultValue: "Update failed: \(detail)", bundle: .module))
     }
-    return value
 }
 
-nonisolated func managedInstallResultPresentation(
+@MainActor func managedInstallResultPresentation(
     _ result: ManagedLocalImportResult
 ) -> (title: String, systemImage: String, message: String) {
-    switch result.status {
-    case .distributed:
-        ("Installed and enabled", "checkmark.seal", "\(result.displayName) is ready.")
-    case .noDistributionChanges:
-        ("Installed", "checkmark.seal", "\(result.displayName) is managed.")
-    case .managedUndistributed:
-        (
-            "Installed but not enabled",
-            "exclamationmark.triangle",
-            "\(result.displayName) is managed; resolve its distribution conflict from details."
-        )
-    case .managedDistributionIndeterminate:
-        (
-            "Distribution needs attention",
-            "wrench.and.screwdriver",
-            "\(result.displayName) is managed, but its Agent state must be confirmed."
-        )
-    case .managementIndeterminate:
-        (
-            "Install needs attention",
-            "wrench.and.screwdriver",
-            "Confirm or repair the managed library before retrying."
-        )
-    case .alreadyManaged:
-        (
-            "Already managed",
-            "checkmark.circle",
-            "Use the Skill details to change where \(result.displayName) is enabled."
-        )
-    case .updateRequired:
-        (
-            "Update required",
-            "arrow.triangle.2.circlepath",
-            "The remote source has different content or revision. No files were changed."
-        )
-    case .updated:
-        (
-            "Updated",
-            "checkmark.seal",
-            "\(result.displayName) was backed up and updated. Current Agent access was preserved."
-        )
-    case .updatedDistributionNeedsAttention:
-        (
-            "Updated; Agent state needs attention",
-            "exclamationmark.triangle",
-            "\(result.displayName) was updated and backed up. Refresh its distribution from details."
-        )
-    case .updateIndeterminate:
-        (
-            "Update needs confirmation",
-            "wrench.and.screwdriver",
-            "Confirm or repair the managed library before retrying this update."
-        )
+    (
+        localizedManagedInstallResultTitle(result.status),
+        result.status.systemImage,
+        localizedManagedInstallResultMessage(result)
+    )
+}
+
+private extension ManagedLocalImportResultStatus {
+    var systemImage: String {
+        switch self {
+        case .distributed, .noDistributionChanges, .updated: "checkmark.seal"
+        case .managedUndistributed, .updatedDistributionNeedsAttention: "exclamationmark.triangle"
+        case .managedDistributionIndeterminate, .managementIndeterminate, .updateIndeterminate:
+            "wrench.and.screwdriver"
+        case .alreadyManaged: "checkmark.circle"
+        case .updateRequired: "arrow.triangle.2.circlepath"
+        }
     }
 }

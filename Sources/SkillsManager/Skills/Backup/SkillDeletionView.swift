@@ -56,8 +56,11 @@ struct SkillDeletionView: View {
                 }
                     .font(.headline)
                     .accessibilityLabel(Text(
-                        "Managed Skill status: \(deletionStatusText(preview.status))",
-                        bundle: .module
+                        String(
+                            localized: LocalizedStringResource( "Managed Skill status: %@",
+                            defaultValue: "Managed Skill status: \(deletionStatusText(preview.status))",
+                            bundle: .module
+                        ))
                     ))
                 Spacer()
                 Button {
@@ -257,8 +260,11 @@ private struct SkillDeletionConfirmationView: View {
                         .font(.callout.monospaced())
                         .textSelection(.enabled)
                         .accessibilityLabel(Text(
-                            "Managed Agent target \(target.canonicalLocator)",
-                            bundle: .module
+                            String(
+                                localized: LocalizedStringResource( "Managed Agent target %@",
+                                defaultValue: "Managed Agent target \(target.canonicalLocator)",
+                                bundle: .module
+                            ))
                         ))
                 }
                 impactRow("Delete the managed Skill and its library record", systemImage: "trash")
@@ -364,11 +370,16 @@ private struct SkillDeletionConfirmationView: View {
 
     private var targetImpactRow: some View {
         let targetDescription = String(
-            localized: "Managed Agent target \(pending.preview.targets.count)",
+            localized: LocalizedStringResource( "Managed Agent targets: %lld",
+            defaultValue: "Managed Agent targets: \(pending.preview.targets.count)",
             bundle: .module
-        )
+        ))
         return Label {
-            Text("Remove \(targetDescription)", bundle: .module)
+            Text(String(
+                localized: LocalizedStringResource( "Remove %@",
+                defaultValue: "Remove \(targetDescription)",
+                bundle: .module
+            )))
         } icon: {
             Image(systemName: "link.badge.minus")
         }

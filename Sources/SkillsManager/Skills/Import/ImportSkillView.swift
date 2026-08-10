@@ -186,39 +186,69 @@ struct ImportSkillView: View {
         switch result.status {
         case .distributed:
             return Text(
-                "\(result.displayName) is managed and available to the selected Agents.",
-                bundle: .module
+                String(
+                    localized: LocalizedStringResource( "%@ is managed and available to the selected Agents.",
+                    defaultValue: "\(result.displayName) is managed and available to the selected Agents.",
+                    bundle: .module
+                ))
             )
         case .noDistributionChanges:
             return Text(
-                "\(result.displayName) is managed; no distribution changes were needed.",
-                bundle: .module
+                String(
+                    localized: LocalizedStringResource( "%@ is managed; no distribution changes were needed.",
+                    defaultValue: "\(result.displayName) is managed; no distribution changes were needed.",
+                    bundle: .module
+                ))
             )
         case .managedUndistributed:
             return Text(
-                "\(result.displayName) is safe in the managed library, but distribution was not applied.",
-                bundle: .module
+                String(
+                    localized: LocalizedStringResource( "%@ is safe in the managed library, but distribution was not applied.",
+                    defaultValue: "\(result.displayName) is safe in the managed library, but distribution was not applied.",
+                    bundle: .module
+                ))
             )
         case .managedDistributionIndeterminate:
             return Text(
-                "\(result.displayName) is managed, but its distribution state must be confirmed or repaired.",
-                bundle: .module
+                String(
+                    localized: LocalizedStringResource( "%@ is managed, but its distribution state must be confirmed or repaired.",
+                    defaultValue: "\(result.displayName) is managed, but its distribution state must be confirmed or repaired.",
+                    bundle: .module
+                ))
             )
         case .managementIndeterminate:
             return Text(
-                "The import state for \(result.displayName) must be confirmed or repaired before retrying.",
-                bundle: .module
+                String(
+                    localized: LocalizedStringResource( "The import state for %@ must be confirmed or repaired before retrying.",
+                    defaultValue: "The import state for \(result.displayName) must be confirmed or repaired before retrying.",
+                    bundle: .module
+                ))
             )
         case .alreadyManaged:
-            return Text("\(result.displayName) is already in the managed library.", bundle: .module)
+            return Text(String(
+                localized: LocalizedStringResource( "%@ is already in the managed library.",
+                defaultValue: "\(result.displayName) is already in the managed library.",
+                bundle: .module
+            )))
         case .updateRequired:
-            return Text("\(result.displayName) differs from the managed version.", bundle: .module)
+            return Text(String(
+                localized: LocalizedStringResource( "%@ differs from the managed version.",
+                defaultValue: "\(result.displayName) differs from the managed version.",
+                bundle: .module
+            )))
         case .updated:
-            return Text("\(result.displayName) was updated.", bundle: .module)
+            return Text(String(
+                localized: LocalizedStringResource( "%@ was updated.",
+                defaultValue: "\(result.displayName) was updated.",
+                bundle: .module
+            )))
         case .updatedDistributionNeedsAttention:
             return Text(
-                "Refresh \(result.displayName)'s distribution from its details.",
-                bundle: .module
+                String(
+                    localized: LocalizedStringResource( "Refresh %@'s distribution from its details.",
+                    defaultValue: "Refresh \(result.displayName)'s distribution from its details.",
+                    bundle: .module
+                ))
             )
         case .updateIndeterminate:
             return Text("Confirm or repair the managed library before retrying.", bundle: .module)
@@ -239,7 +269,7 @@ struct ImportSkillView: View {
                     }
                     distributionSelection
                     if let problem = model.problem {
-                        Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
+                        Label(localizedManagedLocalImportProblem(problem), systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
                     Markdown(candidate.payload.markdown)
@@ -447,7 +477,7 @@ struct ImportSkillView: View {
             )
             guard operationToken == token else { return }
             if let problem = model.problem {
-                errorMessage = problem.localizedDescription
+                errorMessage = localizedManagedLocalImportProblem(problem)
                 status = .valid
             } else {
                 status = .valid
@@ -488,7 +518,7 @@ struct ImportSkillView: View {
             }
             guard operationToken == token else { return }
             if let problem = model.problem {
-                errorMessage = problem.localizedDescription
+                errorMessage = localizedManagedLocalImportProblem(problem)
             }
         }
     }

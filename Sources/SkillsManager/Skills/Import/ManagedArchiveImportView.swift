@@ -64,7 +64,11 @@ struct ManagedArchiveImportView: View {
                     .disabled(model.selectedCount == 0)
                     .accessibilityIdentifier("archive.clear-selection")
                 Spacer()
-                Text("\(model.selectedCount) selected", bundle: .module)
+                Text(String(
+                    localized: LocalizedStringResource( "%lld selected",
+                    defaultValue: "\(model.selectedCount) selected",
+                    bundle: .module
+                )))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -104,7 +108,11 @@ struct ManagedArchiveImportView: View {
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                     if let slug = candidate.slug {
-                        Text("Slug: \(slug.value)", bundle: .module)
+                        Text(String(
+                            localized: LocalizedStringResource( "Slug: %@",
+                            defaultValue: "Slug: \(slug.value)",
+                            bundle: .module
+                        )))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -118,7 +126,10 @@ struct ManagedArchiveImportView: View {
             .toggleStyle(.checkbox)
             .disabled(!candidate.isImportable)
             .accessibilityLabel(candidate.displayName)
-            .accessibilityValue(candidate.blockedReason ?? "Importable")
+            .accessibilityValue(
+                candidate.blockedReason
+                    ?? String(localized: "Importable", bundle: .module)
+            )
             .accessibilityIdentifier("archive.candidate.\(candidate.canonicalSubpath)")
         }
         .padding(.vertical, 4)
@@ -142,7 +153,11 @@ struct ManagedArchiveImportView: View {
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                     if let slug = item.preview?.distributionSlug {
-                        Text("Slug: \(slug.value)", bundle: .module)
+                        Text(String(
+                            localized: LocalizedStringResource( "Slug: %@",
+                            defaultValue: "Slug: \(slug.value)",
+                            bundle: .module
+                        )))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -171,7 +186,7 @@ struct ManagedArchiveImportView: View {
                             Array(preview.plan.conflicts.enumerated()),
                             id: \.offset
                         ) { _, conflict in
-                            Text("\(conflict.reason.displayName): \(conflict.canonicalLocator)", bundle: .module)
+                            Text(verbatim: "\(conflict.reason.localizedDisplayName): \(conflict.canonicalLocator)")
                                 .font(.caption.monospaced())
                                 .textSelection(.enabled)
                         }
@@ -220,8 +235,8 @@ struct ManagedArchiveImportView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label(
                 model.summary.failed == 0
-                    ? "Batch import finished."
-                    : "Batch import finished with failures.",
+                    ? String(localized: "Batch import finished.", bundle: .module)
+                    : String(localized: "Batch import finished with failures.", bundle: .module),
                 systemImage: model.summary.failed == 0
                     ? "checkmark.circle"
                     : "exclamationmark.triangle"
@@ -263,15 +278,15 @@ struct ManagedArchiveImportView: View {
 
     private func managementText(_ status: ManagedLocalImportResultStatus) -> String {
         switch status {
-        case .distributed: "Imported and enabled"
-        case .noDistributionChanges, .alreadyManaged: "Imported"
-        case .managedUndistributed: "Imported but not enabled"
+        case .distributed: String(localized: "Imported and enabled", bundle: .module)
+        case .noDistributionChanges, .alreadyManaged: String(localized: "Imported", bundle: .module)
+        case .managedUndistributed: String(localized: "Imported but not enabled", bundle: .module)
         case .managedDistributionIndeterminate, .managementIndeterminate:
-            "Imported; status needs attention"
-        case .updateRequired: "Update required"
-        case .updated: "Updated"
+            String(localized: "Imported; status needs attention", bundle: .module)
+        case .updateRequired: String(localized: "Update required", bundle: .module)
+        case .updated: String(localized: "Updated", bundle: .module)
         case .updatedDistributionNeedsAttention, .updateIndeterminate:
-            "Updated; status needs attention"
+            String(localized: "Updated; status needs attention", bundle: .module)
         }
     }
 

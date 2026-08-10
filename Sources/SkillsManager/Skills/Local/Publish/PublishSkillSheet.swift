@@ -20,7 +20,11 @@ struct PublishSkillSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Publish Skill", bundle: .module)
                     .font(.title.bold())
-                Text("Push changes for \(displayName) to ClawHub.", bundle: .module)
+                Text(String(
+                    localized: LocalizedStringResource( "Push changes for %@ to ClawHub.",
+                    defaultValue: "Push changes for \(displayName) to ClawHub.",
+                    bundle: .module
+                )))
                     .foregroundStyle(.secondary)
             }
 
@@ -33,7 +37,11 @@ struct PublishSkillSheet: View {
                     } label: {
                         Text("Version bump", bundle: .module)
                     }
-                    Text("Will publish v\(nextVersion)", bundle: .module)
+                    Text(String(
+                        localized: LocalizedStringResource( "Will publish v%@",
+                        defaultValue: "Will publish v\(nextVersion)",
+                        bundle: .module
+                    )))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

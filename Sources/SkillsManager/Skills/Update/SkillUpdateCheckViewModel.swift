@@ -11,7 +11,9 @@ import Observation
         case failed(ManagedSkillUpdateCheckProblem)
     }
 
-    private(set) var loadState: LoadState = .blocked("Preparing the managed library…")
+    private(set) var loadState: LoadState = .blocked(
+        String(localized: "Preparing the managed library…", bundle: .module)
+    )
     private(set) var activeSkillID: SkillID?
     private(set) var isChecking = false
     private(set) var problem: ManagedSkillUpdateCheckProblem?
@@ -30,7 +32,7 @@ import Observation
     private var hasDeferredRefresh = false
     private var deferredRefreshSkillID: SkillID?
     private var generation: UInt64 = 0
-    private var runtimeBlockMessage = "Preparing the managed library…"
+    private var runtimeBlockMessage = String(localized: "Preparing the managed library…", bundle: .module)
 
     init(
         admission: ManagedSkillUpdateAdmission = ManagedSkillUpdateAdmission(),

@@ -35,6 +35,19 @@ extension SkillDiscoveryStatus {
     }
 }
 
+@MainActor extension SkillDiscoveryStatus {
+    var localizedDisplayName: String {
+        switch self {
+        case .managed: String(localized: "Managed", bundle: .module)
+        case .claimable: String(localized: "Ready to claim", bundle: .module)
+        case .unmanaged: String(localized: "Unmanaged", bundle: .module)
+        case .conflict: String(localized: "Conflict", bundle: .module)
+        case .permissionDenied: String(localized: "Permission denied", bundle: .module)
+        case .damaged: String(localized: "Damaged", bundle: .module)
+        }
+    }
+}
+
 extension SkillDiscoveryReason {
     nonisolated var displayName: String {
         switch self {
@@ -64,6 +77,35 @@ extension SkillDiscoveryReason {
     }
 }
 
+@MainActor extension SkillDiscoveryReason {
+    var localizedDisplayName: String {
+        switch self {
+        case .rootPermissionDenied: String(localized: "The scan root cannot be read.", bundle: .module)
+        case .rootChanged: String(localized: "The scan root changed while it was being inspected.", bundle: .module)
+        case .rootUnsupportedType: String(localized: "The scan root is not a directory or supported link.", bundle: .module)
+        case .rootReadFailed: String(localized: "The scan root could not be read.", bundle: .module)
+        case .unknownSymlink: String(localized: "The Skill uses a symbolic link that cannot be trusted.", bundle: .module)
+        case .symbolicLinkTargetUnavailable: String(localized: "The Skill link target is unavailable.", bundle: .module)
+        case .symbolicLinkTargetUnsupported: String(localized: "The Skill link target is not a directory.", bundle: .module)
+        case .candidatePermissionDenied: String(localized: "The Skill folder cannot be read.", bundle: .module)
+        case .sourceChanged: String(localized: "The Skill changed while it was being inspected.", bundle: .module)
+        case .missingSkillManifest: String(localized: "SKILL.md is missing.", bundle: .module)
+        case .containerDirectory: String(localized: "This folder contains Skill subdirectories.", bundle: .module)
+        case .invalidSkillManifest: String(localized: "SKILL.md is not valid UTF-8.", bundle: .module)
+        case .unsupportedEntryType: String(localized: "The Skill contains an unsupported file type.", bundle: .module)
+        case .unsafeContent: String(localized: "The Skill contains an unsafe path or link.", bundle: .module)
+        case .resourceLimitExceeded: String(localized: "The Skill exceeds the safe import limits.", bundle: .module)
+        case .candidateReadFailed: String(localized: "The Skill content could not be read.", bundle: .module)
+        case .ambiguousLocalAssociation: String(localized: "This location is linked to more than one managed Skill.", bundle: .module)
+        case .localAssociationDrift: String(localized: "This location no longer matches its managed Skill.", bundle: .module)
+        case .ambiguousSource: String(localized: "The source metadata matches more than one managed Skill.", bundle: .module)
+        case .ambiguousFingerprint: String(localized: "The content matches more than one managed Skill.", bundle: .module)
+        case .evidenceConflict: String(localized: "The source and content point to different managed Skills.", bundle: .module)
+        case .scopeSlugConflict: String(localized: "More than one Skill uses this name in the same scope.", bundle: .module)
+        }
+    }
+}
+
 extension SkillDiscoveryScope {
     var displayName: String {
         switch kind {
@@ -80,6 +122,27 @@ extension SkillDiscoveryScope {
         guard let adapterCode else { return nil }
         return SkillPlatform.allCases.first { $0.storageKey == adapterCode }?.rawValue
             ?? adapterCode
+    }
+}
+
+@MainActor extension SkillDiscoveryScope {
+    var localizedDisplayName: String {
+        let adapter = adapterDisplayName
+        switch kind {
+        case .global:
+            return String(localized: "Global", bundle: .module)
+        case .agent:
+            let values = [adapter, pathVariant].compactMap { $0 }
+            return values.dropFirst().reduce(values.first ?? "") { partial, value in
+                String(localized: LocalizedStringResource( "%@ · %@", defaultValue: "\(partial) · \(value)", bundle: .module))
+            }
+        case .custom:
+            let values = [String(localized: "Custom", bundle: .module), adapter, pathVariant]
+                .compactMap { $0 }
+            return values.dropFirst().reduce(values.first ?? "") { partial, value in
+                String(localized: LocalizedStringResource( "%@ · %@", defaultValue: "\(partial) · \(value)", bundle: .module))
+            }
+        }
     }
 }
 

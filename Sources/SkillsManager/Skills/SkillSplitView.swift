@@ -270,7 +270,11 @@ struct SkillSplitView: View {
                 }
                 .help(Text("Batch Import discovered Skills", bundle: .module))
                 .accessibilityLabel(Text("Batch Import discovered Skills", bundle: .module))
-                .accessibilityValue(Text("\(batchCandidateCount) candidates available", bundle: .module))
+                .accessibilityValue(Text(String(
+                    localized: LocalizedStringResource( "%lld candidates available",
+                    defaultValue: "\(batchCandidateCount) candidates available",
+                    bundle: .module
+                ))))
                 .accessibilityIdentifier("skills.batch-import")
             }
         }
@@ -350,10 +354,11 @@ struct SkillSplitView: View {
         if lifecycleModel.availableBackupCount == 0 {
             return Text("Skill Backups", bundle: .module)
         }
-        return Text(
-            "Skill Backups, \(lifecycleModel.availableBackupCount) available",
+        return Text(String(
+            localized: LocalizedStringResource( "Skill Backups, %lld available",
+            defaultValue: "Skill Backups, \(lifecycleModel.availableBackupCount) available",
             bundle: .module
-        )
+        )))
     }
 
     private var batchCandidateCount: Int {

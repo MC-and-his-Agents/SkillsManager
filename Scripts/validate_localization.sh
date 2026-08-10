@@ -46,14 +46,21 @@ source_keys = set(extracted.get("strings", {}))
 missing = sorted(source_keys - set(entries))
 if missing:
     raise SystemExit("ERROR: source keys missing from catalog: " + ", ".join(missing))
+catalog_only = sorted(set(entries) - source_keys)
+if catalog_only:
+    raise SystemExit("ERROR: catalog keys missing from source extraction: " + ", ".join(catalog_only))
 
-placeholder = re.compile(r"%(?:\d+\$)?arg|%\([^)]*\)(?:lld|ld|d|@)|%lld")
+placeholder = re.compile(r"%(?:\d+\$)?(?:arg|@|lld)|%\([^)]*\)(?:lld|ld|d|@)")
 
 # Equal source values are intentional only for opaque/proper names and format
 # shells. Every natural-language phrase must have a real zh-Hans translation.
 equal_allowlist = {
     "%1$arg: %2$arg": "format shell: two opaque interpolation slots",
     "↻ v%arg": "format shell: version token",
+    "%1$@: %2$@": "format shell: two opaque interpolation slots",
+    "%1$@: %2$lld": "format shell: localized status plus count",
+    "%@ · %@": "format shell: two opaque interpolation slots",
+    "↻ v%@": "format shell: version token",
     "OK": "protocol acknowledgement",
     "ClawHub": "provider name",
     "GitHub": "vendor name",
@@ -73,6 +80,18 @@ def units(localization):
         return [localization["stringUnit"]]
     variations = localization.get("variations", {}).get("plural", {})
     return [variant["stringUnit"] for variant in variations.values() if "stringUnit" in variant]
+
+stale_dynamic = sorted(
+    key for key, entry in entries.items()
+    if "%arg" in key or "%1$arg" in key
+    or any(
+        "%arg" in unit.get("value", "") or "%1$arg" in unit.get("value", "")
+        for language in entry.get("localizations", {}).values()
+        for unit in units(language)
+    )
+)
+if stale_dynamic:
+    raise SystemExit("ERROR: stale %arg localization keys/values: " + ", ".join(stale_dynamic))
 
 for key, entry in entries.items():
     if entry.get("extractionState") != "manual":

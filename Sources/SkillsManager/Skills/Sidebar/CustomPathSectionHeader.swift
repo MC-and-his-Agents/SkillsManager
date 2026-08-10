@@ -45,7 +45,11 @@ struct CustomPathSectionHeader: View {
                 Text("Remove", bundle: .module)
             }
         } message: {
-            Text("This will remove \"\(customPath.displayName)\" from the sidebar. The skills will not be deleted from disk.", bundle: .module)
+            Text(String(
+                localized: LocalizedStringResource( "This will remove \"%@\" from the sidebar. The skills will not be deleted from disk.",
+                defaultValue: "This will remove \"\(customPath.displayName)\" from the sidebar. The skills will not be deleted from disk.",
+                bundle: .module
+            )))
         }
     }
 

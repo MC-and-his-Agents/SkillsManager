@@ -16,8 +16,12 @@ struct CustomRepositoryCandidateRow: View {
                 knownSource: .repository
             )],
             agentCount: 0,
-            accessibilityLabel: candidate.accessibilitySummary,
-            accessibilityValue: "Available, Repository, 0 Agents"
+            accessibilityLabel: String(
+                localized: LocalizedStringResource( "%@, Available, Repository, %@, %@",
+                defaultValue: "\(candidate.displayName), Available, Repository, \(candidate.repository.displayName), \(candidate.snapshot.subpath.value.isEmpty ? "root" : candidate.snapshot.subpath.value)",
+                bundle: .module
+            )),
+            accessibilityValue: String(localized: "Available, Repository, 0 Agents", bundle: .module)
         ))
         .help(candidate.snapshot.subpath.value.isEmpty ? "/" : candidate.snapshot.subpath.value)
     }
@@ -33,8 +37,8 @@ struct CustomRepositoryCandidateDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text(candidate.displayName).font(.largeTitle.bold())
                 HStack(spacing: 6) {
-                    TagView(text: "Available", systemImage: "arrow.down.circle")
-                    TagView(text: "Repository", systemImage: "shippingbox")
+                    TagView(localized: "Available", systemImage: "arrow.down.circle")
+                    TagView(localized: "Repository", systemImage: "shippingbox")
                 }
                 GroupBox {
                     Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
@@ -52,8 +56,8 @@ struct CustomRepositoryCandidateDetailView: View {
                 } label: {
                     Text("Verified discovery", bundle: .module)
                 }
-                if let problem = candidate.installProblem {
-                    Label(problem, systemImage: "exclamationmark.triangle")
+                if candidate.installProblem != nil {
+                    Label(String(localized: "This Skill cannot form a valid distribution slug.", bundle: .module), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                         .accessibilityElement(children: .combine)
                 }

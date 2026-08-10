@@ -122,7 +122,9 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
         case recoverableFailure(String)
     }
 
-    private(set) var loadState: LoadState = .blocked("Preparing the managed library…")
+    private(set) var loadState: LoadState = .blocked(
+        String(localized: "Preparing the managed library…", bundle: .module)
+    )
     private(set) var items: [Item] = []
     private(set) var plannedRoots: [SkillDiscoveryRoot] = []
     private(set) var rootDiagnostics: [SkillDiscoveryRootDiagnostic] = []
@@ -395,26 +397,26 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
     ) -> String {
         switch disposition {
         case .created:
-            "The Skill was imported into the managed library."
+            String(localized: "The Skill was imported into the managed library.", bundle: .module)
         case .claimed:
-            "The existing managed Skill was linked to this local source."
+            String(localized: "The existing managed Skill was linked to this local source.", bundle: .module)
         case .alreadyManaged:
-            "This Skill was already managed."
+            String(localized: "This Skill was already managed.", bundle: .module)
         }
     }
 
     private static func message(for error: ManagedSkillImportError) -> String {
         switch error {
         case .actionNotAllowed:
-            "This action is no longer available."
+            String(localized: "This action is no longer available.", bundle: .module)
         case .invalidObservation:
-            "The discovery result is no longer valid."
+            String(localized: "The discovery result is no longer valid.", bundle: .module)
         case .tokenExpired:
-            "The preview expired."
+            String(localized: "The preview expired.", bundle: .module)
         case .sourceChanged:
-            "The source changed after preview."
+            String(localized: "The source changed after preview.", bundle: .module)
         case .conflict:
-            "The source now conflicts with another managed Skill."
+            String(localized: "The source now conflicts with another managed Skill.", bundle: .module)
         }
     }
 }

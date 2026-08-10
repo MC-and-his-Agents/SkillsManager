@@ -116,7 +116,11 @@ private struct SkillDetailActionBarContent: View {
         }
         .font(.callout.weight(.semibold))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("Status: \(badgeText(badge.title))", bundle: .module))
+        .accessibilityLabel(Text(String(
+            localized: LocalizedStringResource( "Status: %@",
+            defaultValue: "Status: \(badgeText(badge.title))",
+            bundle: .module
+        ))))
         .accessibilityValue(Text(verbatim: badgeAccessibilityText(badge.accessibilityValue)))
         .accessibilityIdentifier("skills.detail.badge")
     }
@@ -126,10 +130,11 @@ private struct SkillDetailActionBarContent: View {
             ForEach(sourceLabels) { label in
                 Image(systemName: label.systemImage)
                     .help(Text(verbatim: sourceText(label)))
-                    .accessibilityLabel(Text(
-                        "Source: \(sourceText(label))",
+                    .accessibilityLabel(Text(String(
+                        localized: LocalizedStringResource( "Source: %@",
+                        defaultValue: "Source: \(sourceText(label))",
                         bundle: .module
-                    ))
+                    ))))
                     .accessibilityIdentifier("skills.detail.source.\(label.text)")
             }
         }
@@ -153,16 +158,27 @@ private struct SkillDetailActionBarContent: View {
                 }
                 .toggleStyle(.button)
                 .disabled(distributionModel.isApplying)
-                .accessibilityLabel(Text("\(platformText(row.platform)) distribution", bundle: .module))
+                .accessibilityLabel(Text(String(
+                    localized: LocalizedStringResource( "%@ distribution",
+                    defaultValue: "\(platformText(row.platform)) distribution",
+                    bundle: .module
+                ))))
                 .accessibilityValue(
-                    Text(
-                        row.isSelected
+                    String(
+                        localized: LocalizedStringResource( row.isSelected
+                            ? "Selected; currently %@"
+                            : "Not selected; currently %@",
+                        defaultValue: row.isSelected
                             ? "Selected; currently \(enabledText(row.isCurrentlyEnabled))"
                             : "Not selected; currently \(enabledText(row.isCurrentlyEnabled))",
                         bundle: .module
-                    )
+                    ))
                 )
-                .accessibilityHint(Text("Target: \(row.locator)", bundle: .module))
+                .accessibilityHint(Text(String(
+                    localized: LocalizedStringResource( "Target: %@",
+                    defaultValue: "Target: \(row.locator)",
+                    bundle: .module
+                ))))
                 .accessibilityIdentifier("skills.detail.agent.\(row.platform.storageKey)")
             }
         }

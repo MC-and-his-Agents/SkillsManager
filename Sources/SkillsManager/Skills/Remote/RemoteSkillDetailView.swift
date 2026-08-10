@@ -103,7 +103,11 @@ struct RemoteSkillDetailView: View {
             }
             HStack(spacing: 6) {
                 if let owner = ownerDisplayName {
-                    TagView(text: "By \(owner)")
+                    TagView(localized: LocalizedStringResource(
+                        "By %@",
+                        defaultValue: "By \(owner)",
+                        bundle: .module
+                    ))
                 }
                 if let version = skill.latestVersion {
                     TagView(text: "v\(version)")

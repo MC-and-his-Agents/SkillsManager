@@ -17,7 +17,11 @@ struct SkillResultBanner: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("Result: \(message)", bundle: .module))
+        .accessibilityLabel(Text(String(
+            localized: LocalizedStringResource( "Result: %@",
+            defaultValue: "Result: \(message)",
+            bundle: .module
+        ))))
     }
 }
 

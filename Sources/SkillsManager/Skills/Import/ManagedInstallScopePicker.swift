@@ -38,8 +38,11 @@ struct ManagedInstallScopePicker: View {
     private var globalSummary: some View {
         Group {
             Text(
-                "Compatible Agents share one managed link in \(DistributionTargetCatalog.current.globalTarget.rootLocator).",
-                bundle: .module
+                String(
+                    localized: LocalizedStringResource( "Compatible Agents share one managed link in %@.",
+                    defaultValue: "Compatible Agents share one managed link in \(DistributionTargetCatalog.current.globalTarget.rootLocator).",
+                    bundle: .module
+                ))
             )
             Text(verbatim: DistributionTargetCatalog.current.globalReaders
                 .map(platformText)

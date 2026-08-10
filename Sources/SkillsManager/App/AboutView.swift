@@ -20,7 +20,11 @@ struct AboutView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(appName)
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    Text("Version \(version) (\(build))", bundle: .module)
+                    Text(String(
+                        localized: LocalizedStringResource( "Version %@ (%@)",
+                        defaultValue: "Version \(version) (\(build))",
+                        bundle: .module
+                    )))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
                     Text("Built for Codex and your other agents to manage and inspect skills on your Mac.", bundle: .module)

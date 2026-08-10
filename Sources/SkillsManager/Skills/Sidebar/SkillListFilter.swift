@@ -206,12 +206,11 @@ nonisolated extension SkillDiscoveryObservation {
 
 enum SkillListAgentSummary {
     static func text(count: Int, locale: Locale? = nil) -> String {
-        let resource = LocalizedStringResource(
-            "%lld Agents",
+        String(
+            localized: LocalizedStringResource( "%lld Agents",
             defaultValue: "\(count) Agents",
             locale: locale ?? .current,
             bundle: .module
-        )
-        return String(localized: resource)
+        ))
     }
 }

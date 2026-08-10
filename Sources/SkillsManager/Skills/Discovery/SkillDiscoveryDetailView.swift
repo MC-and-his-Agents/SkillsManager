@@ -298,7 +298,13 @@ struct SkillDiscoveryDetailView: View {
             }
             .padding(.top, 8)
         } label: {
-            Text("Scan scope (\(model.plannedRoots.count) roots)", bundle: .module)
+            Text(
+                String(
+                    localized: LocalizedStringResource( "Scan scope (%lld roots)",
+                    defaultValue: "Scan scope (\(model.plannedRoots.count) roots)",
+                    bundle: .module
+                ))
+            )
         }
     }
 

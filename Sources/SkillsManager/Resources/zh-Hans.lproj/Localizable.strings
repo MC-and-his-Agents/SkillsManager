@@ -2,100 +2,124 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>%arg Skills</key>
-	<string>%arg 个技能</string>
-	<key>%arg candidates available</key>
-	<string>%arg 个候选项可用</string>
-	<key>%arg differs from the managed version.</key>
-	<string>%arg 与托管版本不同。</string>
-	<key>%arg distribution</key>
-	<string>%arg 分发</string>
-	<key>%arg is already in the managed library.</key>
-	<string>%arg 已在托管库中。</string>
-	<key>%arg is managed and available to the selected Agents.</key>
-	<string>%arg 已托管，可供所选 Agent 使用。</string>
-	<key>%arg is managed, but its Agent state must be confirmed.</key>
-	<string>%arg 已托管，但必须确认其 Agent 状态。</string>
-	<key>%arg is managed, but its distribution state must be confirmed or repaired.</key>
-	<string>%arg 已托管，但必须确认或修复其分发状态。</string>
-	<key>%arg is managed.</key>
-	<string>%arg 已托管。</string>
-	<key>%arg is managed; no distribution changes were needed.</key>
-	<string>%arg 已托管；无需更改分发。</string>
-	<key>%arg is managed; resolve its distribution conflict from details.</key>
-	<string>%arg 已托管；请从详情解决其分发冲突。</string>
-	<key>%arg is ready.</key>
-	<string>%arg 已准备就绪。</string>
-	<key>%arg is safe in the managed library, but distribution was not applied.</key>
-	<string>%arg 在托管库中安全，但未应用分发。</string>
-	<key>%arg item(s) need review.</key>
-	<string>有 %arg 项需要检查。</string>
-	<key>%arg of %arg</key>
-	<string>%1$arg 的 %2$arg</string>
-	<key>%arg of %arg complete.</key>
-	<string>已完成 %arg/%arg。</string>
-	<key>%arg selected</key>
-	<string>已选择 %arg</string>
-	<key>%arg shown</key>
-	<string>显示 %arg 个</string>
-	<key>%arg skill(s)</key>
-	<string>%arg 个技能</string>
-	<key>%arg target%arg</key>
-	<string>%1$arg 个目标%2$arg</string>
-	<key>%arg valid · %arg observed</key>
-	<string>%1$arg 个有效 · 已观察 %2$arg</string>
-	<key>%arg was backed up and updated. Current Agent access was preserved.</key>
-	<string>%arg 已备份并更新。当前 Agent 访问保持不变。</string>
-	<key>%arg was updated and backed up. Refresh its distribution from details.</key>
-	<string>%arg 已更新并备份。请从详情刷新其分发。</string>
-	<key>%arg was updated.</key>
-	<string>%arg 已更新。</string>
-	<key>%arg, %arg</key>
-	<string>%arg，%arg</string>
-	<key>%arg, Copy decision required</key>
-	<string>%arg，需要决定 Copy 处理方式</string>
-	<key>%arg, checking for updates</key>
-	<string>%arg，正在检查更新</string>
-	<key>%arg, preparing update</key>
-	<string>%arg，正在准备更新</string>
-	<key>%arg, update available</key>
-	<string>%arg，有可用更新</string>
-	<key>%arg, updating</key>
-	<string>%arg，正在更新</string>
-	<key>%arg, waiting</key>
-	<string>%arg，正在等待</string>
-	<key>%arg: %arg</key>
-	<string>%1$arg: %2$arg</string>
-	<key>+%arg verified alias locations</key>
-	<string>+%arg 个已验证别名位置</string>
-	<key>1 Agent</key>
-	<string>1 个 Agent</string>
+	<key>%@ differs from the managed version.</key>
+	<string>%@ 与托管版本不同。</string>
+	<key>%@ distribution</key>
+	<string>%@ 分发</string>
+	<key>%@ is already in the managed library.</key>
+	<string>%@ 已在托管库中。</string>
+	<key>%@ is managed and available to the selected Agents.</key>
+	<string>%@ 已托管，可供所选 Agent 使用。</string>
+	<key>%@ is managed, but its Agent state must be confirmed.</key>
+	<string>%@ 已托管，但必须确认其 Agent 状态。</string>
+	<key>%@ is managed, but its distribution state must be confirmed or repaired.</key>
+	<string>%@ 已托管，但必须确认或修复其分发状态。</string>
+	<key>%@ is managed.</key>
+	<string>%@ 已托管。</string>
+	<key>%@ is managed; no distribution changes were needed.</key>
+	<string>%@ 已托管；无需更改分发。</string>
+	<key>%@ is managed; resolve its distribution conflict from details.</key>
+	<string>%@ 已托管；请从详情解决其分发冲突。</string>
+	<key>%@ is ready.</key>
+	<string>%@ 已准备就绪。</string>
+	<key>%@ is safe in the managed library, but distribution was not applied.</key>
+	<string>%@ 在托管库中安全，但未应用分发。</string>
+	<key>%@ was backed up and updated. Current Agent access was preserved.</key>
+	<string>%@ 已备份并更新。当前 Agent 访问保持不变。</string>
+	<key>%@ was updated and backed up. Refresh its distribution from details.</key>
+	<string>%@ 已更新并备份。请从详情刷新其分发。</string>
+	<key>%@ was updated.</key>
+	<string>%@ 已更新。</string>
+	<key>%@ · %@</key>
+	<string>%@ · %@</string>
+	<key>%@, %@</key>
+	<string>%@，%@</string>
+	<key>%@, %@, %@</key>
+	<string>%1$@，%2$@，%3$@</string>
+	<key>%@, Available, Repository, %@, %@</key>
+	<string>%@，可用，仓库，%@，%@</string>
+	<key>%@, Available, skills.sh, %lld installs, source %@</key>
+	<string>%@，可用，skills.sh，安装 %@ 次，来源 %@</string>
+	<key>%@, Copy decision required</key>
+	<string>%@，需要决定 Copy 处理方式</string>
+	<key>%@, checking for updates</key>
+	<string>%@，正在检查更新</string>
+	<key>%@, preparing update</key>
+	<string>%@，正在准备更新</string>
+	<key>%@, update available</key>
+	<string>%@，有可用更新</string>
+	<key>%@, updating</key>
+	<string>%@，正在更新</string>
+	<key>%@, waiting</key>
+	<string>%@，正在等待</string>
+	<key>%@: %lld</key>
+	<string>%1$@: %2$lld</string>
+	<key>%lld Skills</key>
+	<string>%lld 个技能</string>
+	<key>%lld candidates available</key>
+	<string>%lld 个候选项可用</string>
+	<key>%lld candidates available · %lld selected</key>
+	<string>有 %lld 个候选项 · 已选择 %lld</string>
+	<key>%lld created · %lld claimed · %lld skipped · %lld failed</key>
+	<string>%lld 已创建 · %lld 已认领 · %lld 已跳过 · %lld 失败</string>
+	<key>%lld installs</key>
+	<string>安装 %lld 次</string>
+	<key>%lld item(s) need review.</key>
+	<string>有 %lld 项需要检查。</string>
+	<key>%lld of %lld</key>
+	<string>%1$lld 的 %2$lld</string>
+	<key>%lld of %lld complete.</key>
+	<string>已完成 %lld/%lld。</string>
+	<key>%lld of %lld complete. %@</key>
+	<string>%1$lld/%2$lld 已完成。%3$@</string>
+	<key>%lld selected</key>
+	<string>已选择 %lld</string>
+	<key>%lld shown</key>
+	<string>显示 %lld 个</string>
+	<key>%lld skill(s)</key>
+	<string>%lld 个技能</string>
+	<key>%lld target%@</key>
+	<string>%1$lld 个目标%2$@</string>
+	<key>%lld valid · %lld observed</key>
+	<string>%1$lld 个有效 · 已观察 %2$lld</string>
+	<key>+%lld verified alias locations</key>
+	<string>+%lld 个已验证别名位置</string>
+	<key>0 of %lld complete.</key>
+	<string>已完成 0/%lld。</string>
+	<key>A backup is ready, but the update did not start. Recheck first.</key>
+	<string>备份已就绪，但更新尚未开始。请先重新检查。</string>
 	<key>A batch update is already running.</key>
 	<string>批量更新已在运行。</string>
 	<key>A blocking library diagnostic prevents changes.</key>
 	<string>托管库诊断阻止了更改。</string>
+	<key>A deletion operation is still in progress.</key>
+	<string>删除操作仍在进行中。</string>
+	<key>A distribution operation is already in progress for this Skill.</key>
+	<string>此 Skill 的分发操作已在进行中。</string>
 	<key>A local origin is already used and was not restored.</key>
 	<string>本地来源已被使用，未恢复。</string>
 	<key>A local-origin record will be added to the matched Skill</key>
 	<string>将向匹配的 Skill 添加本地来源记录</string>
 	<key>A provider alias is already used and was not restored.</key>
 	<string>提供商别名已被使用，未恢复。</string>
+	<key>A required distribution target is unavailable.</key>
+	<string>所需的分发目标不可用。</string>
 	<key>A saved link is missing.</key>
 	<string>保存的链接缺失。</string>
 	<key>About Skills Manager</key>
 	<string>关于 Skills Manager</string>
 	<key>Action</key>
 	<string>操作</string>
-	<key>Action for %arg</key>
-	<string>%arg 的操作</string>
+	<key>Action for %@</key>
+	<string>%@ 的操作</string>
 	<key>Actions</key>
 	<string>操作</string>
-	<key>Active filters: %arg</key>
-	<string>当前筛选：%arg</string>
+	<key>Active filters: %@</key>
+	<string>当前筛选：%@</string>
 	<key>Add</key>
 	<string>添加</string>
-	<key>Add %arg to the managed library or safely update it.</key>
-	<string>将 %arg 添加到托管库，或安全地更新它。</string>
+	<key>Add %@ to the managed library or safely update it.</key>
+	<string>将 %@ 添加到托管库，或安全地更新它。</string>
 	<key>Add Custom Path...</key>
 	<string>添加自定义路径…</string>
 	<key>Add Custom Skill Path</key>
@@ -116,10 +140,14 @@
 	<string>Agent 选择有未应用的更改。</string>
 	<key>Agent-specific</key>
 	<string>Agent 专属</string>
-	<key>Agent: %arg</key>
-	<string>Agent：%arg</string>
+	<key>Agent: %@</key>
+	<string>Agent：%@</string>
 	<key>Agents</key>
 	<string>Agent</string>
+	<key>Agents use the managed Skill directly.</key>
+	<string>Agent 直接使用托管 Skill。</string>
+	<key>Agents: %@</key>
+	<string>Agent：%@</string>
 	<key>All</key>
 	<string>全部</string>
 	<key>All Agents</key>
@@ -140,10 +168,14 @@
 	<string>同时恢复原始 Agent 目标</string>
 	<key>An Agent-specific target is unavailable.</key>
 	<string>Agent 专属目标不可用。</string>
+	<key>An independent local Fork was created.</key>
+	<string>已创建独立的本地 Fork。</string>
 	<key>An unmanaged item already exists at this target.</key>
 	<string>此目标已有未托管项目。</string>
 	<key>Another managed Skill already uses this name.</key>
 	<string>已有其他托管 Skill 使用此名称。</string>
+	<key>Another operation is in progress.</key>
+	<string>另一个操作正在进行中。</string>
 	<key>Apply</key>
 	<string>应用</string>
 	<key>Applying changes…</key>
@@ -166,6 +198,10 @@
 	<string>可用</string>
 	<key>Available action</key>
 	<string>可用操作</string>
+	<key>Available, Repository, 0 Agents</key>
+	<string>可用，仓库，0 个 Agent</string>
+	<key>Available, skills.sh, 0 Agents</key>
+	<string>可用，skills.sh，0 个 Agent</string>
 	<key>Back</key>
 	<string>返回</string>
 	<key>Back up and migrate</key>
@@ -178,22 +214,30 @@
 	<string>备份 Skill、移除托管 Agent 链接并删除托管 Skill。</string>
 	<key>Backup</key>
 	<string>备份</string>
+	<key>Backup %@</key>
+	<string>备份 %@</string>
 	<key>Backup completed; recheck before trying the update again</key>
 	<string>备份已完成；再次尝试更新前请重新检查</string>
+	<key>Backup: %@</key>
+	<string>备份：%@</string>
 	<key>Backups</key>
 	<string>备份</string>
 	<key>Backups unavailable</key>
 	<string>备份不可用</string>
-	<key>Based on %arg</key>
-	<string>基于 %arg</string>
+	<key>Based on %@</key>
+	<string>基于 %@</string>
 	<key>Batch Import</key>
 	<string>批量导入</string>
 	<key>Batch Import discovered Skills</key>
 	<string>批量导入发现的 Skill</string>
 	<key>Batch Updates</key>
 	<string>批量更新</string>
-	<key>Batch update summary: %arg</key>
-	<string>批量更新摘要：%arg</string>
+	<key>Batch import finished with failures.</key>
+	<string>批量导入完成，但有失败项。</string>
+	<key>Batch import finished.</key>
+	<string>批量导入完成。</string>
+	<key>Batch update summary: %@</key>
+	<string>批量更新摘要：%@</string>
 	<key>Batch updates are unavailable until the managed library is ready.</key>
 	<string>托管库准备就绪前，批量更新不可用。</string>
 	<key>Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.</key>
@@ -202,6 +246,8 @@
 	<string>已阻止；Skill 仍保持托管</string>
 	<key>Built for Codex and your other agents to manage and inspect skills on your Mac.</key>
 	<string>为 Codex 及你的其他 Agent 构建，用于在 Mac 上管理和检查 Skill。</string>
+	<key>By %@</key>
+	<string>作者 %@</string>
 	<key>Cancel</key>
 	<string>取消</string>
 	<key>Cancel this Skill update</key>
@@ -276,6 +322,10 @@
 	<string>ClawHub 不可用</string>
 	<key>ClawHub unavailable — cached content may be out of date.</key>
 	<string>ClawHub 不可用 — 缓存内容可能已过期。</string>
+	<key>ClawHub · %@</key>
+	<string>ClawHub：%@</string>
+	<key>ClawHub · %@ · %@</key>
+	<string>ClawHub：%@ · %@</string>
 	<key>Cleaning up</key>
 	<string>正在清理</string>
 	<key>Cleanup pending</key>
@@ -290,10 +340,12 @@
 	<string>关闭</string>
 	<key>Codex</key>
 	<string>Codex</string>
-	<key>Compatible Agents share one managed link in %arg.</key>
-	<string>兼容的 Agent 在 %arg 中共享一个托管链接。</string>
+	<key>Compatible Agents share one managed link in %@.</key>
+	<string>兼容的 Agent 在 %@ 中共享一个托管链接。</string>
 	<key>Completed</key>
 	<string>已完成</string>
+	<key>Completed and verified by a fresh consistency audit.</key>
+	<string>已完成，并通过新的完整性审计验证。</string>
 	<key>Confirm</key>
 	<string>确认</string>
 	<key>Confirm claim</key>
@@ -308,6 +360,8 @@
 	<string>确认更新</string>
 	<key>Conflict</key>
 	<string>冲突</string>
+	<key>Connect to the internet and try again.</key>
+	<string>请连接互联网后重试。</string>
 	<key>Consistency Audit</key>
 	<string>一致性审计</string>
 	<key>Consistency audit</key>
@@ -328,10 +382,12 @@
 	<string>复制</string>
 	<key>Copy content is behind the managed Skill and needs to be synchronized.</key>
 	<string>副本内容落后于已管理的 Skill，需要同步。</string>
-	<key>Copy decision for %arg</key>
-	<string>%arg 的副本决策</string>
+	<key>Copy decision for %@</key>
+	<string>%@ 的副本决策</string>
 	<key>Copy decision required</key>
 	<string>需要决定 Copy 处理方式</string>
+	<key>Copy decisions were saved, but the parent Skill was not updated.</key>
+	<string>Copy 决定已保存，但父 Skill 未更新。</string>
 	<key>Copy decisions were saved; recheck before updating the parent Skill</key>
 	<string>Copy 决定已保存；更新父 Skill 前请重新检查</string>
 	<key>Copy login command</key>
@@ -368,18 +424,26 @@
 	<string>从 Skills Manager 删除…</string>
 	<key>Deleting a managed Skill creates a verified backup here.</key>
 	<string>删除托管 Skill 会在此创建已验证备份。</string>
+	<key>Deletion did not complete. The active Skill was restored to its prior state.</key>
+	<string>删除未完成。活动 Skill 已恢复到之前的状态。</string>
 	<key>Deletion operations</key>
 	<string>删除操作</string>
 	<key>Disable missing target</key>
 	<string>停用缺失目标</string>
+	<key>Disabled</key>
+	<string>已禁用</string>
 	<key>Discard local changes</key>
 	<string>放弃本地更改</string>
+	<key>Discard restores the managed Skill and cannot be undone. Choose Fork to preserve the local content independently.</key>
+	<string>Discard 会恢复托管 Skill 且无法撤销。选择 Fork 可独立保留本地内容。</string>
 	<key>Discover Skills from public GitHub repositories.</key>
 	<string>从公开 GitHub 仓库发现 Skill。</string>
 	<key>Discovered Skills</key>
 	<string>已发现的 Skill</string>
 	<key>Discovery</key>
 	<string>发现</string>
+	<key>Discovery changed. Review the current candidates before importing.</key>
+	<string>发现结果已更改。请在导入前检查当前候选项。</string>
 	<key>Discovery evidence</key>
 	<string>发现证据</string>
 	<key>Discovery failed</key>
@@ -390,6 +454,12 @@
 	<string>已分发</string>
 	<key>Distribution</key>
 	<string>分发</string>
+	<key>Distribution changed after preview.</key>
+	<string>预览后分发状态已更改。</string>
+	<key>Distribution completed and the current state was refreshed.</key>
+	<string>分发已完成，当前状态已刷新。</string>
+	<key>Distribution did not complete.</key>
+	<string>分发未完成。</string>
 	<key>Distribution is blocked. No Skill will be imported until this is resolved.</key>
 	<string>分发已阻止。解决此问题前不会导入 Skill。</string>
 	<key>Distribution is blocked. The Skill can still be added to the managed library.</key>
@@ -402,22 +472,38 @@
 	<string>分发需要关注</string>
 	<key>Distribution preview</key>
 	<string>分发预览</string>
+	<key>Distribution preview was unavailable.</key>
+	<string>分发预览不可用。</string>
 	<key>Distribution scope</key>
 	<string>分发范围</string>
-	<key>Distribution status: %arg</key>
-	<string>分发状态：%arg</string>
+	<key>Distribution slug was unavailable.</key>
+	<string>分发标识不可用。</string>
+	<key>Distribution status: %@</key>
+	<string>分发状态：%@</string>
 	<key>Done</key>
 	<string>完成</string>
 	<key>Downloading and validating…</key>
 	<string>正在下载并验证…</string>
+	<key>Each target receives a managed Copy.</key>
+	<string>每个目标都会收到托管 Copy。</string>
 	<key>Enable for</key>
 	<string>启用范围</string>
+	<key>Enter a public https://github.com/owner/repository URL.</key>
+	<string>请输入公开的 https://github.com/owner/repository URL。</string>
+	<key>Enter a search query between 2 and 200 characters.</key>
+	<string>请输入 2 到 200 个字符的搜索查询。</string>
+	<key>Enter a valid Git branch, tag, or commit reference.</key>
+	<string>请输入有效的 Git 分支、标签或提交引用。</string>
 	<key>Every visible result is unavailable. Fix the folders below, then refresh.</key>
 	<string>所有可见结果均不可用。请修复下方文件夹，然后刷新。</string>
+	<key>Existing Agent bindings were preserved.</key>
+	<string>现有 Agent 绑定已保留。</string>
 	<key>Explicitly selects this conflict for an independent import.</key>
 	<string>明确选择此冲突以执行独立导入。</string>
 	<key>Failed</key>
 	<string>失败</string>
+	<key>Failed: %@</key>
+	<string>失败：%@</string>
 	<key>Files</key>
 	<string>文件</string>
 	<key>Filter audit findings</key>
@@ -438,8 +524,16 @@
 	<string>GitHub 仓库</string>
 	<key>GitHub Repository...</key>
 	<string>GitHub 仓库…</string>
+	<key>GitHub did not respond in time.</key>
+	<string>GitHub 未及时响应。</string>
+	<key>GitHub is unavailable while the network is offline.</key>
+	<string>网络离线时 GitHub 不可用。</string>
+	<key>GitHub rate limited this request.</key>
+	<string>GitHub 限制了此请求的频率。</string>
 	<key>GitHub repository URL</key>
 	<string>GitHub 仓库 URL</string>
+	<key>GitHub returned an unsupported repository layout.</key>
+	<string>GitHub 返回了不受支持的仓库布局。</string>
 	<key>Global</key>
 	<string>全局</string>
 	<key>Global shared target</key>
@@ -448,6 +542,8 @@
 	<string>健康</string>
 	<key>Hide filters</key>
 	<string>隐藏筛选器</string>
+	<key>Identity: new independent Skill UUID</key>
+	<string>身份：新的独立 Skill UUID</string>
 	<key>If a target conflicts, the Skill remains restored without Agent links.</key>
 	<string>如果目标发生冲突，Skill 仍会恢复，但不会恢复 Agent 链接。</string>
 	<key>Impact</key>
@@ -464,6 +560,8 @@
 	<string>作为独立 Skill 导入、备份并迁移</string>
 	<key>Import as new</key>
 	<string>作为新 Skill 导入</string>
+	<key>Import failed: %@</key>
+	<string>导入失败：%@</string>
 	<key>Import in progress</key>
 	<string>正在导入</string>
 	<key>Import needs attention</key>
@@ -476,12 +574,16 @@
 	<string>将此本地文件夹导入为托管 Skill</string>
 	<key>Import, back up and migrate</key>
 	<string>导入、备份并迁移</string>
+	<key>Importable</key>
+	<string>可导入</string>
 	<key>Imported</key>
 	<string>已导入</string>
 	<key>Imported and enabled</key>
 	<string>已导入并启用</string>
 	<key>Imported but not enabled</key>
 	<string>已导入但未启用</string>
+	<key>Imported; status needs attention</key>
+	<string>已导入；状态需要关注</string>
 	<key>Importing selected Skills…</key>
 	<string>正在导入所选 Skill…</string>
 	<key>In sync</key>
@@ -510,8 +612,8 @@
 	<string>已安装并启用</string>
 	<key>Installed but not enabled</key>
 	<string>已安装但未启用</string>
-	<key>Installed version %arg</key>
-	<string>已安装版本 %arg</string>
+	<key>Installed version %@</key>
+	<string>已安装版本 %@</string>
 	<key>Invalid search</key>
 	<string>搜索无效</string>
 	<key>Keep as independent Fork</key>
@@ -522,18 +624,18 @@
 	<string>暂时保留</string>
 	<key>Kept for now</key>
 	<string>暂时保留</string>
+	<key>Kept for this session. A future audit will show it again.</key>
+	<string>本次会话暂时保留。未来审计会再次显示它。</string>
 	<key>Kept for this session. Refreshing will show the finding again.</key>
 	<string>本次会话中保留。刷新后将再次显示此发现。</string>
-	<key>Latest version %arg</key>
-	<string>最新版本 %arg</string>
+	<key>Latest version %@</key>
+	<string>最新版本 %@</string>
 	<key>Library unavailable</key>
 	<string>托管库不可用</string>
 	<key>Load More</key>
 	<string>加载更多</string>
 	<key>Loading </key>
 	<string>正在加载 </string>
-	<key>Loading %arg...</key>
-	<string>正在加载 %arg…</string>
 	<key>Loading SKILL.md…</key>
 	<string>正在加载 SKILL.md…</string>
 	<key>Loading and validating backups…</key>
@@ -560,8 +662,10 @@
 	<string>本地</string>
 	<key>Local Copy</key>
 	<string>本地副本</string>
-	<key>Local changes at %arg</key>
-	<string>%arg 处有本地更改</string>
+	<key>Local Copy changes were discarded and restored from the managed Skill.</key>
+	<string>本地 Copy 更改已丢弃，并从托管 Skill 恢复。</string>
+	<key>Local changes at %@</key>
+	<string>%@ 处有本地更改</string>
 	<key>Local locations</key>
 	<string>本地位置</string>
 	<key>Location</key>
@@ -576,18 +680,26 @@
 	<string>管理 Skill</string>
 	<key>Managed</key>
 	<string>已托管</string>
-	<key>Managed Agent target %arg</key>
-	<string>托管 Agent 目标 %arg</string>
+	<key>Managed Agent target</key>
+	<string>托管 Agent 目标</string>
+	<key>Managed Agent target %@</key>
+	<string>托管 Agent 目标 %@</string>
+	<key>Managed Agent targets: %lld</key>
+	<string>Agent 目标数：%lld</string>
+	<key>Managed Copy target</key>
+	<string>托管 Copy 目标</string>
 	<key>Managed Skill needs repair</key>
 	<string>托管 Skill 需要修复</string>
-	<key>Managed Skill status: %arg</key>
-	<string>托管 Skill 状态：%arg</string>
+	<key>Managed Skill status: %@</key>
+	<string>托管 Skill 状态：%@</string>
 	<key>Managed Skills</key>
 	<string>托管 Skill</string>
 	<key>Managed and in sync</key>
 	<string>已托管且同步</string>
 	<key>Managed but not enabled</key>
 	<string>已托管但未启用</string>
+	<key>Managed catalog repair is required.</key>
+	<string>需要修复托管目录。</string>
 	<key>Managed content was modified locally</key>
 	<string>托管内容已在本地修改</string>
 	<key>Managed result</key>
@@ -600,6 +712,8 @@
 	<string>匹配现有托管 Skill</string>
 	<key>Matching Skill already exists</key>
 	<string>匹配的 Skill 已存在</string>
+	<key>Migration recovery is required.</key>
+	<string>需要迁移恢复。</string>
 	<key>Minor</key>
 	<string>次要版本</string>
 	<key>Missing SKILL.md</key>
@@ -618,6 +732,8 @@
 	<string>需要修复</string>
 	<key>Needs attention</key>
 	<string>需要关注</string>
+	<key>Needs attention: %@</key>
+	<string>需要注意：%@</string>
 	<key>Needs repair</key>
 	<string>需要修复</string>
 	<key>Needs update</key>
@@ -650,6 +766,8 @@
 	<string>无更改</string>
 	<key>No distribution changes are needed.</key>
 	<string>无需更改分发。</string>
+	<key>No distribution changes were needed.</key>
+	<string>无需更改分发。</string>
 	<key>No distribution file changes are needed.</key>
 	<string>无需更改分发文件。</string>
 	<key>No latest Skills available.</key>
@@ -658,10 +776,14 @@
 	<string>没有本地 Skill 匹配当前搜索和筛选条件。</string>
 	<key>No local matches</key>
 	<string>没有匹配的本地 Skill</string>
+	<key>No managed Skill was confirmed.</key>
+	<string>未确认任何托管 Skill。</string>
 	<key>No managed Skills are available.</key>
 	<string>没有可用的托管 Skill。</string>
 	<key>No managed Skills.</key>
 	<string>没有托管 Skill。</string>
+	<key>No managed write was attempted.</key>
+	<string>未尝试写入托管库。</string>
 	<key>No matching Skills</key>
 	<string>没有匹配的 Skill</string>
 	<key>No matching findings</key>
@@ -698,6 +820,8 @@
 	<string>已观察目录</string>
 	<key>On This Mac</key>
 	<string>在此 Mac 上</string>
+	<key>Only content-only Copy changes can use this decision.</key>
+	<string>只有纯内容 Copy 更改可以使用此决定。</string>
 	<key>Open Skill Backups</key>
 	<string>打开 Skill 备份</string>
 	<key>Open consistency audit</key>
@@ -720,6 +844,8 @@
 	<string>打开安装审查。确认前不会写入任何内容。</string>
 	<key>Operation in progress</key>
 	<string>操作进行中</string>
+	<key>Operation: %@</key>
+	<string>操作：%@</string>
 	<key>Optional Git branch, tag, or commit reference</key>
 	<string>可选的 Git 分支、标签或提交引用</string>
 	<key>Original Project</key>
@@ -734,6 +860,12 @@
 	<string>补丁版本</string>
 	<key>Permission denied</key>
 	<string>权限被拒绝</string>
+	<key>Permission denied while applying the repair.</key>
+	<string>应用修复时没有权限。</string>
+	<key>Permission denied while auditing the library.</key>
+	<string>审计托管库时没有权限。</string>
+	<key>Permission denied while migrating the Skill.</key>
+	<string>迁移 Skill 时没有权限。</string>
 	<key>Permission required</key>
 	<string>需要权限</string>
 	<key>Pick a folder or zip</key>
@@ -754,6 +886,8 @@
 	<string>正在准备恢复预览</string>
 	<key>Preparing secure previews…</key>
 	<string>正在准备安全预览…</string>
+	<key>Preparing the managed library…</key>
+	<string>正在准备托管库…</string>
 	<key>Preserves the local content as a separately managed Skill.</key>
 	<string>将本地内容保留为单独管理的 Skill。</string>
 	<key>Preview changes</key>
@@ -776,8 +910,8 @@
 	<string>发布 Skill</string>
 	<key>Publish result</key>
 	<string>发布结果</string>
-	<key>Push changes for %arg to ClawHub.</key>
-	<string>将 %arg 的更改推送到 ClawHub。</string>
+	<key>Push changes for %@ to ClawHub.</key>
+	<string>将 %@ 的更改推送到 ClawHub。</string>
 	<key>Reading SSOT, database, distribution targets and discovered directories.</key>
 	<string>正在读取 SSOT、数据库、分发目标和发现的目录。</string>
 	<key>Reading the local Skill and remote source.</key>
@@ -794,8 +928,8 @@
 	<string>原因</string>
 	<key>Rebuild missing links</key>
 	<string>重建缺失链接</string>
-	<key>Recheck %arg</key>
-	<string>重新检查 %arg</string>
+	<key>Recheck %@</key>
+	<string>重新检查 %@</string>
 	<key>Recheck after resolving local or remote changes.</key>
 	<string>解决本地或远程更改后重新检查。</string>
 	<key>Recreate every missing managed Symlink for this Skill.</key>
@@ -804,10 +938,10 @@
 	<string>引用</string>
 	<key>References</key>
 	<string>引用</string>
-	<key>Refresh %arg</key>
-	<string>刷新 %arg</string>
-	<key>Refresh %arg's distribution from its details.</key>
-	<string>请从 %arg 的详情刷新分发。</string>
+	<key>Refresh %@</key>
+	<string>刷新 %@</string>
+	<key>Refresh %@'s distribution from its details.</key>
+	<string>请从 %@ 的详情刷新分发。</string>
 	<key>Refresh All</key>
 	<string>全部刷新</string>
 	<key>Refresh Copy</key>
@@ -848,8 +982,8 @@
 	<string>保持不变</string>
 	<key>Remove</key>
 	<string>移除</string>
-	<key>Remove %arg</key>
-	<string>移除 %arg</string>
+	<key>Remove %@</key>
+	<string>移除 %@</string>
 	<key>Remove Custom Path?</key>
 	<string>移除自定义路径？</string>
 	<key>Remove Path</key>
@@ -886,12 +1020,14 @@
 	<string>仓库</string>
 	<key>Repository unavailable</key>
 	<string>仓库不可用</string>
-	<key>Resolve and Install %arg</key>
-	<string>解析并安装 %arg</string>
+	<key>Resolve and Install %@</key>
+	<string>解析并安装 %@</string>
 	<key>Resolve and Install…</key>
 	<string>解析并安装…</string>
 	<key>Resolve and Review…</key>
 	<string>解析并查看…</string>
+	<key>Resolve the distribution conflicts before importing.</key>
+	<string>请在导入前解决分发冲突。</string>
 	<key>Resolving and validating GitHub source…</key>
 	<string>正在解析并验证 GitHub 来源…</string>
 	<key>Restore</key>
@@ -914,8 +1050,8 @@
 	<string>正在恢复已验证的备份…</string>
 	<key>Result</key>
 	<string>结果</string>
-	<key>Result: %arg</key>
-	<string>结果：%arg</string>
+	<key>Result: %@</key>
+	<string>结果：%@</string>
 	<key>Retry</key>
 	<string>重试</string>
 	<key>Retry ClawHub latest Skills</key>
@@ -964,6 +1100,8 @@
 	<string>修订版本</string>
 	<key>Rolled back</key>
 	<string>已回滚</string>
+	<key>Run an audit to inspect the managed library.</key>
+	<string>运行审计以检查托管库。</string>
 	<key>Run bunx clawdhub@latest login in Terminal, then check again.</key>
 	<string>在终端运行 bunx clawdhub@latest login，然后再次检查。</string>
 	<key>SKILL.md is missing.</key>
@@ -972,14 +1110,16 @@
 	<string>SKILL.md 不是有效的 UTF-8。</string>
 	<key>SSOT, database and managed targets are consistent.</key>
 	<string>SSOT、数据库和托管目标一致。</string>
+	<key>SSOT: %@</key>
+	<string>SSOT：%@</string>
 	<key>Save Agent selection</key>
 	<string>保存 Agent 选择</string>
 	<key>Saved in Skill Backups</key>
 	<string>已保存到 Skill 备份</string>
 	<key>Scan Issues</key>
 	<string>扫描问题</string>
-	<key>Scan scope (%arg roots)</key>
-	<string>扫描范围（%arg 个根目录）</string>
+	<key>Scan scope (%lld roots)</key>
+	<string>扫描范围（%lld 个根目录）</string>
 	<key>Scanning for skills...</key>
 	<string>正在扫描 Skill…</string>
 	<key>Scanning registered folders</key>
@@ -996,8 +1136,8 @@
 	<string>正在搜索 ClawHub</string>
 	<key>Searching skills.sh</key>
 	<string>正在搜索 skills.sh</string>
-	<key>Select %arg</key>
-	<string>选择 %arg</string>
+	<key>Select %@</key>
+	<string>选择 %@</string>
 	<key>Select Ready</key>
 	<string>选择“就绪”</string>
 	<key>Select a discovered Skill</key>
@@ -1026,16 +1166,16 @@
 	<string>停用前显示所选托管目标。</string>
 	<key>Shows the source, SSOT target, backup and operation before writing.</key>
 	<string>写入前显示来源、SSOT 目标、备份和操作。</string>
-	<key>Signed in as %arg</key>
-	<string>已登录为 %arg</string>
+	<key>Signed in as %@</key>
+	<string>已登录为 %@</string>
 	<key>Size</key>
 	<string>大小</string>
-	<key>Skill %arg</key>
-	<string>技能 %arg</string>
+	<key>Skill %@</key>
+	<string>技能 %@</string>
 	<key>Skill Backups</key>
 	<string>Skill 备份</string>
-	<key>Skill Backups, %arg available</key>
-	<string>技能备份，可用 %arg 项</string>
+	<key>Skill Backups, %lld available</key>
+	<string>技能备份，可用 %lld 项</string>
 	<key>Skill unavailable</key>
 	<string>Skill 不可用</string>
 	<key>Skill updated</key>
@@ -1046,26 +1186,34 @@
 	<string>技能</string>
 	<key>Skills Manager</key>
 	<string>Skills Manager</string>
-	<key>Skills Manager will %arg</key>
-	<string>Skills Manager 将%arg</string>
+	<key>Skills Manager does not have permission to access a distribution target.</key>
+	<string>Skills Manager 没有访问分发目标的权限。</string>
+	<key>Skills Manager does not have permission to complete this operation.</key>
+	<string>Skills Manager 没有完成此操作的权限。</string>
+	<key>Skills Manager does not have permission to import this Skill.</key>
+	<string>Skills Manager 没有导入此 Skill 的权限。</string>
+	<key>Skills Manager will %@</key>
+	<string>Skills Manager 将%@</string>
 	<key>Skipped</key>
 	<string>已跳过</string>
+	<key>Skipped: %@</key>
+	<string>已跳过：%@</string>
 	<key>Slug</key>
 	<string>标识</string>
-	<key>Slug: %arg</key>
-	<string>标识：%arg</string>
+	<key>Slug: %@</key>
+	<string>标识：%@</string>
 	<key>Some roots could not be inspected. Write actions are disabled.</key>
 	<string>部分根目录无法检查。写入操作已禁用。</string>
 	<key>Source</key>
 	<string>来源</string>
-	<key>Source %arg</key>
-	<string>来源 %arg</string>
-	<key>Source: %arg</key>
-	<string>来源：%arg</string>
+	<key>Source %@</key>
+	<string>来源 %@</string>
+	<key>Source: %@</key>
+	<string>来源：%@</string>
 	<key>Status</key>
 	<string>状态</string>
-	<key>Status: %arg</key>
-	<string>状态：%arg</string>
+	<key>Status: %@</key>
+	<string>状态：%@</string>
 	<key>Stop after the current Skill</key>
 	<string>当前 Skill 后停止</string>
 	<key>Subpath</key>
@@ -1078,8 +1226,24 @@
 	<string>目标 Skill ID</string>
 	<key>Target slug</key>
 	<string>目标标识</string>
-	<key>Target: %arg</key>
-	<string>目标：%arg</string>
+	<key>Target: %@</key>
+	<string>目标：%@</string>
+	<key>The ClawHub source record conflicts with another managed Skill.</key>
+	<string>ClawHub 来源记录与其他托管 Skill 冲突。</string>
+	<key>The Copy contains unsupported or unsafe content.</key>
+	<string>Copy 包含不受支持或不安全的内容。</string>
+	<key>The Copy state cannot be handled safely in a batch.</key>
+	<string>无法在批量操作中安全处理 Copy 状态。</string>
+	<key>The Copy targets changed. Check this Skill again.</key>
+	<string>Copy 目标已更改。请重新检查此 Skill。</string>
+	<key>The Fork was created, but it could not be selected in the refreshed library.</key>
+	<string>Fork 已创建，但无法在刷新的库中选中。</string>
+	<key>The GitHub repository is unavailable.</key>
+	<string>GitHub 仓库不可用。</string>
+	<key>The GitHub repository tree is too large to inspect safely.</key>
+	<string>GitHub 仓库树过大，无法安全检查。</string>
+	<key>The GitHub request was cancelled.</key>
+	<string>GitHub 请求已取消。</string>
 	<key>The Skill changed while it was being inspected.</key>
 	<string>检查期间 Skill 发生了更改。</string>
 	<key>The Skill contains an unsafe path or link.</key>
@@ -1092,26 +1256,68 @@
 	<string>Skill 超出安全导入限制。</string>
 	<key>The Skill folder cannot be read.</key>
 	<string>无法读取 Skill 文件夹。</string>
+	<key>The Skill lifecycle service is unavailable.</key>
+	<string>Skill 生命周期服务不可用。</string>
 	<key>The Skill link target is not a directory.</key>
 	<string>Skill 链接目标不是目录。</string>
 	<key>The Skill link target is unavailable.</key>
 	<string>Skill 链接目标不可用。</string>
+	<key>The Skill or its distribution changed. Resolve Copy changes in Distribution, then refresh before deleting.</key>
+	<string>Skill 或其分发已更改。请在分发中解决 Copy 更改，然后刷新后再删除。</string>
 	<key>The Skill uses a symbolic link that cannot be trusted.</key>
 	<string>Skill 使用的符号链接不可信。</string>
+	<key>The Skill was deleted and cleanup completed.</key>
+	<string>Skill 已删除并完成清理。</string>
+	<key>The Skill was deleted. Cleanup still needs to finish.</key>
+	<string>Skill 已删除。清理仍需完成。</string>
+	<key>The Skill was imported into the managed library.</key>
+	<string>Skill 已导入托管库。</string>
+	<key>The Skill was not imported because the managed write was rolled back.</key>
+	<string>由于托管写入已回滚，Skill 未被导入。</string>
+	<key>The Skill was restored, but its original Agent targets could not be restored.</key>
+	<string>Skill 已恢复，但其原始 Agent 目标无法恢复。</string>
+	<key>The Skill was restored.</key>
+	<string>Skill 已恢复。</string>
+	<key>The Skill was updated, but distribution needs attention.</key>
+	<string>Skill 已更新，但分发需要关注。</string>
 	<key>The Skill will be added to the managed library before distribution.</key>
 	<string>分发前会先将 Skill 添加到托管库。</string>
+	<key>The archive preview is no longer available.</key>
+	<string>归档预览已不可用。</string>
+	<key>The backup is missing, changed, or corrupt and cannot be restored.</key>
+	<string>备份缺失、已更改或损坏，无法恢复。</string>
 	<key>The content matches more than one managed Skill.</key>
 	<string>内容匹配多个托管 Skill。</string>
 	<key>The current managed content will be backed up before it is replaced.</key>
 	<string>替换前将备份当前已管理内容。</string>
 	<key>The current managed content will be backed up before replacement.</key>
 	<string>替换前会备份当前托管内容。</string>
+	<key>The discovery result is no longer valid.</key>
+	<string>发现结果已不再有效。</string>
+	<key>The distribution operation did not reach a successful terminal state.</key>
+	<string>分发操作未达到成功的终止状态。</string>
+	<key>The distribution plan is blocked by a target conflict.</key>
+	<string>分发计划因目标冲突而受阻。</string>
+	<key>The existing managed Skill was linked to this local source.</key>
+	<string>现有托管 Skill 已链接到此本地来源。</string>
 	<key>The global Agent coverage is inconsistent.</key>
 	<string>全局 Agent 覆盖范围不一致。</string>
-	<key>The import state for %arg must be confirmed or repaired before retrying.</key>
-	<string>重试前必须确认或修复 %arg 的导入状态。</string>
+	<key>The import preview changed. Review it again before importing.</key>
+	<string>导入预览已更改。请在导入前重新检查。</string>
+	<key>The import preview expired. Prepare a new preview.</key>
+	<string>导入预览已过期。请准备新的预览。</string>
+	<key>The import state for %@ must be confirmed or repaired before retrying.</key>
+	<string>重试前必须确认或修复 %@ 的导入状态。</string>
+	<key>The library changed. Refresh the audit.</key>
+	<string>托管库已更改。请刷新审计。</string>
+	<key>The managed SSOT content was modified locally.</key>
+	<string>托管 SSOT 内容已在本地修改。</string>
 	<key>The managed Skill and its distribution are current.</key>
 	<string>托管 Skill 及其分发均为最新。</string>
+	<key>The managed Skill requires repair.</key>
+	<string>托管 Skill 需要修复。</string>
+	<key>The managed catalog contains a duplicate Skill identity.</key>
+	<string>托管目录包含重复的 Skill 身份。</string>
 	<key>The managed copy baseline is unavailable or invalid.</key>
 	<string>托管 Copy 基线不可用或无效。</string>
 	<key>The managed copy contains local content changes.</key>
@@ -1126,8 +1332,24 @@
 	<string>托管 Copy 根目录已被替换。</string>
 	<key>The managed library is unavailable.</key>
 	<string>托管库不可用。</string>
+	<key>The managed library requires repair before another import can start.</key>
+	<string>再次导入前必须修复托管库。</string>
+	<key>The managed library session is unavailable.</key>
+	<string>托管库会话不可用。</string>
+	<key>The managed or distributed state changed.</key>
+	<string>托管或分发状态已更改。</string>
+	<key>The matching Skill was already restored.</key>
+	<string>匹配的 Skill 已恢复。</string>
+	<key>The operation could not be completed.</key>
+	<string>操作无法完成。</string>
 	<key>The operation did not complete.</key>
 	<string>操作未完成。</string>
+	<key>The operation did not reach a successful terminal state.</key>
+	<string>操作未达到成功的终止状态。</string>
+	<key>The operation finished, but a fresh audit could not verify consistency.</key>
+	<string>操作已完成，但新的审计无法验证一致性。</string>
+	<key>The operation requires manual recovery.</key>
+	<string>操作需要手动恢复。</string>
 	<key>The original Agent targets conflict with current managed content.</key>
 	<string>原始 Agent 目标与当前托管内容冲突。</string>
 	<key>The original repository identity is already used by another Skill.</key>
@@ -1136,8 +1358,24 @@
 	<string>无法恢复原始来源。</string>
 	<key>The parent Skill was updated and local changes are independent.</key>
 	<string>父 Skill 已更新，本地更改已独立保留。</string>
+	<key>The preview expired because the distribution state changed. Review the refreshed state.</key>
+	<string>预览已过期，因为分发状态已更改。请检查刷新后的状态。</string>
+	<key>The preview expired because the managed state changed. Review it again.</key>
+	<string>预览已过期，因为托管状态已更改。请重新检查。</string>
+	<key>The preview expired.</key>
+	<string>预览已过期。</string>
+	<key>The preview is stale. Refresh the audit.</key>
+	<string>预览已过期。请刷新审计。</string>
 	<key>The remote source has different content or revision. No files were changed.</key>
 	<string>远程来源的内容或修订版本不同。未更改任何文件。</string>
+	<key>The remote update could not be proven.</key>
+	<string>无法证明远程更新。</string>
+	<key>The repository changed. Review the latest catalog state and try again.</key>
+	<string>仓库已更改。请检查最新目录状态后重试。</string>
+	<key>The repository is no longer registered.</key>
+	<string>仓库已不再注册。</string>
+	<key>The saved distribution state is invalid and cannot be edited safely.</key>
+	<string>保存的分发状态无效，无法安全编辑。</string>
 	<key>The saved link points to a different managed Skill.</key>
 	<string>保存的链接指向其他托管 Skill。</string>
 	<key>The scan root cannot be read.</key>
@@ -1150,42 +1388,98 @@
 	<string>扫描根目录不是目录或受支持的链接。</string>
 	<key>The selected Agent is unsupported.</key>
 	<string>所选 Agent 不受支持。</string>
+	<key>The selected Skill changed after validation. Choose it again.</key>
+	<string>所选 Skill 在验证后发生更改。请重新选择。</string>
+	<key>The selected Skill is no longer valid.</key>
+	<string>所选 Skill 已不再有效。</string>
+	<key>The selected repository path does not identify one Skill.</key>
+	<string>所选仓库路径无法唯一识别一个 Skill。</string>
 	<key>The selected scope is invalid.</key>
 	<string>所选作用域无效。</string>
+	<key>The selected target is not a managed Copy.</key>
+	<string>所选目标不是托管 Copy。</string>
+	<key>The skills.sh search endpoint redirected unexpectedly.</key>
+	<string>skills.sh 搜索端点意外重定向。</string>
+	<key>The skills.sh search interface has changed.</key>
+	<string>skills.sh 搜索接口已更改。</string>
 	<key>The source and content point to different managed Skills.</key>
 	<string>来源和内容指向不同的托管 Skill。</string>
+	<key>The source changed after preview.</key>
+	<string>来源在预览后已更改。</string>
+	<key>The source changed. Refresh the audit.</key>
+	<string>来源已更改。请刷新审计。</string>
 	<key>The source metadata matches more than one managed Skill.</key>
 	<string>来源元数据匹配多个托管 Skill。</string>
+	<key>The source now conflicts with another managed Skill.</key>
+	<string>来源现在与其他托管 Skill 冲突。</string>
 	<key>The target folder is unavailable.</key>
 	<string>目标文件夹不可用。</string>
+	<key>The update check is no longer available.</key>
+	<string>更新检查已不可用。</string>
+	<key>The update state could not be confirmed safely.</key>
+	<string>无法安全确认更新状态。</string>
+	<key>The update was rolled back without changing the managed Skill.</key>
+	<string>更新已回滚，托管 Skill 未更改。</string>
+	<key>The update was rolled back. The previous managed content is still available.</key>
+	<string>更新已回滚。之前的托管内容仍可用。</string>
+	<key>This GitHub repository is already registered.</key>
+	<string>此 GitHub 仓库已注册。</string>
 	<key>This Skill can be updated safely.</key>
 	<string>此 Skill 可以安全更新。</string>
+	<key>This Skill cannot form a valid distribution slug.</key>
+	<string>此 Skill 无法形成有效的分发标识。</string>
+	<key>This Skill has an incomplete distribution operation that needs repair.</key>
+	<string>此 Skill 有未完成的分发操作，需要修复。</string>
 	<key>This Skill has not been checked yet.</key>
 	<string>此 Skill 尚未检查。</string>
 	<key>This Skill is already managed. Change its Agent access from the Skill details.</key>
 	<string>此 Skill 已被管理。请从 Skill 详情更改其 Agent 访问权限。</string>
+	<key>This Skill was already managed.</key>
+	<string>此 Skill 已被托管。</string>
+	<key>This action is no longer available.</key>
+	<string>此操作已不可用。</string>
 	<key>This available update was not selected.</key>
 	<string>未选择此可用更新。</string>
 	<key>This backup did not have any Agent targets.</key>
 	<string>此备份没有任何 Agent 目标。</string>
+	<key>This candidate is not importable.</key>
+	<string>此候选项不可导入。</string>
+	<key>This candidate was skipped.</key>
+	<string>此候选项已跳过。</string>
+	<key>This deletion or backup requires repair before another change can start.</key>
+	<string>此删除或备份需要修复后才能开始其他更改。</string>
 	<key>This folder contains Skill subdirectories.</key>
 	<string>此文件夹包含 Skill 子目录。</string>
+	<key>This import is already in progress.</key>
+	<string>此导入已在进行中。</string>
 	<key>This is different from removing Agent links. It backs up the Skill, removes all managed Agent links, and deletes the managed Skill itself.</key>
 	<string>这不同于移除 Agent 链接。此操作会备份 Skill、移除所有托管 Agent 链接，并删除托管 Skill 本身。</string>
+	<key>This item was skipped.</key>
+	<string>此项目已跳过。</string>
 	<key>This location is linked to more than one managed Skill.</key>
 	<string>此位置关联了多个托管 Skill。</string>
 	<key>This location no longer matches its managed Skill.</key>
 	<string>此位置已不再匹配其托管 Skill。</string>
+	<key>This managed Skill also has local origins and cannot be safely updated from skills.sh.</key>
+	<string>此托管 Skill 还有本地来源，无法从 skills.sh 安全更新。</string>
+	<key>This managed Skill has reached the Provider alias limit.</key>
+	<string>此托管 Skill 已达到 Provider 别名上限。</string>
 	<key>This managed Skill needs repair before it can be published.</key>
 	<string>此已管理 Skill 需要修复后才能发布。</string>
+	<key>This migration is not currently available.</key>
+	<string>此迁移当前不可用。</string>
 	<key>This reference file could not be found.</key>
 	<string>找不到此引用文件。</string>
 	<key>This removes only managed distribution targets. The Skill remains in the managed library.</key>
 	<string>这只会移除已管理的分发目标。Skill 会保留在已管理库中。</string>
 	<key>This removes only the discovery source. Installed Skills are not deleted.</key>
 	<string>这只会移除发现来源。不会删除已安装的 Skill。</string>
-	<key>This will remove "%arg" from the sidebar. The skills will not be deleted from disk.</key>
-	<string>这会从侧边栏移除“%arg”。不会从磁盘删除这些 Skill。</string>
+	<key>This repair is not currently available.</key>
+	<string>此修复当前不可用。</string>
+	<key>This skills.sh result is already linked to a different managed source.</key>
+	<string>此 skills.sh 结果已链接到其他托管来源。</string>
+	<key>This will remove "%@" from the sidebar. The skills will not be deleted from disk.</key>
+	<string>这会从侧边栏移除“%@”。不会从磁盘删除这些 Skill。</string>
 	<key>Try again without affecting your local Skills.</key>
 	<string>请重试，不会影响本地 Skill。</string>
 	<key>Unable to import</key>
@@ -1208,28 +1502,30 @@
 	<string>已是最新</string>
 	<key>Update</key>
 	<string>更新</string>
-	<key>Update %arg</key>
-	<string>更新 %arg</string>
+	<key>Update %@</key>
+	<string>更新 %@</string>
 	<key>Update Selected</key>
 	<string>更新所选项</string>
 	<key>Update available</key>
 	<string>有可用更新</string>
-	<key>Update available, version %arg</key>
-	<string>有可用更新，版本 %arg</string>
-	<key>Update available: v%arg</key>
-	<string>有可用更新：v%arg</string>
+	<key>Update available, version %@</key>
+	<string>有可用更新，版本 %@</string>
+	<key>Update available: v%@</key>
+	<string>有可用更新：v%@</string>
 	<key>Update cancelled</key>
 	<string>更新已取消</string>
 	<key>Update check</key>
 	<string>更新检查</string>
 	<key>Update checking unavailable</key>
 	<string>更新检查不可用</string>
+	<key>Update failed: %@</key>
+	<string>更新失败：%@</string>
 	<key>Update needs confirmation</key>
 	<string>更新需要确认</string>
 	<key>Update required</key>
 	<string>需要更新</string>
-	<key>Update result: %arg</key>
-	<string>更新结果：%arg</string>
+	<key>Update result: %@</key>
+	<string>更新结果：%@</string>
 	<key>Update rolled back</key>
 	<string>更新已回滚</string>
 	<key>Update saved target</key>
@@ -1238,8 +1534,8 @@
 	<string>无法确认更新状态</string>
 	<key>Update state needs attention</key>
 	<string>更新状态需要关注</string>
-	<key>Update status: %arg</key>
-	<string>更新状态：%arg</string>
+	<key>Update status: %@</key>
+	<string>更新状态：%@</string>
 	<key>Update the managed SSOT while keeping its Skill identity and current Agent access.</key>
 	<string>在保留 Skill 身份和当前 Agent 访问权限的同时更新已管理 SSOT。</string>
 	<key>Updated</key>
@@ -1250,6 +1546,8 @@
 	<string>已更新；分发需要关注</string>
 	<key>Updated; local changes kept as Fork</key>
 	<string>已更新；本地更改已作为 Fork 保留</string>
+	<key>Updated; status needs attention</key>
+	<string>已更新；状态需要关注</string>
 	<key>Updating</key>
 	<string>正在更新</string>
 	<key>Updating Skill</key>
@@ -1258,8 +1556,8 @@
 	<string>正在更新托管 Skill 状态</string>
 	<key>Updating selected Skills…</key>
 	<string>正在更新所选 Skill…</string>
-	<key>Use the Skill details to change where %arg is enabled.</key>
-	<string>请使用 Skill 详情更改启用 %arg 的位置。</string>
+	<key>Use the Skill details to change where %@ is enabled.</key>
+	<string>请使用 Skill 详情更改启用 %@ 的位置。</string>
 	<key>Use the existing backup and recovery tools before making more changes.</key>
 	<string>进行更多更改前，请使用现有备份和恢复工具。</string>
 	<key>Uses an Agent-specific target</key>
@@ -1284,8 +1582,8 @@
 	<string>正在使用最新审计进行验证…</string>
 	<key>Verifying, backing up, updating, and refreshing distribution…</key>
 	<string>正在验证、备份、更新并刷新分发…</string>
-	<key>Version %arg (%arg)</key>
-	<string>版本 %1$arg（%2$arg）</string>
+	<key>Version %@ (%@)</key>
+	<string>版本 %@（%@）</string>
 	<key>Version bump</key>
 	<string>版本变更</string>
 	<key>Wait for the current operation, then refresh.</key>
@@ -1294,33 +1592,37 @@
 	<string>等待中</string>
 	<key>We’ll verify it contains a SKILL.md and show a preview.</key>
 	<string>我们将验证其中包含 SKILL.md 并显示预览。</string>
-	<key>Will publish v%arg</key>
-	<string>将发布 v%arg</string>
+	<key>Will publish v%@</key>
+	<string>将发布 v%@</string>
 	<key>You’re up to date.</key>
 	<string>已是最新版本。</string>
-	<key>candidates available</key>
-	<string>个候选项可用</string>
-	<key>claimed</key>
-	<string>已认领</string>
-	<key>created</key>
-	<string>已创建</string>
 	<key>disabled</key>
 	<string>已停用</string>
 	<key>enabled</key>
 	<string>已启用</string>
-	<key>failed</key>
-	<string>失败</string>
 	<key>https://github.com/owner/repository</key>
 	<string>https://github.com/owner/repository</string>
-	<key>selected</key>
-	<string>已选择</string>
 	<key>skills.sh</key>
 	<string>skills.sh</string>
+	<key>skills.sh could not be reached.</key>
+	<string>无法访问 skills.sh。</string>
+	<key>skills.sh did not respond in time.</key>
+	<string>skills.sh 未及时响应。</string>
+	<key>skills.sh is temporarily unavailable.</key>
+	<string>skills.sh 暂时不可用。</string>
+	<key>skills.sh rate limited this request. Try again in %@ seconds.</key>
+	<string>skills.sh 限制了此请求的频率。请在 %@ 秒后重试。</string>
+	<key>skills.sh rate limited this request. Try again later.</key>
+	<string>skills.sh 限制了此请求的频率。请稍后重试。</string>
+	<key>skills.sh returned more search data than can be handled safely.</key>
+	<string>skills.sh 返回的搜索数据超过安全处理范围。</string>
 	<key>skills.sh unavailable</key>
 	<string>skills.sh 不可用</string>
-	<key>skipped</key>
-	<string>已跳过</string>
-	<key>↻ v%arg</key>
-	<string>↻ v%arg</string>
+	<key>verify %@ at the discovered commit and exact Skill subpath.</key>
+	<string>请验证 %@ 的已发现提交和确切 Skill 子路径。</string>
+	<key>verify %@, find one matching SKILL.md, and pin the install to an immutable GitHub commit.</key>
+	<string>请验证 %@，找到一个匹配的 SKILL.md，并将安装固定到不可变的 GitHub 提交。</string>
+	<key>↻ v%@</key>
+	<string>↻ v%@</string>
 </dict>
 </plist>

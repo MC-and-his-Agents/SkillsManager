@@ -20,6 +20,7 @@ struct LocalizationContractTests {
         #expect(object["sourceLanguage"] as? String == "zh-Hans")
         let strings = try #require(object["strings"] as? [String: Any])
         #expect(strings.isEmpty == false)
+        #expect(strings.keys.allSatisfy { !$0.contains("%arg") && !$0.contains("%1$arg") })
 
         for (key, value) in strings {
             let entry = try #require(value as? [String: Any], "entry \(key)")
@@ -31,6 +32,8 @@ struct LocalizationContractTests {
                     #expect(unit["state"] as? String == "translated")
                     let value = try #require(unit["value"] as? String, "\(key) / \(language) value")
                     #expect(value.isEmpty == false)
+                    #expect(!value.contains("%arg"))
+                    #expect(!value.contains("%1$arg"))
                 }
             }
 
@@ -108,6 +111,42 @@ struct LocalizationContractTests {
         #expect(en.contains("1.0.1"))
     }
 
+    @Test("typed journey templates keep placeholder shape without legacy arg markers")
+    func typedJourneyTemplates() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Sources/SkillsManager/Resources/Localizable.xcstrings")
+        let object = try #require(
+            JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        )
+        let strings = try #require(object["strings"] as? [String: Any])
+        let keys = [
+            "Update available, version %@",
+            "%@ is ready.",
+            "%lld candidates available · %lld selected",
+            "%lld created · %lld claimed · %lld skipped · %lld failed",
+            "%lld of %lld",
+            "0 of %lld complete.",
+            "%lld of %lld complete.",
+            "%lld of %lld complete. %@",
+            "Batch update summary: %@",
+            "%lld item(s) need review.",
+            "Result: %@",
+        ]
+        for key in keys {
+            let zh = try localizationValues(strings, key: key, language: "zh-Hans")
+            let en = try localizationValues(strings, key: key, language: "en")
+            #expect(zh.count == en.count)
+            #expect(zip(zh, en).allSatisfy { zhValue, enValue in
+                !zhValue.contains("%arg")
+                    && !enValue.contains("%arg")
+                    && placeholders(in: zhValue).sorted() == placeholders(in: enValue).sorted()
+            }, "legacy or placeholder mismatch for \(key)")
+        }
+    }
+
     private func localizationUnits(
         _ localization: [String: Any],
         key: String,
@@ -138,7 +177,7 @@ struct LocalizationContractTests {
     }
 
     private func placeholders(in value: String) -> [String] {
-        let regex = try! NSRegularExpression(pattern: #"%(?:\d+\$)?arg|%\([^)]*\)(?:lld|ld|d|@)|%lld"#)
+        let regex = try! NSRegularExpression(pattern: #"%(?:\d+\$)?(?:arg|@|lld)|%\([^)]*\)(?:lld|ld|d|@)"#)
         return regex.matches(in: value, range: NSRange(value.startIndex..., in: value))
             .map { match in
                 String(value[Range(match.range, in: value)!])

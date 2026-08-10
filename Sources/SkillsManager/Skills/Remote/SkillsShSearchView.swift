@@ -14,7 +14,11 @@ struct SkillsShSearchDetailView: View {
 
                         HStack(spacing: 6) {
                             TagView(text: item.source)
-                            TagView(text: "\(item.installs.formatted()) installs")
+                            TagView(localized: LocalizedStringResource(
+                                "%lld installs",
+                                defaultValue: "\(item.installs) installs",
+                                bundle: .module
+                            ))
                         }
 
                         Label {
@@ -81,9 +85,12 @@ struct SkillsShSearchRow: View {
                     knownSource: .skillsSh
                 )],
             agentCount: 0,
-            accessibilityLabel:
-                "\(item.name), Available, skills.sh, \(item.installs.formatted()) installs, source \(item.source)",
-            accessibilityValue: "Available, skills.sh, 0 Agents"
+            accessibilityLabel: String(
+                localized: LocalizedStringResource( "%@, Available, skills.sh, %lld installs, source %@",
+                defaultValue: "\(item.name), Available, skills.sh, \(item.installs) installs, source \(item.source)",
+                bundle: .module
+            )),
+            accessibilityValue: String(localized: "Available, skills.sh, 0 Agents", bundle: .module)
         ))
     }
 }

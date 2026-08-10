@@ -75,7 +75,13 @@ struct SkillFilterBar: View {
                     .keyboardShortcut(statusShortcut(for: value))
                     .focused($statusFocused)
                     .accessibilityAddTraits(filters.status == value ? .isSelected : [])
-                    .accessibilityLabel(Text("Status: \(statusText(value))", bundle: .module))
+                    .accessibilityLabel(Text(
+                        String(
+                            localized: LocalizedStringResource( "Status: %@",
+                            defaultValue: "Status: \(statusText(value))",
+                            bundle: .module
+                        ))
+                    ))
                     .accessibilityValue(
                         Text(
                             filters.status == value ? "Selected" : "Not selected",
@@ -134,7 +140,13 @@ struct SkillFilterBar: View {
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
                     .accessibilityAddTraits(filters.source == value ? .isSelected : [])
-                    .accessibilityLabel(Text("Source: \(sourceText(value))", bundle: .module))
+                    .accessibilityLabel(Text(
+                        String(
+                            localized: LocalizedStringResource( "Source: %@",
+                            defaultValue: "Source: \(sourceText(value))",
+                            bundle: .module
+                        ))
+                    ))
                     .accessibilityValue(
                         Text(
                             filters.source == value ? "Selected" : "Not selected",
@@ -205,7 +217,13 @@ struct SkillFilterBar: View {
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
                     .accessibilityAddTraits(filters.agent == value ? .isSelected : [])
-                    .accessibilityLabel(Text("Agent: \(agentText(value))", bundle: .module))
+                    .accessibilityLabel(Text(
+                        String(
+                            localized: LocalizedStringResource( "Agent: %@",
+                            defaultValue: "Agent: \(agentText(value))",
+                            bundle: .module
+                        ))
+                    ))
                     .accessibilityValue(
                         Text(
                             filters.agent == value ? "Selected" : "Not selected",
@@ -280,9 +298,16 @@ struct SkillFilterBar: View {
                 .font(.caption)
         }
         .buttonStyle(.borderless)
-        .help(Text(collapsed ? "Show filters" : "Hide filters", bundle: .module))
-        .accessibilityLabel(Text(collapsed ? "Show filters" : "Hide filters", bundle: .module))
+        .help(Text(verbatim: collapseLabelText))
+        .accessibilityLabel(Text(verbatim: collapseLabelText))
         .accessibilityIdentifier("skills.filter.collapse")
+    }
+
+    private var collapseLabelText: String {
+        if collapsed {
+            return String(localized: "Show filters", bundle: .module)
+        }
+        return String(localized: "Hide filters", bundle: .module)
     }
 
     private var summaryLine: some View {
@@ -298,12 +323,20 @@ struct SkillFilterBar: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("Active filters: \(summaryText)", bundle: .module))
+        .accessibilityLabel(Text(
+            String(
+                localized: LocalizedStringResource( "Active filters: %@",
+                defaultValue: "Active filters: \(summaryText)",
+                bundle: .module
+            ))
+        ))
         .accessibilityIdentifier("skills.filter.summary")
     }
 
     private var summaryText: String {
-        if !filters.isActive { return "All Skills" }
+        if !filters.isActive {
+            return String(localized: "All Skills", bundle: .module)
+        }
         let components = [
             (statusText(filters.status), filters.status != .all),
             (sourceText(filters.source), filters.source != .all),

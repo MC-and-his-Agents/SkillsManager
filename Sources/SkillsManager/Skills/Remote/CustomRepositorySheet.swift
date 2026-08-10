@@ -161,7 +161,13 @@ struct CustomRepositorySheet: View {
             .buttonStyle(.borderless)
             .disabled(model.state(for: record.repositoryID) == .loading || model.isMutating)
             .help(Text("Refresh repository", bundle: .module))
-            .accessibilityLabel(Text("Refresh \(record.displayName)", bundle: .module))
+            .accessibilityLabel(Text(
+                String(
+                    localized: LocalizedStringResource( "Refresh %@",
+                    defaultValue: "Refresh \(record.displayName)",
+                    bundle: .module
+                ))
+            ))
             Button(role: .destructive) {
                 pendingRemoval = record
             } label: {
@@ -170,7 +176,13 @@ struct CustomRepositorySheet: View {
             .buttonStyle(.borderless)
             .disabled(model.isMutating)
             .help(Text("Remove repository", bundle: .module))
-            .accessibilityLabel(Text("Remove \(record.displayName)", bundle: .module))
+            .accessibilityLabel(Text(
+                String(
+                    localized: LocalizedStringResource( "Remove %@",
+                    defaultValue: "Remove \(record.displayName)",
+                    bundle: .module
+                ))
+            ))
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .contain)
@@ -192,7 +204,11 @@ struct CustomRepositorySheet: View {
                 .accessibilityLabel(Text("Refreshing", bundle: .module))
         case .loaded(let count):
             Label {
-                Text("\(count) Skills", bundle: .module)
+                Text(String(
+                    localized: LocalizedStringResource( "%lld Skills",
+                    defaultValue: "\(count) Skills",
+                    bundle: .module
+                )))
             } icon: {
                 Image(systemName: "checkmark.circle")
             }

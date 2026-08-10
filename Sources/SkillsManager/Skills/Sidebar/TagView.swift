@@ -1,12 +1,25 @@
 import SwiftUI
 
 struct TagView: View {
-    let text: String
+    private let label: Text
+    private let colorSeed: String
     let systemImage: String?
     let tint: Color?
 
     init(text: String, systemImage: String? = nil, tint: Color? = nil) {
-        self.text = text
+        self.label = Text(verbatim: text)
+        self.colorSeed = text
+        self.systemImage = systemImage
+        self.tint = tint
+    }
+
+    init(
+        localized resource: LocalizedStringResource,
+        systemImage: String? = nil,
+        tint: Color? = nil
+    ) {
+        self.label = Text(resource)
+        self.colorSeed = ""
         self.systemImage = systemImage
         self.tint = tint
     }
@@ -14,9 +27,13 @@ struct TagView: View {
     var body: some View {
         Group {
             if let systemImage {
-                Label(text, systemImage: systemImage)
+                Label {
+                    label
+                } icon: {
+                    Image(systemName: systemImage)
+                }
             } else {
-                Text(text)
+                label
             }
         }
             .font(.caption2)
@@ -36,7 +53,7 @@ struct TagView: View {
         let colors: [Color] = [
             .mint, .teal, .cyan, .blue, .indigo, .green, .orange
         ]
-        let index = abs(text.hashValue) % colors.count
+        let index = abs(colorSeed.hashValue) % colors.count
         return colors[index]
     }
 }

@@ -53,17 +53,18 @@ struct SkillBatchUpdateView: View {
                 .font(.title2.bold())
             Text("Check managed Skills, review every conflict, then update selected items.", bundle: .module)
                 .foregroundStyle(.secondary)
-            Text(
-                "Batch update summary: \(localizedSummary())",
+            Text(String(
+                localized: LocalizedStringResource( "Batch update summary: %@",
+                defaultValue: "Batch update summary: \(localizedSummary())",
                 bundle: .module
-            )
+            )))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel(Text(
-                    "Batch update summary: \(localizedSummary())",
+                .accessibilityLabel(Text(String(
+                    localized: LocalizedStringResource( "Batch update summary: %@",
+                    defaultValue: "Batch update summary: \(localizedSummary())",
                     bundle: .module
-                )
-                )
+                ))))
         }
     }
 
@@ -123,10 +124,11 @@ struct SkillBatchUpdateView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(verbatim: progressTitleText(title)))
-        .accessibilityValue(Text(
-            "\(model.summary.completed) of \(model.summary.total)",
+        .accessibilityValue(Text(String(
+            localized: LocalizedStringResource( "%lld of %lld",
+            defaultValue: "\(model.summary.completed) of \(model.summary.total)",
             bundle: .module
-        ))
+        ))))
     }
 
     private var controls: some View {
@@ -186,14 +188,11 @@ struct SkillBatchUpdateView: View {
             let count = model.summary[result]
             guard count > 0 else { return nil }
             let title = resultText(result)
-            return localizedBatchTemplate(
-                LocalizedStringResource(
-                    "%arg: %arg",
-                    defaultValue: "%arg: %arg",
-                    bundle: .module
-                ),
-                arguments: [title, String(count)]
-            )
+            return String(
+                localized: LocalizedStringResource( "%@: %lld",
+                defaultValue: "\(title): \(count)",
+                bundle: .module
+            ))
         }
         if values.isEmpty {
             return localizedCompletionText(
@@ -209,14 +208,11 @@ struct SkillBatchUpdateView: View {
     }
 
     private func localizedCompletionText(completed: Int, total: Int) -> String {
-        localizedBatchTemplate(
-            LocalizedStringResource(
-                "%arg of %arg complete.",
-                defaultValue: "%arg of %arg complete.",
-                bundle: .module
-            ),
-            arguments: [String(completed), String(total)]
-        )
+        String(
+            localized: LocalizedStringResource( "%lld of %lld complete.",
+            defaultValue: "\(completed) of \(total) complete.",
+            bundle: .module
+        ))
     }
 
     private func resultText(_ result: SkillBatchUpdateResult) -> String {
@@ -241,18 +237,6 @@ struct SkillBatchUpdateView: View {
         default: title
         }
     }
-}
-
-private func localizedBatchTemplate(
-    _ resource: LocalizedStringResource,
-    arguments: [String]
-) -> String {
-    var value = String(localized: resource)
-    for argument in arguments {
-        guard let range = value.range(of: "%arg") else { break }
-        value.replaceSubrange(range, with: argument)
-    }
-    return value
 }
 
 private struct SkillBatchUpdateRow: View {
@@ -291,7 +275,11 @@ private struct SkillBatchUpdateRow: View {
                         Text("Retry", bundle: .module)
                     }
                     .disabled(model.operationActive)
-                    .accessibilityLabel(Text("Recheck \(item.displayName)", bundle: .module))
+                    .accessibilityLabel(Text(String(
+                        localized: LocalizedStringResource( "Recheck %@",
+                        defaultValue: "Recheck \(item.displayName)",
+                        bundle: .module
+                    ))))
                 }
             }
 
@@ -309,10 +297,11 @@ private struct SkillBatchUpdateRow: View {
                         }
                     }
                     .disabled(model.operationActive)
-                    .accessibilityLabel(Text(
-                        "Copy decision for \(scopeTitle(scope))",
+                    .accessibilityLabel(Text(String(
+                        localized: LocalizedStringResource( "Copy decision for %@",
+                        defaultValue: "Copy decision for \(scopeTitle(scope))",
                         bundle: .module
-                    ))
+                    ))))
                 }
             }
         }
@@ -328,7 +317,11 @@ private struct SkillBatchUpdateRow: View {
                     set: { model.select(item.skillID, selected: $0) }
                 )
             ) {
-                Text("Select \(item.displayName)", bundle: .module)
+                Text(String(
+                    localized: LocalizedStringResource( "Select %@",
+                    defaultValue: "Select \(item.displayName)",
+                    bundle: .module
+                )))
             }
             .labelsHidden()
             .disabled(model.operationActive)
@@ -422,69 +415,48 @@ private struct SkillBatchUpdateRow: View {
     private func accessibilityValue(for item: SkillBatchUpdateItem) -> String {
         switch item.phase {
         case .queued:
-            return localizedBatchTemplate(
-                LocalizedStringResource(
-                    "%arg, waiting",
-                    defaultValue: "%arg, waiting",
-                    bundle: .module
-                ),
-                arguments: [item.displayName]
-            )
+            return String(
+                localized: LocalizedStringResource( "%@, waiting",
+                defaultValue: "\(item.displayName), waiting",
+                bundle: .module
+            ))
         case .checking:
-            return localizedBatchTemplate(
-                LocalizedStringResource(
-                    "%arg, checking for updates",
-                    defaultValue: "%arg, checking for updates",
-                    bundle: .module
-                ),
-                arguments: [item.displayName]
-            )
+            return String(
+                localized: LocalizedStringResource( "%@, checking for updates",
+                defaultValue: "\(item.displayName), checking for updates",
+                bundle: .module
+            ))
         case .ready:
-            return localizedBatchTemplate(
-                LocalizedStringResource(
-                    "%arg, update available",
-                    defaultValue: "%arg, update available",
-                    bundle: .module
-                ),
-                arguments: [item.displayName]
-            )
+            return String(
+                localized: LocalizedStringResource( "%@, update available",
+                defaultValue: "\(item.displayName), update available",
+                bundle: .module
+            ))
         case .decisionRequired:
-            return localizedBatchTemplate(
-                LocalizedStringResource(
-                    "%arg, Copy decision required",
-                    defaultValue: "%arg, Copy decision required",
-                    bundle: .module
-                ),
-                arguments: [item.displayName]
-            )
+            return String(
+                localized: LocalizedStringResource( "%@, Copy decision required",
+                defaultValue: "\(item.displayName), Copy decision required",
+                bundle: .module
+            ))
         case .preparing:
-            return localizedBatchTemplate(
-                LocalizedStringResource(
-                    "%arg, preparing update",
-                    defaultValue: "%arg, preparing update",
-                    bundle: .module
-                ),
-                arguments: [item.displayName]
-            )
+            return String(
+                localized: LocalizedStringResource( "%@, preparing update",
+                defaultValue: "\(item.displayName), preparing update",
+                bundle: .module
+            ))
         case .updating:
-            return localizedBatchTemplate(
-                LocalizedStringResource(
-                    "%arg, updating",
-                    defaultValue: "%arg, updating",
-                    bundle: .module
-                ),
-                arguments: [item.displayName]
-            )
+            return String(
+                localized: LocalizedStringResource( "%@, updating",
+                defaultValue: "\(item.displayName), updating",
+                bundle: .module
+            ))
         case .result(let result, _):
             let resultText = resultText(result)
-            return localizedBatchTemplate(
-                LocalizedStringResource(
-                    "%arg, %arg",
-                    defaultValue: "%arg, %arg",
-                    bundle: .module
-                ),
-                arguments: [item.displayName, resultText]
-            )
+            return String(
+                localized: LocalizedStringResource( "%@, %@",
+                defaultValue: "\(item.displayName), \(resultText)",
+                bundle: .module
+            ))
         }
     }
 

@@ -328,21 +328,22 @@ struct SkillConsistencyAssistantView: View {
     private var statusDetail: String {
         switch model.loadState {
         case .blocked(let message): message
-        case .auditing: "Reading SSOT, database, distribution targets and discovered directories."
+        case .auditing:
+            String(localized: "Reading SSOT, database, distribution targets and discovered directories.", bundle: .module)
         case .ready(let snapshot):
             switch snapshot.status {
             case .healthy:
-                "SSOT, database and managed targets are consistent."
+                String(localized: "SSOT, database and managed targets are consistent.", bundle: .module)
             case .findings:
-                "\(snapshot.findings.count) item(s) need review."
+                findingsStatusText(count: snapshot.findings.count)
             case .incomplete:
-                "Some roots could not be inspected. Write actions are disabled."
+                String(localized: "Some roots could not be inspected. Write actions are disabled.", bundle: .module)
             case .blocked:
-                "A blocking library diagnostic prevents changes."
+                String(localized: "A blocking library diagnostic prevents changes.", bundle: .module)
             case .operationInProgress:
-                "Wait for the current operation, then refresh."
+                String(localized: "Wait for the current operation, then refresh.", bundle: .module)
             case .needsRepair:
-                "Use the existing backup and recovery tools before making more changes."
+                String(localized: "Use the existing backup and recovery tools before making more changes.", bundle: .module)
             }
         case .failed(let problem): problem.message
         }
@@ -384,26 +385,11 @@ struct SkillConsistencyAssistantView: View {
     }
 
     private func findingsStatusText(count: Int) -> String {
-        localizedTemplate(
-            LocalizedStringResource(
-                "%arg item(s) need review.",
-                defaultValue: "%arg item(s) need review.",
-                bundle: .module
-            ),
-            arguments: [String(count)]
-        )
-    }
-
-    private func localizedTemplate(
-        _ resource: LocalizedStringResource,
-        arguments: [String]
-    ) -> String {
-        var value = String(localized: resource)
-        for argument in arguments {
-            guard let range = value.range(of: "%arg") else { break }
-            value.replaceSubrange(range, with: argument)
-        }
-        return value
+        String(
+            localized: LocalizedStringResource( "%lld item(s) need review.",
+            defaultValue: "\(count) item(s) need review.",
+            bundle: .module
+        ))
     }
 
     private var statusSystemImage: String {

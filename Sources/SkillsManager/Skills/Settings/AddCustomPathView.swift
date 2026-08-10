@@ -117,7 +117,11 @@ struct AddCustomPathView: View {
                 Text("Discovered Skills", bundle: .module)
                     .font(.headline)
                 Spacer()
-                Text("\(validSkillCount) valid · \(totalSkillCount) observed", bundle: .module)
+                Text(String(
+                    localized: LocalizedStringResource( "%lld valid · %lld observed",
+                    defaultValue: "\(validSkillCount) valid · \(totalSkillCount) observed",
+                    bundle: .module
+                )))
                     .font(.subheadline)
                     .foregroundStyle(validSkillCount > 0 ? .green : .secondary)
             }
@@ -138,7 +142,11 @@ struct AddCustomPathView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 TagView(text: platform.rawValue, tint: platform.badgeTint)
-                Text("\(skills.count) skill(s)", bundle: .module)
+                Text(String(
+                    localized: LocalizedStringResource( "%lld skill(s)",
+                    defaultValue: "\(skills.count) skill(s)",
+                    bundle: .module
+                )))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -160,11 +168,11 @@ struct AddCustomPathView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                             if let reason = skill.reason {
-                                Text(reason.displayName)
+                                Text(verbatim: reason.localizedDisplayName)
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             } else if !skill.isValid {
-                                Text(skill.status.displayName)
+                                Text(verbatim: skill.status.localizedDisplayName)
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -174,8 +182,8 @@ struct AddCustomPathView: View {
                     .padding(.leading, 8)
                     .accessibilityElement(children: .combine)
                     .accessibilityValue([
-                        skill.status.displayName,
-                        skill.reason?.displayName,
+                        skill.status.localizedDisplayName,
+                        skill.reason?.localizedDisplayName,
                     ].compactMap { $0 }.joined(separator: ". "))
                 }
             }

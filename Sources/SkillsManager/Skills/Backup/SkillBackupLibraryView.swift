@@ -125,7 +125,13 @@ struct SkillBackupLibraryView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(verbatim: deletionStatusText(readback.status))
                     .font(.headline)
-                Text("Skill \(readback.skillID.directoryName)", bundle: .module)
+                Text(
+                    String(
+                        localized: LocalizedStringResource( "Skill %@",
+                        defaultValue: "Skill \(readback.skillID.directoryName)",
+                        bundle: .module
+                    ))
+                )
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
             }
@@ -152,7 +158,11 @@ struct SkillBackupLibraryView: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.summary?.content.displayName ?? "Backup \(item.backupID.uuid.uuidString)")
+                Text(verbatim: item.summary?.content.displayName ?? String(
+                    localized: LocalizedStringResource( "Backup %@",
+                    defaultValue: "Backup \(item.backupID.uuid.uuidString)",
+                    bundle: .module
+                )))
                     .font(.headline)
                     .lineLimit(1)
                 Text(item.createdAt.formatted(date: .abbreviated, time: .standard))
@@ -163,7 +173,13 @@ struct SkillBackupLibraryView: View {
                     if let summary = item.summary {
                         Text(summary.content.contentFingerprint.shortDisplayName)
                         Text(summary.content.statistics.byteCountDescription)
-                        Text("\(summary.targets.count) target\(summary.targets.count == 1 ? "" : "s")", bundle: .module)
+                        Text(
+                            String(
+                                localized: LocalizedStringResource( "%lld target%@",
+                                defaultValue: "\(summary.targets.count) target\(summary.targets.count == 1 ? "" : "s")",
+                                bundle: .module
+                            ))
+                        )
                     }
                 }
                 .font(.caption)

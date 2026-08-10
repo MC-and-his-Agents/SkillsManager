@@ -138,7 +138,11 @@ struct SkillListView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Skills", bundle: .module)
                     .font(.title2.bold())
-                Text("\(visibleCount) shown", bundle: .module)
+                Text(String(
+                    localized: LocalizedStringResource( "%lld shown",
+                    defaultValue: "\(visibleCount) shown",
+                    bundle: .module
+                )))
                     .font(.subheadline)
                     .foregroundStyle(.primary)
             }
@@ -374,7 +378,7 @@ struct SkillListView: View {
             Label {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(diagnostic.root.url.path).lineLimit(1)
-                    Text(diagnostic.reason.displayName)
+                    Text(verbatim: diagnostic.reason.localizedDisplayName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -385,7 +389,11 @@ struct SkillListView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(Text("Unavailable scan location", bundle: .module))
-            .accessibilityValue(diagnostic.accessibilitySummary)
+            .accessibilityValue(String(
+                localized: LocalizedStringResource( "%@, %@, %@",
+                defaultValue: "\(diagnostic.root.scope.localizedDisplayName), \(diagnostic.root.url.path), \(diagnostic.reason.localizedDisplayName)",
+                bundle: .module
+            )))
         }
     }
 
@@ -411,7 +419,7 @@ struct SkillListView: View {
         _ retryLabel: String,
         action: @escaping () async -> Void
     ) -> some View {
-        SkillListEmptyRow(
+        return SkillListEmptyRow(
             title: ClawdhubAvailabilityPresentation.title,
             message: ClawdhubAvailabilityPresentation.detail,
             icon: "exclamationmark.triangle",
@@ -427,8 +435,14 @@ struct SkillListView: View {
         title: String,
         action: @escaping () async -> Void
     ) -> some View {
-        SkillListEmptyRow(
-            title: problem == .invalidRequest ? "Invalid search" : "skills.sh unavailable",
+        let localizedTitle = switch problem {
+        case .invalidRequest:
+            String(localized: "Invalid search", bundle: .module)
+        default:
+            String(localized: "skills.sh unavailable", bundle: .module)
+        }
+        return SkillListEmptyRow(
+            title: localizedTitle,
             message: problem.message,
             icon: "exclamationmark.triangle",
             actionTitle: title,

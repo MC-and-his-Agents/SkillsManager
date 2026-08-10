@@ -35,7 +35,7 @@ struct ManagedClawdhubInstallView: View {
                     ProgressView(String(localized: "Downloading and validating…", bundle: .module))
                 }
                 if let problem = model.problem {
-                    Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
+                    Label(localizedManagedLocalImportProblem(problem), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 } else if let errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
@@ -72,20 +72,48 @@ struct ManagedClawdhubInstallView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Install or Update Skill", bundle: .module)
                 .font(.title.bold())
-            Text("Add \(skill.displayName) to the managed library or safely update it.", bundle: .module)
+            Text(
+                String(
+                    localized: LocalizedStringResource(
+                        "Add %@ to the managed library or safely update it.",
+                        defaultValue: "Add \(skill.displayName) to the managed library or safely update it.",
+                        bundle: .module
+                    )
+                )
+            )
                 .foregroundStyle(.secondary)
             Text(sourceSummary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel(Text("Source \(sourceSummary)", bundle: .module))
+                .accessibilityLabel(Text(
+                    String(
+                        localized: LocalizedStringResource(
+                            "Source %@",
+                            defaultValue: "Source \(sourceSummary)",
+                            bundle: .module
+                        )
+                    )
+                ))
         }
     }
 
     private var sourceSummary: String {
         guard let version = skill.latestVersion else {
-            return "ClawHub · \(skill.slug)"
+            return String(
+                localized: LocalizedStringResource(
+                    "ClawHub · %@",
+                    defaultValue: "ClawHub · \(skill.slug)",
+                    bundle: .module
+                )
+            )
         }
-        return "ClawHub · \(skill.slug) · \(version)"
+        return String(
+            localized: LocalizedStringResource(
+                "ClawHub · %@ · %@",
+                defaultValue: "ClawHub · \(skill.slug) · \(version)",
+                bundle: .module
+            )
+        )
     }
 
     private var actions: some View {
@@ -191,7 +219,7 @@ struct ManagedClawdhubInstallView: View {
             if model.result != nil {
                 didInstall = true
             } else if let problem = model.problem {
-                errorMessage = problem.localizedDescription
+                errorMessage = localizedManagedLocalImportProblem(problem)
             }
         }
     }
