@@ -737,9 +737,9 @@ final class SkillsManagerUITests: XCTestCase {
     func testSM194UI12NativeLocalizationFeedbackDistribution() throws {
         try launchLocalizedFixture(language: "zh-Hans", profile: "feedback", surface: "ui-12-zh-feedback")
         try selectRow(label: "ClawHub Managed", value: "有可用更新", surface: "ui-12-zh-feedback", app: app)
-        let reviewUpdate = element(identifier: SkillsManagerUILocators.detailUpdate, app: app)
-        try requireElement(reviewUpdate, surface: "ui-12-zh-feedback-action", app: app)
-        XCTAssertTrue(reviewUpdate.label.contains("查看更新"), "zh-Hans update action must be localized")
+        let updateAction = element(identifier: SkillsManagerUILocators.detailUpdate, app: app)
+        try requireElement(updateAction, surface: "ui-12-zh-feedback-action", app: app)
+        XCTAssertTrue(updateAction.label.contains("检查更新"), "zh-Hans update action must be localized")
         try requireElement(
             app.checkBoxes[SkillsManagerUILocators.detailAgent("claude")],
             surface: "ui-12-zh-feedback-distribution",

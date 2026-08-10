@@ -100,12 +100,17 @@ struct LocalizationContractTests {
             badge,
             locale: Locale(identifier: "zh-Hans")
         )
+        let zhCN = SkillRowView.localizedBadgeAccessibilityText(
+            badge,
+            locale: Locale(identifier: "zh_CN")
+        )
         let en = SkillRowView.localizedBadgeAccessibilityText(
             badge,
             locale: Locale(identifier: "en")
         )
 
         #expect(zh.contains("有可用更新"))
+        #expect(zhCN.contains("有可用更新"))
         #expect(zh.contains("1.0.1"))
         #expect(en.contains("Update available"))
         #expect(en.contains("1.0.1"))
