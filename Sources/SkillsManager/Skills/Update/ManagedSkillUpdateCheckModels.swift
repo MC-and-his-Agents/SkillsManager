@@ -174,6 +174,17 @@ func localizedManagedSkillUpdateCheckProblem(
     }
 }
 
+@MainActor
+func localizedManagedSkillUpdateCapabilityReason(_ reason: String?) -> String? {
+    guard let reason else { return nil }
+    switch reason {
+    case "No exact remote source is available for this Skill.":
+        return String(localized: "No exact remote source is available for this Skill.", bundle: .module)
+    default:
+        return reason
+    }
+}
+
 nonisolated struct ManagedSkillUpdateCheckToken: Hashable, Sendable {
     let uuid: UUID
 

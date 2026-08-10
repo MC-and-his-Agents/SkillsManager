@@ -201,7 +201,7 @@ struct ManagedClawdhubInstallView: View {
                 return
             } catch {
                 model.reset()
-                errorMessage = error.localizedDescription
+                errorMessage = localizedManagedInstallError(error)
             }
         }
     }

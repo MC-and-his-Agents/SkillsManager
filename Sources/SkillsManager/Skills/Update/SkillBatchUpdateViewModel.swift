@@ -234,8 +234,7 @@ import Observation
         guard let lease = await admission.acquire(skillID) else {
             setResult(
                 .needsAttention,
-                detail: ManagedSkillUpdateExecutionProblem.operationInProgress
-                    .localizedDescription,
+                detail: localizedManagedSkillUpdateExecutionProblem(.operationInProgress),
                 for: skillID
             )
             return

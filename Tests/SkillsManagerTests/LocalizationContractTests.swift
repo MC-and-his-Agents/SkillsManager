@@ -268,6 +268,49 @@ struct LocalizationContractTests {
         #expect(enResult.contains("Result"))
     }
 
+    @Test("finite errors localize known cases and preserve raw details")
+    func finiteErrorPresentation() {
+        let rawPath = "/private/raw/SKILL.md"
+        let rawDetail = "provider detail: 7"
+        let packageMessage = localizedSkillPackageError(.unsafeManifest(rawPath))
+        let validationMessage = localizedSkillImportValidationError(.archiveRejected(rawDetail))
+        #expect(packageMessage.contains(rawPath))
+        #expect(validationMessage.contains(rawDetail))
+
+        let retryMessage = localizedManagedInstallError(
+            SkillsShSearchError.rateLimited(retryAfterSeconds: 7)
+        )
+        #expect(retryMessage.contains("7"))
+        #expect(localizedManagedInstallError(
+            NSError(domain: "raw.provider", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: rawDetail,
+            ])
+        ) == rawDetail)
+
+        #expect(localizedManagedSkillUpdateCapabilityReason("No provider") == "No provider")
+        #expect(localizedManagedSkillImportError(.conflict).isEmpty == false)
+        #expect(localizedSkillPublishError(.publishedButStateNotRecorded).isEmpty == false)
+
+        if case .failed(let message) = SkillDistributionViewModel.problem(
+            for: DistributionSymlinkFileSystemError.entryChanged
+        ) {
+            #expect(!message.isEmpty)
+        } else {
+            Issue.record("known distribution error was not presented as a failure")
+        }
+        if case .failed(let message) = SkillDistributionViewModel.problem(
+            for: DistributionSymlinkFileSystemError.posix(operation: "raw operation", code: 2)
+        ) {
+            #expect(message.contains("raw operation"))
+        } else {
+            Issue.record("POSIX distribution error was not preserved")
+        }
+
+        #expect(localizedLibraryDiagnosticCode(.databaseBusy).isEmpty == false)
+        #expect(localizedRecommendedActionCode("retryLater").isEmpty == false)
+        #expect(localizedConsistencyDiscoveryReason(SkillDiscoveryReason.rootChanged.rawValue).isEmpty == false)
+    }
+
     private func localizationUnits(
         _ localization: [String: Any],
         key: String,

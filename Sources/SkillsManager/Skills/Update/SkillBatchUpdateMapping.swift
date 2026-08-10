@@ -49,7 +49,7 @@ extension SkillBatchUpdateViewModel {
         case .capabilityUnavailable:
             setResult(
                 .needsAttention,
-                detail: snapshot.capabilityReason,
+                detail: localizedManagedSkillUpdateCapabilityReason(snapshot.capabilityReason),
                 at: index
             )
         case .conflict:
@@ -65,14 +65,14 @@ extension SkillBatchUpdateViewModel {
         let problem = error as? ManagedSkillUpdateCheckProblem ?? .failed
         switch problem {
         case .stale:
-            setResult(.conflict, detail: problem.localizedDescription, at: index)
+            setResult(.conflict, detail: localizedManagedSkillUpdateCheckProblem(problem), at: index)
         case .cancelled:
-            setResult(.cancelled, detail: problem.localizedDescription, at: index)
+            setResult(.cancelled, detail: localizedManagedSkillUpdateCheckProblem(problem), at: index)
         case .unavailable:
-            setResult(.needsAttention, detail: problem.localizedDescription, at: index)
+            setResult(.needsAttention, detail: localizedManagedSkillUpdateCheckProblem(problem), at: index)
         case .timeout, .offline, .rateLimited, .providerUnavailable,
              .unsafeContent, .databaseUnavailable, .failed:
-            setResult(.failed, detail: problem.localizedDescription, at: index)
+            setResult(.failed, detail: localizedManagedSkillUpdateCheckProblem(problem), at: index)
         }
     }
 
@@ -80,14 +80,14 @@ extension SkillBatchUpdateViewModel {
         let problem = error as? ManagedSkillUpdateExecutionProblem ?? .failed
         switch problem {
         case .noUpdate:
-            setResult(.upToDate, detail: problem.localizedDescription, for: skillID)
+            setResult(.upToDate, detail: localizedManagedSkillUpdateExecutionProblem(problem), for: skillID)
         case .stale:
-            setResult(.conflict, detail: problem.localizedDescription, for: skillID)
+            setResult(.conflict, detail: localizedManagedSkillUpdateExecutionProblem(problem), for: skillID)
         case .unavailable, .invalidDecisions, .unsafeCopyState,
              .operationInProgress, .permissionDenied, .needsRepair:
-            setResult(.needsAttention, detail: problem.localizedDescription, for: skillID)
+            setResult(.needsAttention, detail: localizedManagedSkillUpdateExecutionProblem(problem), for: skillID)
         case .providerUnavailable, .failed:
-            setResult(.failed, detail: problem.localizedDescription, for: skillID)
+            setResult(.failed, detail: localizedManagedSkillUpdateExecutionProblem(problem), for: skillID)
         }
     }
 

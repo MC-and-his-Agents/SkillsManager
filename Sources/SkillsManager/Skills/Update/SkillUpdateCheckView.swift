@@ -100,7 +100,8 @@ struct SkillUpdateCheckView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 if let reason = snapshot.capabilityReason {
-                    Text(verbatim: reason).foregroundStyle(.secondary)
+                    Text(verbatim: localizedManagedSkillUpdateCapabilityReason(reason) ?? reason)
+                        .foregroundStyle(.secondary)
                 }
                 if !snapshot.sourceChangedScopeKeys.isEmpty {
                     Label {

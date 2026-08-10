@@ -81,7 +81,7 @@ actor SkillDiscoveryBatchImportService {
                     desiredScope.requiredAdapterCodes
                 )
             } catch {
-                planReason = Self.message(for: error)
+                planReason = await Self.message(for: error)
             }
         }
         return SkillDiscoveryBatchPreviewItem(
@@ -122,29 +122,13 @@ actor SkillDiscoveryBatchImportService {
         )
     }
 
-    nonisolated static func message(for error: Error) -> String {
+    @MainActor static func message(for error: Error) -> String {
         if let error = error as? ManagedSkillImportError {
-            switch error {
-            case .actionNotAllowed:
-                "This action is no longer available."
-            case .conflict:
-                "The source now conflicts with another managed Skill."
-            case .invalidObservation:
-                "The discovery result is no longer valid."
-            case .sourceChanged:
-                "The source changed after preview."
-            case .tokenExpired:
-                "The preview expired."
-            }
+            return localizedManagedSkillImportError(error)
         } else if let error = error as? ManagedLocalImportProblem {
-            switch error {
-            case .failed, .updateFailed:
-                "The operation could not be completed safely."
-            default:
-                error.errorDescription ?? "The import could not be completed safely."
-            }
+            return localizedManagedLocalImportProblem(error)
         } else {
-            "The operation could not be completed safely."
+            return localizedManagedInstallError(error)
         }
     }
 }

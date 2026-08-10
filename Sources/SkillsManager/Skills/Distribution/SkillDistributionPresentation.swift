@@ -237,18 +237,45 @@ extension SkillDistributionViewModel {
         }
         if let error = error as? DistributionSymlinkFileSystemError {
             switch error {
+            case .invalidTarget:
+                return .failed(String(localized: "The distribution target is not an approved user Skill directory.", bundle: .module))
             case .unavailable:
                 return .targetUnavailable
+            case .entryChanged:
+                return .failed(String(localized: "The distribution entry changed while it was being verified.", bundle: .module))
+            case .equivalentSibling:
+                return .failed(String(localized: "An equivalent Skill name already exists in the target directory.", bundle: .module))
+            case .temporaryEntryExists:
+                return .failed(String(localized: "The operation temporary entry already exists.", bundle: .module))
             case .posix(_, let code) where code == EACCES || code == EPERM:
                 return .permissionDenied
-            default:
+            case .posix:
                 return .failed(error.localizedDescription)
             }
         }
-        if let error = error as? ManagedPathError,
-           case .posix(_, let code) = error,
-           code == EACCES || code == EPERM {
-            return .permissionDenied
+        if let error = error as? ManagedPathError {
+            switch error {
+            case .rootReplaced:
+                return .failed(String(localized: "The managed root was replaced after it was registered.", bundle: .module))
+            case .targetIsRoot:
+                return .failed(String(localized: "The managed root itself cannot be used as an item target.", bundle: .module))
+            case .targetIsNotDirectChild:
+                return .failed(String(localized: "The target must be a direct child of the managed root.", bundle: .module))
+            case .itemNotFound:
+                return .failed(String(localized: "The managed item does not exist.", bundle: .module))
+            case .itemChanged:
+                return .failed(String(localized: "The managed item changed during the operation.", bundle: .module))
+            case .destinationAlreadyExists:
+                return .failed(String(localized: "The destination already exists.", bundle: .module))
+            case .unsupportedItemType:
+                return .failed(String(localized: "The managed item has an unsupported file type.", bundle: .module))
+            case .invalidRoot, .cleanupFailed, .removalFailed:
+                return .failed(error.localizedDescription)
+            case .posix(_, let code) where code == EACCES || code == EPERM:
+                return .permissionDenied
+            case .posix:
+                return .failed(error.localizedDescription)
+            }
         }
         let nsError = error as NSError
         if nsError.domain == NSPOSIXErrorDomain,

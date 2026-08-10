@@ -395,7 +395,7 @@ struct ImportSkillView: View {
                 guard operationToken == token else { return }
                 await cleanupCandidate()
                 status = .invalid
-                errorMessage = error.localizedDescription
+                errorMessage = localizedManagedInstallError(error)
             }
         case .success(let urls):
             guard let url = urls.first else {
@@ -460,7 +460,7 @@ struct ImportSkillView: View {
         } catch {
             guard operationToken == token else { return }
             status = .invalid
-            errorMessage = error.localizedDescription
+            errorMessage = localizedManagedInstallError(error)
         }
     }
 

@@ -470,6 +470,9 @@ struct SkillConsistencyAssistantView: View {
     }
 
     private func findingTitleText(_ title: String) -> String {
+        if let code = LibraryDiagnosticCode(rawValue: title) {
+            return localizedLibraryDiagnosticCode(code)
+        }
         guard let separator = title.range(of: " · ") else { return title }
         let name = String(title[..<separator.lowerBound])
         let scope = String(title[separator.upperBound...])
@@ -533,19 +536,19 @@ struct SkillConsistencyAssistantView: View {
         case let value where value.hasPrefix("Recommended action: "):
             let code = String(value.dropFirst("Recommended action: ".count))
             return String(localized: LocalizedStringResource(
-                "Recommended action: \(code)",
+                "Recommended action: \(localizedRecommendedActionCode(code))",
                 bundle: .module
             ))
         case let value where value.hasPrefix("The root could not be fully audited: "):
             let reason = String(value.dropFirst("The root could not be fully audited: ".count))
             return String(localized: LocalizedStringResource(
-                "The root could not be fully audited: \(reason)",
+                "The root could not be fully audited: \(localizedConsistencyDiscoveryReason(reason))",
                 bundle: .module
             ))
         case let value where value.hasPrefix("This directory cannot be safely imported: "):
             let reason = String(value.dropFirst("This directory cannot be safely imported: ".count))
             return String(localized: LocalizedStringResource(
-                "This directory cannot be safely imported: \(reason)",
+                "This directory cannot be safely imported: \(localizedConsistencyDiscoveryReason(reason))",
                 bundle: .module
             ))
         case "This external Skill link changed after it was imported. Review it in Discovery; no files were changed.":
@@ -588,6 +591,7 @@ struct SkillConsistencyAssistantView: View {
             String(localized: "Keep for now", bundle: .module)
         }
     }
+
 }
 
 private struct SkillConsistencyPreviewView: View {

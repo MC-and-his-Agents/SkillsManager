@@ -117,6 +117,144 @@ func localizedManagedLocalImportProblem(_ problem: ManagedLocalImportProblem) ->
     }
 }
 
+@MainActor
+func localizedManagedSkillImportError(_ error: ManagedSkillImportError) -> String {
+    switch error {
+    case .actionNotAllowed:
+        String(localized: "This action is no longer available.", bundle: .module)
+    case .conflict:
+        String(localized: "The source now conflicts with another managed Skill.", bundle: .module)
+    case .invalidObservation:
+        String(localized: "The discovery result is no longer valid.", bundle: .module)
+    case .sourceChanged:
+        String(localized: "The source changed after preview.", bundle: .module)
+    case .tokenExpired:
+        String(localized: "The preview expired.", bundle: .module)
+    }
+}
+
+@MainActor
+func localizedSkillPackageError(_ error: SkillPackageError) -> String {
+    switch error {
+    case .unsupportedRoot:
+        String(localized: "The selected item must be a regular folder, not a symbolic link.", bundle: .module)
+    case .missingManifest:
+        String(localized: "The selected item doesn’t contain a SKILL.md file.", bundle: .module)
+    case .ambiguousRoots:
+        String(localized: "The selected item contains more than one Skill folder.", bundle: .module)
+    case .unsafeManifest(let path):
+        String(localized: LocalizedStringResource(
+            "The Skill manifest must be a regular file: \(path)",
+            bundle: .module
+        ))
+    }
+}
+
+@MainActor
+func localizedSkillImportValidationError(_ error: SkillImportValidationError) -> String {
+    switch error {
+    case .archiveRejected(let reason):
+        String(localized: LocalizedStringResource(
+            "The zip archive is unsafe or invalid: \(reason)",
+            bundle: .module
+        ))
+    case .contentRejected(let reason):
+        String(localized: LocalizedStringResource(
+            "The Skill contents are unsafe or invalid: \(reason)",
+            bundle: .module
+        ))
+    }
+}
+
+@MainActor
+func localizedKnownRemoteError(_ error: Error) -> String? {
+    if let error = error as? SkillsShGitHubSourceError {
+        return switch error {
+        case .invalidSource:
+            String(localized: "The skills.sh GitHub source is invalid.", bundle: .module)
+        case .repositoryUnavailable:
+            String(localized: "The GitHub repository is unavailable.", bundle: .module)
+        case .providerUnavailable:
+            String(localized: "GitHub is temporarily unavailable.", bundle: .module)
+        case .rateLimited:
+            String(localized: "GitHub rate limited this request.", bundle: .module)
+        case .timeout:
+            String(localized: "GitHub did not respond in time.", bundle: .module)
+        case .offline:
+            String(localized: "GitHub is unavailable while the network is offline.", bundle: .module)
+        case .network:
+            String(localized: "GitHub could not be reached.", bundle: .module)
+        case .cancelled:
+            String(localized: "The GitHub source request was cancelled.", bundle: .module)
+        case .responseTooLarge:
+            String(localized: "GitHub returned more data than can be handled safely.", bundle: .module)
+        case .contractChanged:
+            String(localized: "The GitHub source response did not match the expected contract.", bundle: .module)
+        case .treeTruncated:
+            String(localized: "The GitHub repository tree is too large to resolve safely.", bundle: .module)
+        case .noUniqueSkillMatch:
+            String(localized: "The GitHub source does not identify exactly one Skill.", bundle: .module)
+        }
+    }
+    if let error = error as? SkillsShSearchError {
+        return switch error {
+        case .invalidRequest:
+            String(localized: "The skills.sh search request is invalid.", bundle: .module)
+        case .timeout:
+            String(localized: "skills.sh did not respond in time.", bundle: .module)
+        case .offline:
+            String(localized: "skills.sh is unavailable while the network is offline.", bundle: .module)
+        case .network:
+            String(localized: "skills.sh could not be reached.", bundle: .module)
+        case .redirectRejected:
+            String(localized: "skills.sh redirected the search endpoint.", bundle: .module)
+        case .rateLimited(let retryAfterSeconds):
+            if let retryAfterSeconds {
+                String(localized: LocalizedStringResource(
+                    "skills.sh rate limited this request. Try again in \(retryAfterSeconds) seconds.",
+                    bundle: .module
+                ))
+            } else {
+                String(localized: "skills.sh rate limited this request.", bundle: .module)
+            }
+        case .providerUnavailable:
+            String(localized: "skills.sh is temporarily unavailable.", bundle: .module)
+        case .responseTooLarge:
+            String(localized: "skills.sh returned more search data than can be handled safely.", bundle: .module)
+        case .contractChanged:
+            String(localized: "The skills.sh search interface has changed.", bundle: .module)
+        }
+    }
+    if let error = error as? RemoteSkillClientError {
+        return switch error {
+        case .rateLimited:
+            String(localized: "ClawHub rate limited this request.", bundle: .module)
+        case .providerUnavailable:
+            String(localized: "ClawHub is temporarily unavailable.", bundle: .module)
+        case .invalidResponse:
+            String(localized: "ClawHub returned an invalid response.", bundle: .module)
+        }
+    }
+    return nil
+}
+
+@MainActor
+func localizedManagedInstallError(_ error: Error) -> String {
+    if let error = error as? ManagedLocalImportProblem {
+        return localizedManagedLocalImportProblem(error)
+    }
+    if let error = error as? SkillPackageError {
+        return localizedSkillPackageError(error)
+    }
+    if let error = error as? SkillImportValidationError {
+        return localizedSkillImportValidationError(error)
+    }
+    if let error = error as? ManagedSkillImportError {
+        return localizedManagedSkillImportError(error)
+    }
+    return localizedKnownRemoteError(error) ?? error.localizedDescription
+}
+
 @MainActor func managedInstallResultPresentation(
     _ result: ManagedLocalImportResult
 ) -> (title: String, systemImage: String, message: String) {

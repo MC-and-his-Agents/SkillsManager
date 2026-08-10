@@ -315,7 +315,7 @@ private struct ManagedGitHubInstallView: View {
             } catch {
                 if Task.isCancelled { return }
                 model.reset()
-                errorMessage = error.localizedDescription
+                errorMessage = localizedManagedInstallError(error)
             }
         }
     }

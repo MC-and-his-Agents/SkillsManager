@@ -110,7 +110,11 @@ struct PublishSkillSheet: View {
             )
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = if let error = error as? SkillPublishError {
+                localizedSkillPublishError(error)
+            } else {
+                error.localizedDescription
+            }
         }
         isPublishing = false
     }

@@ -281,8 +281,8 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
             return localizedManagedLocalImportProblem(error)
         }
         if let error = error as? SkillImportValidationError {
-            return error.localizedDescription
+            return localizedSkillImportValidationError(error)
         }
-        return error.localizedDescription
+        return localizedManagedInstallError(error)
     }
 }

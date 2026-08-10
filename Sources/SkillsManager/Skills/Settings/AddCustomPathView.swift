@@ -207,7 +207,7 @@ struct AddCustomPathView: View {
             Text("Scan Issues", bundle: .module)
                 .font(.headline)
             ForEach(rootDiagnostics, id: \.self) { diagnostic in
-                Label(diagnostic.accessibilitySummary, systemImage: "exclamationmark.triangle")
+                Label(diagnostic.localizedAccessibilitySummary, systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
