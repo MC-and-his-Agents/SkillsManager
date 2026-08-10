@@ -9,16 +9,16 @@ struct ReferenceDetailInlineView: View {
         case .idle:
             EmptyView()
         case .loading:
-            ProgressView("Loading reference…")
+            ProgressView(String(localized: "Loading reference…", bundle: .module))
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .missing:
-            ContentUnavailableView("Missing reference",
+            ContentUnavailableView(String(localized: "Missing reference", bundle: .module),
                                    systemImage: "doc",
-                                   description: Text("This reference file could not be found."))
+                                   description: Text("This reference file could not be found.", bundle: .module))
         case .failed(let message):
-            ContentUnavailableView("Unable to load reference",
+            ContentUnavailableView(String(localized: "Unable to load reference", bundle: .module),
                                    systemImage: "exclamationmark.triangle",
-                                   description: Text(message))
+                                   description: Text(verbatim: message))
         case .loaded:
             Markdown(store.selectedReferenceMarkdown)
                 .textSelection(.enabled)

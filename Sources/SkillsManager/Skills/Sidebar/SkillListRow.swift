@@ -17,10 +17,10 @@ struct SkillListRow: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(data.title)
+                Text(verbatim: data.title)
                     .font(.headline)
                     .lineLimit(1)
-                Text(data.detail)
+                Text(verbatim: data.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -34,11 +34,17 @@ struct SkillListRow: View {
             HStack(spacing: 8) {
                 ForEach(data.sources) { label in
                     Image(systemName: label.systemImage)
-                        .help(label.text)
-                        .accessibilityLabel("Source: \(label.text)")
+                        .help(Text(verbatim: sourceText(label)))
+                        .accessibilityLabel(Text(
+                            String(
+                                localized: LocalizedStringResource(
+            "Source: \(sourceText(label))",
+            bundle: .module
+        ))
+                        ))
                 }
                 if let agentCount = data.agentCount {
-                    Text(SkillListAgentSummary.text(count: agentCount))
+                    Text(verbatim: SkillListAgentSummary.text(count: agentCount))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .accessibilityLabel(
@@ -58,15 +64,45 @@ struct SkillListRow: View {
     private func badgeView(_ badge: SkillRowBadge) -> some View {
         switch badge {
         case .updateAvailable(let version):
-            Label("↻ v\(version)", systemImage: "arrow.triangle.2.circlepath")
+            Label {
+                Text(String(
+                    localized: LocalizedStringResource(
+            "↻ v\(version)",
+            bundle: .module
+        )))
+            } icon: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+            }
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.green)
-                .accessibilityLabel("Update available, version \(version)")
+                .accessibilityLabel(Text(String(
+                    localized: LocalizedStringResource(
+            "Update available, version \(version)",
+            bundle: .module
+        ))))
         case .needsAttention:
-            Label("Needs Repair", systemImage: "exclamationmark.triangle.fill")
+            Label {
+                Text("Needs Repair", bundle: .module)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+            }
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.yellow)
-                .accessibilityLabel("Needs Repair")
+                .accessibilityLabel(Text("Needs Repair", bundle: .module))
+        }
+    }
+
+    private func sourceText(_ label: SkillListSourceLabel) -> String {
+        guard let source = label.knownSource else { return label.text }
+        switch source {
+        case .local:
+            return String(localized: "Local", bundle: .module)
+        case .repository:
+            return String(localized: "Repository", bundle: .module)
+        case .clawHub:
+            return String(localized: "ClawHub", bundle: .module)
+        case .skillsSh:
+            return String(localized: "skills.sh", bundle: .module)
         }
     }
 }

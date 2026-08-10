@@ -19,12 +19,12 @@ struct RemoteSkillDetailView: View {
                 }
             }
             .navigationTitle(skill.displayName)
-            .navigationSubtitle("ClawHub")
+            .navigationSubtitle(String(localized: "ClawHub", bundle: .module))
         } else {
             ContentUnavailableView(
-                "Select a skill",
+                String(localized: "Select a skill", bundle: .module),
                 systemImage: "sparkles",
-                description: Text("Pick a skill from ClawHub.")
+                description: Text("Pick a skill from ClawHub.", bundle: .module)
             )
         }
     }
@@ -34,7 +34,7 @@ struct RemoteSkillDetailView: View {
             headerView(for: skill)
             HStack(spacing: 8) {
                 ProgressView()
-                Text("Loading SKILL.md…")
+                Text("Loading SKILL.md…", bundle: .module)
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -45,11 +45,12 @@ struct RemoteSkillDetailView: View {
     private func errorView(for skill: RemoteSkill) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             headerView(for: skill)
-            Label(
-                ClawdhubAvailabilityPresentation.title,
-                systemImage: "exclamationmark.triangle"
-            )
-            Text(ClawdhubAvailabilityPresentation.detail)
+            Label {
+                Text("ClawHub unavailable", bundle: .module)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle")
+            }
+            Text("Try again without affecting your local Skills.", bundle: .module)
                 .foregroundStyle(.secondary)
             retryButton
             Spacer()
@@ -63,10 +64,11 @@ struct RemoteSkillDetailView: View {
                 headerView(for: skill)
                 if store.detailState == .cachedUnavailable {
                     HStack {
-                        Label(
-                            ClawdhubAvailabilityPresentation.cachedDetail,
-                            systemImage: "exclamationmark.triangle"
-                        )
+                        Label {
+                            Text("ClawHub unavailable — cached content may be out of date.", bundle: .module)
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle")
+                        }
                         Spacer()
                         retryButton
                     }
@@ -81,28 +83,36 @@ struct RemoteSkillDetailView: View {
     }
 
     private var retryButton: some View {
-        Button("Retry") {
+        Button {
             Task { await store.loadSelectedSkill() }
+        } label: {
+            Text("Retry", bundle: .module)
         }
         .disabled(store.detailState == .loading || store.detailState == .cachedRefreshing)
-        .accessibilityLabel("Retry loading this Skill from ClawHub")
+        .accessibilityLabel(Text("Retry loading this Skill from ClawHub", bundle: .module))
     }
 
     private func headerView(for skill: RemoteSkill) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(skill.displayName)
+            Text(verbatim: skill.displayName)
                 .font(.largeTitle.bold())
             if let summary = skill.summary {
-                Text(summary)
+                Text(verbatim: summary)
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 6) {
                 if let owner = ownerDisplayName {
-                    TagView(text: "By \(owner)")
+                    TagView(localized: LocalizedStringResource(
+            "By \(owner)",
+            bundle: .module
+        ))
                 }
                 if let version = skill.latestVersion {
-                    TagView(text: "v\(version)")
+                    TagView(localized: LocalizedStringResource(
+                        "Version \(version)",
+                        bundle: .module
+                    ))
                 }
                 if let statsText = statsText(for: skill) {
                     TagView(text: statsText)
@@ -112,17 +122,27 @@ struct RemoteSkillDetailView: View {
                 Button {
                     onInstall(skill)
                 } label: {
-                    Label("Install", systemImage: "arrow.down.circle")
+                    Label {
+                        Text("Install", bundle: .module)
+                    } icon: {
+                        Image(systemName: "arrow.down.circle")
+                    }
                 }
                 .buttonStyle(.borderedProminent)
-                .accessibilityLabel("Install this ClawHub Skill")
-                .accessibilityHint(
-                    "Opens the installation review. Nothing is written until you confirm."
-                )
+                .accessibilityIdentifier("skills.remote.install")
+                .accessibilityLabel(Text("Install this ClawHub Skill", bundle: .module))
+                .accessibilityHint(Text(
+                    "Opens the installation review. Nothing is written until you confirm.",
+                    bundle: .module
+                ))
                 Button {
                     openClawdhubURL(for: skill)
                 } label: {
-                    Label("Open on ClawHub", systemImage: "globe")
+                    Label {
+                        Text("Open on ClawHub", bundle: .module)
+                    } icon: {
+                        Image(systemName: "globe")
+                    }
                 }
             }
             .padding(.top, 4)
@@ -152,4 +172,5 @@ struct RemoteSkillDetailView: View {
         }
         return nil
     }
+
 }

@@ -44,27 +44,31 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
         var message: String {
             switch self {
             case .invalidRequest:
-                "Enter a search query between 2 and 200 characters."
+                return String(localized: "Enter a search query between 2 and 200 characters.", bundle: .module)
             case .timeout:
-                "skills.sh did not respond in time."
+                return String(localized: "skills.sh did not respond in time.", bundle: .module)
             case .offline:
-                "Connect to the internet and try again."
+                return String(localized: "Connect to the internet and try again.", bundle: .module)
             case .network:
-                "skills.sh could not be reached."
+                return String(localized: "skills.sh could not be reached.", bundle: .module)
             case .redirectRejected:
-                "The skills.sh search endpoint redirected unexpectedly."
+                return String(localized: "The skills.sh search endpoint redirected unexpectedly.", bundle: .module)
             case .rateLimited(let seconds):
-                if let seconds {
-                    "skills.sh rate limited this request. Try again in \(seconds) seconds."
-                } else {
-                    "skills.sh rate limited this request. Try again later."
+                guard let seconds else {
+                    return String(localized: "skills.sh rate limited this request. Try again later.", bundle: .module)
                 }
+                let secondsText = String(seconds)
+                return String(
+                    localized: LocalizedStringResource(
+            "skills.sh rate limited this request. Try again in \(secondsText) seconds.",
+            bundle: .module
+        ))
             case .providerUnavailable:
-                "skills.sh is temporarily unavailable."
+                return String(localized: "skills.sh is temporarily unavailable.", bundle: .module)
             case .responseTooLarge:
-                "skills.sh returned more search data than can be handled safely."
+                return String(localized: "skills.sh returned more search data than can be handled safely.", bundle: .module)
             case .contractChanged:
-                "The skills.sh search interface has changed."
+                return String(localized: "The skills.sh search interface has changed.", bundle: .module)
             }
         }
     }

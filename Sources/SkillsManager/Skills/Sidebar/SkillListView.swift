@@ -25,45 +25,57 @@ struct SkillListView: View {
                 .listRowBackground(Color.clear)
 
             if filters.status != .available {
-                Section("On This Mac") {
+                Section {
                     localContent
+                } header: {
+                    Text("On This Mac", bundle: .module)
                 }
             }
 
             if normalizedQuery.isEmpty {
                 if filters.includesRemote(.clawHub) {
-                    Section("ClawHub Latest Drops") {
+                    Section {
                         clawHubLatestContent
+                    } header: {
+                        Text("ClawHub Latest Drops", bundle: .module)
                     }
                 }
             } else {
                 if filters.includesRemote(.clawHub) {
-                    Section("ClawHub") {
+                    Section {
                         clawHubSearchContent
+                    } header: {
+                        Text("ClawHub", bundle: .module)
                     }
                 }
                 if filters.includesRemote(.skillsSh) {
-                    Section("skills.sh") {
+                    Section {
                         skillsShSearchContent
+                    } header: {
+                        Text("skills.sh", bundle: .module)
                     }
                 }
             }
 
             if filters.includesRemote(.repository) {
-                Section("Repositories") {
+                Section {
                     repositoryContent
+                } header: {
+                    Text("Repositories", bundle: .module)
                 }
             }
 
             if !discoveryModel.rootDiagnostics.isEmpty {
-                Section("Unavailable Locations") {
+                Section {
                     discoveryDiagnostics
+                } header: {
+                    Text("Unavailable Locations", bundle: .module)
                 }
             }
 
             if !hasIncludedSkillChannel {
                 Section {
-                    emptyRow("No Skills match the current filters.")
+                    emptyRow(String(localized: "No Skills match the current filters.", bundle: .module))
                 }
             }
         }
@@ -76,15 +88,20 @@ struct SkillListView: View {
                     if discoveryModel.isRefreshing {
                         ProgressView().controlSize(.small)
                     } else {
-                        Label("Refresh Skills", systemImage: "arrow.clockwise")
+                        Label {
+                            Text("Refresh Skills", bundle: .module)
+                        } icon: {
+                            Image(systemName: "arrow.clockwise")
+                        }
                     }
                 }
                 .labelStyle(.iconOnly)
                 .disabled(discoveryModel.isRefreshing)
                 .keyboardShortcut("r", modifiers: .command)
-                .accessibilityLabel(
-                    discoveryModel.isRefreshing ? "Refreshing Skills" : "Refresh Skills"
-                )
+                .accessibilityLabel(Text(
+                    discoveryModel.isRefreshing ? "Refreshing Skills" : "Refresh Skills",
+                    bundle: .module
+                ))
                 .accessibilityIdentifier("skills.refresh")
             }
         }
@@ -119,9 +136,13 @@ struct SkillListView: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Skills")
+                Text("Skills", bundle: .module)
                     .font(.title2.bold())
-                Text("\(visibleCount) shown")
+                Text(String(
+                    localized: LocalizedStringResource(
+            "\(visibleCount) shown",
+            bundle: .module
+        )))
                     .font(.subheadline)
                     .foregroundStyle(.primary)
             }
@@ -148,16 +169,24 @@ struct SkillListView: View {
         if includesDiscoveryChannel {
             switch discoveryModel.loadState {
             case .blocked(let message):
-                statusRow("Discovery unavailable", message: message, icon: "lock.trianglebadge.exclamationmark")
+                statusRow(
+                    String(localized: "Discovery unavailable", bundle: .module),
+                    message: message,
+                    icon: "lock.trianglebadge.exclamationmark"
+                )
             case .idle, .loading:
-                progressRow("Scanning registered folders")
+                progressRow(String(localized: "Scanning registered folders", bundle: .module))
             case .failed(let message):
-                statusRow("Discovery failed", message: message, icon: "exclamationmark.triangle")
+                statusRow(
+                    String(localized: "Discovery failed", bundle: .module),
+                    message: message,
+                    icon: "exclamationmark.triangle"
+                )
             case .loaded:
                 if localSkills.isEmpty && discoveryItems.isEmpty {
                     localEmptyState
                 } else if discoveryModel.isRefreshing {
-                    progressRow("Refreshing local Skills")
+                    progressRow(String(localized: "Refreshing local Skills", bundle: .module))
                 }
             }
         } else if localSkills.isEmpty {
@@ -177,21 +206,21 @@ struct SkillListView: View {
         }
         if repositoryCandidates.isEmpty {
             if customRepositoryModel.isRefreshing {
-                progressRow("Refreshing GitHub repositories")
+                progressRow(String(localized: "Refreshing GitHub repositories", bundle: .module))
             } else if customRepositoryModel.repositories.isEmpty {
-                emptyRow("No GitHub repositories registered.")
+                emptyRow(String(localized: "No GitHub repositories registered.", bundle: .module))
             } else if let failure = customRepositoryModel.repositories.lazy.compactMap({ record in
                 if case .failed(let problem) = customRepositoryModel.state(
                     for: record.repositoryID
                 ) { problem } else { nil }
             }).first {
                 statusRow(
-                    "Repository unavailable",
+                    String(localized: "Repository unavailable", bundle: .module),
                     message: failure.message,
                     icon: "exclamationmark.triangle"
                 )
             } else {
-                emptyRow("No Skills found in the registered repositories.")
+                emptyRow(String(localized: "No Skills found in the registered repositories.", bundle: .module))
             }
         }
     }
@@ -199,10 +228,12 @@ struct SkillListView: View {
     private var localEmptyState: some View {
         let constrained = !normalizedQuery.isEmpty || filters.isActive
         return SkillListEmptyRow(
-            title: constrained ? "No local matches" : "No Skills found",
+            title: constrained
+                ? String(localized: "No local matches", bundle: .module)
+                : String(localized: "No Skills found", bundle: .module),
             message: constrained
-                ? "No local Skills match the current search and filters."
-                : "Refresh discovery or import a Skill to get started.",
+                ? String(localized: "No local Skills match the current search and filters.", bundle: .module)
+                : String(localized: "Refresh discovery or import a Skill to get started.", bundle: .module),
             icon: "sparkles"
         )
     }
@@ -211,20 +242,20 @@ struct SkillListView: View {
     private var clawHubLatestContent: some View {
         switch remoteStore.latestState {
         case .idle, .loading:
-            progressRow("Loading latest ClawHub Skills")
+            progressRow(String(localized: "Loading latest ClawHub Skills", bundle: .module))
         case .failed:
-            clawHubFailure("Retry ClawHub latest Skills") {
+            clawHubFailure(String(localized: "Retry ClawHub latest Skills", bundle: .module)) {
                 await remoteStore.loadLatest()
             }
         case .loaded:
             if remoteStore.latestSkills.isEmpty {
-                emptyRow("No latest Skills available.")
+                emptyRow(String(localized: "No latest Skills available.", bundle: .module))
             } else {
                 clawHubRows(remoteStore.latestSkills)
                 clawHubPagination(
                     remoteStore.latestPaginationState,
-                    loadingLabel: "Loading more latest Skills",
-                    retryLabel: "Retry ClawHub latest page"
+                    loadingLabel: String(localized: "Loading more latest Skills", bundle: .module),
+                    retryLabel: String(localized: "Retry ClawHub latest page", bundle: .module)
                 ) {
                     await remoteStore.loadMoreLatest()
                 }
@@ -236,20 +267,20 @@ struct SkillListView: View {
     private var clawHubSearchContent: some View {
         switch remoteStore.searchState {
         case .idle, .loading:
-            progressRow("Searching ClawHub")
+            progressRow(String(localized: "Searching ClawHub", bundle: .module))
         case .failed:
-            clawHubFailure("Retry ClawHub search") {
+            clawHubFailure(String(localized: "Retry ClawHub search", bundle: .module)) {
                 await remoteStore.search(query: normalizedQuery)
             }
         case .loaded:
             if remoteStore.searchResults.isEmpty {
-                emptyRow("No ClawHub results.")
+                emptyRow(String(localized: "No ClawHub results.", bundle: .module))
             } else {
                 clawHubRows(remoteStore.searchResults)
                 clawHubPagination(
                     remoteStore.searchPaginationState,
-                    loadingLabel: "Loading more ClawHub results",
-                    retryLabel: "Retry ClawHub search page"
+                    loadingLabel: String(localized: "Loading more ClawHub results", bundle: .module),
+                    retryLabel: String(localized: "Retry ClawHub search page", bundle: .module)
                 ) {
                     await remoteStore.loadMoreSearch()
                 }
@@ -282,10 +313,14 @@ struct SkillListView: View {
         case .loading:
             progressRow(loadingLabel)
         case .canLoadMore:
-            Button("Load More") { Task { await action() } }
+            Button {
+                Task { await action() }
+            } label: {
+                Text("Load More", bundle: .module)
+            }
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("clawhub.load-more")
-                .accessibilityHint("Loads more ClawHub results")
+                .accessibilityHint(Text("Loads more ClawHub results", bundle: .module))
         case .failed:
             clawHubFailure(retryLabel, action: action)
         }
@@ -295,14 +330,14 @@ struct SkillListView: View {
     private var skillsShSearchContent: some View {
         switch skillsShStore.searchState {
         case .idle, .loading:
-            progressRow("Searching skills.sh")
+            progressRow(String(localized: "Searching skills.sh", bundle: .module))
         case .failed(let problem):
-            skillsShFailure(problem, title: "Retry") {
+            skillsShFailure(problem, title: String(localized: "Retry", bundle: .module)) {
                 await skillsShStore.search(query: normalizedQuery)
             }
         case .loaded:
             if skillsShStore.items.isEmpty {
-                emptyRow("No skills.sh results.")
+                emptyRow(String(localized: "No skills.sh results.", bundle: .module))
             } else {
                 ForEach(skillsShStore.items, id: \.resultID) { item in
                     SkillsShSearchRow(item: item)
@@ -319,16 +354,20 @@ struct SkillListView: View {
         case .idle:
             EmptyView()
         case .loading:
-            progressRow("Loading more skills.sh results")
+            progressRow(String(localized: "Loading more skills.sh results", bundle: .module))
         case .canLoadMore:
-            Button("Load More") { Task { await skillsShStore.loadNextPage() } }
+            Button {
+                Task { await skillsShStore.loadNextPage() }
+            } label: {
+                Text("Load More", bundle: .module)
+            }
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("skills-sh.load-more")
-                .accessibilityHint("Loads more skills.sh results")
+                .accessibilityHint(Text("Loads more skills.sh results", bundle: .module))
         case .finished:
-            emptyRow("No more unique results.")
+            emptyRow(String(localized: "No more unique results.", bundle: .module))
         case .failed(let problem):
-            skillsShFailure(problem, title: "Retry Page") {
+            skillsShFailure(problem, title: String(localized: "Retry Page", bundle: .module)) {
                 await skillsShStore.loadNextPage()
             }
         }
@@ -339,7 +378,7 @@ struct SkillListView: View {
             Label {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(diagnostic.root.url.path).lineLimit(1)
-                    Text(diagnostic.reason.displayName)
+                    Text(verbatim: diagnostic.reason.localizedDisplayName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -349,15 +388,15 @@ struct SkillListView: View {
                     .foregroundStyle(.orange)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Unavailable scan location")
-            .accessibilityValue(diagnostic.accessibilitySummary)
+            .accessibilityLabel(Text("Unavailable scan location", bundle: .module))
+            .accessibilityValue(Text(verbatim: diagnostic.localizedAccessibilitySummary))
         }
     }
 
     private func progressRow(_ label: String) -> some View {
         HStack(spacing: 8) {
             ProgressView()
-            Text(label).foregroundStyle(.secondary)
+            Text(verbatim: label).foregroundStyle(.secondary)
         }
         .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
@@ -376,11 +415,11 @@ struct SkillListView: View {
         _ retryLabel: String,
         action: @escaping () async -> Void
     ) -> some View {
-        SkillListEmptyRow(
+        return SkillListEmptyRow(
             title: ClawdhubAvailabilityPresentation.title,
             message: ClawdhubAvailabilityPresentation.detail,
             icon: "exclamationmark.triangle",
-            actionTitle: "Retry",
+            actionTitle: String(localized: "Retry", bundle: .module),
             actionAccessibilityLabel: retryLabel
         ) {
             Task { await action() }
@@ -392,8 +431,14 @@ struct SkillListView: View {
         title: String,
         action: @escaping () async -> Void
     ) -> some View {
-        SkillListEmptyRow(
-            title: problem == .invalidRequest ? "Invalid search" : "skills.sh unavailable",
+        let localizedTitle = switch problem {
+        case .invalidRequest:
+            String(localized: "Invalid search", bundle: .module)
+        default:
+            String(localized: "skills.sh unavailable", bundle: .module)
+        }
+        return SkillListEmptyRow(
+            title: localizedTitle,
             message: problem.message,
             icon: "exclamationmark.triangle",
             actionTitle: title,

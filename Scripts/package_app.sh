@@ -118,6 +118,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
     <key>CFBundleExecutable</key><string>${EXECUTABLE_NAME}</string>
     <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleDevelopmentRegion</key><string>zh-Hans</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>zh-Hans</string>
+        <string>en</string>
+    </array>
     <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
     <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
     <key>LSMinimumSystemVersion</key><string>${MACOS_MIN_VERSION}</string>
@@ -206,6 +212,21 @@ if [[ ${#SWIFTPM_BUNDLES[@]} -gt 0 ]]; then
     cp -R "$bundle" "$APP/Contents/Resources/"
   done
 fi
+
+# Compile the native catalogs into the main bundle so SwiftUI/AppKit lookups
+# that use the application bundle resolve the same zh-Hans/en resources as
+# Bundle.module. The source catalogs remain in the SwiftPM resource bundle.
+compile_catalog() {
+  local catalog="$1"
+  [[ -f "$catalog" ]] || return 0
+  xcrun xcstringstool compile "$catalog" \
+    --output-directory "$APP/Contents/Resources" \
+    --language zh-Hans \
+    --language en
+}
+
+compile_catalog "$APP_RESOURCES_DIR/Localizable.xcstrings"
+compile_catalog "$APP_RESOURCES_DIR/InfoPlist.xcstrings"
 
 # Embed frameworks if any exist in the build folder.
 FRAMEWORK_DIRS=("$PREFERRED_BUILD_DIR" "$(dirname "$PREFERRED_BUILD_DIR")")

@@ -83,9 +83,9 @@ struct ImportSkillView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Import Skill")
+            Text("Import Skill", bundle: .module)
                 .font(.title.bold())
-            Text("Choose a Skill folder or zip, then add it to the managed library.")
+            Text("Choose a Skill folder or zip, then add it to the managed library.", bundle: .module)
                 .foregroundStyle(.secondary)
         }
     }
@@ -105,14 +105,14 @@ struct ImportSkillView: View {
             case .idle:
                 emptyState
             case .validating:
-                ProgressView("Validating…")
+                ProgressView(String(localized: "Validating…", bundle: .module))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .valid:
                 candidatePreview
             case .invalid:
                 invalidState
             case .preparing:
-                ProgressView("Preparing import preview…")
+                ProgressView(String(localized: "Preparing import preview…", bundle: .module))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -120,18 +120,18 @@ struct ImportSkillView: View {
 
     private var emptyState: some View {
         ContentUnavailableView(
-            "Pick a folder or zip",
+            String(localized: "Pick a folder or zip", bundle: .module),
             systemImage: "tray.and.arrow.down",
-            description: Text("We’ll verify it contains a SKILL.md and show a preview.")
+            description: Text("We’ll verify it contains a SKILL.md and show a preview.", bundle: .module)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var invalidState: some View {
         ContentUnavailableView(
-            "Unable to import",
+            String(localized: "Unable to import", bundle: .module),
             systemImage: "xmark.octagon",
-            description: Text(errorMessage)
+            description: Text(verbatim: errorMessage)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -142,76 +142,116 @@ struct ImportSkillView: View {
             ContentUnavailableView(
                 presentation.title,
                 systemImage: presentation.systemImage,
-                description: Text(presentation.message)
+                description: resultMessage
             )
             if model.isFinalizing {
-                ProgressView("Refreshing library…")
+                ProgressView(String(localized: "Refreshing library…", bundle: .module))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var resultPresentation: (title: String, systemImage: String, message: String) {
+    private var resultPresentation: (title: String, systemImage: String) {
         guard let result = model.result else {
-            return ("Import status unavailable", "exclamationmark.triangle", "Refresh the library.")
+            return (String(localized: "Import status unavailable", bundle: .module), "exclamationmark.triangle")
         }
         switch result.status {
         case .distributed:
-            return (
-                "Imported and enabled",
-                "checkmark.seal",
-                "\(result.displayName) is managed and available to the selected Agents."
+            return (String(localized: "Imported and enabled", bundle: .module), "checkmark.seal")
+        case .noDistributionChanges:
+            return (String(localized: "Imported", bundle: .module), "checkmark.seal")
+        case .managedUndistributed:
+            return (String(localized: "Imported but not enabled", bundle: .module), "exclamationmark.triangle")
+        case .managedDistributionIndeterminate:
+            return (String(localized: "Distribution needs attention", bundle: .module), "wrench.and.screwdriver")
+        case .managementIndeterminate:
+            return (String(localized: "Import needs attention", bundle: .module), "wrench.and.screwdriver")
+        case .alreadyManaged:
+            return (String(localized: "Already managed", bundle: .module), "checkmark.circle")
+        case .updateRequired:
+            return (String(localized: "Update required", bundle: .module), "arrow.triangle.2.circlepath")
+        case .updated:
+            return (String(localized: "Updated", bundle: .module), "checkmark.seal")
+        case .updatedDistributionNeedsAttention:
+            return (String(localized: "Updated; distribution needs attention", bundle: .module), "exclamationmark.triangle")
+        case .updateIndeterminate:
+            return (String(localized: "Update needs confirmation", bundle: .module), "wrench.and.screwdriver")
+        }
+    }
+
+    private var resultMessage: Text {
+        guard let result = model.result else {
+            return Text("Refresh the library.", bundle: .module)
+        }
+        switch result.status {
+        case .distributed:
+            return Text(
+                String(
+                    localized: LocalizedStringResource(
+            "\(result.displayName) is managed and available to the selected Agents.",
+            bundle: .module
+        ))
             )
         case .noDistributionChanges:
-            return (
-                "Imported",
-                "checkmark.seal",
-                "\(result.displayName) is managed; no distribution changes were needed."
+            return Text(
+                String(
+                    localized: LocalizedStringResource(
+            "\(result.displayName) is managed; no distribution changes were needed.",
+            bundle: .module
+        ))
             )
         case .managedUndistributed:
-            return (
-                "Imported but not enabled",
-                "exclamationmark.triangle",
-                "\(result.displayName) is safe in the managed library, but distribution was not applied."
+            return Text(
+                String(
+                    localized: LocalizedStringResource(
+            "\(result.displayName) is safe in the managed library, but distribution was not applied.",
+            bundle: .module
+        ))
             )
         case .managedDistributionIndeterminate:
-            return (
-                "Distribution needs attention",
-                "wrench.and.screwdriver",
-                "\(result.displayName) is managed, but its distribution state must be confirmed or repaired."
+            return Text(
+                String(
+                    localized: LocalizedStringResource(
+            "\(result.displayName) is managed, but its distribution state must be confirmed or repaired.",
+            bundle: .module
+        ))
             )
         case .managementIndeterminate:
-            return (
-                "Import needs attention",
-                "wrench.and.screwdriver",
-                "The import state for \(result.displayName) must be confirmed or repaired before retrying."
+            return Text(
+                String(
+                    localized: LocalizedStringResource(
+            "The import state for \(result.displayName) must be confirmed or repaired before retrying.",
+            bundle: .module
+        ))
             )
         case .alreadyManaged:
-            return (
-                "Already managed",
-                "checkmark.circle",
-                "\(result.displayName) is already in the managed library."
-            )
+            return Text(String(
+                localized: LocalizedStringResource(
+            "\(result.displayName) is already in the managed library.",
+            bundle: .module
+        )))
         case .updateRequired:
-            return (
-                "Update required",
-                "arrow.triangle.2.circlepath",
-                "\(result.displayName) differs from the managed version."
-            )
+            return Text(String(
+                localized: LocalizedStringResource(
+            "\(result.displayName) differs from the managed version.",
+            bundle: .module
+        )))
         case .updated:
-            return ("Updated", "checkmark.seal", "\(result.displayName) was updated.")
+            return Text(String(
+                localized: LocalizedStringResource(
+            "\(result.displayName) was updated.",
+            bundle: .module
+        )))
         case .updatedDistributionNeedsAttention:
-            return (
-                "Updated; distribution needs attention",
-                "exclamationmark.triangle",
-                "Refresh \(result.displayName)'s distribution from its details."
+            return Text(
+                String(
+                    localized: LocalizedStringResource(
+            "Refresh \(result.displayName)'s distribution from its details.",
+            bundle: .module
+        ))
             )
         case .updateIndeterminate:
-            return (
-                "Update needs confirmation",
-                "wrench.and.screwdriver",
-                "Confirm or repair the managed library before retrying."
-            )
+            return Text("Confirm or repair the managed library before retrying.", bundle: .module)
         }
     }
 
@@ -221,15 +261,15 @@ struct ImportSkillView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(candidate.displayName)
+                        Text(verbatim: candidate.displayName)
                             .font(.title2.bold())
-                        Text(candidate.payload.rootURL.path)
+                        Text(verbatim: candidate.payload.rootURL.path)
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
                     distributionSelection
                     if let problem = model.problem {
-                        Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
+                        Label(localizedManagedLocalImportProblem(problem), systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
                     Markdown(candidate.payload.markdown)
@@ -259,27 +299,37 @@ struct ImportSkillView: View {
         } else if model.result != nil {
             HStack {
                 Spacer()
-                Button("Close") { dismiss() }
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Close", bundle: .module)
+                }
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.isWorking)
             }
         } else {
             HStack {
-                Button("Cancel") {
+                Button {
                     cancelAndDismiss()
+                } label: {
+                    Text("Cancel", bundle: .module)
                 }
                 .keyboardShortcut(.cancelAction)
                 .disabled(model.isWorking)
 
                 Spacer()
 
-                Button("Choose…") {
+                Button {
                     showingPicker = true
+                } label: {
+                    Text("Choose…", bundle: .module)
                 }
                 .disabled(model.isWorking)
 
-                Button("Review Import…") {
+                Button {
                     prepareImport()
+                } label: {
+                    Text("Review Import…", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!canPrepareImport)
@@ -292,15 +342,27 @@ struct ImportSkillView: View {
     private var archiveActions: some View {
         HStack {
             if archiveModel.state == .completed {
-                Button("Close") { cancelAndDismiss() }
+                Button {
+                    cancelAndDismiss()
+                } label: {
+                    Text("Close", bundle: .module)
+                }
                     .keyboardShortcut(.defaultAction)
                     .disabled(archiveModel.isWorking)
             } else {
-                Button("Cancel") { cancelAndDismiss() }
+                Button {
+                    cancelAndDismiss()
+                } label: {
+                    Text("Cancel", bundle: .module)
+                }
                     .keyboardShortcut(.cancelAction)
                     .disabled(archiveModel.isWorking)
                 Spacer()
-                Button("Choose…") { showingPicker = true }
+                Button {
+                    showingPicker = true
+                } label: {
+                    Text("Choose…", bundle: .module)
+                }
                     .disabled(archiveModel.isWorking)
             }
         }
@@ -333,7 +395,7 @@ struct ImportSkillView: View {
                 guard operationToken == token else { return }
                 await cleanupCandidate()
                 status = .invalid
-                errorMessage = error.localizedDescription
+                errorMessage = localizedManagedInstallError(error)
             }
         case .success(let urls):
             guard let url = urls.first else {
@@ -398,7 +460,7 @@ struct ImportSkillView: View {
         } catch {
             guard operationToken == token else { return }
             status = .invalid
-            errorMessage = error.localizedDescription
+            errorMessage = localizedManagedInstallError(error)
         }
     }
 
@@ -415,7 +477,7 @@ struct ImportSkillView: View {
             )
             guard operationToken == token else { return }
             if let problem = model.problem {
-                errorMessage = problem.localizedDescription
+                errorMessage = localizedManagedLocalImportProblem(problem)
                 status = .valid
             } else {
                 status = .valid
@@ -456,7 +518,7 @@ struct ImportSkillView: View {
             }
             guard operationToken == token else { return }
             if let problem = model.problem {
-                errorMessage = problem.localizedDescription
+                errorMessage = localizedManagedLocalImportProblem(problem)
             }
         }
     }
@@ -511,4 +573,5 @@ struct ImportSkillView: View {
         await store.loadSkills()
         await discoveryModel.refresh()
     }
+
 }

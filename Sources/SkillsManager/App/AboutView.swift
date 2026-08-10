@@ -20,10 +20,14 @@ struct AboutView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(appName)
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    Text("Version \(version) (\(build))")
+                    Text(String(
+                        localized: LocalizedStringResource(
+            "Version \(version) (\(build))",
+            bundle: .module
+        )))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
-                    Text("Built for Codex and your other agents to manage and inspect skills on your Mac.")
+                    Text("Built for Codex and your other agents to manage and inspect skills on your Mac.", bundle: .module)
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -40,7 +44,7 @@ struct AboutView: View {
             }
             .font(.system(size: 12, weight: .semibold))
 
-            Text("Maintained by MC and his Agents. Originally created by @Dimillian.")
+            Text("Maintained by MC and his Agents. Originally created by @Dimillian.", bundle: .module)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }

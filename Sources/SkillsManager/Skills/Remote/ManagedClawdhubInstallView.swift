@@ -32,13 +32,17 @@ struct ManagedClawdhubInstallView: View {
                     isDisabled: isWorking
                 )
                 if isDownloading {
-                    ProgressView("Downloading and validating…")
+                    ProgressView(String(localized: "Downloading and validating…", bundle: .module))
                 }
                 if let problem = model.problem {
-                    Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
+                    Label(localizedManagedLocalImportProblem(problem), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 } else if let errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle")
+                    Label {
+                        Text(verbatim: errorMessage)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                    }
                         .foregroundStyle(.orange)
                 }
                 Spacer()
@@ -70,36 +74,64 @@ struct ManagedClawdhubInstallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Install or Update Skill")
+            Text("Install or Update Skill", bundle: .module)
                 .font(.title.bold())
-            Text("Add \(skill.displayName) to the managed library or safely update it.")
+            Text(
+                String(
+                    localized: LocalizedStringResource(
+            "Add \(skill.displayName) to the managed library or safely update it.",
+            bundle: .module
+        )
+                )
+            )
                 .foregroundStyle(.secondary)
-            Text(sourceSummary)
+            Text(verbatim: sourceSummary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel("Source \(sourceSummary)")
+                .accessibilityLabel(Text(
+                    String(
+                        localized: LocalizedStringResource(
+            "Source \(sourceSummary)",
+            bundle: .module
+        )
+                    )
+                ))
         }
     }
 
     private var sourceSummary: String {
         guard let version = skill.latestVersion else {
-            return "ClawHub · \(skill.slug)"
+            return String(
+                localized: LocalizedStringResource(
+            "ClawHub · \(skill.slug)",
+            bundle: .module
+        )
+            )
         }
-        return "ClawHub · \(skill.slug) · \(version)"
+        return String(
+            localized: LocalizedStringResource(
+            "ClawHub · \(skill.slug) · \(version)",
+            bundle: .module
+        )
+        )
     }
 
     private var actions: some View {
         HStack {
-            Button("Cancel") {
+            Button {
                 cancelAndDismiss()
+            } label: {
+                Text("Cancel", bundle: .module)
             }
             .keyboardShortcut(.cancelAction)
             .disabled(model.isExecuting || model.isFinalizing)
 
             Spacer()
 
-            Button("Review…") {
+            Button {
                 prepareInstall()
+            } label: {
+                Text("Review…", bundle: .module)
             }
             .buttonStyle(.borderedProminent)
             .disabled(!canPrepare)
@@ -169,7 +201,7 @@ struct ManagedClawdhubInstallView: View {
                 return
             } catch {
                 model.reset()
-                errorMessage = error.localizedDescription
+                errorMessage = localizedManagedInstallError(error)
             }
         }
     }
@@ -187,7 +219,7 @@ struct ManagedClawdhubInstallView: View {
             if model.result != nil {
                 didInstall = true
             } else if let problem = model.problem {
-                errorMessage = problem.localizedDescription
+                errorMessage = localizedManagedLocalImportProblem(problem)
             }
         }
     }
@@ -196,14 +228,18 @@ struct ManagedClawdhubInstallView: View {
     private func resultView(_ result: ManagedLocalImportResult) -> some View {
         let presentation = managedInstallResultPresentation(result)
         ContentUnavailableView(
-            presentation.title,
+            localizedManagedInstallResultTitle(result.status),
             systemImage: presentation.systemImage,
-            description: Text(presentation.message)
+            description: Text(verbatim: localizedManagedInstallResultMessage(result))
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         HStack {
             Spacer()
-            Button("Close") { dismiss() }
+            Button {
+                dismiss()
+            } label: {
+                Text("Close", bundle: .module)
+            }
                 .keyboardShortcut(.defaultAction)
         }
     }
@@ -254,4 +290,5 @@ struct ManagedClawdhubInstallView: View {
             )
         }
     }
+
 }

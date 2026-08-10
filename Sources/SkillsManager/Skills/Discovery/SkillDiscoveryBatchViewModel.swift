@@ -85,7 +85,7 @@ import Observation
         candidates = []
         selectedIDs = []
         selectedActions = [:]
-        errorMessage = "Discovery changed. Review the current candidates before importing."
+        errorMessage = String(localized: "Discovery changed. Review the current candidates before importing.", bundle: .module)
         state = .idle
     }
 
@@ -183,7 +183,7 @@ import Observation
         guard state == .ready, let preview, let service else { return }
         guard preview.generation == currentGeneration,
               preview.generation == batchGeneration else {
-            errorMessage = "Discovery changed. Review the current candidates before importing."
+            errorMessage = String(localized: "Discovery changed. Review the current candidates before importing.", bundle: .module)
             self.preview = nil
             state = .selecting
             return
@@ -254,8 +254,8 @@ import Observation
                 action: item.action,
                 displayName: item.displayName,
                 sourceURLs: item.sourceURLs,
-                management: .skipped(item.reason ?? "This item was skipped."),
-                distribution: .notApplicable("No managed write was attempted.")
+                management: .skipped(item.reason ?? String(localized: "This item was skipped.", bundle: .module)),
+                distribution: .notApplicable(String(localized: "No managed write was attempted.", bundle: .module))
             )
         }
         do {
@@ -283,7 +283,7 @@ import Observation
                     displayName: item.displayName,
                     sourceURLs: item.sourceURLs,
                     management: .claimed,
-                    distribution: .notApplicable("Existing Agent bindings were preserved.")
+                    distribution: .notApplicable(String(localized: "Existing Agent bindings were preserved.", bundle: .module))
                 )
             case .alreadyManaged:
                 return SkillDiscoveryBatchResultItem(
@@ -292,7 +292,7 @@ import Observation
                     displayName: item.displayName,
                     sourceURLs: item.sourceURLs,
                     management: .alreadyManaged,
-                    distribution: .notApplicable("Existing Agent bindings were preserved.")
+                    distribution: .notApplicable(String(localized: "Existing Agent bindings were preserved.", bundle: .module))
                 )
             }
         } catch {
@@ -302,7 +302,7 @@ import Observation
                 displayName: item.displayName,
                 sourceURLs: item.sourceURLs,
                 management: .failed(SkillDiscoveryBatchImportService.message(for: error)),
-                distribution: .notApplicable("No managed Skill was confirmed.")
+                distribution: .notApplicable(String(localized: "No managed Skill was confirmed.", bundle: .module))
             )
         }
     }
@@ -314,10 +314,10 @@ import Observation
         service: SkillDiscoveryBatchImportService
     ) async -> SkillDiscoveryBatchDistributionResult {
         guard item.plan != nil else {
-            return .indeterminate(item.reason ?? "Distribution preview was unavailable.")
+            return .indeterminate(item.reason ?? String(localized: "Distribution preview was unavailable.", bundle: .module))
         }
         guard let slug = item.distributionSlug else {
-            return .indeterminate("Distribution slug was unavailable.")
+            return .indeterminate(String(localized: "Distribution slug was unavailable.", bundle: .module))
         }
         let currentPlan: DistributionPlan
         do {
@@ -328,7 +328,7 @@ import Observation
             )
             guard let canonicalPlan = item.canonicalPlan,
                   try currentPlan.canonicalJSONData() == canonicalPlan else {
-                return .indeterminate("Distribution changed after preview.")
+                return .indeterminate(String(localized: "Distribution changed after preview.", bundle: .module))
             }
         } catch {
             return .indeterminate(SkillDiscoveryBatchImportService.message(for: error))
@@ -343,7 +343,7 @@ import Observation
                 let operation = try await service.apply(skillID: skillID, plan: currentPlan)
                 guard operation.phase == .completed,
                       operation.outcome == .applied else {
-                    return .indeterminate("Distribution did not complete.")
+                    return .indeterminate(String(localized: "Distribution did not complete.", bundle: .module))
                 }
                 return .distributed
             } catch {

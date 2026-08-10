@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import SkillsManager
@@ -36,6 +37,24 @@ struct SkillListFilterTests {
             origin: unknown,
             enabledPlatforms: []
         ))
+    }
+
+    @Test("known sources localize while unknown provider labels remain byte-identical")
+    func sourceLabelLocalizationBoundary() {
+        let known = SkillListOriginProjection(
+            hasRepositorySource: false,
+            providers: ["clawdhub"]
+        )
+        let opaque = "Future.Provider/v2"
+        let unknown = SkillListOriginProjection(
+            hasRepositorySource: false,
+            providers: [opaque]
+        )
+
+        #expect(known.labels.first?.knownSource == .clawHub)
+        #expect(known.labels.first?.text == "ClawHub")
+        #expect(unknown.labels.first?.knownSource == nil)
+        #expect(unknown.labels.first?.text == opaque)
     }
 
     @Test("all discovery states stay in Needs Import without changing their identity")
@@ -91,9 +110,10 @@ struct SkillListFilterTests {
             origin: SkillListOriginProjection(hasRepositorySource: false, providers: []),
             enabledPlatforms: platforms
         ))
-        #expect(SkillListAgentSummary.text(count: 0) == "0 Agents")
-        #expect(SkillListAgentSummary.text(count: 1) == "1 Agent")
-        #expect(SkillListAgentSummary.text(count: 4) == "4 Agents")
+        let english = Locale(identifier: "en")
+        #expect(SkillListAgentSummary.text(count: 0, locale: english) == "0 Agents")
+        #expect(SkillListAgentSummary.text(count: 1, locale: english) == "1 Agent")
+        #expect(SkillListAgentSummary.text(count: 4, locale: english) == "4 Agents")
     }
 
     @Test("selection is retained only while its filtered row remains visible")

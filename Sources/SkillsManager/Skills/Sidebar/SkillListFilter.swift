@@ -34,6 +34,15 @@ nonisolated enum SkillListSource: String, CaseIterable, Identifiable, Sendable {
         case .skillsSh: "magnifyingglass"
         }
     }
+
+    var storageKey: String {
+        switch self {
+        case .local: "local"
+        case .repository: "repository"
+        case .clawHub: "clawhub"
+        case .skillsSh: "skills-sh"
+        }
+    }
 }
 
 nonisolated enum SkillListSourceFilter: Hashable, Identifiable, Sendable {
@@ -44,7 +53,12 @@ nonisolated enum SkillListSourceFilter: Hashable, Identifiable, Sendable {
         [.all] + SkillListSource.allCases.map(Self.source)
     }
 
-    var id: String { displayName }
+    var id: String {
+        switch self {
+        case .all: "all"
+        case .source(let source): "source:\(source.storageKey)"
+        }
+    }
 
     var displayName: String {
         switch self {
@@ -62,7 +76,12 @@ nonisolated enum SkillListAgentFilter: Hashable, Identifiable, Sendable {
         [.all] + SkillPlatform.allCases.map(Self.agent)
     }
 
-    var id: String { displayName }
+    var id: String {
+        switch self {
+        case .all: "all"
+        case .agent(let platform): "agent:\(platform.storageKey)"
+        }
+    }
 
     var displayName: String {
         switch self {
@@ -95,11 +114,19 @@ nonisolated struct SkillListOriginProjection: Hashable, Sendable {
     var labels: [SkillListSourceLabel] {
         let known = SkillListSource.allCases.compactMap { source in
             sources.contains(source)
-                ? SkillListSourceLabel(text: source.rawValue, systemImage: source.systemImage)
+                ? SkillListSourceLabel(
+                    text: source.rawValue,
+                    systemImage: source.systemImage,
+                    knownSource: source
+                )
                 : nil
         }
         return known + unknownProviders.map {
-            SkillListSourceLabel(text: $0, systemImage: "questionmark.circle")
+            SkillListSourceLabel(
+                text: $0,
+                systemImage: "questionmark.circle",
+                knownSource: nil
+            )
         }
     }
 }
@@ -107,6 +134,7 @@ nonisolated struct SkillListOriginProjection: Hashable, Sendable {
 nonisolated struct SkillListSourceLabel: Hashable, Identifiable, Sendable {
     let text: String
     let systemImage: String
+    let knownSource: SkillListSource?
 
     var id: String { "\(systemImage):\(text)" }
 }
@@ -176,8 +204,13 @@ nonisolated extension SkillDiscoveryObservation {
     }
 }
 
-nonisolated enum SkillListAgentSummary {
-    static func text(count: Int) -> String {
-        count == 1 ? "1 Agent" : "\(count) Agents"
+enum SkillListAgentSummary {
+    static func text(count: Int, locale: Locale? = nil) -> String {
+        String(
+            localized: LocalizedStringResource(
+            "\(count) Agents",
+            locale: locale ?? .current,
+            bundle: .module
+        ))
     }
 }

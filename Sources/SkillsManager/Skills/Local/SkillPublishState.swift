@@ -9,6 +9,14 @@ nonisolated enum SkillPublishError: LocalizedError, Equatable {
     }
 }
 
+@MainActor
+func localizedSkillPublishError(_ error: SkillPublishError) -> String {
+    switch error {
+    case .publishedButStateNotRecorded:
+        String(localized: "ClawHub published the Skill, but Skills Manager could not save its local publish state. Refresh before publishing again.", bundle: .module)
+    }
+}
+
 extension SkillStore {
     nonisolated struct PublishState: Codable, Equatable {
         static let currentHashAlgorithmVersion = 1

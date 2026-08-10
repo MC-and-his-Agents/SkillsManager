@@ -9,18 +9,21 @@ struct SkillsShSearchDetailView: View {
             if let item = store.selectedItem {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text(item.name)
+                        Text(verbatim: item.name)
                             .font(.largeTitle.bold())
 
                         HStack(spacing: 6) {
                             TagView(text: item.source)
-                            TagView(text: "\(item.installs.formatted()) installs")
+                            TagView(localized: LocalizedStringResource(
+            "\(item.installs) installs",
+            bundle: .module
+        ))
                         }
 
                         Label {
                             Text(
-                                "Before installation, Skills Manager verifies a unique "
-                                    + "repository subpath and immutable GitHub revision."
+                                "Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.",
+                                bundle: .module
                             )
                         } icon: {
                             Image(systemName: "lock.shield")
@@ -28,24 +31,27 @@ struct SkillsShSearchDetailView: View {
                         .foregroundStyle(.secondary)
                         .accessibilityElement(children: .combine)
 
-                        Button("Resolve and Install…") {
+                        Button {
                             installItem = item
+                        } label: {
+                            Text("Resolve and Install…", bundle: .module)
                         }
                         .buttonStyle(.borderedProminent)
-                        .accessibilityHint(
-                            "Verifies the public GitHub source before showing an install preview"
-                        )
+                        .accessibilityHint(Text(
+                            "Verifies the public GitHub source before showing an install preview",
+                            bundle: .module
+                        ))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                 }
                 .navigationTitle(item.name)
-                .navigationSubtitle("skills.sh")
+                .navigationSubtitle(String(localized: "skills.sh", bundle: .module))
             } else {
                 ContentUnavailableView(
-                    "Select a skill",
+                    String(localized: "Select a skill", bundle: .module),
                     systemImage: "magnifyingglass",
-                    description: Text("Choose a skills.sh result.")
+                    description: Text("Choose a skills.sh result.", bundle: .module)
                 )
             }
         }
@@ -72,11 +78,18 @@ struct SkillsShSearchRow: View {
             detail: item.source,
             statusIcon: "arrow.down.circle",
             statusTint: .accentColor,
-            sources: [SkillListSourceLabel(text: "skills.sh", systemImage: "magnifyingglass")],
+                sources: [SkillListSourceLabel(
+                    text: "skills.sh",
+                    systemImage: "magnifyingglass",
+                    knownSource: .skillsSh
+                )],
             agentCount: 0,
-            accessibilityLabel:
-                "\(item.name), Available, skills.sh, \(item.installs.formatted()) installs, source \(item.source)",
-            accessibilityValue: "Available, skills.sh, 0 Agents"
+            accessibilityLabel: String(
+                localized: LocalizedStringResource(
+            "\(item.name), Available, skills.sh, \(item.installs) installs, source \(item.source)",
+            bundle: .module
+        )),
+            accessibilityValue: String(localized: "Available, skills.sh, 0 Agents", bundle: .module)
         ))
     }
 }

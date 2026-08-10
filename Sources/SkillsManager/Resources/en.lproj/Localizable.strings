@@ -1,0 +1,1888 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%@ differs from the managed version.</key>
+	<string>%@ differs from the managed version.</string>
+	<key>%@ distribution</key>
+	<string>%@ distribution</string>
+	<key>%@ is already in the managed library.</key>
+	<string>%@ is already in the managed library.</string>
+	<key>%@ is managed and available to the selected Agents.</key>
+	<string>%@ is managed and available to the selected Agents.</string>
+	<key>%@ is managed, but its Agent state must be confirmed.</key>
+	<string>%@ is managed, but its Agent state must be confirmed.</string>
+	<key>%@ is managed, but its distribution state must be confirmed or repaired.</key>
+	<string>%@ is managed, but its distribution state must be confirmed or repaired.</string>
+	<key>%@ is managed.</key>
+	<string>%@ is managed.</string>
+	<key>%@ is managed; no distribution changes were needed.</key>
+	<string>%@ is managed; no distribution changes were needed.</string>
+	<key>%@ is managed; resolve its distribution conflict from details.</key>
+	<string>%@ is managed; resolve its distribution conflict from details.</string>
+	<key>%@ is ready.</key>
+	<string>%@ is ready.</string>
+	<key>%@ is safe in the managed library, but distribution was not applied.</key>
+	<string>%@ is safe in the managed library, but distribution was not applied.</string>
+	<key>%@ was backed up and updated. Current Agent access was preserved.</key>
+	<string>%@ was backed up and updated. Current Agent access was preserved.</string>
+	<key>%@ was updated and backed up. Refresh its distribution from details.</key>
+	<string>%@ was updated and backed up. Refresh its distribution from details.</string>
+	<key>%@ was updated.</key>
+	<string>%@ was updated.</string>
+	<key>%@ · %@</key>
+	<string>%@ · %@</string>
+	<key>%@, %@</key>
+	<string>%@, %@</string>
+	<key>%@, %@, %@</key>
+	<string>%1$@, %2$@, %3$@</string>
+	<key>%@, Available, Repository, %@, %@</key>
+	<string>%@, Available, Repository, %@, %@</string>
+	<key>%@, Available, skills.sh, %lld installs, source %@</key>
+	<string>%@, Available, skills.sh, %@ installs, source %@</string>
+	<key>%@, Copy decision required</key>
+	<string>%@, Copy decision required</string>
+	<key>%@, checking for updates</key>
+	<string>%@, checking for updates</string>
+	<key>%@, preparing update</key>
+	<string>%@, preparing update</string>
+	<key>%@, update available</key>
+	<string>%@, update available</string>
+	<key>%@, updating</key>
+	<string>%@, updating</string>
+	<key>%@, waiting</key>
+	<string>%@, waiting</string>
+	<key>%@: %lld</key>
+	<string>%1$@: %2$lld</string>
+	<key>%lld Skills</key>
+	<string>%lld Skills</string>
+	<key>%lld candidates available</key>
+	<string>%lld candidates available</string>
+	<key>%lld candidates available · %lld selected</key>
+	<string>%lld candidates available · %lld selected</string>
+	<key>%lld created · %lld claimed · %lld skipped · %lld failed</key>
+	<string>%lld created · %lld claimed · %lld skipped · %lld failed</string>
+	<key>%lld installs</key>
+	<string>%lld installs</string>
+	<key>%lld item(s) need review.</key>
+	<string>%lld item(s) need review.</string>
+	<key>%lld of %lld</key>
+	<string>%1$lld of %2$lld</string>
+	<key>%lld of %lld complete.</key>
+	<string>%lld of %lld complete.</string>
+	<key>%lld of %lld complete. %@</key>
+	<string>%1$lld of %2$lld complete. %3$@</string>
+	<key>%lld selected</key>
+	<string>%lld selected</string>
+	<key>%lld shown</key>
+	<string>%lld shown</string>
+	<key>%lld skill(s)</key>
+	<string>%lld skill(s)</string>
+	<key>%lld target%@</key>
+	<string>%1$lld target%2$@</string>
+	<key>%lld valid · %lld observed</key>
+	<string>%1$lld valid · %2$lld observed</string>
+	<key>+%lld verified alias locations</key>
+	<string>+%lld verified alias locations</string>
+	<key>0 of %lld complete.</key>
+	<string>0 of %lld complete.</string>
+	<key>A Copy target changed in a way that cannot be updated safely.</key>
+	<string>A Copy target changed in a way that cannot be updated safely.</string>
+	<key>A backup is ready, but the update did not start. Recheck first.</key>
+	<string>A backup is ready, but the update did not start. Recheck first.</string>
+	<key>A batch update is already running.</key>
+	<string>A batch update is already running.</string>
+	<key>A blocking library diagnostic prevents changes.</key>
+	<string>A blocking library diagnostic prevents changes.</string>
+	<key>A deletion operation is already in progress.</key>
+	<string>A deletion operation is already in progress.</string>
+	<key>A deletion operation is still in progress.</key>
+	<string>A deletion operation is still in progress.</string>
+	<key>A distribution operation is already in progress for this Skill.</key>
+	<string>A distribution operation is already in progress for this Skill.</string>
+	<key>A local origin is already used and was not restored.</key>
+	<string>A local origin is already used and was not restored.</string>
+	<key>A local-origin record will be added to the matched Skill</key>
+	<string>A local-origin record will be added to the matched Skill</string>
+	<key>A provider alias is already used and was not restored.</key>
+	<string>A provider alias is already used and was not restored.</string>
+	<key>A required distribution target is unavailable.</key>
+	<string>A required distribution target is unavailable.</string>
+	<key>A saved link is missing.</key>
+	<string>A saved link is missing.</string>
+	<key>About Skills Manager</key>
+	<string>About Skills Manager</string>
+	<key>Action</key>
+	<string>Action</string>
+	<key>Action for %@</key>
+	<string>Action for %@</string>
+	<key>Actions</key>
+	<string>Actions</string>
+	<key>Active filters: %@</key>
+	<string>Active filters: %@</string>
+	<key>Add</key>
+	<string>Add</string>
+	<key>Add %@ to the managed library or safely update it.</key>
+	<string>Add %@ to the managed library or safely update it.</string>
+	<key>Add Custom Path...</key>
+	<string>Add Custom Path...</string>
+	<key>Add Custom Skill Path</key>
+	<string>Add Custom Skill Path</string>
+	<key>Add Repository</key>
+	<string>Add Repository</string>
+	<key>Add a public repository to discover its Skills.</key>
+	<string>Add a public repository to discover its Skills.</string>
+	<key>Add without enabling</key>
+	<string>Add without enabling</string>
+	<key>Affected items</key>
+	<string>Affected items</string>
+	<key>Agent bindings</key>
+	<string>Agent bindings</string>
+	<key>Agent selection has unapplied changes</key>
+	<string>Agent selection has unapplied changes</string>
+	<key>Agent selection has unapplied changes.</key>
+	<string>Agent selection has unapplied changes.</string>
+	<key>Agent-specific</key>
+	<string>Agent-specific</string>
+	<key>Agent: %@</key>
+	<string>Agent: %@</string>
+	<key>Agents</key>
+	<string>Agents</string>
+	<key>Agents use the managed Skill directly.</key>
+	<string>Agents use the managed Skill directly.</string>
+	<key>Agents: %@</key>
+	<string>Agents: %@</string>
+	<key>All</key>
+	<string>All</string>
+	<key>All Agents</key>
+	<string>All Agents</string>
+	<key>All Skills</key>
+	<string>All Skills</string>
+	<key>All Sources</key>
+	<string>All Sources</string>
+	<key>All Statuses</key>
+	<string>All Statuses</string>
+	<key>All compatible Agents</key>
+	<string>All compatible Agents</string>
+	<key>All skills will be added automatically.</key>
+	<string>All skills will be added automatically.</string>
+	<key>Already managed</key>
+	<string>Already managed</string>
+	<key>Already up to date</key>
+	<string>Already up to date</string>
+	<key>Also restore the original Agent targets</key>
+	<string>Also restore the original Agent targets</string>
+	<key>An Agent-specific target is unavailable.</key>
+	<string>An Agent-specific target is unavailable.</string>
+	<key>An equivalent Skill name already exists in the target directory.</key>
+	<string>An equivalent Skill name already exists in the target directory.</string>
+	<key>An independent local Fork was created.</key>
+	<string>An independent local Fork was created.</string>
+	<key>An unmanaged item already exists at this target.</key>
+	<string>An unmanaged item already exists at this target.</string>
+	<key>Another file or directory occupies this managed target.</key>
+	<string>Another file or directory occupies this managed target.</string>
+	<key>Another import operation is already in progress.</key>
+	<string>Another import operation is already in progress.</string>
+	<key>Another managed Skill already uses this name.</key>
+	<string>Another managed Skill already uses this name.</string>
+	<key>Another operation is in progress.</key>
+	<string>Another operation is in progress.</string>
+	<key>Apply</key>
+	<string>Apply</string>
+	<key>Applying changes…</key>
+	<string>Applying changes…</string>
+	<key>Applying this selection will replace the global target with Agent-specific targets.</key>
+	<string>Applying this selection will replace the global target with Agent-specific targets.</string>
+	<key>Archive</key>
+	<string>Archive</string>
+	<key>Associate this local folder with an existing Skill</key>
+	<string>Associate this local folder with an existing Skill</string>
+	<key>Audit incomplete</key>
+	<string>Audit incomplete</string>
+	<key>Audit summary</key>
+	<string>Audit summary</string>
+	<key>Audit unavailable</key>
+	<string>Audit unavailable</string>
+	<key>Auditing</key>
+	<string>Auditing</string>
+	<key>Available</key>
+	<string>Available</string>
+	<key>Available action</key>
+	<string>Available action</string>
+	<key>Available, Repository, 0 Agents</key>
+	<string>Available, Repository, 0 Agents</string>
+	<key>Available, skills.sh, 0 Agents</key>
+	<string>Available, skills.sh, 0 Agents</string>
+	<key>Back</key>
+	<string>Back</string>
+	<key>Back up and migrate</key>
+	<string>Back up and migrate</string>
+	<key>Back up the original directory, then replace it with a managed Symlink.</key>
+	<string>Back up the original directory, then replace it with a managed Symlink.</string>
+	<key>Backing up, replacing, and refreshing distribution.</key>
+	<string>Backing up, replacing, and refreshing distribution.</string>
+	<key>Backs up the Skill, removes managed Agent links, and deletes the managed Skill.</key>
+	<string>Backs up the Skill, removes managed Agent links, and deletes the managed Skill.</string>
+	<key>Backup</key>
+	<string>Backup</string>
+	<key>Backup %@</key>
+	<string>Backup %@</string>
+	<key>Backup completed; recheck before trying the update again</key>
+	<string>Backup completed; recheck before trying the update again</string>
+	<key>Backup: %@</key>
+	<string>Backup: %@</string>
+	<key>Backups</key>
+	<string>Backups</string>
+	<key>Backups unavailable</key>
+	<string>Backups unavailable</string>
+	<key>Based on %@</key>
+	<string>Based on %@</string>
+	<key>Batch Import</key>
+	<string>Batch Import</string>
+	<key>Batch Import discovered Skills</key>
+	<string>Batch Import discovered Skills</string>
+	<key>Batch Updates</key>
+	<string>Batch Updates</string>
+	<key>Batch import finished with failures.</key>
+	<string>Batch import finished with failures.</string>
+	<key>Batch import finished.</key>
+	<string>Batch import finished.</string>
+	<key>Batch update summary: %@</key>
+	<string>Batch update summary: %@</string>
+	<key>Batch updates are unavailable until the managed library is ready.</key>
+	<string>Batch updates are unavailable until the managed library is ready.</string>
+	<key>Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.</key>
+	<string>Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.</string>
+	<key>Blocked; Skill remains managed</key>
+	<string>Blocked; Skill remains managed</string>
+	<key>Built for Codex and your other agents to manage and inspect skills on your Mac.</key>
+	<string>Built for Codex and your other agents to manage and inspect skills on your Mac.</string>
+	<key>By %@</key>
+	<string>By %@</string>
+	<key>Cancel</key>
+	<string>Cancel</string>
+	<key>Cancel this Skill update</key>
+	<string>Cancel this Skill update</string>
+	<key>Cancel this update</key>
+	<string>Cancel this update</string>
+	<key>Cancelled</key>
+	<string>Cancelled</string>
+	<key>Candidate source</key>
+	<string>Candidate source</string>
+	<key>Change distribution mode</key>
+	<string>Change distribution mode</string>
+	<key>Change preview</key>
+	<string>Change preview</string>
+	<key>Changelog</key>
+	<string>Changelog</string>
+	<key>Changes cannot be applied</key>
+	<string>Changes cannot be applied</string>
+	<key>Check All</key>
+	<string>Check All</string>
+	<key>Check again</key>
+	<string>Check again</string>
+	<key>Check all managed Skills for updates.</key>
+	<string>Check all managed Skills for updates.</string>
+	<key>Check for Updates</key>
+	<string>Check for Updates</string>
+	<key>Check for Updates…</key>
+	<string>Check for Updates…</string>
+	<key>Check managed Skills, review every conflict, then update selected items.</key>
+	<string>Check managed Skills, review every conflict, then update selected items.</string>
+	<key>Check now</key>
+	<string>Check now</string>
+	<key>Checking</key>
+	<string>Checking</string>
+	<key>Checking ClawHub status…</key>
+	<string>Checking ClawHub status…</string>
+	<key>Checking Skills…</key>
+	<string>Checking Skills…</string>
+	<key>Checking for updates</key>
+	<string>Checking for updates</string>
+	<key>Choose Folder...</key>
+	<string>Choose Folder...</string>
+	<key>Choose a Skill folder or zip, then add it to the managed library.</key>
+	<string>Choose a Skill folder or zip, then add it to the managed library.</string>
+	<key>Choose a ZIP archive</key>
+	<string>Choose a ZIP archive</string>
+	<key>Choose a folder containing platform skill directories</key>
+	<string>Choose a folder containing platform skill directories</string>
+	<key>Choose a skills.sh result.</key>
+	<string>Choose a skills.sh result.</string>
+	<key>Choose an action</key>
+	<string>Choose an action</string>
+	<key>Choose how to handle every modified Copy before updating.</key>
+	<string>Choose how to handle every modified Copy before updating.</string>
+	<key>Choose how to handle every modified Copy.</key>
+	<string>Choose how to handle every modified Copy.</string>
+	<key>Choose…</key>
+	<string>Choose…</string>
+	<key>Claim existing</key>
+	<string>Claim existing</string>
+	<key>Claim, back up and migrate</key>
+	<string>Claim, back up and migrate</string>
+	<key>Claimed; existing bindings preserved</key>
+	<string>Claimed; existing bindings preserved</string>
+	<key>Claude</key>
+	<string>Claude</string>
+	<key>Claude Code</key>
+	<string>Claude Code</string>
+	<key>ClawHub</key>
+	<string>ClawHub</string>
+	<key>ClawHub Latest Drops</key>
+	<string>ClawHub Latest Drops</string>
+	<key>ClawHub is temporarily unavailable.</key>
+	<string>ClawHub is temporarily unavailable.</string>
+	<key>ClawHub published the Skill, but Skills Manager could not save its local publish state. Refresh before publishing again.</key>
+	<string>ClawHub published the Skill, but Skills Manager could not save its local publish state. Refresh before publishing again.</string>
+	<key>ClawHub rate limited this request.</key>
+	<string>ClawHub rate limited this request.</string>
+	<key>ClawHub returned an invalid response.</key>
+	<string>ClawHub returned an invalid response.</string>
+	<key>ClawHub unavailable</key>
+	<string>ClawHub unavailable</string>
+	<key>ClawHub unavailable — cached content may be out of date.</key>
+	<string>ClawHub unavailable — cached content may be out of date.</string>
+	<key>ClawHub · %@</key>
+	<string>ClawHub · %@</string>
+	<key>ClawHub · %@ · %@</key>
+	<string>ClawHub · %@ · %@</string>
+	<key>Cleaning up</key>
+	<string>Cleaning up</string>
+	<key>Cleanup pending</key>
+	<string>Cleanup pending</string>
+	<key>Clear</key>
+	<string>Clear</string>
+	<key>Clear the filter to restore the complete audit.</key>
+	<string>Clear the filter to restore the complete audit.</string>
+	<key>Clear the filter to restore the complete batch.</key>
+	<string>Clear the filter to restore the complete batch.</string>
+	<key>Close</key>
+	<string>Close</string>
+	<key>Codex</key>
+	<string>Codex</string>
+	<key>Compatible Agents share one managed link in %@.</key>
+	<string>Compatible Agents share one managed link in %@.</string>
+	<key>Completed</key>
+	<string>Completed</string>
+	<key>Completed and verified by a fresh consistency audit.</key>
+	<string>Completed and verified by a fresh consistency audit.</string>
+	<key>Confirm</key>
+	<string>Confirm</string>
+	<key>Confirm claim</key>
+	<string>Confirm claim</string>
+	<key>Confirm import</key>
+	<string>Confirm import</string>
+	<key>Confirm or repair the managed library before retrying this update.</key>
+	<string>Confirm or repair the managed library before retrying this update.</string>
+	<key>Confirm or repair the managed library before retrying.</key>
+	<string>Confirm or repair the managed library before retrying.</string>
+	<key>Confirm update</key>
+	<string>Confirm update</string>
+	<key>Conflict</key>
+	<string>Conflict</string>
+	<key>Conflicting identity evidence requires import as an independent Skill.</key>
+	<string>Conflicting identity evidence requires import as an independent Skill.</string>
+	<key>Connect to the internet and try again.</key>
+	<string>Connect to the internet and try again.</string>
+	<key>Consistency Audit</key>
+	<string>Consistency Audit</string>
+	<key>Consistency audit</key>
+	<string>Consistency audit</string>
+	<key>Content</key>
+	<string>Content</string>
+	<key>Content fingerprint</key>
+	<string>Content fingerprint</string>
+	<key>Content fingerprint drift</key>
+	<string>Content fingerprint drift</string>
+	<key>Content will be copied into the SSOT and recorded in the database</key>
+	<string>Content will be copied into the SSOT and recorded in the database</string>
+	<key>Continues the interrupted deletion safely.</key>
+	<string>Continues the interrupted deletion safely.</string>
+	<key>Continues this journaled deletion operation.</key>
+	<string>Continues this journaled deletion operation.</string>
+	<key>Copilot</key>
+	<string>Copilot</string>
+	<key>Copy</key>
+	<string>Copy</string>
+	<key>Copy content is behind the managed Skill and needs to be synchronized.</key>
+	<string>Copy content is behind the managed Skill and needs to be synchronized.</string>
+	<key>Copy decision for %@</key>
+	<string>Copy decision for %@</string>
+	<key>Copy decision required</key>
+	<string>Copy decision required</string>
+	<key>Copy decisions were saved, but the parent Skill was not updated.</key>
+	<string>Copy decisions were saved, but the parent Skill was not updated.</string>
+	<key>Copy decisions were saved; recheck before updating the parent Skill</key>
+	<string>Copy decisions were saved; recheck before updating the parent Skill</string>
+	<key>Copy login command</key>
+	<string>Copy login command</string>
+	<key>Copy target has local changes</key>
+	<string>Copy target has local changes</string>
+	<key>Corrupt</key>
+	<string>Corrupt</string>
+	<key>Create managed copy</key>
+	<string>Create managed copy</string>
+	<key>Create managed link</key>
+	<string>Create managed link</string>
+	<key>Create target</key>
+	<string>Create target</string>
+	<key>Created</key>
+	<string>Created</string>
+	<key>Current Agent targets</key>
+	<string>Current Agent targets</string>
+	<key>Current source</key>
+	<string>Current source</string>
+	<key>Current targets</key>
+	<string>Current targets</string>
+	<key>Custom</key>
+	<string>Custom</string>
+	<key>Damaged</key>
+	<string>Damaged</string>
+	<key>Database busy</key>
+	<string>Database busy</string>
+	<key>Database missing</key>
+	<string>Database missing</string>
+	<key>Database schema mismatch</key>
+	<string>Database schema mismatch</string>
+	<key>Default branch</key>
+	<string>Default branch</string>
+	<key>Delete</key>
+	<string>Delete</string>
+	<key>Delete from Skills Manager?</key>
+	<string>Delete from Skills Manager?</string>
+	<key>Delete from Skills Manager…</key>
+	<string>Delete from Skills Manager…</string>
+	<key>Deleting a managed Skill creates a verified backup here.</key>
+	<string>Deleting a managed Skill creates a verified backup here.</string>
+	<key>Deletion did not complete. The active Skill was restored to its prior state.</key>
+	<string>Deletion did not complete. The active Skill was restored to its prior state.</string>
+	<key>Deletion operations</key>
+	<string>Deletion operations</string>
+	<key>Disable missing target</key>
+	<string>Disable missing target</string>
+	<key>Disabled</key>
+	<string>Disabled</string>
+	<key>Discard local changes</key>
+	<string>Discard local changes</string>
+	<key>Discard restores the managed Skill and cannot be undone. Choose Fork to preserve the local content independently.</key>
+	<string>Discard restores the managed Skill and cannot be undone. Choose Fork to preserve the local content independently.</string>
+	<key>Discover Skills from public GitHub repositories.</key>
+	<string>Discover Skills from public GitHub repositories.</string>
+	<key>Discovered Skills</key>
+	<string>Discovered Skills</string>
+	<key>Discovery</key>
+	<string>Discovery</string>
+	<key>Discovery changed before the preview completed. Review the latest result and try again.</key>
+	<string>Discovery changed before the preview completed. Review the latest result and try again.</string>
+	<key>Discovery changed. Review the current candidates before importing.</key>
+	<string>Discovery changed. Review the current candidates before importing.</string>
+	<key>Discovery evidence</key>
+	<string>Discovery evidence</string>
+	<key>Discovery failed</key>
+	<string>Discovery failed</string>
+	<key>Discovery unavailable</key>
+	<string>Discovery unavailable</string>
+	<key>Distributed</key>
+	<string>Distributed</string>
+	<key>Distribution</key>
+	<string>Distribution</string>
+	<key>Distribution changed after preview.</key>
+	<string>Distribution changed after preview.</string>
+	<key>Distribution completed and the current state was refreshed.</key>
+	<string>Distribution completed and the current state was refreshed.</string>
+	<key>Distribution did not complete.</key>
+	<string>Distribution did not complete.</string>
+	<key>Distribution is blocked. No Skill will be imported until this is resolved.</key>
+	<string>Distribution is blocked. No Skill will be imported until this is resolved.</string>
+	<key>Distribution is blocked. The Skill can still be added to the managed library.</key>
+	<string>Distribution is blocked. The Skill can still be added to the managed library.</string>
+	<key>Distribution is blocked. This Skill will be added without enabling.</key>
+	<string>Distribution is blocked. This Skill will be added without enabling.</string>
+	<key>Distribution mode</key>
+	<string>Distribution mode</string>
+	<key>Distribution needs attention</key>
+	<string>Distribution needs attention</string>
+	<key>Distribution preview</key>
+	<string>Distribution preview</string>
+	<key>Distribution preview was unavailable.</key>
+	<string>Distribution preview was unavailable.</string>
+	<key>Distribution scope</key>
+	<string>Distribution scope</string>
+	<key>Distribution slug was unavailable.</key>
+	<string>Distribution slug was unavailable.</string>
+	<key>Distribution status: %@</key>
+	<string>Distribution status: %@</string>
+	<key>Done</key>
+	<string>Done</string>
+	<key>Downloading and validating…</key>
+	<string>Downloading and validating…</string>
+	<key>Each target receives a managed Copy.</key>
+	<string>Each target receives a managed Copy.</string>
+	<key>Enable for</key>
+	<string>Enable for</string>
+	<key>Enter a public https://github.com/owner/repository URL.</key>
+	<string>Enter a public https://github.com/owner/repository URL.</string>
+	<key>Enter a search query between 2 and 200 characters.</key>
+	<string>Enter a search query between 2 and 200 characters.</string>
+	<key>Enter a valid Git branch, tag, or commit reference.</key>
+	<string>Enter a valid Git branch, tag, or commit reference.</string>
+	<key>Every visible result is unavailable. Fix the folders below, then refresh.</key>
+	<string>Every visible result is unavailable. Fix the folders below, then refresh.</string>
+	<key>Existing Agent bindings were preserved.</key>
+	<string>Existing Agent bindings were preserved.</string>
+	<key>Explicitly selects this conflict for an independent import.</key>
+	<string>Explicitly selects this conflict for an independent import.</string>
+	<key>Failed</key>
+	<string>Failed</string>
+	<key>Failed: %@</key>
+	<string>Failed: %@</string>
+	<key>Files</key>
+	<string>Files</string>
+	<key>Filter audit findings</key>
+	<string>Filter audit findings</string>
+	<key>Filter batch updates</key>
+	<string>Filter batch updates</string>
+	<key>Findings</key>
+	<string>Findings</string>
+	<key>Finishing the current Skill before stopping…</key>
+	<string>Finishing the current Skill before stopping…</string>
+	<key>Fix permissions</key>
+	<string>Fix permissions</string>
+	<key>Full Settings…</key>
+	<string>Full Settings…</string>
+	<key>GitHub</key>
+	<string>GitHub</string>
+	<key>GitHub Copilot</key>
+	<string>GitHub Copilot</string>
+	<key>GitHub Repositories</key>
+	<string>GitHub Repositories</string>
+	<key>GitHub Repository...</key>
+	<string>GitHub Repository...</string>
+	<key>GitHub could not be reached.</key>
+	<string>GitHub could not be reached.</string>
+	<key>GitHub did not respond in time.</key>
+	<string>GitHub did not respond in time.</string>
+	<key>GitHub is temporarily unavailable.</key>
+	<string>GitHub is temporarily unavailable.</string>
+	<key>GitHub is unavailable while the network is offline.</key>
+	<string>GitHub is unavailable while the network is offline.</string>
+	<key>GitHub rate limited this request.</key>
+	<string>GitHub rate limited this request.</string>
+	<key>GitHub repository URL</key>
+	<string>GitHub repository URL</string>
+	<key>GitHub returned an unsupported repository layout.</key>
+	<string>GitHub returned an unsupported repository layout.</string>
+	<key>GitHub returned more data than can be handled safely.</key>
+	<string>GitHub returned more data than can be handled safely.</string>
+	<key>Global</key>
+	<string>Global</string>
+	<key>Global shared target</key>
+	<string>Global shared target</string>
+	<key>Healthy</key>
+	<string>Healthy</string>
+	<key>Hide filters</key>
+	<string>Hide filters</string>
+	<key>Identity: new independent Skill UUID</key>
+	<string>Identity: new independent Skill UUID</string>
+	<key>If a target conflicts, the Skill remains restored without Agent links.</key>
+	<string>If a target conflicts, the Skill remains restored without Agent links.</string>
+	<key>Impact</key>
+	<string>Impact</string>
+	<key>Import</key>
+	<string>Import</string>
+	<key>Import Skill</key>
+	<string>Import Skill</string>
+	<key>Import Skill...</key>
+	<string>Import Skill...</string>
+	<key>Import a managed Skill before checking for batch updates.</key>
+	<string>Import a managed Skill before checking for batch updates.</string>
+	<key>Import as independent Skill, back up and migrate</key>
+	<string>Import as independent Skill, back up and migrate</string>
+	<key>Import as new</key>
+	<string>Import as new</string>
+	<key>Import failed: %@</key>
+	<string>Import failed: %@</string>
+	<key>Import in progress</key>
+	<string>Import in progress</string>
+	<key>Import needs attention</key>
+	<string>Import needs attention</string>
+	<key>Import selected</key>
+	<string>Import selected</string>
+	<key>Import status unavailable</key>
+	<string>Import status unavailable</string>
+	<key>Import this local folder as a managed Skill</key>
+	<string>Import this local folder as a managed Skill</string>
+	<key>Import, back up and migrate</key>
+	<string>Import, back up and migrate</string>
+	<key>Importable</key>
+	<string>Importable</string>
+	<key>Imported</key>
+	<string>Imported</string>
+	<key>Imported and enabled</key>
+	<string>Imported and enabled</string>
+	<key>Imported but not enabled</key>
+	<string>Imported but not enabled</string>
+	<key>Imported; status needs attention</key>
+	<string>Imported; status needs attention</string>
+	<key>Importing selected Skills…</key>
+	<string>Importing selected Skills…</string>
+	<key>In sync</key>
+	<string>In sync</string>
+	<key>Independent Skill</key>
+	<string>Independent Skill</string>
+	<key>Independent local Fork</key>
+	<string>Independent local Fork</string>
+	<key>Inspect legacy archive</key>
+	<string>Inspect legacy archive</string>
+	<key>Inspect orphan directory</key>
+	<string>Inspect orphan directory</string>
+	<key>Inspect unknown entry</key>
+	<string>Inspect unknown entry</string>
+	<key>Install</key>
+	<string>Install</string>
+	<key>Install Bun</key>
+	<string>Install Bun</string>
+	<key>Install Bun to run the ClawHub CLI.</key>
+	<string>Install Bun to run the ClawHub CLI.</string>
+	<key>Install needs attention</key>
+	<string>Install needs attention</string>
+	<key>Install or Update Skill</key>
+	<string>Install or Update Skill</string>
+	<key>Install this ClawHub Skill</key>
+	<string>Install this ClawHub Skill</string>
+	<key>Installation unavailable</key>
+	<string>Installation unavailable</string>
+	<key>Installed</key>
+	<string>Installed</string>
+	<key>Installed and enabled</key>
+	<string>Installed and enabled</string>
+	<key>Installed but not enabled</key>
+	<string>Installed but not enabled</string>
+	<key>Installed version %@</key>
+	<string>Installed version %@</string>
+	<key>Invalid search</key>
+	<string>Invalid search</string>
+	<key>Journal needs repair</key>
+	<string>Journal needs repair</string>
+	<key>Keep as independent Fork</key>
+	<string>Keep as independent Fork</string>
+	<key>Keep changes as a Fork</key>
+	<string>Keep changes as a Fork</string>
+	<key>Keep for now</key>
+	<string>Keep for now</string>
+	<key>Kept for now</key>
+	<string>Kept for now</string>
+	<key>Kept for this session. A future audit will show it again.</key>
+	<string>Kept for this session. A future audit will show it again.</string>
+	<key>Kept for this session. Refreshing will show the finding again.</key>
+	<string>Kept for this session. Refreshing will show the finding again.</string>
+	<key>Latest version %@</key>
+	<string>Latest version %@</string>
+	<key>Legacy archive changed</key>
+	<string>Legacy archive changed</string>
+	<key>Legacy migration blocked</key>
+	<string>Legacy migration blocked</string>
+	<key>Library unavailable</key>
+	<string>Library unavailable</string>
+	<key>Load More</key>
+	<string>Load More</string>
+	<key>Loading </key>
+	<string>Loading </string>
+	<key>Loading SKILL.md…</key>
+	<string>Loading SKILL.md…</string>
+	<key>Loading and validating backups…</key>
+	<string>Loading and validating backups…</string>
+	<key>Loading distribution state…</key>
+	<string>Loading distribution state…</string>
+	<key>Loading latest ClawHub Skills</key>
+	<string>Loading latest ClawHub Skills</string>
+	<key>Loading more ClawHub results</key>
+	<string>Loading more ClawHub results</string>
+	<key>Loading more latest Skills</key>
+	<string>Loading more latest Skills</string>
+	<key>Loading more skills.sh results</key>
+	<string>Loading more skills.sh results</string>
+	<key>Loading reference…</key>
+	<string>Loading reference…</string>
+	<key>Loading the last update check…</key>
+	<string>Loading the last update check…</string>
+	<key>Loads more ClawHub results</key>
+	<string>Loads more ClawHub results</string>
+	<key>Loads more skills.sh results</key>
+	<string>Loads more skills.sh results</string>
+	<key>Local</key>
+	<string>Local</string>
+	<key>Local Copy</key>
+	<string>Local Copy</string>
+	<key>Local Copy changes were discarded and restored from the managed Skill.</key>
+	<string>Local Copy changes were discarded and restored from the managed Skill.</string>
+	<key>Local changes at %@</key>
+	<string>Local changes at %@</string>
+	<key>Local locations</key>
+	<string>Local locations</string>
+	<key>Location</key>
+	<string>Location</string>
+	<key>Maintained by MC and his Agents. Originally created by @Dimillian.</key>
+	<string>Maintained by MC and his Agents. Originally created by @Dimillian.</string>
+	<key>Major</key>
+	<string>Major</string>
+	<key>Makes no changes. The finding returns after the next audit.</key>
+	<string>Makes no changes. The finding returns after the next audit.</string>
+	<key>Manage Skill</key>
+	<string>Manage Skill</string>
+	<key>Managed</key>
+	<string>Managed</string>
+	<key>Managed Agent target</key>
+	<string>Managed Agent target</string>
+	<key>Managed Agent target %@</key>
+	<string>Managed Agent target %@</string>
+	<key>Managed Agent targets: %lld</key>
+	<string>Managed Agent targets: %lld</string>
+	<key>Managed Copy target</key>
+	<string>Managed Copy target</string>
+	<key>Managed Skill directory missing</key>
+	<string>Managed Skill directory missing</string>
+	<key>Managed Skill needs repair</key>
+	<string>Managed Skill needs repair</string>
+	<key>Managed Skill status: %@</key>
+	<string>Managed Skill status: %@</string>
+	<key>Managed Skills</key>
+	<string>Managed Skills</string>
+	<key>Managed and in sync</key>
+	<string>Managed and in sync</string>
+	<key>Managed but not enabled</key>
+	<string>Managed but not enabled</string>
+	<key>Managed catalog repair is required.</key>
+	<string>Managed catalog repair is required.</string>
+	<key>Managed content was modified locally</key>
+	<string>Managed content was modified locally</string>
+	<key>Managed library missing</key>
+	<string>Managed library missing</string>
+	<key>Managed result</key>
+	<string>Managed result</string>
+	<key>Managed root identity changed</key>
+	<string>Managed root identity changed</string>
+	<key>Management</key>
+	<string>Management</string>
+	<key>Matched Skill ID</key>
+	<string>Matched Skill ID</string>
+	<key>Matches an existing managed Skill</key>
+	<string>Matches an existing managed Skill</string>
+	<key>Matching Skill already exists</key>
+	<string>Matching Skill already exists</string>
+	<key>Migration recovery is required.</key>
+	<string>Migration recovery is required.</string>
+	<key>Minor</key>
+	<string>Minor</string>
+	<key>Missing SKILL.md</key>
+	<string>Missing SKILL.md</string>
+	<key>Missing reference</key>
+	<string>Missing reference</string>
+	<key>Mode</key>
+	<string>Mode</string>
+	<key>More than one Skill uses this name in the same scope.</key>
+	<string>More than one Skill uses this name in the same scope.</string>
+	<key>Needs Attention</key>
+	<string>Needs Attention</string>
+	<key>Needs Import</key>
+	<string>Needs Import</string>
+	<key>Needs Repair</key>
+	<string>Needs Repair</string>
+	<key>Needs attention</key>
+	<string>Needs attention</string>
+	<key>Needs attention: %@</key>
+	<string>Needs attention: %@</string>
+	<key>Needs repair</key>
+	<string>Needs repair</string>
+	<key>Needs update</key>
+	<string>Needs update</string>
+	<key>New Skill ID %@</key>
+	<string>New Skill ID %@</string>
+	<key>New managed Skill</key>
+	<string>New managed Skill</string>
+	<key>No ClawHub results.</key>
+	<string>No ClawHub results.</string>
+	<key>No Discovery candidates</key>
+	<string>No Discovery candidates</string>
+	<key>No GitHub repositories</key>
+	<string>No GitHub repositories</string>
+	<key>No GitHub repositories registered.</key>
+	<string>No GitHub repositories registered.</string>
+	<key>No SKILL.md found in this skill folder.</key>
+	<string>No SKILL.md found in this skill folder.</string>
+	<key>No Skills</key>
+	<string>No Skills</string>
+	<key>No Skills found</key>
+	<string>No Skills found</string>
+	<key>No Skills found in the registered repositories.</key>
+	<string>No Skills found in the registered repositories.</string>
+	<key>No Skills match the current filters.</key>
+	<string>No Skills match the current filters.</string>
+	<key>No action selected</key>
+	<string>No action selected</string>
+	<key>No backups</key>
+	<string>No backups</string>
+	<key>No change</key>
+	<string>No change</string>
+	<key>No changes</key>
+	<string>No changes</string>
+	<key>No current discovery result is available.</key>
+	<string>No current discovery result is available.</string>
+	<key>No distribution changes are needed.</key>
+	<string>No distribution changes are needed.</string>
+	<key>No distribution changes were needed.</key>
+	<string>No distribution changes were needed.</string>
+	<key>No distribution file changes are needed.</key>
+	<string>No distribution file changes are needed.</string>
+	<key>No exact remote source is available for this Skill.</key>
+	<string>No exact remote source is available for this Skill.</string>
+	<key>No issue detected.</key>
+	<string>No issue detected.</string>
+	<key>No latest Skills available.</key>
+	<string>No latest Skills available.</string>
+	<key>No local Skills match the current search and filters.</key>
+	<string>No local Skills match the current search and filters.</string>
+	<key>No local matches</key>
+	<string>No local matches</string>
+	<key>No managed Skill was confirmed.</key>
+	<string>No managed Skill was confirmed.</string>
+	<key>No managed Skills are available.</key>
+	<string>No managed Skills are available.</string>
+	<key>No managed Skills.</key>
+	<string>No managed Skills.</string>
+	<key>No managed write was attempted.</key>
+	<string>No managed write was attempted.</string>
+	<key>No matching Skills</key>
+	<string>No matching Skills</string>
+	<key>No matching findings</key>
+	<string>No matching findings</string>
+	<key>No more unique results.</key>
+	<string>No more unique results.</string>
+	<key>No skills.sh results.</key>
+	<string>No skills.sh results.</string>
+	<key>No source metadata</key>
+	<string>No source metadata</string>
+	<key>No update was required.</key>
+	<string>No update was required.</string>
+	<key>No update was started for this Skill.</key>
+	<string>No update was started for this Skill.</string>
+	<key>No usable discovery result</key>
+	<string>No usable discovery result</string>
+	<key>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</key>
+	<string>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</string>
+	<key>None will be created</key>
+	<string>None will be created</string>
+	<key>Not configured</key>
+	<string>Not configured</string>
+	<key>Not enabled for any Agent.</key>
+	<string>Not enabled for any Agent.</string>
+	<key>Not refreshed</key>
+	<string>Not refreshed</string>
+	<key>Not selected</key>
+	<string>Not selected</string>
+	<key>Not yet published on ClawHub.</key>
+	<string>Not yet published on ClawHub.</string>
+	<key>Nothing has been written. Confirm once to begin the ordered import.</key>
+	<string>Nothing has been written. Confirm once to begin the ordered import.</string>
+	<key>Nothing has been written. Confirm once to import the selected Skills in order.</key>
+	<string>Nothing has been written. Confirm once to import the selected Skills in order.</string>
+	<key>OK</key>
+	<string>OK</string>
+	<key>Observed directories</key>
+	<string>Observed directories</string>
+	<key>On This Mac</key>
+	<string>On This Mac</string>
+	<key>One or more required discovery roots are unavailable.</key>
+	<string>One or more required discovery roots are unavailable.</string>
+	<key>Only content-only Copy changes can use this decision.</key>
+	<string>Only content-only Copy changes can use this decision.</string>
+	<key>Open Skill Backups</key>
+	<string>Open Skill Backups</string>
+	<key>Open consistency audit</key>
+	<string>Open consistency audit</string>
+	<key>Open in Finder</key>
+	<string>Open in Finder</string>
+	<key>Open on ClawHub</key>
+	<string>Open on ClawHub</string>
+	<key>OpenCode</key>
+	<string>OpenCode</string>
+	<key>Opens a confirmation preview. No files are changed yet.</key>
+	<string>Opens a confirmation preview. No files are changed yet.</string>
+	<key>Opens a confirmation showing the backup, Agent links, and managed content that will be removed.</key>
+	<string>Opens a confirmation showing the backup, Agent links, and managed content that will be removed.</string>
+	<key>Opens a verified restore preview.</key>
+	<string>Opens a verified restore preview.</string>
+	<key>Opens the Skill folder in Finder</key>
+	<string>Opens the Skill folder in Finder</string>
+	<key>Opens the installation review. Nothing is written until you confirm.</key>
+	<string>Opens the installation review. Nothing is written until you confirm.</string>
+	<key>Operation in progress</key>
+	<string>Operation in progress</string>
+	<key>Operation: %@</key>
+	<string>Operation: %@</string>
+	<key>Optional Git branch, tag, or commit reference</key>
+	<string>Optional Git branch, tag, or commit reference</string>
+	<key>Original Project</key>
+	<string>Original Project</string>
+	<key>Original Skill ID</key>
+	<string>Original Skill ID</string>
+	<key>Original folder</key>
+	<string>Original folder</string>
+	<key>Original identity</key>
+	<string>Original identity</string>
+	<key>Orphan managed directory</key>
+	<string>Orphan managed directory</string>
+	<key>Patch</key>
+	<string>Patch</string>
+	<key>Permission denied</key>
+	<string>Permission denied</string>
+	<key>Permission denied while applying the repair.</key>
+	<string>Permission denied while applying the repair.</string>
+	<key>Permission denied while auditing the library.</key>
+	<string>Permission denied while auditing the library.</string>
+	<key>Permission denied while migrating the Skill.</key>
+	<string>Permission denied while migrating the Skill.</string>
+	<key>Permission required</key>
+	<string>Permission required</string>
+	<key>Pick a folder or zip</key>
+	<string>Pick a folder or zip</string>
+	<key>Pick a skill from ClawHub.</key>
+	<string>Pick a skill from ClawHub.</string>
+	<key>Pick a skill from the list.</key>
+	<string>Pick a skill from the list.</string>
+	<key>Preparing</key>
+	<string>Preparing</string>
+	<key>Preparing import preview…</key>
+	<string>Preparing import preview…</string>
+	<key>Preparing previews…</key>
+	<string>Preparing previews…</string>
+	<key>Preparing preview…</key>
+	<string>Preparing preview…</string>
+	<key>Preparing restore preview</key>
+	<string>Preparing restore preview</string>
+	<key>Preparing secure previews…</key>
+	<string>Preparing secure previews…</string>
+	<key>Preparing the managed library…</key>
+	<string>Preparing the managed library…</string>
+	<key>Preserves the local content as a separately managed Skill.</key>
+	<string>Preserves the local content as a separately managed Skill.</string>
+	<key>Preview changes</key>
+	<string>Preview changes</string>
+	<key>Preview claim</key>
+	<string>Preview claim</string>
+	<key>Preview import</key>
+	<string>Preview import</string>
+	<key>Preview independent import</key>
+	<string>Preview independent import</string>
+	<key>Preview selected</key>
+	<string>Preview selected</string>
+	<key>Preview the change before anything is written to the managed library.</key>
+	<string>Preview the change before anything is written to the managed library.</string>
+	<key>Previews removal of managed distribution targets. The managed Skill is retained.</key>
+	<string>Previews removal of managed distribution targets. The managed Skill is retained.</string>
+	<key>Provider alias</key>
+	<string>Provider alias</string>
+	<key>Publish Skill</key>
+	<string>Publish Skill</string>
+	<key>Publish result</key>
+	<string>Publish result</string>
+	<key>Push changes for %@ to ClawHub.</key>
+	<string>Push changes for %@ to ClawHub.</string>
+	<key>Reading SSOT, database, distribution targets and discovered directories.</key>
+	<string>Reading SSOT, database, distribution targets and discovered directories.</string>
+	<key>Reading the local Skill and remote source.</key>
+	<string>Reading the local Skill and remote source.</string>
+	<key>Ready</key>
+	<string>Ready</string>
+	<key>Ready to claim</key>
+	<string>Ready to claim</string>
+	<key>Ready to enable with Symlink</key>
+	<string>Ready to enable with Symlink</string>
+	<key>Ready to restore</key>
+	<string>Ready to restore</string>
+	<key>Reason</key>
+	<string>Reason</string>
+	<key>Rebuild missing links</key>
+	<string>Rebuild missing links</string>
+	<key>Recheck %@</key>
+	<string>Recheck %@</string>
+	<key>Recheck after resolving local or remote changes.</key>
+	<string>Recheck after resolving local or remote changes.</string>
+	<key>Recommended action: %@</key>
+	<string>Recommended action: %@</string>
+	<key>Recover library manually</key>
+	<string>Recover library manually</string>
+	<key>Recreate every missing managed Symlink for this Skill.</key>
+	<string>Recreate every missing managed Symlink for this Skill.</string>
+	<key>Ref</key>
+	<string>Ref</string>
+	<key>References</key>
+	<string>References</string>
+	<key>Refresh %@</key>
+	<string>Refresh %@</string>
+	<key>Refresh %@'s distribution from its details.</key>
+	<string>Refresh %@'s distribution from its details.</string>
+	<key>Refresh All</key>
+	<string>Refresh All</string>
+	<key>Refresh Copy</key>
+	<string>Refresh Copy</string>
+	<key>Refresh Discovery before opening Batch Import.</key>
+	<string>Refresh Discovery before opening Batch Import.</string>
+	<key>Refresh Skills</key>
+	<string>Refresh Skills</string>
+	<key>Refresh audit</key>
+	<string>Refresh audit</string>
+	<key>Refresh backups</key>
+	<string>Refresh backups</string>
+	<key>Refresh consistency audit</key>
+	<string>Refresh consistency audit</string>
+	<key>Refresh discovery or import a Skill to get started.</key>
+	<string>Refresh discovery or import a Skill to get started.</string>
+	<key>Refresh distribution</key>
+	<string>Refresh distribution</string>
+	<key>Refresh managed Skill</key>
+	<string>Refresh managed Skill</string>
+	<key>Refresh managed copy</key>
+	<string>Refresh managed copy</string>
+	<key>Refresh repository</key>
+	<string>Refresh repository</string>
+	<key>Refresh the library.</key>
+	<string>Refresh the library.</string>
+	<key>Refreshing</key>
+	<string>Refreshing</string>
+	<key>Refreshing GitHub repositories</key>
+	<string>Refreshing GitHub repositories</string>
+	<key>Refreshing library…</key>
+	<string>Refreshing library…</string>
+	<key>Refreshing local Skills</key>
+	<string>Refreshing local Skills</string>
+	<key>Releases</key>
+	<string>Releases</string>
+	<key>Remains unchanged</key>
+	<string>Remains unchanged</string>
+	<key>Remove</key>
+	<string>Remove</string>
+	<key>Remove %@</key>
+	<string>Remove %@</string>
+	<key>Remove Custom Path?</key>
+	<string>Remove Custom Path?</string>
+	<key>Remove Path</key>
+	<string>Remove Path</string>
+	<key>Remove Repository</key>
+	<string>Remove Repository</string>
+	<key>Remove from all Agents…</key>
+	<string>Remove from all Agents…</string>
+	<key>Remove managed copy</key>
+	<string>Remove managed copy</string>
+	<key>Remove managed link</key>
+	<string>Remove managed link</string>
+	<key>Remove repository</key>
+	<string>Remove repository</string>
+	<key>Remove target</key>
+	<string>Remove target</string>
+	<key>Remove the selected missing target from managed distribution.</key>
+	<string>Remove the selected missing target from managed distribution.</string>
+	<key>Remove this discovery source?</key>
+	<string>Remove this discovery source?</string>
+	<key>Repair journal</key>
+	<string>Repair journal</string>
+	<key>Repair required</key>
+	<string>Repair required</string>
+	<key>Repair root and restart</key>
+	<string>Repair root and restart</string>
+	<key>Replace copy with link</key>
+	<string>Replace copy with link</string>
+	<key>Replace link with copy</key>
+	<string>Replace link with copy</string>
+	<key>Replaces this Copy with the current managed Skill.</key>
+	<string>Replaces this Copy with the current managed Skill.</string>
+	<key>Repo</key>
+	<string>Repo</string>
+	<key>Repositories</key>
+	<string>Repositories</string>
+	<key>Repository</key>
+	<string>Repository</string>
+	<key>Repository unavailable</key>
+	<string>Repository unavailable</string>
+	<key>Resolve and Install %@</key>
+	<string>Resolve and Install %@</string>
+	<key>Resolve and Install…</key>
+	<string>Resolve and Install…</string>
+	<key>Resolve and Review…</key>
+	<string>Resolve and Review…</string>
+	<key>Resolve content drift</key>
+	<string>Resolve content drift</string>
+	<key>Resolve the distribution conflicts before importing.</key>
+	<string>Resolve the distribution conflicts before importing.</string>
+	<key>Resolving and validating GitHub source…</key>
+	<string>Resolving and validating GitHub source…</string>
+	<key>Restore</key>
+	<string>Restore</string>
+	<key>Restore Skill</key>
+	<string>Restore Skill</string>
+	<key>Restore Skill directory</key>
+	<string>Restore Skill directory</string>
+	<key>Restore database</key>
+	<string>Restore database</string>
+	<key>Restore managed library</key>
+	<string>Restore managed library</string>
+	<key>Restore mode</key>
+	<string>Restore mode</string>
+	<key>Restored</key>
+	<string>Restored</string>
+	<key>Restored Skill ID</key>
+	<string>Restored Skill ID</string>
+	<key>Restored without Agent targets</key>
+	<string>Restored without Agent targets</string>
+	<key>Restore…</key>
+	<string>Restore…</string>
+	<key>Restoring verified Skill backup</key>
+	<string>Restoring verified Skill backup</string>
+	<key>Restoring verified backup…</key>
+	<string>Restoring verified backup…</string>
+	<key>Result</key>
+	<string>Result</string>
+	<key>Result: %@</key>
+	<string>Result: %@</string>
+	<key>Retry</key>
+	<string>Retry</string>
+	<key>Retry ClawHub latest Skills</key>
+	<string>Retry ClawHub latest Skills</string>
+	<key>Retry ClawHub latest page</key>
+	<string>Retry ClawHub latest page</string>
+	<key>Retry ClawHub search</key>
+	<string>Retry ClawHub search</string>
+	<key>Retry ClawHub search page</key>
+	<string>Retry ClawHub search page</string>
+	<key>Retry Page</key>
+	<string>Retry Page</string>
+	<key>Retry cleanup</key>
+	<string>Retry cleanup</string>
+	<key>Retry deletion</key>
+	<string>Retry deletion</string>
+	<key>Retry later</key>
+	<string>Retry later</string>
+	<key>Retry legacy migration</key>
+	<string>Retry legacy migration</string>
+	<key>Retry loading this Skill from ClawHub</key>
+	<string>Retry loading this Skill from ClawHub</string>
+	<key>Revalidating the Skill and remote source.</key>
+	<string>Revalidating the Skill and remote source.</string>
+	<key>Review Import</key>
+	<string>Review Import</string>
+	<key>Review Import…</key>
+	<string>Review Import…</string>
+	<key>Review Update</key>
+	<string>Review Update</string>
+	<key>Review and Install…</key>
+	<string>Review and Install…</string>
+	<key>Review discovered local Skills, then import them in a safe, stable order.</key>
+	<string>Review discovered local Skills, then import them in a safe, stable order.</string>
+	<key>Review every target before applying changes.</key>
+	<string>Review every target before applying changes.</string>
+	<key>Review its status, evidence, and available actions.</key>
+	<string>Review its status, evidence, and available actions.</string>
+	<key>Review needed</key>
+	<string>Review needed</string>
+	<key>Review selected…</key>
+	<string>Review selected…</string>
+	<key>Review this Skill before trying again.</key>
+	<string>Review this Skill before trying again.</string>
+	<key>Review update</key>
+	<string>Review update</string>
+	<key>Reviews the remote update before anything is written.</key>
+	<string>Reviews the remote update before anything is written.</string>
+	<key>Review…</key>
+	<string>Review…</string>
+	<key>Revision</key>
+	<string>Revision</string>
+	<key>Rolled back</key>
+	<string>Rolled back</string>
+	<key>Run an audit to inspect the managed library.</key>
+	<string>Run an audit to inspect the managed library.</string>
+	<key>Run bunx clawdhub@latest login in Terminal, then check again.</key>
+	<string>Run bunx clawdhub@latest login in Terminal, then check again.</string>
+	<key>SHA-256 %@…</key>
+	<string>SHA-256 %@…</string>
+	<key>SKILL.md is missing.</key>
+	<string>SKILL.md is missing.</string>
+	<key>SKILL.md is not valid UTF-8.</key>
+	<string>SKILL.md is not valid UTF-8.</string>
+	<key>SSOT, database and managed targets are consistent.</key>
+	<string>SSOT, database and managed targets are consistent.</string>
+	<key>SSOT: %@</key>
+	<string>SSOT: %@</string>
+	<key>Save Agent selection</key>
+	<string>Save Agent selection</string>
+	<key>Saved in Skill Backups</key>
+	<string>Saved in Skill Backups</string>
+	<key>Scan Issues</key>
+	<string>Scan Issues</string>
+	<key>Scan scope (%lld roots)</key>
+	<string>Scan scope (%lld roots)</string>
+	<key>Scanning for skills...</key>
+	<string>Scanning for skills...</string>
+	<key>Scanning registered folders</key>
+	<string>Scanning registered folders</string>
+	<key>Scanning registered folders…</key>
+	<string>Scanning registered folders…</string>
+	<key>Scope</key>
+	<string>Scope</string>
+	<key>Scrolls to the complete distribution editor</key>
+	<string>Scrolls to the complete distribution editor</string>
+	<key>Search Skills</key>
+	<string>Search Skills</string>
+	<key>Searching ClawHub</key>
+	<string>Searching ClawHub</string>
+	<key>Searching skills.sh</key>
+	<string>Searching skills.sh</string>
+	<key>Select %@</key>
+	<string>Select %@</string>
+	<key>Select Ready</key>
+	<string>Select Ready</string>
+	<key>Select a discovered Skill</key>
+	<string>Select a discovered Skill</string>
+	<key>Select a project folder</key>
+	<string>Select a project folder</string>
+	<key>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</key>
+	<string>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</string>
+	<key>Select a skill</key>
+	<string>Select a skill</string>
+	<key>Select at least one Agent.</key>
+	<string>Select at least one Agent.</string>
+	<key>Select safe</key>
+	<string>Select safe</string>
+	<key>Selected</key>
+	<string>Selected</string>
+	<key>Show filters</key>
+	<string>Show filters</string>
+	<key>Show in Finder</key>
+	<string>Show in Finder</string>
+	<key>Shows every missing Symlink before recreating them.</key>
+	<string>Shows every missing Symlink before recreating them.</string>
+	<key>Shows planned distribution changes before anything is written.</key>
+	<string>Shows planned distribution changes before anything is written.</string>
+	<key>Shows the selected managed target before disabling it.</key>
+	<string>Shows the selected managed target before disabling it.</string>
+	<key>Shows the source, SSOT target, backup and operation before writing.</key>
+	<string>Shows the source, SSOT target, backup and operation before writing.</string>
+	<key>Signed in as %@</key>
+	<string>Signed in as %@</string>
+	<key>Size</key>
+	<string>Size</string>
+	<key>Skill %@</key>
+	<string>Skill %@</string>
+	<key>Skill Backups</key>
+	<string>Skill Backups</string>
+	<key>Skill Backups, %lld available</key>
+	<string>Skill Backups, %lld available</string>
+	<key>Skill unavailable</key>
+	<string>Skill unavailable</string>
+	<key>Skill updated</key>
+	<string>Skill updated</string>
+	<key>Skill updated; distribution needs attention</key>
+	<string>Skill updated; distribution needs attention</string>
+	<key>Skills</key>
+	<string>Skills</string>
+	<key>Skills Manager</key>
+	<string>Skills Manager</string>
+	<key>Skills Manager does not have permission for this operation.</key>
+	<string>Skills Manager does not have permission for this operation.</string>
+	<key>Skills Manager does not have permission to access a distribution target.</key>
+	<string>Skills Manager does not have permission to access a distribution target.</string>
+	<key>Skills Manager does not have permission to complete this operation.</key>
+	<string>Skills Manager does not have permission to complete this operation.</string>
+	<key>Skills Manager does not have permission to complete this update.</key>
+	<string>Skills Manager does not have permission to complete this update.</string>
+	<key>Skills Manager does not have permission to import this Skill.</key>
+	<string>Skills Manager does not have permission to import this Skill.</string>
+	<key>Skills Manager will %@</key>
+	<string>Skills Manager will %@</string>
+	<key>Skipped</key>
+	<string>Skipped</string>
+	<key>Skipped: %@</key>
+	<string>Skipped: %@</string>
+	<key>Slug</key>
+	<string>Slug</string>
+	<key>Slug: %@</key>
+	<string>Slug: %@</string>
+	<key>Some roots could not be inspected. Write actions are disabled.</key>
+	<string>Some roots could not be inspected. Write actions are disabled.</string>
+	<key>Source</key>
+	<string>Source</string>
+	<key>Source %@</key>
+	<string>Source %@</string>
+	<key>Source: %@</key>
+	<string>Source: %@</string>
+	<key>Status</key>
+	<string>Status</string>
+	<key>Status: %@</key>
+	<string>Status: %@</string>
+	<key>Stop after the current Skill</key>
+	<string>Stop after the current Skill</string>
+	<key>Subpath</key>
+	<string>Subpath</string>
+	<key>Symlink</key>
+	<string>Symlink</string>
+	<key>Target</key>
+	<string>Target</string>
+	<key>Target Skill ID</key>
+	<string>Target Skill ID</string>
+	<key>Target slug</key>
+	<string>Target slug</string>
+	<key>Target: %@</key>
+	<string>Target: %@</string>
+	<key>The ClawHub source record conflicts with another managed Skill.</key>
+	<string>The ClawHub source record conflicts with another managed Skill.</string>
+	<key>The Copy contains unsupported or unsafe content.</key>
+	<string>The Copy contains unsupported or unsafe content.</string>
+	<key>The Copy state cannot be handled safely in a batch.</key>
+	<string>The Copy state cannot be handled safely in a batch.</string>
+	<key>The Copy targets changed. Check this Skill again.</key>
+	<string>The Copy targets changed. Check this Skill again.</string>
+	<key>The Fork was created, but it could not be selected in the refreshed library.</key>
+	<string>The Fork was created, but it could not be selected in the refreshed library.</string>
+	<key>The GitHub repository is unavailable.</key>
+	<string>The GitHub repository is unavailable.</string>
+	<key>The GitHub repository tree is too large to inspect safely.</key>
+	<string>The GitHub repository tree is too large to inspect safely.</string>
+	<key>The GitHub repository tree is too large to resolve safely.</key>
+	<string>The GitHub repository tree is too large to resolve safely.</string>
+	<key>The GitHub request was cancelled.</key>
+	<string>The GitHub request was cancelled.</string>
+	<key>The GitHub source does not identify exactly one Skill.</key>
+	<string>The GitHub source does not identify exactly one Skill.</string>
+	<key>The GitHub source request was cancelled.</key>
+	<string>The GitHub source request was cancelled.</string>
+	<key>The GitHub source response did not match the expected contract.</key>
+	<string>The GitHub source response did not match the expected contract.</string>
+	<key>The Skill backup is missing or corrupt.</key>
+	<string>The Skill backup is missing or corrupt.</string>
+	<key>The Skill candidate could not be validated safely.</key>
+	<string>The Skill candidate could not be validated safely.</string>
+	<key>The Skill changed while it was being checked. Try again.</key>
+	<string>The Skill changed while it was being checked. Try again.</string>
+	<key>The Skill changed while it was being inspected.</key>
+	<string>The Skill changed while it was being inspected.</string>
+	<key>The Skill contains an unsafe path or link.</key>
+	<string>The Skill contains an unsafe path or link.</string>
+	<key>The Skill contains an unsupported file type.</key>
+	<string>The Skill contains an unsupported file type.</string>
+	<key>The Skill content could not be read.</key>
+	<string>The Skill content could not be read.</string>
+	<key>The Skill contents are unsafe or invalid: %@</key>
+	<string>The Skill contents are unsafe or invalid: %@</string>
+	<key>The Skill could not be updated.</key>
+	<string>The Skill could not be updated.</string>
+	<key>The Skill exceeds the safe import limits.</key>
+	<string>The Skill exceeds the safe import limits.</string>
+	<key>The Skill folder cannot be read.</key>
+	<string>The Skill folder cannot be read.</string>
+	<key>The Skill lifecycle service is unavailable.</key>
+	<string>The Skill lifecycle service is unavailable.</string>
+	<key>The Skill link target is not a directory.</key>
+	<string>The Skill link target is not a directory.</string>
+	<key>The Skill link target is unavailable.</key>
+	<string>The Skill link target is unavailable.</string>
+	<key>The Skill manifest must be a regular file: %@</key>
+	<string>The Skill manifest must be a regular file: %@</string>
+	<key>The Skill or its distribution changed. Resolve Copy changes in Distribution, then refresh before deleting.</key>
+	<string>The Skill or its distribution changed. Resolve Copy changes in Distribution, then refresh before deleting.</string>
+	<key>The Skill or remote source changed. Check for updates again.</key>
+	<string>The Skill or remote source changed. Check for updates again.</string>
+	<key>The Skill uses a symbolic link that cannot be trusted.</key>
+	<string>The Skill uses a symbolic link that cannot be trusted.</string>
+	<key>The Skill was deleted and cleanup completed.</key>
+	<string>The Skill was deleted and cleanup completed.</string>
+	<key>The Skill was deleted. Cleanup still needs to finish.</key>
+	<string>The Skill was deleted. Cleanup still needs to finish.</string>
+	<key>The Skill was imported into the managed library.</key>
+	<string>The Skill was imported into the managed library.</string>
+	<key>The Skill was not imported because the managed write was rolled back.</key>
+	<string>The Skill was not imported because the managed write was rolled back.</string>
+	<key>The Skill was restored, but its original Agent targets could not be restored.</key>
+	<string>The Skill was restored, but its original Agent targets could not be restored.</string>
+	<key>The Skill was restored.</key>
+	<string>The Skill was restored.</string>
+	<key>The Skill was updated, but distribution needs attention.</key>
+	<string>The Skill was updated, but distribution needs attention.</string>
+	<key>The Skill will be added to the managed library before distribution.</key>
+	<string>The Skill will be added to the managed library before distribution.</string>
+	<key>The archive preview is no longer available.</key>
+	<string>The archive preview is no longer available.</string>
+	<key>The audit could not bind this directory to one stable observation.</key>
+	<string>The audit could not bind this directory to one stable observation.</string>
+	<key>The audit found duplicate observations for the same directory.</key>
+	<string>The audit found duplicate observations for the same directory.</string>
+	<key>The backup is missing, changed, or corrupt and cannot be restored.</key>
+	<string>The backup is missing, changed, or corrupt and cannot be restored.</string>
+	<key>The content matches more than one managed Skill.</key>
+	<string>The content matches more than one managed Skill.</string>
+	<key>The current managed content will be backed up before it is replaced.</key>
+	<string>The current managed content will be backed up before it is replaced.</string>
+	<key>The current managed content will be backed up before replacement.</key>
+	<string>The current managed content will be backed up before replacement.</string>
+	<key>The deletion operation requires repair.</key>
+	<string>The deletion operation requires repair.</string>
+	<key>The deletion service is unavailable.</key>
+	<string>The deletion service is unavailable.</string>
+	<key>The destination already exists.</key>
+	<string>The destination already exists.</string>
+	<key>The discovered Skill is no longer available.</key>
+	<string>The discovered Skill is no longer available.</string>
+	<key>The discovery result is no longer valid.</key>
+	<string>The discovery result is no longer valid.</string>
+	<key>The distribution entry changed while it was being verified.</key>
+	<string>The distribution entry changed while it was being verified.</string>
+	<key>The distribution operation did not reach a successful terminal state.</key>
+	<string>The distribution operation did not reach a successful terminal state.</string>
+	<key>The distribution plan is blocked by a target conflict.</key>
+	<string>The distribution plan is blocked by a target conflict.</string>
+	<key>The distribution target is not an approved user Skill directory.</key>
+	<string>The distribution target is not an approved user Skill directory.</string>
+	<key>The existing managed Skill was linked to this local source.</key>
+	<string>The existing managed Skill was linked to this local source.</string>
+	<key>The global Agent coverage is inconsistent.</key>
+	<string>The global Agent coverage is inconsistent.</string>
+	<key>The import preview changed. Review it again before importing.</key>
+	<string>The import preview changed. Review it again before importing.</string>
+	<key>The import preview expired. Prepare a new preview.</key>
+	<string>The import preview expired. Prepare a new preview.</string>
+	<key>The import state for %@ must be confirmed or repaired before retrying.</key>
+	<string>The import state for %@ must be confirmed or repaired before retrying.</string>
+	<key>The last update check could not be saved.</key>
+	<string>The last update check could not be saved.</string>
+	<key>The library changed. Refresh the audit.</key>
+	<string>The library changed. Refresh the audit.</string>
+	<key>The managed Copy has changed and requires an explicit Fork decision.</key>
+	<string>The managed Copy has changed and requires an explicit Fork decision.</string>
+	<key>The managed SSOT content was modified locally.</key>
+	<string>The managed SSOT content was modified locally.</string>
+	<key>The managed Skill and its distribution are current.</key>
+	<string>The managed Skill and its distribution are current.</string>
+	<key>The managed Skill changed during deletion.</key>
+	<string>The managed Skill changed during deletion.</string>
+	<key>The managed Skill requires repair before it can be updated.</key>
+	<string>The managed Skill requires repair before it can be updated.</string>
+	<key>The managed Skill requires repair.</key>
+	<string>The managed Skill requires repair.</string>
+	<key>The managed Skill was not found.</key>
+	<string>The managed Skill was not found.</string>
+	<key>The managed Symlink is missing.</key>
+	<string>The managed Symlink is missing.</string>
+	<key>The managed catalog contains a duplicate Skill identity.</key>
+	<string>The managed catalog contains a duplicate Skill identity.</string>
+	<key>The managed copy baseline is unavailable or invalid.</key>
+	<string>The managed copy baseline is unavailable or invalid.</string>
+	<key>The managed copy contains local content changes.</key>
+	<string>The managed copy contains local content changes.</string>
+	<key>The managed copy contains unexpected files or permissions.</key>
+	<string>The managed copy contains unexpected files or permissions.</string>
+	<key>The managed copy directory was replaced.</key>
+	<string>The managed copy directory was replaced.</string>
+	<key>The managed copy is missing.</key>
+	<string>The managed copy is missing.</string>
+	<key>The managed copy root was replaced.</key>
+	<string>The managed copy root was replaced.</string>
+	<key>The managed item changed during the operation.</key>
+	<string>The managed item changed during the operation.</string>
+	<key>The managed item does not exist.</key>
+	<string>The managed item does not exist.</string>
+	<key>The managed item has an unsupported file type.</key>
+	<string>The managed item has an unsupported file type.</string>
+	<key>The managed library is not ready.</key>
+	<string>The managed library is not ready.</string>
+	<key>The managed library is unavailable.</key>
+	<string>The managed library is unavailable.</string>
+	<key>The managed library requires repair before another import can start.</key>
+	<string>The managed library requires repair before another import can start.</string>
+	<key>The managed library session is unavailable.</key>
+	<string>The managed library session is unavailable.</string>
+	<key>The managed link points to a different Skill.</key>
+	<string>The managed link points to a different Skill.</string>
+	<key>The managed or distributed state changed.</key>
+	<string>The managed or distributed state changed.</string>
+	<key>The managed root itself cannot be used as an item target.</key>
+	<string>The managed root itself cannot be used as an item target.</string>
+	<key>The managed root was replaced after it was registered.</key>
+	<string>The managed root was replaced after it was registered.</string>
+	<key>The managed target is missing and requires a Copy/Fork decision.</key>
+	<string>The managed target is missing and requires a Copy/Fork decision.</string>
+	<key>The matching Skill was already restored.</key>
+	<string>The matching Skill was already restored.</string>
+	<key>The network is offline.</key>
+	<string>The network is offline.</string>
+	<key>The operation could not be completed.</key>
+	<string>The operation could not be completed.</string>
+	<key>The operation did not complete.</key>
+	<string>The operation did not complete.</string>
+	<key>The operation did not reach a successful terminal state.</key>
+	<string>The operation did not reach a successful terminal state.</string>
+	<key>The operation finished, but a fresh audit could not verify consistency.</key>
+	<string>The operation finished, but a fresh audit could not verify consistency.</string>
+	<key>The operation requires manual recovery.</key>
+	<string>The operation requires manual recovery.</string>
+	<key>The operation temporary entry already exists.</key>
+	<string>The operation temporary entry already exists.</string>
+	<key>The original Agent targets conflict with current managed content.</key>
+	<string>The original Agent targets conflict with current managed content.</string>
+	<key>The original repository identity is already used by another Skill.</key>
+	<string>The original repository identity is already used by another Skill.</string>
+	<key>The original source could not be restored.</key>
+	<string>The original source could not be restored.</string>
+	<key>The parent Skill was updated and local changes are independent.</key>
+	<string>The parent Skill was updated and local changes are independent.</string>
+	<key>The preview expired because the distribution state changed. Review the refreshed state.</key>
+	<string>The preview expired because the distribution state changed. Review the refreshed state.</string>
+	<key>The preview expired because the managed state changed.</key>
+	<string>The preview expired because the managed state changed.</string>
+	<key>The preview expired because the managed state changed. Review it again.</key>
+	<string>The preview expired because the managed state changed. Review it again.</string>
+	<key>The preview expired.</key>
+	<string>The preview expired.</string>
+	<key>The preview is stale. Refresh the audit.</key>
+	<string>The preview is stale. Refresh the audit.</string>
+	<key>The remote Skill contents were rejected as unsafe or invalid.</key>
+	<string>The remote Skill contents were rejected as unsafe or invalid.</string>
+	<key>The remote Skill no longer contains an update.</key>
+	<string>The remote Skill no longer contains an update.</string>
+	<key>The remote source has different content or revision. No files were changed.</key>
+	<string>The remote source has different content or revision. No files were changed.</string>
+	<key>The remote source is rate limited. Try again later.</key>
+	<string>The remote source is rate limited. Try again later.</string>
+	<key>The remote source is temporarily unavailable.</key>
+	<string>The remote source is temporarily unavailable.</string>
+	<key>The remote source timed out.</key>
+	<string>The remote source timed out.</string>
+	<key>The remote update could not be proven.</key>
+	<string>The remote update could not be proven.</string>
+	<key>The repository changed. Review the latest catalog state and try again.</key>
+	<string>The repository changed. Review the latest catalog state and try again.</string>
+	<key>The repository is no longer registered.</key>
+	<string>The repository is no longer registered.</string>
+	<key>The root could not be fully audited: %@</key>
+	<string>The root could not be fully audited: %@</string>
+	<key>The saved distribution state is invalid and cannot be edited safely.</key>
+	<string>The saved distribution state is invalid and cannot be edited safely.</string>
+	<key>The saved link points to a different managed Skill.</key>
+	<string>The saved link points to a different managed Skill.</string>
+	<key>The scan root cannot be read.</key>
+	<string>The scan root cannot be read.</string>
+	<key>The scan root changed while it was being inspected.</key>
+	<string>The scan root changed while it was being inspected.</string>
+	<key>The scan root could not be read.</key>
+	<string>The scan root could not be read.</string>
+	<key>The scan root is not a directory or supported link.</key>
+	<string>The scan root is not a directory or supported link.</string>
+	<key>The selected Agent is unsupported.</key>
+	<string>The selected Agent is unsupported.</string>
+	<key>The selected Skill changed after validation. Choose it again.</key>
+	<string>The selected Skill changed after validation. Choose it again.</string>
+	<key>The selected Skill is no longer valid.</key>
+	<string>The selected Skill is no longer valid.</string>
+	<key>The selected directory does not exist.</key>
+	<string>The selected directory does not exist.</string>
+	<key>The selected item contains more than one Skill folder.</key>
+	<string>The selected item contains more than one Skill folder.</string>
+	<key>The selected item doesn’t contain a SKILL.md file.</key>
+	<string>The selected item doesn’t contain a SKILL.md file.</string>
+	<key>The selected item must be a regular folder, not a symbolic link.</key>
+	<string>The selected item must be a regular folder, not a symbolic link.</string>
+	<key>The selected repository path does not identify one Skill.</key>
+	<string>The selected repository path does not identify one Skill.</string>
+	<key>The selected scope is invalid.</key>
+	<string>The selected scope is invalid.</string>
+	<key>The selected target is not a managed Copy.</key>
+	<string>The selected target is not a managed Copy.</string>
+	<key>The skills.sh GitHub source is invalid.</key>
+	<string>The skills.sh GitHub source is invalid.</string>
+	<key>The skills.sh search endpoint redirected unexpectedly.</key>
+	<string>The skills.sh search endpoint redirected unexpectedly.</string>
+	<key>The skills.sh search interface has changed.</key>
+	<string>The skills.sh search interface has changed.</string>
+	<key>The skills.sh search request is invalid.</key>
+	<string>The skills.sh search request is invalid.</string>
+	<key>The source and content point to different managed Skills.</key>
+	<string>The source and content point to different managed Skills.</string>
+	<key>The source changed after preview.</key>
+	<string>The source changed after preview.</string>
+	<key>The source changed. Refresh the audit.</key>
+	<string>The source changed. Refresh the audit.</string>
+	<key>The source metadata matches more than one managed Skill.</key>
+	<string>The source metadata matches more than one managed Skill.</string>
+	<key>The source now conflicts with another managed Skill.</key>
+	<string>The source now conflicts with another managed Skill.</string>
+	<key>The target folder is unavailable.</key>
+	<string>The target folder is unavailable.</string>
+	<key>The target must be a direct child of the managed root.</key>
+	<string>The target must be a direct child of the managed root.</string>
+	<key>The target state is not supported by this repair assistant.</key>
+	<string>The target state is not supported by this repair assistant.</string>
+	<key>The update check failed.</key>
+	<string>The update check failed.</string>
+	<key>The update check is no longer available.</key>
+	<string>The update check is no longer available.</string>
+	<key>The update check was cancelled.</key>
+	<string>The update check was cancelled.</string>
+	<key>The update state could not be confirmed safely.</key>
+	<string>The update state could not be confirmed safely.</string>
+	<key>The update was rolled back without changing the managed Skill.</key>
+	<string>The update was rolled back without changing the managed Skill.</string>
+	<key>The update was rolled back. The previous managed content is still available.</key>
+	<string>The update was rolled back. The previous managed content is still available.</string>
+	<key>The zip archive is unsafe or invalid: %@</key>
+	<string>The zip archive is unsafe or invalid: %@</string>
+	<key>This Agent directory is not a canonical managed distribution root.</key>
+	<string>This Agent directory is not a canonical managed distribution root.</string>
+	<key>This GitHub repository is already registered.</key>
+	<string>This GitHub repository is already registered.</string>
+	<key>This Skill can be updated safely.</key>
+	<string>This Skill can be updated safely.</string>
+	<key>This Skill cannot form a valid distribution slug.</key>
+	<string>This Skill cannot form a valid distribution slug.</string>
+	<key>This Skill has an incomplete distribution operation that needs repair.</key>
+	<string>This Skill has an incomplete distribution operation that needs repair.</string>
+	<key>This Skill has not been checked yet.</key>
+	<string>This Skill has not been checked yet.</string>
+	<key>This Skill is already being prepared or updated.</key>
+	<string>This Skill is already being prepared or updated.</string>
+	<key>This Skill is already managed. Change its Agent access from the Skill details.</key>
+	<string>This Skill is already managed. Change its Agent access from the Skill details.</string>
+	<key>This Skill was already managed.</key>
+	<string>This Skill was already managed.</string>
+	<key>This action is no longer available.</key>
+	<string>This action is no longer available.</string>
+	<key>This available update was not selected.</key>
+	<string>This available update was not selected.</string>
+	<key>This backup did not have any Agent targets.</key>
+	<string>This backup did not have any Agent targets.</string>
+	<key>This candidate is not importable.</key>
+	<string>This candidate is not importable.</string>
+	<key>This candidate was skipped.</key>
+	<string>This candidate was skipped.</string>
+	<key>This deletion or backup requires repair before another change can start.</key>
+	<string>This deletion or backup requires repair before another change can start.</string>
+	<key>This directory belongs to a custom scan root and cannot be migrated.</key>
+	<string>This directory belongs to a custom scan root and cannot be migrated.</string>
+	<key>This directory cannot be safely imported: %@</key>
+	<string>This directory cannot be safely imported: %@</string>
+	<key>This directory could not produce a stable content snapshot.</key>
+	<string>This directory could not produce a stable content snapshot.</string>
+	<key>This directory is not associated with a registered scan root.</key>
+	<string>This directory is not associated with a registered scan root.</string>
+	<key>This directory is not in a canonical managed distribution root.</key>
+	<string>This directory is not in a canonical managed distribution root.</string>
+	<key>This directory is not yet distributed through the managed library.</key>
+	<string>This directory is not yet distributed through the managed library.</string>
+	<key>This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.</key>
+	<string>This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.</string>
+	<key>This directory name is not a safe canonical locator.</key>
+	<string>This directory name is not a safe canonical locator.</string>
+	<key>This external Skill link can be imported from Discovery. The source link and target will remain unchanged.</key>
+	<string>This external Skill link can be imported from Discovery. The source link and target will remain unchanged.</string>
+	<key>This external Skill link changed after it was imported. Review it in Discovery; no files were changed.</key>
+	<string>This external Skill link changed after it was imported. Review it in Discovery; no files were changed.</string>
+	<key>This folder contains Skill subdirectories.</key>
+	<string>This folder contains Skill subdirectories.</string>
+	<key>This import is already in progress.</key>
+	<string>This import is already in progress.</string>
+	<key>This is different from removing Agent links. It backs up the Skill, removes all managed Agent links, and deletes the managed Skill itself.</key>
+	<string>This is different from removing Agent links. It backs up the Skill, removes all managed Agent links, and deletes the managed Skill itself.</string>
+	<key>This item was skipped.</key>
+	<string>This item was skipped.</string>
+	<key>This location is linked to more than one managed Skill.</key>
+	<string>This location is linked to more than one managed Skill.</string>
+	<key>This location no longer matches its managed Skill.</key>
+	<string>This location no longer matches its managed Skill.</string>
+	<key>This managed Skill also has local origins and cannot be safely updated from skills.sh.</key>
+	<string>This managed Skill also has local origins and cannot be safely updated from skills.sh.</string>
+	<key>This managed Skill has reached the Provider alias limit.</key>
+	<string>This managed Skill has reached the Provider alias limit.</string>
+	<key>This managed Skill needs repair before it can be published.</key>
+	<string>This managed Skill needs repair before it can be published.</string>
+	<key>This migration is not currently available.</key>
+	<string>This migration is not currently available.</string>
+	<key>This path has already been added.</key>
+	<string>This path has already been added.</string>
+	<key>This reference file could not be found.</key>
+	<string>This reference file could not be found.</string>
+	<key>This removes only managed distribution targets. The Skill remains in the managed library.</key>
+	<string>This removes only managed distribution targets. The Skill remains in the managed library.</string>
+	<key>This removes only the discovery source. Installed Skills are not deleted.</key>
+	<string>This removes only the discovery source. Installed Skills are not deleted.</string>
+	<key>This repair is not currently available.</key>
+	<string>This repair is not currently available.</string>
+	<key>This skills.sh result is already linked to a different managed source.</key>
+	<string>This skills.sh result is already linked to a different managed source.</string>
+	<key>This target could not be inspected.</key>
+	<string>This target could not be inspected.</string>
+	<key>This will remove "%@" from the sidebar. The skills will not be deleted from disk.</key>
+	<string>This will remove "%@" from the sidebar. The skills will not be deleted from disk.</string>
+	<key>Try again without affecting your local Skills.</key>
+	<string>Try again without affecting your local Skills.</string>
+	<key>Unable to import</key>
+	<string>Unable to import</string>
+	<key>Unable to load</key>
+	<string>Unable to load</string>
+	<key>Unable to load reference</key>
+	<string>Unable to load reference</string>
+	<key>Unable to publish this skill.</key>
+	<string>Unable to publish this skill.</string>
+	<key>Unavailable</key>
+	<string>Unavailable</string>
+	<key>Unavailable Locations</key>
+	<string>Unavailable Locations</string>
+	<key>Unavailable scan location</key>
+	<string>Unavailable scan location</string>
+	<key>Unknown managed entry</key>
+	<string>Unknown managed entry</string>
+	<key>Unmanaged</key>
+	<string>Unmanaged</string>
+	<key>Unrecoverable library error</key>
+	<string>Unrecoverable library error</string>
+	<key>Up to date</key>
+	<string>Up to date</string>
+	<key>Update</key>
+	<string>Update</string>
+	<key>Update %@</key>
+	<string>Update %@</string>
+	<key>Update Selected</key>
+	<string>Update Selected</string>
+	<key>Update Skills Manager</key>
+	<string>Update Skills Manager</string>
+	<key>Update available</key>
+	<string>Update available</string>
+	<key>Update available, version %@</key>
+	<string>Update available, version %@</string>
+	<key>Update available: v%@</key>
+	<string>Update available: v%@</string>
+	<key>Update cancelled</key>
+	<string>Update cancelled</string>
+	<key>Update check</key>
+	<string>Update check</string>
+	<key>Update checking is unavailable for this Skill.</key>
+	<string>Update checking is unavailable for this Skill.</string>
+	<key>Update checking unavailable</key>
+	<string>Update checking unavailable</string>
+	<key>Update failed: %@</key>
+	<string>Update failed: %@</string>
+	<key>Update needs confirmation</key>
+	<string>Update needs confirmation</string>
+	<key>Update required</key>
+	<string>Update required</string>
+	<key>Update result: %@</key>
+	<string>Update result: %@</string>
+	<key>Update rolled back</key>
+	<string>Update rolled back</string>
+	<key>Update saved target</key>
+	<string>Update saved target</string>
+	<key>Update state could not be confirmed</key>
+	<string>Update state could not be confirmed</string>
+	<key>Update state needs attention</key>
+	<string>Update state needs attention</string>
+	<key>Update status: %@</key>
+	<string>Update status: %@</string>
+	<key>Update the managed SSOT while keeping its Skill identity and current Agent access.</key>
+	<string>Update the managed SSOT while keeping its Skill identity and current Agent access.</string>
+	<key>Updated</key>
+	<string>Updated</string>
+	<key>Updated; Agent state needs attention</key>
+	<string>Updated; Agent state needs attention</string>
+	<key>Updated; distribution needs attention</key>
+	<string>Updated; distribution needs attention</string>
+	<key>Updated; local changes kept as Fork</key>
+	<string>Updated; local changes kept as Fork</string>
+	<key>Updated; status needs attention</key>
+	<string>Updated; status needs attention</string>
+	<key>Updating</key>
+	<string>Updating</string>
+	<key>Updating Skill</key>
+	<string>Updating Skill</string>
+	<key>Updating is unavailable for this Skill.</key>
+	<string>Updating is unavailable for this Skill.</string>
+	<key>Updating managed Skill state</key>
+	<string>Updating managed Skill state</string>
+	<key>Updating selected Skills…</key>
+	<string>Updating selected Skills…</string>
+	<key>Use the Skill details to change where %@ is enabled.</key>
+	<string>Use the Skill details to change where %@ is enabled.</string>
+	<key>Use the existing backup and recovery tools before making more changes.</key>
+	<string>Use the existing backup and recovery tools before making more changes.</string>
+	<key>Uses an Agent-specific target</key>
+	<string>Uses an Agent-specific target</string>
+	<key>Validating…</key>
+	<string>Validating…</string>
+	<key>Verified backups remain available after a managed Skill is deleted.</key>
+	<string>Verified backups remain available after a managed Skill is deleted.</string>
+	<key>Verified discovery</key>
+	<string>Verified discovery</string>
+	<key>Verified locations disagree about the managed Skill identity.</key>
+	<string>Verified locations disagree about the managed Skill identity.</string>
+	<key>Verified manifest</key>
+	<string>Verified manifest</string>
+	<key>Verified source</key>
+	<string>Verified source</string>
+	<key>Verifies the immutable GitHub source before installation</key>
+	<string>Verifies the immutable GitHub source before installation</string>
+	<key>Verifies the public GitHub source before showing an install preview</key>
+	<string>Verifies the public GitHub source before showing an install preview</string>
+	<key>Verifying managed Skill…</key>
+	<string>Verifying managed Skill…</string>
+	<key>Verifying with a fresh audit…</key>
+	<string>Verifying with a fresh audit…</string>
+	<key>Verifying, backing up, updating, and refreshing distribution…</key>
+	<string>Verifying, backing up, updating, and refreshing distribution…</string>
+	<key>Version %@</key>
+	<string>Version %@</string>
+	<key>Version %@ (%lld)</key>
+	<string>Version %@ (%lld)</string>
+	<key>Version bump</key>
+	<string>Version bump</string>
+	<key>Wait for the current operation, then refresh.</key>
+	<string>Wait for the current operation, then refresh.</string>
+	<key>Waiting</key>
+	<string>Waiting</string>
+	<key>We’ll verify it contains a SKILL.md and show a preview.</key>
+	<string>We’ll verify it contains a SKILL.md and show a preview.</string>
+	<key>Will publish v%@</key>
+	<string>Will publish v%@</string>
+	<key>You’re up to date.</key>
+	<string>You’re up to date.</string>
+	<key>disabled</key>
+	<string>disabled</string>
+	<key>enabled</key>
+	<string>enabled</string>
+	<key>https://github.com/owner/repository</key>
+	<string>https://github.com/owner/repository</string>
+	<key>skills.sh</key>
+	<string>skills.sh</string>
+	<key>skills.sh could not be reached.</key>
+	<string>skills.sh could not be reached.</string>
+	<key>skills.sh did not respond in time.</key>
+	<string>skills.sh did not respond in time.</string>
+	<key>skills.sh is temporarily unavailable.</key>
+	<string>skills.sh is temporarily unavailable.</string>
+	<key>skills.sh is unavailable while the network is offline.</key>
+	<string>skills.sh is unavailable while the network is offline.</string>
+	<key>skills.sh rate limited this request.</key>
+	<string>skills.sh rate limited this request.</string>
+	<key>skills.sh rate limited this request. Try again in %@ seconds.</key>
+	<string>skills.sh rate limited this request. Try again in %@ seconds.</string>
+	<key>skills.sh rate limited this request. Try again later.</key>
+	<string>skills.sh rate limited this request. Try again later.</string>
+	<key>skills.sh redirected the search endpoint.</key>
+	<string>skills.sh redirected the search endpoint.</string>
+	<key>skills.sh returned more search data than can be handled safely.</key>
+	<string>skills.sh returned more search data than can be handled safely.</string>
+	<key>skills.sh unavailable</key>
+	<string>skills.sh unavailable</string>
+	<key>verify %@ at the discovered commit and exact Skill subpath.</key>
+	<string>verify %@ at the discovered commit and exact Skill subpath.</string>
+	<key>verify %@, find one matching SKILL.md, and pin the install to an immutable GitHub commit.</key>
+	<string>verify %@, find one matching SKILL.md, and pin the install to an immutable GitHub commit.</string>
+	<key>↻ v%@</key>
+	<string>↻ v%@</string>
+</dict>
+</plist>

@@ -14,12 +14,14 @@ struct ManagedInstallScopePicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Enable for")
+            Text("Enable for", bundle: .module)
                 .font(.headline)
-            Picker("Distribution scope", selection: $mode) {
+            Picker(selection: $mode) {
                 ForEach(ManagedInstallDistributionMode.allCases) { option in
-                    Text(option.rawValue).tag(option)
+                    Text(verbatim: modeText(option)).tag(option)
                 }
+            } label: {
+                Text("Distribution scope", bundle: .module)
             }
             .pickerStyle(.segmented)
             .disabled(isDisabled)
@@ -36,14 +38,15 @@ struct ManagedInstallScopePicker: View {
     private var globalSummary: some View {
         Group {
             Text(
-                "Compatible Agents share one managed link in "
-                    + DistributionTargetCatalog.current.globalTarget.rootLocator + "."
+                String(
+                    localized: LocalizedStringResource(
+            "Compatible Agents share one managed link in \(DistributionTargetCatalog.current.globalTarget.rootLocator).",
+            bundle: .module
+        ))
             )
-            Text(
-                DistributionTargetCatalog.current.globalReaders
-                    .map(\.rawValue)
-                    .joined(separator: ", ")
-            )
+            Text(verbatim: DistributionTargetCatalog.current.globalReaders
+                .map(platformText)
+                .joined(separator: ", "))
             .font(.caption)
         }
         .foregroundStyle(.secondary)
@@ -53,7 +56,6 @@ struct ManagedInstallScopePicker: View {
         Group {
             ForEach(SkillPlatform.allCases) { platform in
                 Toggle(
-                    platform.rawValue,
                     isOn: Binding(
                         get: { selectedAgents.contains(platform) },
                         set: { selected in
@@ -64,14 +66,36 @@ struct ManagedInstallScopePicker: View {
                             }
                         }
                     )
-                )
+                ) {
+                    Text(verbatim: platformText(platform))
+                }
                 .toggleStyle(.checkbox)
                 .disabled(isDisabled)
             }
             if selectedAgents.isEmpty {
-                Label("Select at least one Agent.", systemImage: "exclamationmark.triangle")
+                Label {
+                    Text("Select at least one Agent.", bundle: .module)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle")
+                }
                     .foregroundStyle(.orange)
             }
+        }
+    }
+
+    private func modeText(_ mode: ManagedInstallDistributionMode) -> String {
+        switch mode {
+        case .global: String(localized: "Global", bundle: .module)
+        case .agents: String(localized: "Agent-specific", bundle: .module)
+        }
+    }
+
+    private func platformText(_ platform: SkillPlatform) -> String {
+        switch platform {
+        case .codex: String(localized: "Codex", bundle: .module)
+        case .claude: String(localized: "Claude Code", bundle: .module)
+        case .opencode: String(localized: "OpenCode", bundle: .module)
+        case .copilot: String(localized: "GitHub Copilot", bundle: .module)
         }
     }
 }

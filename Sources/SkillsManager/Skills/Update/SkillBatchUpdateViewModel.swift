@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable final class SkillBatchUpdateViewModel {
     private(set) var state: SkillBatchUpdateRunState =
-        .blocked("Preparing the managed library…")
+        .blocked(String(localized: "Preparing the managed library…", bundle: .module))
     var items: [SkillBatchUpdateItem] = []
     private(set) var stopRequested = false
     private(set) var operationActive = false
@@ -81,14 +81,14 @@ import Observation
         let ids = catalog.map(\.skillID)
         guard Set(ids).count == ids.count else {
             items = []
-            state = .blocked("The managed catalog contains a duplicate Skill identity.")
+            state = .blocked(String(localized: "The managed catalog contains a duplicate Skill identity.", bundle: .module))
             return
         }
         items = catalog.sorted(by: Self.catalogItemPrecedes).map {
             SkillBatchUpdateItem(skillID: $0.skillID, displayName: $0.displayName)
         }
         if dependencies == nil {
-            state = .blocked("The managed library session is unavailable.")
+            state = .blocked(String(localized: "The managed library session is unavailable.", bundle: .module))
         } else {
             state = items.isEmpty ? .empty : .idle
         }
@@ -220,7 +220,11 @@ import Observation
     ) async {
         guard let index = index(of: skillID),
               let snapshot = items[index].snapshot else {
-            setResult(.conflict, detail: "The update check is no longer available.", for: skillID)
+            setResult(
+                .conflict,
+                detail: String(localized: "The update check is no longer available.", bundle: .module),
+                for: skillID
+            )
             return
         }
         if items[index].decisions.values.contains(.cancel) {
@@ -230,8 +234,7 @@ import Observation
         guard let lease = await admission.acquire(skillID) else {
             setResult(
                 .needsAttention,
-                detail: ManagedSkillUpdateExecutionProblem.operationInProgress
-                    .localizedDescription,
+                detail: localizedManagedSkillUpdateExecutionProblem(.operationInProgress),
                 for: skillID
             )
             return
@@ -243,7 +246,7 @@ import Observation
                 await dependencies.cancel(preview.token)
                 setResult(
                     .conflict,
-                    detail: "The Copy targets changed. Check this Skill again.",
+                    detail: String(localized: "The Copy targets changed. Check this Skill again.", bundle: .module),
                     for: skillID
                 )
                 await admission.release(lease)

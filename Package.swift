@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "SkillsManager",
+    defaultLocalization: "zh-Hans",
     platforms: [
         .macOS(.v15),
     ],
@@ -20,6 +21,9 @@ let package = Package(
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
             path: "Sources/SkillsManager",
+            resources: [
+                .process("Resources"),
+            ],
             swiftSettings: [
                 .define("ENABLE_SPARKLE"),
                 .unsafeFlags(["-default-isolation", "MainActor"]),

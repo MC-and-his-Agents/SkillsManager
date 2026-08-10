@@ -17,25 +17,25 @@ extension SkillLifecycleViewModel {
         var message: String {
             switch self {
             case .previewExpired:
-                "The preview expired because the managed state changed. Review it again."
+                String(localized: "The preview expired because the managed state changed. Review it again.", bundle: .module)
             case .conflict:
-                "The Skill or its distribution changed. Resolve Copy changes in Distribution, then refresh before deleting."
+                String(localized: "The Skill or its distribution changed. Resolve Copy changes in Distribution, then refresh before deleting.", bundle: .module)
             case .permissionDenied:
-                "Skills Manager does not have permission to complete this operation."
+                String(localized: "Skills Manager does not have permission to complete this operation.", bundle: .module)
             case .unavailable:
-                "The Skill lifecycle service is unavailable."
+                String(localized: "The Skill lifecycle service is unavailable.", bundle: .module)
             case .operationInProgress:
-                "A deletion operation is still in progress."
+                String(localized: "A deletion operation is still in progress.", bundle: .module)
             case .needsRepair:
-                "This deletion or backup requires repair before another change can start."
+                String(localized: "This deletion or backup requires repair before another change can start.", bundle: .module)
             case .backupCorrupt:
-                "The backup is missing, changed, or corrupt and cannot be restored."
+                String(localized: "The backup is missing, changed, or corrupt and cannot be restored.", bundle: .module)
             case .rolledBack:
-                "Deletion did not complete. The active Skill was restored to its prior state."
+                String(localized: "Deletion did not complete. The active Skill was restored to its prior state.", bundle: .module)
             case .restoredUndistributed:
-                "The Skill was restored, but its original Agent targets could not be restored."
+                String(localized: "The Skill was restored, but its original Agent targets could not be restored.", bundle: .module)
             case .operationDidNotComplete:
-                "The operation did not reach a successful terminal state."
+                String(localized: "The operation did not reach a successful terminal state.", bundle: .module)
             case .failed(let message):
                 message
             }

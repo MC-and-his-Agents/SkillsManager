@@ -6,23 +6,29 @@ struct RemoteSkillRowView: View {
     let onInstall: () -> Void
 
     var body: some View {
+        let status = String(localized: "Available", bundle: .module)
+        let source = String(localized: "ClawHub", bundle: .module)
         SkillListRow(data: SkillListRowData(
             id: skill.id,
             title: skill.displayName,
             detail: skill.summary ?? "",
             statusIcon: "arrow.down.circle",
             statusTint: .accentColor,
-            sources: [SkillListSourceLabel(text: "ClawHub", systemImage: "sparkles")],
+            sources: [SkillListSourceLabel(
+                text: "ClawHub",
+                systemImage: "sparkles",
+                knownSource: .clawHub
+            )],
             agentCount: installedTargets.count,
             accessibilityLabel: [
                 skill.displayName,
-                "Available",
-                "ClawHub",
+                status,
+                source,
                 SkillListAgentSummary.text(count: installedTargets.count),
             ].filter { !$0.isEmpty }.joined(separator: ", "),
             accessibilityValue: [
-                "Available",
-                "ClawHub",
+                status,
+                source,
                 SkillListAgentSummary.text(count: installedTargets.count),
             ].filter { !$0.isEmpty }.joined(separator: ", ")
         ))
@@ -36,14 +42,16 @@ struct RemoteSkillRowView: View {
                     : "arrow.down.circle")
             }
             .buttonStyle(.borderless)
-            .help(isInstalled ? "Review or update" : "Install")
-            .accessibilityLabel(
+            .help(Text(isInstalled ? "Review or update" : "Install", bundle: .module))
+            .accessibilityLabel(Text(
                 isInstalled
                     ? "Review or update \(skill.displayName)"
-                    : "Install \(skill.displayName)"
-            )
+                    : "Install \(skill.displayName)",
+                bundle: .module
+            ))
         }
     }
 
     private var isInstalled: Bool { !installedTargets.isEmpty }
+
 }

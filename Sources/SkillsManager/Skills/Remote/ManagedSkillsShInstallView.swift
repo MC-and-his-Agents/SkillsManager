@@ -29,10 +29,11 @@ struct ManagedCustomRepositoryInstallView: View {
             )
         } else {
             ContentUnavailableView(
-                "Installation unavailable",
+                String(localized: "Installation unavailable", bundle: .module),
                 systemImage: "exclamationmark.triangle",
                 description: Text(
-                    candidate.installProblem ?? "The managed library is unavailable."
+                    candidate.installProblem
+                        ?? String(localized: "The managed library is unavailable.", bundle: .module)
                 )
             )
             .frame(minWidth: 520, minHeight: 320)
@@ -45,7 +46,7 @@ nonisolated struct ManagedGitHubResolvedInstall: Sendable {
     let sourceInput: ManagedSourceInstallInput
 }
 
-nonisolated struct ManagedGitHubInstallRequest: Sendable {
+@MainActor struct ManagedGitHubInstallRequest: Sendable {
     let displayName: String
     let detail: String
     let resolve: @Sendable () async throws -> ManagedGitHubResolvedInstall
@@ -58,7 +59,11 @@ nonisolated struct ManagedGitHubInstallRequest: Sendable {
     ) -> Self {
         Self(
             displayName: item.name,
-            detail: "verify \(item.source), find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
+            detail: String(
+                localized: LocalizedStringResource(
+            "verify \(item.source), find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
+            bundle: .module
+        )),
             resolve: {
                 let source = try await client.resolve(item.id, item.source, item.skillID)
                 let updateSource = SkillsShResolvedGitHubUpdateSource(
@@ -103,7 +108,11 @@ nonisolated struct ManagedGitHubInstallRequest: Sendable {
     ) -> Self {
         Self(
             displayName: candidate.displayName,
-            detail: "verify \(candidate.repository.displayName) at the discovered commit and exact Skill subpath.",
+            detail: String(
+                localized: LocalizedStringResource(
+            "verify \(candidate.repository.displayName) at the discovered commit and exact Skill subpath.",
+            bundle: .module
+        )),
             resolve: {
                 let source = try await client.resolveCustomRepository(candidate.snapshot)
                 return ManagedGitHubResolvedInstall(
@@ -152,10 +161,10 @@ private struct ManagedGitHubInstallView: View {
                     isDisabled: isWorking
                 )
                 if isResolving {
-                    ProgressView("Resolving and validating GitHub source…")
+                    ProgressView(String(localized: "Resolving and validating GitHub source…", bundle: .module))
                 }
                 if let problem = model.problem {
-                    problemLabel(problem.localizedDescription)
+                    problemLabel(localizedManagedLocalImportProblem(problem))
                 } else if let errorMessage {
                     problemLabel(errorMessage)
                 }
@@ -185,27 +194,41 @@ private struct ManagedGitHubInstallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Resolve and Install \(request.displayName)")
+            Text(
+                String(
+                    localized: LocalizedStringResource(
+            "Resolve and Install \(request.displayName)",
+            bundle: .module
+        ))
+            )
                 .font(.title.bold())
             Text(
-                "Skills Manager will \(request.detail)"
+                verbatim: String(
+                    localized: LocalizedStringResource(
+            "Skills Manager will \(request.detail)",
+            bundle: .module
+        ))
             )
-            .foregroundStyle(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 
     private var actions: some View {
         HStack {
-            Button("Cancel") {
+            Button {
                 cancelAndDismiss()
+            } label: {
+                Text("Cancel", bundle: .module)
             }
             .keyboardShortcut(.cancelAction)
             .disabled(model.isExecuting || model.isFinalizing)
 
             Spacer()
 
-            Button("Resolve and Review…") {
+            Button {
                 prepareInstall()
+            } label: {
+                Text("Resolve and Review…", bundle: .module)
             }
             .buttonStyle(.borderedProminent)
             .disabled(!canPrepare)
@@ -292,7 +315,7 @@ private struct ManagedGitHubInstallView: View {
             } catch {
                 if Task.isCancelled { return }
                 model.reset()
-                errorMessage = error.localizedDescription
+                errorMessage = localizedManagedInstallError(error)
             }
         }
     }
@@ -307,13 +330,17 @@ private struct ManagedGitHubInstallView: View {
                 await customRepositoryModel.refreshAll()
             }
             if let problem = model.problem {
-                errorMessage = problem.localizedDescription
+                errorMessage = localizedManagedLocalImportProblem(problem)
             }
         }
     }
 
     private func problemLabel(_ message: String) -> some View {
-        Label(message, systemImage: "exclamationmark.triangle")
+        Label {
+            Text(verbatim: message)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle")
+        }
             .foregroundStyle(.orange)
             .accessibilityElement(children: .combine)
     }
@@ -322,14 +349,18 @@ private struct ManagedGitHubInstallView: View {
     private func resultView(_ result: ManagedLocalImportResult) -> some View {
         let presentation = managedInstallResultPresentation(result)
         ContentUnavailableView(
-            presentation.title,
+            localizedManagedInstallResultTitle(result.status),
             systemImage: presentation.systemImage,
-            description: Text(presentation.message)
+            description: Text(verbatim: localizedManagedInstallResultMessage(result))
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         HStack {
             Spacer()
-            Button("Close") { dismiss() }
+            Button {
+                dismiss()
+            } label: {
+                Text("Close", bundle: .module)
+            }
                 .keyboardShortcut(.defaultAction)
         }
     }

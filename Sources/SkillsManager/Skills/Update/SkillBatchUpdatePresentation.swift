@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated enum SkillBatchUpdatePresentation {
+@MainActor enum SkillBatchUpdatePresentation {
     struct Row: Equatable, Sendable {
         let title: String
         let detail: String?
@@ -20,52 +20,80 @@ nonisolated enum SkillBatchUpdatePresentation {
         switch item.phase {
         case .queued:
             Row(
-                title: "Waiting",
+                title: String(localized: "Waiting", bundle: .module),
                 detail: nil,
                 systemImage: "clock",
-                accessibilityValue: "\(item.displayName), waiting"
+                accessibilityValue: String(
+                    localized: LocalizedStringResource(
+            "\(item.displayName), waiting",
+            bundle: .module
+        ))
             )
         case .checking:
             Row(
-                title: "Checking",
-                detail: "Reading the local Skill and remote source.",
+                title: String(localized: "Checking", bundle: .module),
+                detail: String(localized: "Reading the local Skill and remote source.", bundle: .module),
                 systemImage: "arrow.clockwise",
-                accessibilityValue: "\(item.displayName), checking for updates"
+                accessibilityValue: String(
+                    localized: LocalizedStringResource(
+            "\(item.displayName), checking for updates",
+            bundle: .module
+        ))
             )
         case .ready:
             Row(
-                title: "Update available",
-                detail: "This Skill can be updated safely.",
+                title: String(localized: "Update available", bundle: .module),
+                detail: String(localized: "This Skill can be updated safely.", bundle: .module),
                 systemImage: "arrow.down.circle",
-                accessibilityValue: "\(item.displayName), update available"
+                accessibilityValue: String(
+                    localized: LocalizedStringResource(
+            "\(item.displayName), update available",
+            bundle: .module
+        ))
             )
         case .decisionRequired:
             Row(
-                title: "Copy decision required",
-                detail: "Choose how to handle every modified Copy.",
+                title: String(localized: "Copy decision required", bundle: .module),
+                detail: String(localized: "Choose how to handle every modified Copy.", bundle: .module),
                 systemImage: "exclamationmark.arrow.triangle.2.circlepath",
-                accessibilityValue: "\(item.displayName), Copy decision required"
+                accessibilityValue: String(
+                    localized: LocalizedStringResource(
+            "\(item.displayName), Copy decision required",
+            bundle: .module
+        ))
             )
         case .preparing:
             Row(
-                title: "Preparing",
-                detail: "Revalidating the Skill and remote source.",
+                title: String(localized: "Preparing", bundle: .module),
+                detail: String(localized: "Revalidating the Skill and remote source.", bundle: .module),
                 systemImage: "arrow.triangle.2.circlepath",
-                accessibilityValue: "\(item.displayName), preparing update"
+                accessibilityValue: String(
+                    localized: LocalizedStringResource(
+            "\(item.displayName), preparing update",
+            bundle: .module
+        ))
             )
         case .updating:
             Row(
-                title: "Updating",
-                detail: "Backing up, replacing, and refreshing distribution.",
+                title: String(localized: "Updating", bundle: .module),
+                detail: String(localized: "Backing up, replacing, and refreshing distribution.", bundle: .module),
                 systemImage: "arrow.down.circle.fill",
-                accessibilityValue: "\(item.displayName), updating"
+                accessibilityValue: String(
+                    localized: LocalizedStringResource(
+            "\(item.displayName), updating",
+            bundle: .module
+        ))
             )
         case .result(let result, let detail):
             Row(
                 title: result.title,
                 detail: detail ?? result.defaultDetail,
                 systemImage: result.systemImage,
-                accessibilityValue: "\(item.displayName), \(result.title)"
+                accessibilityValue: String(
+                    localized: LocalizedStringResource(
+            "\(item.displayName), \(result.title)",
+            bundle: .module
+        ))
             )
         }
     }
@@ -92,16 +120,31 @@ nonisolated enum SkillBatchUpdatePresentation {
     }
 
     static func summary(_ summary: SkillBatchUpdateSummary) -> String {
-        if summary.total == 0 { return "No managed Skills." }
+        if summary.total == 0 {
+            return String(localized: "No managed Skills.", bundle: .module)
+        }
         let values = SkillBatchUpdateResult.allCases.compactMap { result in
             let count = summary[result]
-            return count == 0 ? nil : "\(result.title): \(count)"
+            return count == 0
+                ? nil
+                : String(
+                    localized: LocalizedStringResource(
+            "\(result.title): \(count)",
+            bundle: .module
+        ))
         }
         if values.isEmpty {
-            return "0 of \(summary.total) complete."
+            return String(
+                localized: LocalizedStringResource(
+            "0 of \(summary.total) complete.",
+            bundle: .module
+        ))
         }
-        return "\(summary.completed) of \(summary.total) complete. "
-            + values.joined(separator: ", ")
+        return String(
+            localized: LocalizedStringResource(
+            "\(summary.completed) of \(summary.total) complete. \(values.joined(separator: ", "))",
+            bundle: .module
+        ))
     }
 
     static func filteredItems(
@@ -114,39 +157,43 @@ nonisolated enum SkillBatchUpdatePresentation {
     }
 
     static func scopeTitle(_ scopeKey: String) -> String {
-        if scopeKey == "global" { return "Global shared target" }
+        if scopeKey == "global" {
+            return String(localized: "Global shared target", bundle: .module)
+        }
         let prefix = "agent:"
-        guard scopeKey.hasPrefix(prefix) else { return "Managed Copy target" }
+        guard scopeKey.hasPrefix(prefix) else {
+            return String(localized: "Managed Copy target", bundle: .module)
+        }
         let key = String(scopeKey.dropFirst(prefix.count))
         return SkillPlatform.allCases.first(where: { $0.storageKey == key })?.rawValue
-            ?? "Managed Agent target"
+            ?? String(localized: "Managed Agent target", bundle: .module)
     }
 }
 
-nonisolated extension SkillBatchUpdateResult {
+@MainActor extension SkillBatchUpdateResult {
     var title: String {
         switch self {
-        case .updated: "Updated"
-        case .upToDate: "Up to date"
-        case .forked: "Updated; local changes kept as Fork"
-        case .conflict: "Conflict"
-        case .skipped: "Skipped"
-        case .cancelled: "Cancelled"
-        case .failed: "Failed"
-        case .needsAttention: "Needs attention"
+        case .updated: String(localized: "Updated", bundle: .module)
+        case .upToDate: String(localized: "Up to date", bundle: .module)
+        case .forked: String(localized: "Updated; local changes kept as Fork", bundle: .module)
+        case .conflict: String(localized: "Conflict", bundle: .module)
+        case .skipped: String(localized: "Skipped", bundle: .module)
+        case .cancelled: String(localized: "Cancelled", bundle: .module)
+        case .failed: String(localized: "Failed", bundle: .module)
+        case .needsAttention: String(localized: "Needs attention", bundle: .module)
         }
     }
 
     var defaultDetail: String? {
         switch self {
-        case .updated: "The managed Skill and its distribution are current."
-        case .upToDate: "No update was required."
-        case .forked: "The parent Skill was updated and local changes are independent."
-        case .conflict: "Recheck after resolving local or remote changes."
-        case .skipped: "This available update was not selected."
-        case .cancelled: "No update was started for this Skill."
-        case .failed: "The operation did not complete."
-        case .needsAttention: "Review this Skill before trying again."
+        case .updated: String(localized: "The managed Skill and its distribution are current.", bundle: .module)
+        case .upToDate: String(localized: "No update was required.", bundle: .module)
+        case .forked: String(localized: "The parent Skill was updated and local changes are independent.", bundle: .module)
+        case .conflict: String(localized: "Recheck after resolving local or remote changes.", bundle: .module)
+        case .skipped: String(localized: "This available update was not selected.", bundle: .module)
+        case .cancelled: String(localized: "No update was started for this Skill.", bundle: .module)
+        case .failed: String(localized: "The operation did not complete.", bundle: .module)
+        case .needsAttention: String(localized: "Review this Skill before trying again.", bundle: .module)
         }
     }
 
@@ -162,12 +209,12 @@ nonisolated extension SkillBatchUpdateResult {
     }
 }
 
-nonisolated extension ManagedSkillUpdateCopyDecision {
+@MainActor extension ManagedSkillUpdateCopyDecision {
     var batchDisplayName: String {
         switch self {
-        case .discard: "Discard local changes"
-        case .fork: "Keep changes as a Fork"
-        case .cancel: "Cancel this Skill update"
-        }
+        case .discard: String(localized: "Discard local changes", bundle: .module)
+        case .fork: String(localized: "Keep changes as a Fork", bundle: .module)
+        case .cancel: String(localized: "Cancel this Skill update", bundle: .module)
     }
+}
 }

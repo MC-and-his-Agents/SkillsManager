@@ -59,7 +59,7 @@ struct SkillFilterBar: View {
                     Button {
                         filters.status = value
                     } label: {
-                        Text(value.rawValue)
+                        Text(verbatim: statusText(value))
                             .font(.caption.weight(.medium))
                             .padding(.horizontal, 9)
                             .padding(.vertical, 4)
@@ -75,9 +75,18 @@ struct SkillFilterBar: View {
                     .keyboardShortcut(statusShortcut(for: value))
                     .focused($statusFocused)
                     .accessibilityAddTraits(filters.status == value ? .isSelected : [])
-                    .accessibilityLabel("Status: \(value.rawValue)")
+                    .accessibilityLabel(Text(
+                        String(
+                            localized: LocalizedStringResource(
+            "Status: \(statusText(value))",
+            bundle: .module
+        ))
+                    ))
                     .accessibilityValue(
-                        filters.status == value ? "Selected" : "Not selected"
+                        Text(
+                            filters.status == value ? "Selected" : "Not selected",
+                            bundle: .module
+                        )
                     )
                     .accessibilityIdentifier("skills.filter.status.\(statusKey(for: value))")
                     .tint(filters.status == value ? .accentColor : .secondary)
@@ -108,6 +117,15 @@ struct SkillFilterBar: View {
         }
     }
 
+    private func statusText(_ value: SkillListStatusFilter) -> String {
+        switch value {
+        case .all: String(localized: "All Statuses", bundle: .module)
+        case .managed: String(localized: "Managed", bundle: .module)
+        case .needsImport: String(localized: "Needs Import", bundle: .module)
+        case .available: String(localized: "Available", bundle: .module)
+        }
+    }
+
     // MARK: - Source
 
     private var sourceChips: some View {
@@ -122,9 +140,18 @@ struct SkillFilterBar: View {
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
                     .accessibilityAddTraits(filters.source == value ? .isSelected : [])
-                    .accessibilityLabel("Source: \(value.displayName)")
+                    .accessibilityLabel(Text(
+                        String(
+                            localized: LocalizedStringResource(
+            "Source: \(sourceText(value))",
+            bundle: .module
+        ))
+                    ))
                     .accessibilityValue(
-                        filters.source == value ? "Selected" : "Not selected"
+                        Text(
+                            filters.source == value ? "Selected" : "Not selected",
+                            bundle: .module
+                        )
                     )
                     .accessibilityIdentifier("skills.filter.source.\(sourceKey(for: value))")
                 }
@@ -137,12 +164,27 @@ struct SkillFilterBar: View {
     }
 
     private func sourceShortText(for value: SkillListSourceFilter) -> String {
-        guard case .source(let source) = value else { return "All" }
+        guard case .source(let source) = value else {
+            return String(localized: "All", bundle: .module)
+        }
         switch source {
-        case .local: return "Local"
-        case .repository: return "Repo"
-        case .clawHub: return "ClawHub"
-        case .skillsSh: return "skills.sh"
+        case .local: return String(localized: "Local", bundle: .module)
+        case .repository: return String(localized: "Repo", bundle: .module)
+        case .clawHub: return String(localized: "ClawHub", bundle: .module)
+        case .skillsSh: return String(localized: "skills.sh", bundle: .module)
+        }
+    }
+
+    private func sourceText(_ value: SkillListSourceFilter) -> String {
+        switch value {
+        case .all: String(localized: "All Sources", bundle: .module)
+        case .source(let source):
+            switch source {
+            case .local: String(localized: "Local", bundle: .module)
+            case .repository: String(localized: "Repository", bundle: .module)
+            case .clawHub: String(localized: "ClawHub", bundle: .module)
+            case .skillsSh: String(localized: "skills.sh", bundle: .module)
+            }
         }
     }
 
@@ -175,9 +217,18 @@ struct SkillFilterBar: View {
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
                     .accessibilityAddTraits(filters.agent == value ? .isSelected : [])
-                    .accessibilityLabel("Agent: \(value.displayName)")
+                    .accessibilityLabel(Text(
+                        String(
+                            localized: LocalizedStringResource(
+            "Agent: \(agentText(value))",
+            bundle: .module
+        ))
+                    ))
                     .accessibilityValue(
-                        filters.agent == value ? "Selected" : "Not selected"
+                        Text(
+                            filters.agent == value ? "Selected" : "Not selected",
+                            bundle: .module
+                        )
                     )
                     .accessibilityIdentifier("skills.filter.agent.\(agentKey(for: value))")
                 }
@@ -190,12 +241,27 @@ struct SkillFilterBar: View {
     }
 
     private func agentShortText(for value: SkillListAgentFilter) -> String {
-        guard case .agent(let platform) = value else { return "All" }
+        guard case .agent(let platform) = value else {
+            return String(localized: "All", bundle: .module)
+        }
         switch platform {
-        case .codex: return "Codex"
-        case .claude: return "Claude"
-        case .opencode: return "OpenCode"
-        case .copilot: return "Copilot"
+        case .codex: return String(localized: "Codex", bundle: .module)
+        case .claude: return String(localized: "Claude", bundle: .module)
+        case .opencode: return String(localized: "OpenCode", bundle: .module)
+        case .copilot: return String(localized: "Copilot", bundle: .module)
+        }
+    }
+
+    private func agentText(_ value: SkillListAgentFilter) -> String {
+        switch value {
+        case .all: String(localized: "All Agents", bundle: .module)
+        case .agent(let platform):
+            switch platform {
+            case .codex: String(localized: "Codex", bundle: .module)
+            case .claude: String(localized: "Claude Code", bundle: .module)
+            case .opencode: String(localized: "OpenCode", bundle: .module)
+            case .copilot: String(localized: "GitHub Copilot", bundle: .module)
+            }
         }
     }
 
@@ -212,7 +278,7 @@ struct SkillFilterBar: View {
                 Image(systemName: icon)
                     .font(.caption)
             }
-            Text(text)
+            Text(verbatim: text)
                 .font(.caption)
         }
         .padding(.horizontal, 6)
@@ -232,14 +298,21 @@ struct SkillFilterBar: View {
                 .font(.caption)
         }
         .buttonStyle(.borderless)
-        .help(collapsed ? "Show filters" : "Hide filters")
-        .accessibilityLabel(collapsed ? "Show filters" : "Hide filters")
+        .help(Text(verbatim: collapseLabelText))
+        .accessibilityLabel(Text(verbatim: collapseLabelText))
         .accessibilityIdentifier("skills.filter.collapse")
+    }
+
+    private var collapseLabelText: String {
+        if collapsed {
+            return String(localized: "Show filters", bundle: .module)
+        }
+        return String(localized: "Hide filters", bundle: .module)
     }
 
     private var summaryLine: some View {
         HStack(spacing: 6) {
-            Text(summaryText)
+            Text(verbatim: summaryText)
                 .font(.caption)
                 .foregroundStyle(filters.isActive ? .primary : .secondary)
             if filters.isActive {
@@ -250,14 +323,28 @@ struct SkillFilterBar: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Active filters: \(summaryText)")
+        .accessibilityLabel(Text(
+            String(
+                localized: LocalizedStringResource(
+            "Active filters: \(summaryText)",
+            bundle: .module
+        ))
+        ))
         .accessibilityIdentifier("skills.filter.summary")
     }
 
     private var summaryText: String {
-        if !filters.isActive { return "All Skills" }
-        return [filters.status.rawValue, filters.source.displayName, filters.agent.displayName]
-            .filter { $0 != "All Statuses" && $0 != "All Sources" && $0 != "All Agents" }
+        if !filters.isActive {
+            return String(localized: "All Skills", bundle: .module)
+        }
+        let components = [
+            (statusText(filters.status), filters.status != .all),
+            (sourceText(filters.source), filters.source != .all),
+            (agentText(filters.agent), filters.agent != .all),
+        ]
+        return components
+            .filter(\.1)
+            .map(\.0)
             .joined(separator: " · ")
     }
 

@@ -36,21 +36,21 @@ extension SkillDistributionViewModel {
         var message: String {
             switch self {
             case .invalidPersistedBindings:
-                "The saved distribution state is invalid and cannot be edited safely."
+                String(localized: "The saved distribution state is invalid and cannot be edited safely.", bundle: .module)
             case .previewExpired:
-                "The preview expired because the distribution state changed. Review the refreshed state."
+                String(localized: "The preview expired because the distribution state changed. Review the refreshed state.", bundle: .module)
             case .permissionDenied:
-                "Skills Manager does not have permission to access a distribution target."
+                String(localized: "Skills Manager does not have permission to access a distribution target.", bundle: .module)
             case .targetUnavailable:
-                "A required distribution target is unavailable."
+                String(localized: "A required distribution target is unavailable.", bundle: .module)
             case .needsRepair:
-                "This Skill has an incomplete distribution operation that needs repair."
+                String(localized: "This Skill has an incomplete distribution operation that needs repair.", bundle: .module)
             case .operationInProgress:
-                "A distribution operation is already in progress for this Skill."
+                String(localized: "A distribution operation is already in progress for this Skill.", bundle: .module)
             case .operationDidNotComplete:
-                "The distribution operation did not reach a successful terminal state."
+                String(localized: "The distribution operation did not reach a successful terminal state.", bundle: .module)
             case .forkCreatedButNotLocated:
-                "The Fork was created, but it could not be selected in the refreshed library."
+                String(localized: "The Fork was created, but it could not be selected in the refreshed library.", bundle: .module)
             case .failed(let message):
                 message
             }
@@ -138,36 +138,14 @@ extension SkillDistributionViewModel {
     }
 }
 
-nonisolated extension DistributionConflictReason {
+@MainActor extension SkillDistributionViewModel.Status {
     var displayName: String {
         switch self {
-        case .invalidDesiredScope: "The selected scope is invalid."
-        case .unsupportedAdapter: "The selected Agent is unsupported."
-        case .globalCoverageMismatch: "The global Agent coverage is inconsistent."
-        case .dedicatedTargetUnavailable: "An Agent-specific target is unavailable."
-        case .targetUnavailable: "The target folder is unavailable."
-        case .currentBindingMissing: "A saved link is missing."
-        case .managedTargetMismatch: "The saved link points to a different managed Skill."
-        case .unknownObject: "An unmanaged item already exists at this target."
-        case .slugOccupied: "Another managed Skill already uses this name."
-        case .copyContentDrift: "The managed copy contains local content changes."
-        case .copyPhysicalDrift: "The managed copy contains unexpected files or permissions."
-        case .copyRootReplaced: "The managed copy root was replaced."
-        case .copyTargetReplaced: "The managed copy directory was replaced."
-        case .copyTargetMissing: "The managed copy is missing."
-        case .copyBaselineInvalid: "The managed copy baseline is unavailable or invalid."
-        }
-    }
-}
-
-extension SkillDistributionViewModel.Status {
-    var displayName: String {
-        switch self {
-        case .notConfigured: "Not configured"
-        case .inSync: "In sync"
-        case .drifted: "Needs update"
-        case .needsRepair: "Needs repair"
-        case .operationInProgress: "Operation in progress"
+        case .notConfigured: String(localized: "Not configured", bundle: .module)
+        case .inSync: String(localized: "In sync", bundle: .module)
+        case .drifted: String(localized: "Needs update", bundle: .module)
+        case .needsRepair: String(localized: "Needs repair", bundle: .module)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
         }
     }
 
@@ -182,16 +160,16 @@ extension SkillDistributionViewModel.Status {
     }
 }
 
-extension SkillDistributionViewModel.PreviewRow.Kind {
+@MainActor extension SkillDistributionViewModel.PreviewRow.Kind {
     var displayName: String {
         switch self {
-        case .remove: "Remove target"
-        case .create: "Create target"
-        case .refresh: "Refresh Copy"
-        case .replace: "Change distribution mode"
-        case .binding: "Update saved target"
-        case .configuration: "Save Agent selection"
-        case .noChange: "No change"
+        case .remove: String(localized: "Remove target", bundle: .module)
+        case .create: String(localized: "Create target", bundle: .module)
+        case .refresh: String(localized: "Refresh Copy", bundle: .module)
+        case .replace: String(localized: "Change distribution mode", bundle: .module)
+        case .binding: String(localized: "Update saved target", bundle: .module)
+        case .configuration: String(localized: "Save Agent selection", bundle: .module)
+        case .noChange: String(localized: "No change", bundle: .module)
         }
     }
 
@@ -208,11 +186,11 @@ extension SkillDistributionViewModel.PreviewRow.Kind {
     }
 }
 
-nonisolated extension DistributionSyncMode {
+@MainActor extension DistributionSyncMode {
     var displayName: String {
         switch self {
-        case .symlink: "Symlink"
-        case .copy: "Copy"
+        case .symlink: String(localized: "Symlink", bundle: .module)
+        case .copy: String(localized: "Copy", bundle: .module)
         }
     }
 }
@@ -228,7 +206,7 @@ extension SkillDistributionViewModel {
                 if conflicts.contains(where: { $0.reason == .targetUnavailable }) {
                     return .targetUnavailable
                 }
-                return .failed("The distribution plan is blocked by a target conflict.")
+                return .failed(String(localized: "The distribution plan is blocked by a target conflict.", bundle: .module))
             case .needsRepair:
                 return .needsRepair
             case .operationInProgress:
@@ -250,27 +228,54 @@ extension SkillDistributionViewModel {
             case .needsRepair:
                 return .needsRepair
             case .notCopy:
-                return .failed("The selected target is not a managed Copy.")
+                return .failed(String(localized: "The selected target is not a managed Copy.", bundle: .module))
             case .notContentOnlyDrift:
-                return .failed("Only content-only Copy changes can use this decision.")
+                return .failed(String(localized: "Only content-only Copy changes can use this decision.", bundle: .module))
             case .unsafeContent:
-                return .failed("The Copy contains unsupported or unsafe content.")
+                return .failed(String(localized: "The Copy contains unsupported or unsafe content.", bundle: .module))
             }
         }
         if let error = error as? DistributionSymlinkFileSystemError {
             switch error {
+            case .invalidTarget:
+                return .failed(String(localized: "The distribution target is not an approved user Skill directory.", bundle: .module))
             case .unavailable:
                 return .targetUnavailable
+            case .entryChanged:
+                return .failed(String(localized: "The distribution entry changed while it was being verified.", bundle: .module))
+            case .equivalentSibling:
+                return .failed(String(localized: "An equivalent Skill name already exists in the target directory.", bundle: .module))
+            case .temporaryEntryExists:
+                return .failed(String(localized: "The operation temporary entry already exists.", bundle: .module))
             case .posix(_, let code) where code == EACCES || code == EPERM:
                 return .permissionDenied
-            default:
+            case .posix:
                 return .failed(error.localizedDescription)
             }
         }
-        if let error = error as? ManagedPathError,
-           case .posix(_, let code) = error,
-           code == EACCES || code == EPERM {
-            return .permissionDenied
+        if let error = error as? ManagedPathError {
+            switch error {
+            case .rootReplaced:
+                return .failed(String(localized: "The managed root was replaced after it was registered.", bundle: .module))
+            case .targetIsRoot:
+                return .failed(String(localized: "The managed root itself cannot be used as an item target.", bundle: .module))
+            case .targetIsNotDirectChild:
+                return .failed(String(localized: "The target must be a direct child of the managed root.", bundle: .module))
+            case .itemNotFound:
+                return .failed(String(localized: "The managed item does not exist.", bundle: .module))
+            case .itemChanged:
+                return .failed(String(localized: "The managed item changed during the operation.", bundle: .module))
+            case .destinationAlreadyExists:
+                return .failed(String(localized: "The destination already exists.", bundle: .module))
+            case .unsupportedItemType:
+                return .failed(String(localized: "The managed item has an unsupported file type.", bundle: .module))
+            case .invalidRoot, .cleanupFailed, .removalFailed:
+                return .failed(error.localizedDescription)
+            case .posix(_, let code) where code == EACCES || code == EPERM:
+                return .permissionDenied
+            case .posix:
+                return .failed(error.localizedDescription)
+            }
         }
         let nsError = error as NSError
         if nsError.domain == NSPOSIXErrorDomain,

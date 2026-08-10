@@ -13,7 +13,7 @@ extension SkillBatchUpdateViewModel {
             guard hasRemoteChange(snapshot) else {
                 setResult(
                     .needsAttention,
-                    detail: "The remote update could not be proven.",
+                    detail: String(localized: "The remote update could not be proven.", bundle: .module),
                     at: index
                 )
                 return
@@ -26,7 +26,7 @@ extension SkillBatchUpdateViewModel {
                   drifts.allSatisfy({ $0.state == .contentDrift }) else {
                 setResult(
                     .needsAttention,
-                    detail: "The Copy state cannot be handled safely in a batch.",
+                    detail: String(localized: "The Copy state cannot be handled safely in a batch.", bundle: .module),
                     at: index
                 )
                 return
@@ -43,19 +43,19 @@ extension SkillBatchUpdateViewModel {
         case .localModified:
             setResult(
                 .conflict,
-                detail: "The managed SSOT content was modified locally.",
+                detail: String(localized: "The managed SSOT content was modified locally.", bundle: .module),
                 at: index
             )
         case .capabilityUnavailable:
             setResult(
                 .needsAttention,
-                detail: snapshot.capabilityReason,
+                detail: localizedManagedSkillUpdateCapabilityReason(snapshot.capabilityReason),
                 at: index
             )
         case .conflict:
             setResult(
                 .conflict,
-                detail: "The managed or distributed state changed.",
+                detail: String(localized: "The managed or distributed state changed.", bundle: .module),
                 at: index
             )
         }
@@ -65,14 +65,14 @@ extension SkillBatchUpdateViewModel {
         let problem = error as? ManagedSkillUpdateCheckProblem ?? .failed
         switch problem {
         case .stale:
-            setResult(.conflict, detail: problem.localizedDescription, at: index)
+            setResult(.conflict, detail: localizedManagedSkillUpdateCheckProblem(problem), at: index)
         case .cancelled:
-            setResult(.cancelled, detail: problem.localizedDescription, at: index)
+            setResult(.cancelled, detail: localizedManagedSkillUpdateCheckProblem(problem), at: index)
         case .unavailable:
-            setResult(.needsAttention, detail: problem.localizedDescription, at: index)
+            setResult(.needsAttention, detail: localizedManagedSkillUpdateCheckProblem(problem), at: index)
         case .timeout, .offline, .rateLimited, .providerUnavailable,
              .unsafeContent, .databaseUnavailable, .failed:
-            setResult(.failed, detail: problem.localizedDescription, at: index)
+            setResult(.failed, detail: localizedManagedSkillUpdateCheckProblem(problem), at: index)
         }
     }
 
@@ -80,14 +80,14 @@ extension SkillBatchUpdateViewModel {
         let problem = error as? ManagedSkillUpdateExecutionProblem ?? .failed
         switch problem {
         case .noUpdate:
-            setResult(.upToDate, detail: problem.localizedDescription, for: skillID)
+            setResult(.upToDate, detail: localizedManagedSkillUpdateExecutionProblem(problem), for: skillID)
         case .stale:
-            setResult(.conflict, detail: problem.localizedDescription, for: skillID)
+            setResult(.conflict, detail: localizedManagedSkillUpdateExecutionProblem(problem), for: skillID)
         case .unavailable, .invalidDecisions, .unsafeCopyState,
              .operationInProgress, .permissionDenied, .needsRepair:
-            setResult(.needsAttention, detail: problem.localizedDescription, for: skillID)
+            setResult(.needsAttention, detail: localizedManagedSkillUpdateExecutionProblem(problem), for: skillID)
         case .providerUnavailable, .failed:
-            setResult(.failed, detail: problem.localizedDescription, for: skillID)
+            setResult(.failed, detail: localizedManagedSkillUpdateExecutionProblem(problem), for: skillID)
         }
     }
 
@@ -106,37 +106,37 @@ extension SkillBatchUpdateViewModel {
         case .updateRolledBack:
             setResult(
                 .failed,
-                detail: "The update was rolled back without changing the managed Skill.",
+                detail: String(localized: "The update was rolled back without changing the managed Skill.", bundle: .module),
                 for: skillID
             )
         case .backupReadyUpdateNotStarted:
             setResult(
                 .needsAttention,
-                detail: "A backup is ready, but the update did not start. Recheck first.",
+                detail: String(localized: "A backup is ready, but the update did not start. Recheck first.", bundle: .module),
                 for: skillID
             )
         case .copyDecisionsAppliedUpdateNotCompleted:
             setResult(
                 .needsAttention,
-                detail: "Copy decisions were saved, but the parent Skill was not updated.",
+                detail: String(localized: "Copy decisions were saved, but the parent Skill was not updated.", bundle: .module),
                 for: skillID
             )
         case .updatedNeedsAttention:
             setResult(
                 .needsAttention,
-                detail: "The Skill was updated, but distribution needs attention.",
+                detail: String(localized: "The Skill was updated, but distribution needs attention.", bundle: .module),
                 for: skillID
             )
         case .updateIndeterminate:
             setResult(
                 .needsAttention,
-                detail: "The update state could not be confirmed safely.",
+                detail: String(localized: "The update state could not be confirmed safely.", bundle: .module),
                 for: skillID
             )
         case .needsRepair:
             setResult(
                 .needsAttention,
-                detail: "The managed Skill requires repair.",
+                detail: String(localized: "The managed Skill requires repair.", bundle: .module),
                 for: skillID
             )
         }

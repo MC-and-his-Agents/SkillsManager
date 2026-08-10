@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Skills Manager 需要访问可移动宗卷，以发现和管理其中存储的 Agent Skill。</string>
+</dict>
+</plist>

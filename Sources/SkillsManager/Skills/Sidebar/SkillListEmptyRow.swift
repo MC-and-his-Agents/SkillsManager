@@ -35,11 +35,11 @@ struct SkillListEmptyRow: View {
                 .font(.title2)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            Text(title)
+            Text(verbatim: title)
                 .font(.headline)
                 .multilineTextAlignment(.center)
             if let message {
-                Text(message)
+                Text(verbatim: message)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -49,12 +49,16 @@ struct SkillListEmptyRow: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .padding(.top, 2)
-                    .accessibilityLabel(actionAccessibilityLabel ?? actionTitle)
+                    .accessibilityLabel(Text(verbatim: actionAccessibilityLabel ?? actionTitle))
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
         .accessibilityElement(children: action == nil ? .combine : .contain)
-        .accessibilityLabel([title, message].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityLabel(
+            [title, message]
+                .compactMap { $0 }
+                .joined(separator: ", ")
+        )
     }
 }

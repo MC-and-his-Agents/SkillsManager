@@ -18,26 +18,36 @@ struct PublishSkillSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Publish Skill")
+                Text("Publish Skill", bundle: .module)
                     .font(.title.bold())
-                Text("Push changes for \(displayName) to ClawHub.")
+                Text(String(
+                    localized: LocalizedStringResource(
+            "Push changes for \(displayName) to ClawHub.",
+            bundle: .module
+        )))
                     .foregroundStyle(.secondary)
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
-                    Picker("Version bump", selection: $bump) {
+                    Picker(selection: $bump) {
                         ForEach(PublishBump.allCases) { bump in
-                            Text(bump.label).tag(bump)
+                            Text(verbatim: bumpText(bump)).tag(bump)
                         }
+                    } label: {
+                        Text("Version bump", bundle: .module)
                     }
-                    Text("Will publish v\(nextVersion)")
+                    Text(String(
+                        localized: LocalizedStringResource(
+            "Will publish v\(nextVersion)",
+            bundle: .module
+        )))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Changelog")
+                    Text("Changelog", bundle: .module)
                         .font(.subheadline.weight(.semibold))
                     TextEditor(text: $changelog)
                         .frame(minHeight: 90)
@@ -53,12 +63,16 @@ struct PublishSkillSheet: View {
             Spacer()
 
             HStack {
-                Button("Cancel") {
+                Button {
                     dismiss()
+                } label: {
+                    Text("Cancel", bundle: .module)
                 }
                 Spacer()
-                Button(isPublishing ? "Publishing…" : "Publish") {
+                Button {
                     Task { await publishSkill() }
+                } label: {
+                    Text(isPublishing ? "Publishing…" : "Publish", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isPublishing || changelog.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -66,10 +80,17 @@ struct PublishSkillSheet: View {
         }
         .padding(24)
         .frame(minWidth: 420, minHeight: 360)
-        .alert("Publish result", isPresented: errorBinding) {
-            Button("OK", role: .cancel) {}
+        .alert(Text("Publish result", bundle: .module), isPresented: errorBinding) {
+            Button(role: .cancel) {
+            } label: {
+                Text("OK", bundle: .module)
+            }
         } message: {
-            Text(errorMessage ?? "Unable to publish this skill.")
+            if let errorMessage {
+                Text(errorMessage)
+            } else {
+                Text("Unable to publish this skill.", bundle: .module)
+            }
         }
     }
 
@@ -89,7 +110,11 @@ struct PublishSkillSheet: View {
             )
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = if let error = error as? SkillPublishError {
+                localizedSkillPublishError(error)
+            } else {
+                error.localizedDescription
+            }
         }
         isPublishing = false
     }
@@ -103,5 +128,13 @@ struct PublishSkillSheet: View {
                 }
             }
         )
+    }
+
+    private func bumpText(_ bump: PublishBump) -> String {
+        switch bump {
+        case .patch: String(localized: "Patch", bundle: .module)
+        case .minor: String(localized: "Minor", bundle: .module)
+        case .major: String(localized: "Major", bundle: .module)
+        }
     }
 }

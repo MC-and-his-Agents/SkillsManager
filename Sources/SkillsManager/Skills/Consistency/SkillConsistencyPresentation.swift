@@ -1,5 +1,53 @@
 import Foundation
 
+@MainActor
+func localizedLibraryDiagnosticCode(_ code: LibraryDiagnosticCode) -> String {
+    switch code {
+    case .databaseMissing: String(localized: "Database missing", bundle: .module)
+    case .ssotMissing: String(localized: "Managed library missing", bundle: .module)
+    case .schemaMismatch: String(localized: "Database schema mismatch", bundle: .module)
+    case .legacyMigrationBlocked: String(localized: "Legacy migration blocked", bundle: .module)
+    case .journalNeedsRepair: String(localized: "Journal needs repair", bundle: .module)
+    case .orphanSSOTDirectory: String(localized: "Orphan managed directory", bundle: .module)
+    case .unknownSSOTEntry: String(localized: "Unknown managed entry", bundle: .module)
+    case .databaseSkillMissingDirectory: String(localized: "Managed Skill directory missing", bundle: .module)
+    case .contentFingerprintDrift: String(localized: "Content fingerprint drift", bundle: .module)
+    case .rootIdentityChanged: String(localized: "Managed root identity changed", bundle: .module)
+    case .permissionDenied: String(localized: "Permission denied", bundle: .module)
+    case .databaseBusy: String(localized: "Database busy", bundle: .module)
+    case .cleanupDebt: String(localized: "Cleanup pending", bundle: .module)
+    case .legacyArchiveChanged: String(localized: "Legacy archive changed", bundle: .module)
+    case .unrecoverable: String(localized: "Unrecoverable library error", bundle: .module)
+    }
+}
+
+@MainActor
+func localizedRecommendedActionCode(_ code: String) -> String {
+    switch code {
+    case "restoreDatabase": String(localized: "Restore database", bundle: .module)
+    case "restoreSSOT": String(localized: "Restore managed library", bundle: .module)
+    case "upgradeApplication": String(localized: "Update Skills Manager", bundle: .module)
+    case "retryLegacyMigration": String(localized: "Retry legacy migration", bundle: .module)
+    case "repairJournal": String(localized: "Repair journal", bundle: .module)
+    case "inspectOrphan": String(localized: "Inspect orphan directory", bundle: .module)
+    case "inspectUnknownEntry": String(localized: "Inspect unknown entry", bundle: .module)
+    case "restoreSkillDirectory": String(localized: "Restore Skill directory", bundle: .module)
+    case "resolveContentDrift": String(localized: "Resolve content drift", bundle: .module)
+    case "restartAfterRootRepair": String(localized: "Repair root and restart", bundle: .module)
+    case "fixPermissions": String(localized: "Fix permissions", bundle: .module)
+    case "retryLater": String(localized: "Retry later", bundle: .module)
+    case "retryCleanup": String(localized: "Retry cleanup", bundle: .module)
+    case "inspectLegacyArchive": String(localized: "Inspect legacy archive", bundle: .module)
+    case "manualRecovery": String(localized: "Recover library manually", bundle: .module)
+    default: code
+    }
+}
+
+@MainActor
+func localizedConsistencyDiscoveryReason(_ reason: String) -> String {
+    SkillDiscoveryReason(rawValue: reason)?.localizedDisplayName ?? reason
+}
+
 nonisolated enum SkillConsistencyPresentation {
     enum Status: Sendable, Equatable {
         case healthy

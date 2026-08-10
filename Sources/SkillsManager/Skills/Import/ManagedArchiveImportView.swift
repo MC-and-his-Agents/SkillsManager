@@ -31,11 +31,11 @@ struct ManagedArchiveImportView: View {
     private var content: some View {
         switch model.state {
         case .idle:
-            ContentUnavailableView("Choose a ZIP archive", systemImage: "archivebox")
+            ContentUnavailableView(String(localized: "Choose a ZIP archive", bundle: .module), systemImage: "archivebox")
         case .selecting:
             selection
         case .preparing:
-            ProgressView("Preparing previews…")
+            ProgressView(String(localized: "Preparing previews…", bundle: .module))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
             preview
@@ -49,14 +49,26 @@ struct ManagedArchiveImportView: View {
     private var selection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Button("Select safe") { model.selectAllSafe() }
+                Button {
+                    model.selectAllSafe()
+                } label: {
+                    Text("Select safe", bundle: .module)
+                }
                     .disabled(model.availableCandidateCount == 0)
                     .accessibilityIdentifier("archive.select-safe")
-                Button("Clear") { model.clearSelection() }
+                Button {
+                    model.clearSelection()
+                } label: {
+                    Text("Clear", bundle: .module)
+                }
                     .disabled(model.selectedCount == 0)
                     .accessibilityIdentifier("archive.clear-selection")
                 Spacer()
-                Text("\(model.selectedCount) selected")
+                Text(String(
+                    localized: LocalizedStringResource(
+            "\(model.selectedCount) selected",
+            bundle: .module
+        )))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -67,8 +79,10 @@ struct ManagedArchiveImportView: View {
             .frame(minHeight: 260)
             HStack {
                 Spacer()
-                Button("Review selected…") {
+                Button {
                     onPrepare(requestedScope)
+                } label: {
+                    Text("Review selected…", bundle: .module)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canPrepare || !scopeIsValid)
@@ -88,18 +102,22 @@ struct ManagedArchiveImportView: View {
                 )
             ) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(candidate.displayName)
+                    Text(verbatim: candidate.displayName)
                         .font(.headline)
-                    Text(candidate.canonicalSubpath.isEmpty ? "." : candidate.canonicalSubpath)
+                    Text(verbatim: candidate.canonicalSubpath.isEmpty ? "." : candidate.canonicalSubpath)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                     if let slug = candidate.slug {
-                        Text("Slug: \(slug.value)")
+                        Text(String(
+                            localized: LocalizedStringResource(
+            "Slug: \(slug.value)",
+            bundle: .module
+        )))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     if let reason = candidate.blockedReason {
-                        Text(reason)
+                        Text(blockedReasonText(reason))
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
@@ -108,7 +126,11 @@ struct ManagedArchiveImportView: View {
             .toggleStyle(.checkbox)
             .disabled(!candidate.isImportable)
             .accessibilityLabel(candidate.displayName)
-            .accessibilityValue(candidate.blockedReason ?? "Importable")
+            .accessibilityValue(
+            candidate.blockedReason
+                    .map(blockedReasonText)
+                    ?? String(localized: "Importable", bundle: .module)
+            )
             .accessibilityIdentifier("archive.candidate.\(candidate.canonicalSubpath)")
         }
         .padding(.vertical, 4)
@@ -116,40 +138,56 @@ struct ManagedArchiveImportView: View {
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(
-                "Nothing has been written. Confirm once to import the selected Skills in order.",
-                systemImage: "eye"
-            )
+            Label {
+                Text(
+                    "Nothing has been written. Confirm once to import the selected Skills in order.",
+                    bundle: .module
+                )
+            } icon: {
+                Image(systemName: "eye")
+            }
             .foregroundStyle(.secondary)
             List(model.previewItems) { item in
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(item.candidate.displayName).font(.headline)
-                    Text(item.candidate.canonicalSubpath.isEmpty ? "." : item.candidate.canonicalSubpath)
+                    Text(verbatim: item.candidate.displayName).font(.headline)
+                    Text(verbatim: item.candidate.canonicalSubpath.isEmpty ? "." : item.candidate.canonicalSubpath)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                     if let slug = item.preview?.distributionSlug {
-                        Text("Slug: \(slug.value)")
+                        Text(String(
+                            localized: LocalizedStringResource(
+            "Slug: \(slug.value)",
+            bundle: .module
+        )))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     if let reason = item.reason {
-                        Label(reason, systemImage: "xmark.circle")
+                        Label {
+                            Text(verbatim: reason)
+                        } icon: {
+                            Image(systemName: "xmark.circle")
+                        }
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
                     if let preview = item.preview,
                        preview.plan.status == .blocked {
-                        Label(
-                            "Distribution is blocked. This Skill will be added without enabling.",
-                            systemImage: "exclamationmark.triangle"
-                        )
+                        Label {
+                            Text(
+                                "Distribution is blocked. This Skill will be added without enabling.",
+                                bundle: .module
+                            )
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle")
+                        }
                         .font(.caption)
                         .foregroundStyle(.orange)
                         ForEach(
                             Array(preview.plan.conflicts.enumerated()),
                             id: \.offset
                         ) { _, conflict in
-                            Text("\(conflict.reason.displayName): \(conflict.canonicalLocator)")
+                            Text(verbatim: "\(conflict.reason.localizedDisplayName): \(conflict.canonicalLocator)")
                                 .font(.caption.monospaced())
                                 .textSelection(.enabled)
                         }
@@ -161,14 +199,21 @@ struct ManagedArchiveImportView: View {
             .listStyle(.inset)
             .frame(minHeight: 260)
             HStack {
-                Button("Back") { model.cancelPreview() }
+                Button {
+                    model.cancelPreview()
+                } label: {
+                    Text("Back", bundle: .module)
+                }
                 Spacer()
-                Button(
-                    model.hasBlockedDistribution
-                        ? "Add selected to library"
-                        : "Import selected"
-                ) {
+                Button {
                     onConfirm()
+                } label: {
+                    Text(
+                        model.hasBlockedDistribution
+                            ? "Add selected to library"
+                            : "Import selected",
+                        bundle: .module
+                    )
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canConfirm)
@@ -179,7 +224,7 @@ struct ManagedArchiveImportView: View {
 
     private var execution: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ProgressView("Importing selected Skills…")
+            ProgressView(String(localized: "Importing selected Skills…", bundle: .module))
             List(model.resultItems) { result in
                 resultRow(result)
             }
@@ -191,8 +236,8 @@ struct ManagedArchiveImportView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label(
                 model.summary.failed == 0
-                    ? "Batch import finished."
-                    : "Batch import finished with failures.",
+                    ? String(localized: "Batch import finished.", bundle: .module)
+                    : String(localized: "Batch import finished with failures.", bundle: .module),
                 systemImage: model.summary.failed == 0
                     ? "checkmark.circle"
                     : "exclamationmark.triangle"
@@ -209,15 +254,15 @@ struct ManagedArchiveImportView: View {
         _ result: ManagedArchiveImportResultItem
     ) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(result.displayName).font(.headline)
-            Text(result.canonicalSubpath.isEmpty ? "." : result.canonicalSubpath)
+            Text(verbatim: result.displayName).font(.headline)
+            Text(verbatim: result.canonicalSubpath.isEmpty ? "." : result.canonicalSubpath)
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
             switch result.management {
             case .imported(let status):
                 Text(managementText(status)).foregroundStyle(.green)
             case .skipped(let reason), .failed(let reason):
-                Text(reason).foregroundStyle(.orange)
+                Text(verbatim: reason).foregroundStyle(.orange)
             }
         }
         .padding(.vertical, 3)
@@ -234,15 +279,49 @@ struct ManagedArchiveImportView: View {
 
     private func managementText(_ status: ManagedLocalImportResultStatus) -> String {
         switch status {
-        case .distributed: "Imported and enabled"
-        case .noDistributionChanges, .alreadyManaged: "Imported"
-        case .managedUndistributed: "Imported but not enabled"
+        case .distributed: String(localized: "Imported and enabled", bundle: .module)
+        case .noDistributionChanges, .alreadyManaged: String(localized: "Imported", bundle: .module)
+        case .managedUndistributed: String(localized: "Imported but not enabled", bundle: .module)
         case .managedDistributionIndeterminate, .managementIndeterminate:
-            "Imported; status needs attention"
-        case .updateRequired: "Update required"
-        case .updated: "Updated"
+            String(localized: "Imported; status needs attention", bundle: .module)
+        case .updateRequired: String(localized: "Update required", bundle: .module)
+        case .updated: String(localized: "Updated", bundle: .module)
         case .updatedDistributionNeedsAttention, .updateIndeterminate:
-            "Updated; status needs attention"
+            String(localized: "Updated; status needs attention", bundle: .module)
         }
     }
+
+    private func blockedReasonText(_ reason: String) -> String {
+        switch reason {
+        case "The selected item must be a regular folder, not a symbolic link.":
+            return String(localized: "The selected item must be a regular folder, not a symbolic link.", bundle: .module)
+        case "The selected item doesn’t contain a SKILL.md file.":
+            return String(localized: "The selected item doesn’t contain a SKILL.md file.", bundle: .module)
+        case "The selected item contains more than one Skill folder.":
+            return String(localized: "The selected item contains more than one Skill folder.", bundle: .module)
+        case "The Skill candidate could not be validated safely.":
+            return String(localized: "The Skill candidate could not be validated safely.", bundle: .module)
+        case let value where value.hasPrefix("The Skill manifest must be a regular file: "):
+            let path = String(value.dropFirst("The Skill manifest must be a regular file: ".count))
+            return String(localized: LocalizedStringResource(
+                "The Skill manifest must be a regular file: \(path)",
+                bundle: .module
+            ))
+        case let value where value.hasPrefix("The zip archive is unsafe or invalid: "):
+            let detail = String(value.dropFirst("The zip archive is unsafe or invalid: ".count))
+            return String(localized: LocalizedStringResource(
+                "The zip archive is unsafe or invalid: \(detail)",
+                bundle: .module
+            ))
+        case let value where value.hasPrefix("The Skill contents are unsafe or invalid: "):
+            let detail = String(value.dropFirst("The Skill contents are unsafe or invalid: ".count))
+            return String(localized: LocalizedStringResource(
+                "The Skill contents are unsafe or invalid: \(detail)",
+                bundle: .module
+            ))
+        default:
+            return reason
+        }
+    }
+
 }

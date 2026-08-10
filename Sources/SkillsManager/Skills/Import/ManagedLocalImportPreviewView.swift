@@ -9,11 +9,13 @@ struct ManagedLocalImportPreviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(preview.disposition == .updateRequired ? "Review Update" : "Review Import")
+            Text(verbatim: preview.disposition == .updateRequired
+                ? String(localized: "Review Update", bundle: .module)
+                : String(localized: "Review Import", bundle: .module))
                 .font(.title.bold())
-            Text(preview.disposition == .updateRequired
-                ? "The current managed content will be backed up before replacement."
-                : "The Skill will be added to the managed library before distribution.")
+            Text(verbatim: preview.disposition == .updateRequired
+                ? String(localized: "The current managed content will be backed up before replacement.", bundle: .module)
+                : String(localized: "The Skill will be added to the managed library before distribution.", bundle: .module))
                 .foregroundStyle(.secondary)
 
             if let source = preview.source {
@@ -21,25 +23,37 @@ struct ManagedLocalImportPreviewView: View {
             }
 
             if preview.disposition == .alreadyManaged {
-                Label(
-                    "This Skill is already managed. Change its Agent access from the Skill details.",
-                    systemImage: "checkmark.circle"
-                )
+                Label {
+                    Text(
+                        "This Skill is already managed. Change its Agent access from the Skill details.",
+                        bundle: .module
+                    )
+                } icon: {
+                    Image(systemName: "checkmark.circle")
+                }
             } else if preview.disposition == .updateRequired {
-                Label(
-                    "Update the managed SSOT while keeping its Skill identity and current Agent access.",
-                    systemImage: "arrow.triangle.2.circlepath"
-                )
+                Label {
+                    Text(
+                        "Update the managed SSOT while keeping its Skill identity and current Agent access.",
+                        bundle: .module
+                    )
+                } icon: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                }
             } else if preview.plan.status == .blocked {
                 conflictList
             } else if preview.plan.filesystemActions.isEmpty {
-                Label("No distribution file changes are needed.", systemImage: "checkmark.circle")
+                Label {
+                    Text("No distribution file changes are needed.", bundle: .module)
+                } icon: {
+                    Image(systemName: "checkmark.circle")
+                }
             } else {
                 actionList
             }
 
             if let problem = model.problem {
-                Label(problem.localizedDescription, systemImage: "exclamationmark.triangle")
+                Label(localizedManagedLocalImportProblem(problem), systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
             }
 
@@ -60,28 +74,30 @@ struct ManagedLocalImportPreviewView: View {
         _ source: ManagedInstallSourcePreview,
         slug: DefaultDistributionSlug
     ) -> some View {
-        GroupBox("Verified source") {
+        GroupBox {
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
-                sourceRow("Repository", source.repositoryURL.value)
-                sourceRow("Subpath", source.subpath.value)
-                sourceRow("Revision", source.revision.value)
-                sourceRow("Target slug", slug.value)
-                sourceRow("Archive", source.downloadURL.value)
+                sourceRow(String(localized: "Repository", bundle: .module), source.repositoryURL.value)
+                sourceRow(String(localized: "Subpath", bundle: .module), source.subpath.value)
+                sourceRow(String(localized: "Revision", bundle: .module), source.revision.value)
+                sourceRow(String(localized: "Target slug", bundle: .module), slug.value)
+                sourceRow(String(localized: "Archive", bundle: .module), source.downloadURL.value)
                 sourceRow(
-                    "Provider alias",
+                    String(localized: "Provider alias", bundle: .module),
                     "\(source.alias.provider): \(source.alias.identifier)"
                 )
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Text("Verified source", bundle: .module)
         }
     }
 
     @ViewBuilder
     private func sourceRow(_ title: String, _ value: String) -> some View {
         GridRow {
-            Text(title)
+            Text(verbatim: title)
                 .foregroundStyle(.secondary)
-            Text(value)
+            Text(verbatim: value)
                 .font(.callout.monospaced())
                 .textSelection(.enabled)
         }
@@ -92,7 +108,11 @@ struct ManagedLocalImportPreviewView: View {
         List(preview.plan.filesystemActions, id: \.entry.canonicalLocator) { action in
             VStack(alignment: .leading, spacing: 3) {
                 let presentation = actionPresentation(action.kind)
-                Label(presentation.title, systemImage: presentation.systemImage)
+                Label {
+                    Text(verbatim: presentation.title)
+                } icon: {
+                    Image(systemName: presentation.systemImage)
+                }
                 Text(action.entry.canonicalLocator)
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
@@ -103,9 +123,11 @@ struct ManagedLocalImportPreviewView: View {
 
     private var actions: some View {
         HStack {
-            Button(canConfirm ? "Cancel" : "Close") {
+            Button {
                 model.cancelPreview()
                 dismiss()
+            } label: {
+                Text(canConfirm ? "Cancel" : "Close", bundle: .module)
             }
             .keyboardShortcut(.cancelAction)
             .disabled(model.isExecuting)
@@ -119,29 +141,30 @@ struct ManagedLocalImportPreviewView: View {
                     if model.isExecuting {
                         ProgressView()
                     } else {
-                        Text(confirmTitle)
+                        Text(verbatim: confirmTitle)
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(model.isExecuting)
                 .keyboardShortcut(.defaultAction)
-                .accessibilityLabel(
-                    model.isExecuting ? "Updating managed Skill state" : confirmTitle
-                )
+                .accessibilityLabel(Text(verbatim: model.isExecuting
+                    ? String(localized: "Updating managed Skill state", bundle: .module)
+                    : confirmTitle))
             }
         }
     }
 
     private var conflictList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(
-                preview.allowsBlockedCreate
-                    ? "Distribution is blocked. The Skill can still be added to the managed library."
-                    : "Distribution is blocked. No Skill will be imported until this is resolved.",
-                systemImage: "exclamationmark.triangle"
-            )
+            Label {
+                Text(verbatim: preview.allowsBlockedCreate
+                    ? String(localized: "Distribution is blocked. The Skill can still be added to the managed library.", bundle: .module)
+                    : String(localized: "Distribution is blocked. No Skill will be imported until this is resolved.", bundle: .module))
+            } icon: {
+                Image(systemName: "exclamationmark.triangle")
+            }
             ForEach(Array(preview.plan.conflicts.enumerated()), id: \.offset) { _, conflict in
-                Text("\(conflict.reason.rawValue): \(conflict.canonicalLocator)")
+                Text(verbatim: "\(conflict.reason.localizedDisplayName): \(conflict.canonicalLocator)")
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
             }
@@ -157,13 +180,13 @@ struct ManagedLocalImportPreviewView: View {
     private var confirmTitle: String {
         switch preview.disposition {
         case .alreadyManaged:
-            "Done"
+            String(localized: "Done", bundle: .module)
         case .updateRequired:
-            "Update"
+            String(localized: "Update", bundle: .module)
         case .createNew where preview.plan.status == .blocked:
-            "Add without enabling"
+            String(localized: "Add without enabling", bundle: .module)
         case .createNew:
-            "Import"
+            String(localized: "Import", bundle: .module)
         }
     }
 
@@ -172,19 +195,20 @@ struct ManagedLocalImportPreviewView: View {
     ) -> (title: String, systemImage: String) {
         switch kind {
         case .createSymlink:
-            ("Create managed link", "link.badge.plus")
+            (String(localized: "Create managed link", bundle: .module), "link.badge.plus")
         case .removeSymlink:
-            ("Remove managed link", "link.badge.minus")
+            (String(localized: "Remove managed link", bundle: .module), "link.badge.minus")
         case .createCopy:
-            ("Create managed copy", "folder.badge.plus")
+            (String(localized: "Create managed copy", bundle: .module), "folder.badge.plus")
         case .refreshCopy, .discardCopyDrift:
-            ("Refresh managed copy", "arrow.triangle.2.circlepath")
+            (String(localized: "Refresh managed copy", bundle: .module), "arrow.triangle.2.circlepath")
         case .removeCopy:
-            ("Remove managed copy", "folder.badge.minus")
+            (String(localized: "Remove managed copy", bundle: .module), "folder.badge.minus")
         case .replaceSymlinkWithCopy:
-            ("Replace link with copy", "folder")
+            (String(localized: "Replace link with copy", bundle: .module), "folder")
         case .replaceCopyWithSymlink:
-            ("Replace copy with link", "link")
+            (String(localized: "Replace copy with link", bundle: .module), "link")
         }
     }
+
 }
