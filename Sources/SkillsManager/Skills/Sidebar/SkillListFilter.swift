@@ -195,7 +195,7 @@ nonisolated extension SkillDiscoveryObservation {
     }
 }
 
-nonisolated enum SkillListAgentSummary {
+enum SkillListAgentSummary {
     static func text(count: Int, locale: Locale? = nil) -> String {
         let resource = LocalizedStringResource(
             "%lld Agents",
