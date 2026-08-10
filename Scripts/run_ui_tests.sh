@@ -5,50 +5,129 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 PROJECT="$ROOT_DIR/UITests/SkillsManagerUITests.xcodeproj"
 SCHEME=SkillsManagerUITests
 UI_TEST_BUNDLE_ID=com.mcandhisagents.skillsmanager.uitest
-START_STATUS=$(git -C "$ROOT_DIR" status --short)
-RESULT_BUNDLE=""
-DERIVED_DATA=""
-# The sandboxed XCTRunner can only write inside its own container; the runner
-# root must live there so tests can create/remove child homes.
+START_STATUS="$(git -C "$ROOT_DIR" status --short)"
+PACKAGE_APP_SCRIPT="${PACKAGE_APP_SCRIPT:-$ROOT_DIR/Scripts/package_app.sh}"
+LSREGISTER="${LSREGISTER:-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister}"
+HOSTED_CI=0
+[[ "${GITHUB_ACTIONS:-}" == "true" ]] && HOSTED_CI=1
+GITHUB_RUN_ID_VALUE="${GITHUB_RUN_ID:-unknown}"
+TEST_FILTER_ARGS=()
+if [[ -n "${UI_TEST_ONLY_TESTING:-}" ]]; then
+  TEST_FILTER_ARGS+=("-only-testing:${UI_TEST_ONLY_TESTING}")
+fi
+
+# UI tests must never consume a developer identity or inherited provisioning
+# settings. The explicit xcodebuild settings below are build settings, not
+# inherited signing configuration.
+unset DEVELOPMENT_TEAM CODE_SIGN_IDENTITY CODE_SIGN_STYLE \
+  PROVISIONING_PROFILE PROVISIONING_PROFILE_SPECIFIER
+SIGNING_MODE=adhoc
+APP_IDENTITY=""
+export SIGNING_MODE APP_IDENTITY
+
+umask 077
 CONTAINER_HOME="${HOME}/Library/Containers/${UI_TEST_BUNDLE_ID}.xctrunner/Data"
 mkdir -p "$CONTAINER_HOME"
-RUNNER_ROOT=$(mktemp -d "${CONTAINER_HOME}/skillsmanager-ui-XXXXXX")
-export SKILLS_MANAGER_UI_TEST_ROOT="$RUNNER_ROOT"
+RUNNER_ROOT="$(mktemp -d "$CONTAINER_HOME/skillsmanager-ui-XXXXXX")"
+RUN_DIR="$(mktemp -d "$RUNNER_ROOT/run-XXXXXX")"
+BUILD_LOG="$RUN_DIR/build.log"
+DERIVED_DATA=""
+PERSIST_RUN=0
+FINAL_STATUS=1
+FINAL_CATEGORY=unclassified
+
+declare -a ATTEMPT_CATEGORY ATTEMPT_STATUS ATTEMPT_TOTAL
+declare -a ATTEMPT_LOG ATTEMPT_XCRESULT ATTEMPT_SUMMARY
 
 cleanup() {
+  local status=$?
+  set +e
   local end_status
-  end_status=$(git -C "$ROOT_DIR" status --short)
+  end_status=$(git -C "$ROOT_DIR" status --short 2>/dev/null)
   if [[ "$end_status" != "$START_STATUS" ]]; then
     echo "ERROR: UI test runner changed repository status." >&2
     printf 'before:\n%s\nafter:\n%s\n' "$START_STATUS" "$end_status" >&2
-    rm -rf "$RUNNER_ROOT" "$DERIVED_DATA"
-    exit 1
+    status=1
   fi
-  if [[ -d "$RESULT_BUNDLE" ]]; then
-    echo "UI test result bundle: $RESULT_BUNDLE"
+  if [[ -n "$DERIVED_DATA" && -d "$DERIVED_DATA" ]]; then
+    rm -rf "$DERIVED_DATA"
   fi
-  rm -rf "$RUNNER_ROOT" "$DERIVED_DATA"
+  if [[ "$HOSTED_CI" == "1" ]]; then
+    rm -rf "$RUNNER_ROOT"
+  elif [[ "$PERSIST_RUN" == "1" ]]; then
+    printf 'UI test evidence retained: %s\n' "$RUN_DIR"
+  else
+    printf 'UI test evidence cleaned: %s\n' "$RUN_DIR"
+    rm -rf "$RUNNER_ROOT"
+  fi
+  return "$status"
 }
 trap cleanup EXIT
 
-[[ -d "$PROJECT" ]] || { echo "ERROR: missing UI test project: $PROJECT" >&2; exit 1; }
-chmod 700 "$RUNNER_ROOT"
-ROOT_UID=$(id -u)
-ROOT_MODE=$(stat -f '%Lp' "$RUNNER_ROOT")
-[[ "$ROOT_MODE" == "700" && "$(stat -f '%u' "$RUNNER_ROOT")" == "$ROOT_UID" \
-  && ! -L "$RUNNER_ROOT" ]] || {
-  echo "ERROR: runner root admission failed." >&2
+admit_owner_only_dir() {
+  local directory="$1"
+  local uid mode
+  uid=$(id -u)
+  mode=$(stat -f '%Lp' "$directory")
+  [[ -d "$directory" && ! -L "$directory" && "$mode" == "700" \
+    && "$(stat -f '%u' "$directory")" == "$uid" ]]
+}
+
+if ! chmod 700 "$RUNNER_ROOT" "$RUN_DIR" \
+  || ! admit_owner_only_dir "$RUNNER_ROOT" \
+  || ! admit_owner_only_dir "$RUN_DIR"; then
+  echo "ERROR: runner evidence directory admission failed." >&2
   exit 1
+fi
+export SKILLS_MANAGER_UI_TEST_ROOT="$RUNNER_ROOT"
+
+sha256_file() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    shasum -a 256 "$file" | awk '{print $1}'
+  else
+    printf 'missing'
+  fi
+}
+
+print_attempt() {
+  local attempt="$1"
+  if [[ "$HOSTED_CI" == "1" ]]; then
+    printf 'ui-test-attempt=%s category=%s exit_status=%s test_total=%s log_sha256=%s xcresult_summary_sha256=%s github_run_id=%s\n' \
+      "$attempt" "${ATTEMPT_CATEGORY[$attempt]}" "${ATTEMPT_STATUS[$attempt]}" \
+      "${ATTEMPT_TOTAL[$attempt]}" "$(sha256_file "${ATTEMPT_LOG[$attempt]}")" \
+      "$(sha256_file "${ATTEMPT_SUMMARY[$attempt]}")" "$GITHUB_RUN_ID_VALUE"
+  else
+    printf 'UI test attempt %s: category=%s exit_status=%s test_total=%s log=%s xcresult=%s summary=%s\n' \
+      "$attempt" "${ATTEMPT_CATEGORY[$attempt]}" "${ATTEMPT_STATUS[$attempt]}" \
+      "${ATTEMPT_TOTAL[$attempt]}" "${ATTEMPT_LOG[$attempt]}" \
+      "${ATTEMPT_XCRESULT[$attempt]}" "${ATTEMPT_SUMMARY[$attempt]}"
+  fi
+}
+
+print_not_run() {
+  local attempt="${1:-2}"
+  if [[ "$HOSTED_CI" == "1" ]]; then
+    printf 'ui-test-attempt=%s category=not-run exit_status=not-run test_total=not-run log_sha256=not-run xcresult_summary_sha256=not-run github_run_id=%s\n' \
+      "$attempt" "$GITHUB_RUN_ID_VALUE"
+  else
+    printf 'UI test attempt %s: category=not-run exit_status=not-run test_total=not-run log=not-run xcresult=not-run summary=not-run\n' \
+      "$attempt"
+  fi
 }
 
 build_marker_check() {
   local configuration="$1" scratch="$2" expected="$3"
   mkdir -p "$scratch"
-  swift build -c "$configuration" --arch arm64 --scratch-path "$scratch"
+  if ! swift build -c "$configuration" --arch arm64 --scratch-path "$scratch"; then
+    return 1
+  fi
   local bin_dir
-  bin_dir=$(swift build -c "$configuration" --arch arm64 --scratch-path "$scratch" --show-bin-path)
+  if ! bin_dir=$(swift build -c "$configuration" --arch arm64 --scratch-path "$scratch" --show-bin-path); then
+    return 1
+  fi
   local binary="$bin_dir/SkillsManager"
-  [[ -f "$binary" ]] || { echo "ERROR: missing $binary" >&2; exit 1; }
+  [[ -f "$binary" ]] || { echo "ERROR: missing $binary" >&2; return 1; }
   local literal
   for literal in \
     --skillsmanager-ui-fixture \
@@ -56,121 +135,206 @@ build_marker_check() {
     SKILLS_MANAGER_UI_TEST_HOME \
     SkillsManagerUITestFixtureEnabled; do
     if [[ "$expected" == "present" ]]; then
-      strings "$binary" | grep -F -- "$literal" >/dev/null || {
+      if ! strings "$binary" | grep -F -- "$literal" >/dev/null; then
         echo "ERROR: UI fixture marker missing: $literal" >&2
-        exit 1
-      }
-    else
-      if strings "$binary" | grep -F -- "$literal" >/dev/null; then
-        echo "ERROR: fixture marker leaked into $configuration binary: $literal" >&2
-        exit 1
+        return 1
       fi
+    elif strings "$binary" | grep -F -- "$literal" >/dev/null; then
+      echo "ERROR: fixture marker leaked into $configuration binary: $literal" >&2
+      return 1
     fi
   done
 }
 
-build_marker_check debug "$RUNNER_ROOT/swiftpm-default-debug" absent
-build_marker_check release "$RUNNER_ROOT/swiftpm-default-release" absent
-
 APP_DIR="$RUNNER_ROOT/app"
-SCRATCH_DIR="$RUNNER_ROOT/swiftpm-ui"
-# DerivedData must NOT live inside the sandbox container: LaunchServices
-# intermittently fails to launch container-homed apps (OSStatus -10827).
-# The runner cleans this directory together with the container root.
-DERIVED_DATA=$(mktemp -d "${TMPDIR:-/tmp}/skillsmanager-ui-derived-XXXXXX")
-RESULT_BUNDLE="$RUNNER_ROOT/xcresult"
-ENTITLEMENTS="$RUNNER_ROOT/app/SkillsManagerUITest.entitlements"
-mkdir -p "$APP_DIR" "$SCRATCH_DIR"
-UI_TEST_BUILD=1 \
-APP_NAME=SkillsManagerUITest \
-APP_DISPLAY_NAME="Skills Manager UI Test" \
-EXECUTABLE_NAME=SkillsManager \
-BUNDLE_ID=com.mcandhisagents.skillsmanager.uitest \
-ARCHES=arm64 \
-APP_OUTPUT_DIR="$APP_DIR" \
-SWIFT_SCRATCH_PATH="$SCRATCH_DIR" \
-APP_ENTITLEMENTS="$ENTITLEMENTS" \
-  "$ROOT_DIR/Scripts/package_app.sh" debug
-
-UI_BIN_DIR=$(swift build -c debug --arch arm64 --scratch-path "$SCRATCH_DIR" --show-bin-path)
-for literal in \
-  --skillsmanager-ui-fixture \
-  SKILLS_MANAGER_UI_TEST_ROOT \
-  SKILLS_MANAGER_UI_TEST_HOME \
-  SkillsManagerUITestFixtureEnabled; do
-  strings "$UI_BIN_DIR/SkillsManager" | grep -F -- "$literal" >/dev/null || {
-    echo "ERROR: fixture marker missing from UI binary: $literal" >&2
-    exit 1
-  }
-done
-
+SCRATCH_DIR="$RUN_DIR/swiftpm-ui"
+DERIVED_DATA="$(mktemp -d "${TMPDIR:-/tmp}/skillsmanager-ui-derived-XXXXXX")"
+ENTITLEMENTS="$APP_DIR/SkillsManagerUITest.entitlements"
 TEST_APP_PATH="$APP_DIR/SkillsManagerUITest.app"
-[[ -x "$TEST_APP_PATH/Contents/MacOS/SkillsManager" ]] || {
-  echo "ERROR: test App executable is missing." >&2
-  exit 1
-}
-
-xcodebuild build-for-testing \
-  -project "$PROJECT" \
-  -scheme "$SCHEME" \
-  -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath "$DERIVED_DATA"
-
-# Some Xcode runner templates (e.g. 26.4) emit a CFBundleExecutable that differs
-# from the actual binary name, which makes LaunchServices fail with -10827.
-# Align the executable name with the Info.plist and re-sign when needed.
 RUNNER_APP="$DERIVED_DATA/Build/Products/Debug/SkillsManagerUITests-Runner.app"
-if [[ -d "$RUNNER_APP" ]]; then
-  RUNNER_EXEC_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" \
-    "$RUNNER_APP/Contents/Info.plist" 2>/dev/null || true)
-  echo "Runner CFBundleExecutable: ${RUNNER_EXEC_NAME:-unreadable}"
-  echo "Runner Contents/MacOS: $(ls -la "$RUNNER_APP/Contents/MacOS" 2>/dev/null | tr '\n' ' ')"
-  if [[ -n "$RUNNER_EXEC_NAME" ]]; then
-    RUNNER_EXEC="$RUNNER_APP/Contents/MacOS/$RUNNER_EXEC_NAME"
-    if [[ -x "$RUNNER_EXEC" ]]; then
-      echo "Runner executable arches: $(lipo -archs "$RUNNER_EXEC" 2>&1)"
-    fi
-    if [[ ! -x "$RUNNER_EXEC" ]]; then
-      ACTUAL_EXEC=$(find "$RUNNER_APP/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
-      if [[ -n "$ACTUAL_EXEC" ]]; then
-        mv "$ACTUAL_EXEC" "$RUNNER_EXEC"
-        codesign --force --sign - "$RUNNER_APP"
-        echo "Aligned Runner executable: $(basename "$ACTUAL_EXEC") -> $RUNNER_EXEC_NAME"
-      else
-        echo "ERROR: Runner.app contains no executable." >&2
-        exit 1
+XCTESTRUN=""
+
+preflight() {
+  [[ -d "$PROJECT" ]] || { echo "ERROR: missing UI test project." >&2; return 1; }
+  build_marker_check debug "$RUN_DIR/swiftpm-default-debug" absent || return 1
+  build_marker_check release "$RUN_DIR/swiftpm-default-release" absent || return 1
+  mkdir -p "$APP_DIR" "$SCRATCH_DIR"
+
+  SIGNING_MODE=adhoc APP_IDENTITY="" \
+    UI_TEST_BUILD=1 \
+    APP_NAME=SkillsManagerUITest \
+    APP_DISPLAY_NAME="Skills Manager UI Test" \
+    EXECUTABLE_NAME=SkillsManager \
+    BUNDLE_ID=com.mcandhisagents.skillsmanager.uitest \
+    ARCHES=arm64 \
+    APP_OUTPUT_DIR="$APP_DIR" \
+    SWIFT_SCRATCH_PATH="$SCRATCH_DIR" \
+    APP_ENTITLEMENTS="$ENTITLEMENTS" \
+    "$PACKAGE_APP_SCRIPT" debug || return 1
+
+  UI_BIN_DIR=$(swift build -c debug --arch arm64 --scratch-path "$SCRATCH_DIR" --show-bin-path) || return 1
+  for literal in \
+    --skillsmanager-ui-fixture \
+    SKILLS_MANAGER_UI_TEST_ROOT \
+    SKILLS_MANAGER_UI_TEST_HOME \
+    SkillsManagerUITestFixtureEnabled; do
+    strings "$UI_BIN_DIR/SkillsManager" | grep -F -- "$literal" >/dev/null || {
+      echo "ERROR: fixture marker missing from UI binary: $literal" >&2
+      return 1
+    }
+  done
+  [[ -x "$TEST_APP_PATH/Contents/MacOS/SkillsManager" ]] || {
+    echo "ERROR: test App executable is missing." >&2
+    return 1
+  }
+
+  DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
+    xcodebuild build-for-testing \
+      -project "$PROJECT" \
+      -scheme "$SCHEME" \
+      -destination 'platform=macOS,arch=arm64' \
+      -derivedDataPath "$DERIVED_DATA" || return 1
+
+  if [[ -d "$RUNNER_APP" ]]; then
+    local runner_exec_name runner_exec actual_exec
+    runner_exec_name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" \
+      "$RUNNER_APP/Contents/Info.plist" 2>/dev/null || true)
+    if [[ -n "$runner_exec_name" ]]; then
+      runner_exec="$RUNNER_APP/Contents/MacOS/$runner_exec_name"
+      if [[ ! -x "$runner_exec" ]]; then
+        actual_exec=$(find "$RUNNER_APP/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
+        if [[ -n "$actual_exec" ]]; then
+          mv "$actual_exec" "$runner_exec"
+          codesign --force --sign - "$RUNNER_APP" || return 1
+        else
+          echo "ERROR: Runner.app contains no executable." >&2
+          return 1
+        fi
       fi
     fi
   fi
-fi
 
-XCTESTRUN=$(find "$DERIVED_DATA/Build/Products" -maxdepth 1 -name '*.xctestrun' | head -1)
-[[ -n "$XCTESTRUN" && -f "$XCTESTRUN" ]] || {
-  echo "ERROR: xctestrun file not found under $DERIVED_DATA/Build/Products" >&2
-  exit 1
-}
-# Register the Runner with LaunchServices so a fresh container or a stale
-# launch-services cache cannot fail the launch with OSStatus -10827.
-LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-"$LSREGISTER" -f "$RUNNER_APP" 2>/dev/null || true
-plutil -insert "SkillsManagerUITests.EnvironmentVariables.SKILLS_MANAGER_UI_TEST_ROOT" \
-  -string "$RUNNER_ROOT" "$XCTESTRUN"
-plutil -insert "SkillsManagerUITests.EnvironmentVariables.TEST_APP_PATH" \
-  -string "$TEST_APP_PATH" "$XCTESTRUN"
-
-run_ui_tests() {
-  xcodebuild test-without-building \
-    -xctestrun "$XCTESTRUN" \
-    -destination 'platform=macOS,arch=arm64' \
-    -resultBundlePath "$RESULT_BUNDLE"
-}
-
-# LaunchServices can intermittently fail to launch the container-homed Runner
-# with OSStatus -10827; re-register and retry once before giving up.
-if ! run_ui_tests; then
-  echo "UI test launch failed; re-registering Runner and retrying once."
+  XCTESTRUN=$(find "$DERIVED_DATA/Build/Products" -maxdepth 1 -name '*.xctestrun' | head -1)
+  [[ -n "$XCTESTRUN" && -f "$XCTESTRUN" ]] || {
+    echo "ERROR: xctestrun file not found under derived data." >&2
+    return 1
+  }
   "$LSREGISTER" -f "$RUNNER_APP" 2>/dev/null || true
-  sleep 3
-  rm -rf "$RESULT_BUNDLE"
-  run_ui_tests
+  plutil -insert "SkillsManagerUITests.EnvironmentVariables.SKILLS_MANAGER_UI_TEST_ROOT" \
+    -string "$RUNNER_ROOT" "$XCTESTRUN" || return 1
+  plutil -insert "SkillsManagerUITests.EnvironmentVariables.TEST_APP_PATH" \
+    -string "$TEST_APP_PATH" "$XCTESTRUN" || return 1
+}
+
+run_attempt() {
+  local attempt="$1"
+  local log="$RUN_DIR/attempt-${attempt}.log"
+  local result="$RUN_DIR/attempt-${attempt}.xcresult"
+  local summary="$RUN_DIR/attempt-${attempt}.summary.json"
+  local summary_stderr="$RUN_DIR/attempt-${attempt}.summary.stderr"
+  local status summary_valid=0 test_total=unknown test_started=0 allowlisted=0 category
+
+  : > "$log"
+  : > "$summary_stderr"
+  set +e
+  DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
+    xcodebuild test-without-building \
+      -xctestrun "$XCTESTRUN" \
+      -destination 'platform=macOS,arch=arm64' \
+      "${TEST_FILTER_ARGS[@]}" \
+      -resultBundlePath "$result" >"$log" 2>&1
+  status=$?
+  set -e
+
+  if [[ -d "$result" ]] \
+    && xcrun xcresulttool get test-results summary --path "$result" \
+      >"$summary" 2>"$summary_stderr" \
+    && [[ -s "$summary" ]] \
+    && plutil -convert xml1 -o /dev/null "$summary" >/dev/null 2>&1; then
+    summary_valid=1
+    test_total=$(plutil -extract testsCount raw -o - "$summary" 2>/dev/null || true)
+    if ! [[ "$test_total" =~ ^[0-9]+$ ]]; then
+      test_total=$(plutil -extract totalTestCount raw -o - "$summary" 2>/dev/null || true)
+    fi
+    [[ "$test_total" =~ ^[0-9]+$ ]] || test_total=unknown
+  fi
+
+  if [[ "$summary_valid" == "1" ]]; then
+    if grep -Eiq '"testIdentifier"[[:space:]]*:[[:space:]]*"[^"]+"' "$summary" \
+      || grep -Eiq '"failureSummaries"[[:space:]]*:[[:space:]]*\[[[:space:]]*\{' "$summary" \
+      || grep -Eiq '"assertionFailure(s)?"[[:space:]]*:[[:space:]]*(true|[1-9]|"[^"]+")' "$summary" \
+      || grep -Eiq 'Test Case .*(passed|failed)|XCTAssert|assertion failure' "$log"; then
+      test_started=1
+    elif grep -Eiq '"testIdentifierString"[[:space:]]*:[[:space:]]*"[^"]+"' "$summary" \
+      && ! grep -Eiq '"testIdentifierString"[[:space:]]*:[[:space:]]*"[^"]*(Runner|runner)[^"]*encountered an error' "$summary"; then
+      test_started=1
+    fi
+  fi
+  if grep -Fq 'The test runner failed to initialize for UI testing' "$log" \
+    || grep -Fq 'Timed out while enabling automation mode' "$log" \
+    || grep -Fq 'XCTFuture Code=1000' "$log" \
+    || grep -Fq 'Launch Services OSStatus -10827' "$log"; then
+    allowlisted=1
+  fi
+
+  if [[ "$allowlisted" == "1" && "$test_started" == "0" \
+    && "$test_total" != "0" ]] \
+    && grep -Eiq '"testIdentifierString"[[:space:]]*:[[:space:]]*"[^"]*(Runner|runner)[^"]*"' "$summary"; then
+    test_total=0
+  fi
+
+  if [[ "$test_started" == "1" ]]; then
+    if [[ "$status" == "0" ]]; then category=success; else category=test-failure; fi
+  elif [[ "$status" != "0" && "$allowlisted" == "1" && "$summary_valid" == "1" \
+    && "$test_total" == "0" ]]; then
+    category=runner-initialization
+  else
+    category=unclassified
+  fi
+
+  ATTEMPT_CATEGORY[$attempt]="$category"
+  ATTEMPT_STATUS[$attempt]="$status"
+  ATTEMPT_TOTAL[$attempt]="$test_total"
+  ATTEMPT_LOG[$attempt]="$log"
+  ATTEMPT_XCRESULT[$attempt]="$result"
+  ATTEMPT_SUMMARY[$attempt]="$summary"
+  [[ "$category" == "success" ]] || PERSIST_RUN=1
+  [[ "$attempt" -gt 1 ]] && PERSIST_RUN=1
+  return 0
+}
+
+if ! preflight >"$BUILD_LOG" 2>&1; then
+  PERSIST_RUN=1
+  FINAL_CATEGORY=build-or-package-failure
+  FINAL_STATUS=1
+  if [[ "$HOSTED_CI" == "1" ]]; then
+    printf 'ui-test-preflight category=%s exit_status=1 build_log_sha256=%s github_run_id=%s\n' \
+      "$FINAL_CATEGORY" "$(sha256_file "$BUILD_LOG")" "$GITHUB_RUN_ID_VALUE"
+  else
+    printf 'UI test preflight: category=%s exit_status=1 build_log=%s\n' \
+      "$FINAL_CATEGORY" "$BUILD_LOG"
+  fi
+  print_not_run 1
+  print_not_run 2
+  exit "$FINAL_STATUS"
 fi
+
+run_attempt 1
+if [[ "${ATTEMPT_CATEGORY[1]}" == "runner-initialization" ]]; then
+  "$LSREGISTER" -f "$RUNNER_APP" >>"$BUILD_LOG" 2>&1 || true
+  recovery_sleep="${UI_TEST_RECOVERY_SLEEP:-3}"
+  [[ "$recovery_sleep" =~ ^[0-9]+$ ]] || recovery_sleep=3
+  sleep "$recovery_sleep"
+  run_attempt 2
+fi
+
+if [[ -n "${ATTEMPT_CATEGORY[2]+set}" ]]; then
+  FINAL_CATEGORY="${ATTEMPT_CATEGORY[2]}"
+else
+  FINAL_CATEGORY="${ATTEMPT_CATEGORY[1]}"
+fi
+if [[ "$FINAL_CATEGORY" == "success" ]]; then FINAL_STATUS=0; else FINAL_STATUS=1; fi
+
+print_attempt 1
+if [[ -n "${ATTEMPT_CATEGORY[2]+set}" ]]; then print_attempt 2; else print_not_run; fi
+exit "$FINAL_STATUS"
