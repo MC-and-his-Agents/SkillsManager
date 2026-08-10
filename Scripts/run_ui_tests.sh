@@ -93,41 +93,41 @@ sha256_file() {
   fi
 }
 
-extract_failed_identifiers() {
-  local summary="$1"
-  local failure_xml identifiers
+failed_identifier_is_safe() {
+  local value="$1"
+  [[ -n "$value" && "${#value}" -le "$MAX_FAILED_IDENTIFIER_LENGTH" ]] || return 1
+  [[ "$value" =~ ^[A-Za-z_][A-Za-z0-9_.:/-]*$ ]] || return 1
+  [[ "$value" != /* && "$value" != *..* && "$value" != *://* ]] || return 1
+  [[ ! "$value" =~ \.(swift|m|mm|h|c|cc|cpp|json|plist|log|xcresult)(:[0-9]+)?$ ]] || return 1
+}
 
+collect_failed_identifiers() {
+  local candidates="$1" candidate identifiers="" count=0
+  while IFS= read -r candidate; do
+    if [[ -n "$candidate" ]] && failed_identifier_is_safe "$candidate"; then
+      case ",$identifiers," in *,"$candidate",*) continue ;; esac
+      [[ -n "$identifiers" ]] && identifiers+=","
+      identifiers+="$candidate"; count=$((count + 1))
+      [[ "$count" -ge "$MAX_FAILED_IDENTIFIERS" ]] && break
+    fi
+  done <<< "$candidates"
+  [[ -n "$identifiers" ]] && printf '%s' "$identifiers" || printf 'unknown'
+}
+
+extract_failed_identifiers() {
+  local summary="$1" failure_xml candidates
   [[ -f "$summary" ]] || { printf 'unknown'; return 0; }
   failure_xml=$(plutil -extract testFailures xml1 -o - "$summary" 2>/dev/null || true)
   [[ -n "$failure_xml" ]] || { printf 'unknown'; return 0; }
-  identifiers=$(printf '%s\n' "$failure_xml" | awk \
-    -v limit="$MAX_FAILED_IDENTIFIERS" \
-    -v max_length="$MAX_FAILED_IDENTIFIER_LENGTH" '
-      /<key>testIdentifier(String)?<\/key>/ { capture=1; next }
-      capture && /<string>/ {
-        value=$0
-        sub(/^.*<string>/, "", value)
-        sub(/<\/string>.*$/, "", value)
-        if (length(value) <= max_length \
-            && value ~ /^[A-Za-z_][A-Za-z0-9_.:\/-]*$/ \
-            && value !~ /^\// \
-            && value !~ /\.\./ \
-            && value !~ /:\/\// \
-            && value !~ /\.(swift|m|mm|h|c|cc|cpp|json|plist|log|xcresult)(:[0-9]+)?$/) {
-          if (!(value in seen)) {
-            if (count > 0) printf ","
-            printf "%s", value
-            seen[value]=1
-            count++
-            if (count >= limit) exit
-          }
-        }
-        capture=0
-        next
-      }
-      capture && /<key>|<\/dict>|<\/array>/ { capture=0 }
-    ')
-  [[ -n "$identifiers" ]] && printf '%s' "$identifiers" || printf 'unknown'
+  candidates=$(printf '%s\n' "$failure_xml" | awk '/<key>testIdentifier(String)?<\/key>/ { capture=1; next } capture && /<string>/ { value=$0; sub(/^.*<string>/, "", value); sub(/<\/string>.*$/, "", value); print value; capture=0; next } capture && /<key>|<\/dict>|<\/array>/ { capture=0 }')
+  collect_failed_identifiers "$candidates"
+}
+
+extract_failed_identifiers_from_log() {
+  local log="$1" candidates
+  [[ -f "$log" ]] || { printf 'unknown'; return 0; }
+  candidates=$(sed -nE "s#^[[:space:]]*Test Case '-\[([A-Za-z_][A-Za-z0-9_.:-]*) ([A-Za-z_][A-Za-z0-9_.:-]*)\]' failed( \([0-9]+([.][0-9]+)? seconds?\))?[.]?[[:space:]]*\$#\1/\2#p" "$log")
+  collect_failed_identifiers "$candidates"
 }
 
 print_attempt() {
@@ -443,6 +443,9 @@ run_attempt() {
 
   if [[ "$category" == "test-failure" && "$HOSTED_CI" == "1" ]]; then
     ATTEMPT_FAILED_IDENTIFIERS[$attempt]=$(extract_failed_identifiers "$summary")
+    if [[ "${ATTEMPT_FAILED_IDENTIFIERS[$attempt]}" == "unknown" ]]; then
+      ATTEMPT_FAILED_IDENTIFIERS[$attempt]=$(extract_failed_identifiers_from_log "$log")
+    fi
   else
     ATTEMPT_FAILED_IDENTIFIERS[$attempt]=unknown
   fi

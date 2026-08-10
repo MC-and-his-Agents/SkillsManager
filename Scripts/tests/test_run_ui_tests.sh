@@ -139,17 +139,26 @@ if [[ "${1:-}" == test-without-building ]]; then
   case "${FIXTURE_MODE:-}" in
     assertion)
       : > "$result/started"
-      printf "%s\\n" "Test Case '-[FixtureTests testAssertion]' failed" "XCTAssertTrue failed"; exit 65 ;;
+      printf "%b\\n" "Test Case \047-[FixtureTests testAssertion]\047 failed" "XCTAssertTrue failed"; exit 65 ;;
     unsafe-failure)
       : > "$result/started"
-      printf "%s\\n" "Test Case '-[FixtureTests testUnsafe]' failed" "XCTAssertTrue failed"; exit 65 ;;
+      printf "%s\\n" "XCTAssertTrue failed at /Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123"; exit 65 ;;
+    precedence)
+      : > "$result/started"
+      printf "%b\\n" "Test Case \047-[FixtureTests testLogIdentifier]\047 failed"; exit 65 ;;
+    log-fallback)
+      : > "$result/started"
+      printf "%b\\n" "Test Case \047-[FixtureTests testLogFallback]\047 failed"; exit 65 ;;
+    no-test-case)
+      : > "$result/started"
+      printf "%s\\n" "XCTAssertTrue failed at /Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123"; exit 65 ;;
     runner|runner-real)
       if [[ "$count" == 1 ]]; then
         : > "$result/zero"
         printf "%s\\n" "Timed out while enabling automation mode" "XCTFuture Code=1000"; exit 65
       fi
       : > "$result/started"
-      printf "%s\\n" "Test Case '-[FixtureTests testRunner]' passed"; exit 0 ;;
+      printf "%b\\n" "Test Case \047-[FixtureTests testRunner]\047 passed"; exit 0 ;;
     unknown)
       : > "$result/zero"
       printf "%s\\n" "runner failed for an unknown reason"; exit 65 ;;
@@ -171,8 +180,13 @@ for ((i = 1; i <= $#; i++)); do
     j=$((i + 1)); result="${!j}"
   fi
 done
+mode="$FIXTURE_MODE"
 if [[ -f "$result/started" ]]; then
-  if [[ "${FIXTURE_MODE:-}" == unsafe-failure ]]; then
+  if [[ "$mode" == precedence ]]; then
+    printf "%s\n" "{\"testsCount\":1,\"testFailures\":[{\"testIdentifier\":1,\"testIdentifierString\":\"FixtureTests/testSummaryIdentifier\",\"failureText\":\"XCTAssert failed\"}]}"
+  elif [[ "$mode" == log-fallback || "$mode" == no-test-case ]]; then
+    printf "%s\n" "{\"testsCount\":1,\"failureSummaries\":[{\"message\":\"XCTAssert failed\"}]}"
+  elif [[ "$mode" == unsafe-failure ]]; then
     printf "%s\n" "{\"testsCount\":1,\"testFailures\":[{\"testIdentifier\":1,\"testIdentifierString\":\"/Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123\",\"failureText\":\"XCTAssert failed at /Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123\"}]}"
   else
     printf "%s\n" "{\"testsCount\":1,\"testFailures\":[{\"testIdentifier\":1,\"testIdentifierString\":\"FixtureTests/testAssertion\",\"failureText\":\"XCTAssert failed at /Users/runner/work/SkillsManager/UITests/SkillsManagerUITests.swift:123\"}]}"
@@ -304,6 +318,24 @@ if grep -Fq '/Users/' "$hosted_assertion_dir/output" \
   fail "hosted failed test output leaked unsafe payload"
 fi
 
+precedence_dir=$(run_case precedence 1 true)
+grep -Fq 'failed_test_identifiers=FixtureTests/testSummaryIdentifier' "$precedence_dir/output" \
+  || fail "summary identifier did not take precedence over log"
+if grep -Fq 'testLogIdentifier' "$precedence_dir/output"; then
+  fail "log identifier replaced safe summary identifier"
+fi
+
+log_fallback_dir=$(run_case log-fallback 1 true)
+grep -Fq 'failed_test_identifiers=FixtureTests/testLogFallback' "$log_fallback_dir/output" \
+  || fail "safe XCTest log fallback identifier missing"
+[[ "$(<"$log_fallback_dir/invocations")" == 1 ]] || fail "log fallback retried"
+if grep -Fq '/Users/' "$log_fallback_dir/output" \
+  || grep -Fq 'failureText' "$log_fallback_dir/output" \
+  || grep -Fq 'XCTAssert failed' "$log_fallback_dir/output" \
+  || grep -Fq "$log_fallback_dir" "$log_fallback_dir/output"; then
+  fail "log fallback leaked unsafe payload"
+fi
+
 unsafe_dir=$(run_case unsafe-failure 1 true)
 grep -Fq 'category=test-failure' "$unsafe_dir/output" || fail "unsafe failure was not classified"
 grep -Fq 'failed_test_identifiers=unknown' "$unsafe_dir/output" || fail "unsafe identifiers were not redacted"
@@ -312,6 +344,16 @@ if grep -Fq '/Users/' "$unsafe_dir/output" \
   || grep -Fq 'XCTAssert failed' "$unsafe_dir/output" \
   || grep -Fq "$unsafe_dir" "$unsafe_dir/output"; then
   fail "unsafe failed test payload leaked"
+fi
+
+no_test_case_dir=$(run_case no-test-case 1 true)
+grep -Fq 'category=test-failure' "$no_test_case_dir/output" || fail "no-Test Case failure was not classified"
+grep -Fq 'failed_test_identifiers=unknown' "$no_test_case_dir/output" \
+  || fail "no-Test Case failure did not remain unknown"
+if grep -Fq '/Users/' "$no_test_case_dir/output" \
+  || grep -Fq 'XCTAssert failed' "$no_test_case_dir/output" \
+  || grep -Fq "$no_test_case_dir" "$no_test_case_dir/output"; then
+  fail "no-Test Case failure leaked unsafe payload"
 fi
 
 runner_dir=$(run_case runner 0)
