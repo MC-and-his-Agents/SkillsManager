@@ -65,7 +65,7 @@ struct ManagedClawdhubInstallView: View {
                 unavailableMessage: libraryRuntime.blockingMessage
             )
         }
-        .onChange(of: libraryRuntime.readiness) { _, _ in
+        .onChange(of: libraryRuntime.blockingObservation) { _, _ in
             if !isWorking {
                 model.activate(
                     writer: store.persistence,
