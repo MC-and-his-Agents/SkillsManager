@@ -59,7 +59,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
             .onChange(of: searchText) { _, newValue in
                 scheduleRemoteSearch(query: newValue)
             }
-            .onChange(of: libraryRuntime.readiness) { _, _ in
+            .onChange(of: libraryRuntime.blockingObservation) { _, _ in
                 Task { await synchronizeDiscoveryRuntime() }
             }
             .onChange(of: lifecycleModel.publishedMutationGeneration) { _, _ in

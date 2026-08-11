@@ -228,6 +228,14 @@ nonisolated struct LibraryStartupResult: Sendable {
             ?? "The managed library is not ready. Retry after startup completes."
     }
 
+    var blockingObservation: String {
+        [
+            readiness.rawValue,
+            blockingDiagnostic?.id ?? "",
+            blockingMessage,
+        ].joined(separator: "\u{0}")
+    }
+
     func apply(_ result: LibraryStartupResult) {
         phase = result.phase
         readiness = result.readiness

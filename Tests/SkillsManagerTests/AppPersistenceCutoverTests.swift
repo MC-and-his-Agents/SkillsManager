@@ -23,6 +23,37 @@ struct AppPersistenceCutoverTests {
     }
 
     @MainActor
+    @Test("blocked skill store does not write custom paths")
+    func blocksCustomPathWritesAfterRuntimeBlock() async throws {
+        let fixture = try LibraryRuntimeTestHome()
+        defer { fixture.remove() }
+        let firstURL = fixture.root.appendingPathComponent("first", isDirectory: true)
+        let secondURL = fixture.root.appendingPathComponent("second", isDirectory: true)
+        try FileManager.default.createDirectory(at: firstURL, withIntermediateDirectories: false)
+        try FileManager.default.createDirectory(at: secondURL, withIntermediateDirectories: false)
+
+        let result = await LibraryStartupCoordinator(homeURL: fixture.home).start()
+        let session = try #require(result.session)
+        let paths = CustomPathStore()
+        try await paths.activate(using: session)
+        let store = SkillStore(customPathStore: paths)
+        store.activatePersistence(session)
+        try await paths.addPath(firstURL)
+        let before = try await session.loadCustomPaths()
+
+        store.blockRuntime(message: "A concrete library diagnostic.")
+
+        await #expect(throws: LibraryPersistenceError.self) {
+            try await store.addCustomPath(secondURL)
+        }
+        let existing = try #require(paths.customPaths.first)
+        await #expect(throws: LibraryPersistenceError.self) {
+            try await store.removeCustomPath(existing)
+        }
+        #expect(try await session.loadCustomPaths() == before)
+    }
+
+    @MainActor
     @Test("runtime activation reads and mutates SQLite without rewriting legacy JSON")
     func usesSQLiteOnlyAfterLedgerCommit() async throws {
         let fixture = try LibraryRuntimeTestHome()

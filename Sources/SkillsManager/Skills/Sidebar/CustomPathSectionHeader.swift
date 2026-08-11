@@ -3,30 +3,44 @@ import SwiftUI
 
 struct CustomPathSectionHeader: View {
     @Environment(SkillStore.self) private var store
+    @Environment(LibraryRuntimeState.self) private var libraryRuntime
     let customPath: CustomSkillPath
 
     @State private var showingRemoveAlert = false
+    @State private var operationErrorMessage: String?
 
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: customPath.displayName)
-                Text(verbatim: customPath.url.path)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: customPath.displayName)
+                    Text(verbatim: customPath.url.path)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
+                Spacer()
+
+                Menu {
+                    menuContent
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(.secondary)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+            }
+
+            if libraryRuntime.readiness == .blocked {
+                Text(verbatim: libraryRuntime.blockingMessage)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.red)
+            } else if let operationErrorMessage {
+                Text(verbatim: operationErrorMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
             }
-
-            Spacer()
-
-            Menu {
-                menuContent
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(.secondary)
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
         }
         .contextMenu {
             menuContent
@@ -37,10 +51,7 @@ struct CustomPathSectionHeader: View {
                 Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
             }
             Button(role: .destructive) {
-                Task {
-                    try? await store.removeCustomPath(customPath)
-                    await store.loadSkills()
-                }
+                removePath()
             } label: {
                 Text("Remove", bundle: SkillsManagerLocalizationResources.bundle)
             }
@@ -50,6 +61,28 @@ struct CustomPathSectionHeader: View {
             "This will remove \"\(customPath.displayName)\" from the sidebar. The skills will not be deleted from disk.",
             bundle: SkillsManagerLocalizationResources.bundle
         )))
+        }
+    }
+
+    private func removePath() {
+        guard libraryRuntime.readiness == .ready else {
+            operationErrorMessage = libraryRuntime.blockingMessage
+            return
+        }
+        Task { @MainActor in
+            guard libraryRuntime.readiness == .ready else {
+                operationErrorMessage = libraryRuntime.blockingMessage
+                return
+            }
+            do {
+                try await store.removeCustomPath(customPath)
+                await store.loadSkills()
+            } catch {
+                operationErrorMessage = error is LibraryPersistenceError
+                    || libraryRuntime.readiness == .blocked
+                    ? libraryRuntime.blockingMessage
+                    : error.localizedDescription
+            }
         }
     }
 
@@ -74,5 +107,7 @@ struct CustomPathSectionHeader: View {
                 Image(systemName: "trash")
             }
         }
+        .disabled(libraryRuntime.readiness != .ready)
+        .help(Text(verbatim: libraryRuntime.blockingMessage))
     }
 }

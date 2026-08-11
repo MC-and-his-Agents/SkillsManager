@@ -34,4 +34,31 @@ struct LibraryRuntimeDiagnosticPresentationTests {
             #expect(!state.blockingMessage.contains("SQLite error"))
         }
     }
+
+    @Test("blocked diagnostic changes produce a new propagation observation")
+    func blockedDiagnosticChangeUpdatesObservation() {
+        let state = LibraryRuntimeState()
+        let initialObservation = state.blockingObservation
+        let concreteMessage = LibraryRuntimeDiagnostic.make(
+            .databaseMissing,
+            subjectKind: .database,
+            subjectID: "manager.sqlite"
+        ).userFacingMessage
+
+        state.apply(LibraryStartupResult(
+            phase: .openingDatabase,
+            readiness: .blocked,
+            diagnostics: [.make(
+                .databaseMissing,
+                subjectKind: .database,
+                subjectID: "manager.sqlite"
+            )],
+            outcome: nil,
+            session: nil
+        ))
+
+        #expect(state.readiness == .blocked)
+        #expect(state.blockingObservation != initialObservation)
+        #expect(state.blockingMessage == concreteMessage)
+    }
 }

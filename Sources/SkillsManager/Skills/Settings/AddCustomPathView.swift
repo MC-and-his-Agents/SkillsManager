@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct AddCustomPathView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SkillStore.self) private var store
+    @Environment(LibraryRuntimeState.self) private var libraryRuntime
 
     @State private var showingPicker = false
     @State private var selectedURL: URL?
@@ -59,6 +60,17 @@ struct AddCustomPathView: View {
 
     @ViewBuilder
     private var content: some View {
+        if libraryRuntime.readiness == .blocked {
+            Label {
+                Text(verbatim: libraryRuntime.blockingMessage)
+            } icon: {
+                Image(systemName: "lock.trianglebadge.exclamationmark")
+            }
+            .font(.callout)
+            .foregroundStyle(.red)
+            .accessibilityIdentifier("library.runtime-blocked")
+        }
+
         if isValidating {
             HStack {
                 ProgressView()
@@ -237,7 +249,12 @@ struct AddCustomPathView: View {
                 Text("Add", bundle: SkillsManagerLocalizationResources.bundle)
             }
                 .buttonStyle(.borderedProminent)
-                .disabled(selectedURL == nil || validSkillCount == 0 || isValidating)
+                .disabled(
+                    selectedURL == nil
+                        || validSkillCount == 0
+                        || isValidating
+                        || libraryRuntime.readiness != .ready
+                )
                 .keyboardShortcut(.defaultAction)
         }
     }
@@ -317,8 +334,16 @@ struct AddCustomPathView: View {
     }
 
     private func addPath() {
+        guard libraryRuntime.readiness == .ready else {
+            errorMessage = libraryRuntime.blockingMessage
+            return
+        }
         guard let url = selectedURL else { return }
-        Task {
+        Task { @MainActor in
+            guard libraryRuntime.readiness == .ready else {
+                errorMessage = libraryRuntime.blockingMessage
+                return
+            }
             do {
                 try await store.addCustomPath(url)
                 await store.loadSkills()
@@ -330,6 +355,9 @@ struct AddCustomPathView: View {
     }
 
     private func localizedPathError(_ error: Error) -> String {
+        if error is LibraryPersistenceError {
+            return libraryRuntime.blockingMessage
+        }
         guard let error = error as? CustomPathError else {
             return error.localizedDescription
         }
