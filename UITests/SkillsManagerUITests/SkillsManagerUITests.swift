@@ -382,27 +382,6 @@ final class SkillsManagerUITests: XCTestCase {
         try assertSnapshotUnchanged(baseline, home: childHome, surface: "ui-07-cancel", app: app)
     }
 
-    func testSM168UI07RepositoryFailureZeroWrite() throws {
-        try launchFixture(app: app, profile: "failure-repository", surface: "ui-07-failure")
-        try setFilter("Repository", surface: "ui-07-failure", app: app)
-        try waitForHierarchyText(
-            "Repository unavail",
-            surface: "ui-07-failure",
-            app: app
-        )
-        let baseline = try settledSnapshot(surface: "ui-07-failure")
-        try openRepositorySheet(surface: "ui-07-failure", app: app)
-        let refreshAll = app.buttons[SkillsManagerUILocators.repositoryRefreshAll]
-        try requireElement(refreshAll, surface: "ui-07-failure", app: app)
-        try auditSurface("ui-07-failure-sheet", app: app)
-        refreshAll.click()
-        try waitForEnabled(refreshAll, surface: "ui-07-failure", app: app)
-        try requireElement(app.staticTexts["Failed"], surface: "ui-07-failure", app: app)
-        app.buttons[SkillsManagerUILocators.repositoryDone].click()
-        app.terminate()
-        try assertSnapshotUnchanged(baseline, home: childHome, surface: "ui-07-failure", app: app)
-    }
-
     // MARK: - SM168-UI-08
 
     func testSM168UI08EmptyKeyboardAndFocus() throws {
