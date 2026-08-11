@@ -324,14 +324,22 @@ actor HistoricalSkillMigrationService {
         _ root: SkillDiscoveryRoot,
         scope: DistributionBindingScope
     ) throws {
-        guard let target = DistributionTargetCatalog.current.target(for: scope),
-              target.rootLocator.hasPrefix("~/") else {
+        let targetCatalog = DistributionTargetCatalog.current(homeURL: homeURL)
+        guard let target = targetCatalog.target(for: scope), target.isAvailable else {
             throw HistoricalSkillMigrationError.unsupportedCandidate
         }
-        let expected = homeURL.appendingPathComponent(
-            String(target.rootLocator.dropFirst(2)),
-            isDirectory: true
-        ).standardizedFileURL.path
+        let expected: String
+        if let resolved = target.resolvedRootURL {
+            expected = resolved.standardizedFileURL.path
+        } else if target.rootLocator.hasPrefix("~/") {
+            expected = homeURL.appendingPathComponent(
+                String(target.rootLocator.dropFirst(2)),
+                isDirectory: true
+            ).standardizedFileURL.path
+        } else {
+            expected = URL(fileURLWithPath: target.rootLocator, isDirectory: true)
+                .standardizedFileURL.path
+        }
         guard root.url.standardizedFileURL.path == expected else {
             throw HistoricalSkillMigrationError.unsupportedCandidate
         }

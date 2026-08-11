@@ -123,6 +123,18 @@ struct HarnessSkillRootConfigurationTests {
         #expect(throws: HarnessSkillRootConfigurationError.conflictingRoot) {
             _ = try store.confirm(platform: .claude, registeredURL: second)
         }
+
+        let real = try temporaryDirectory("identity-conflict")
+        let aliases = try temporaryDirectory("identity-aliases")
+        let firstAlias = aliases.appendingPathComponent("first", isDirectory: true)
+        let secondAlias = aliases.appendingPathComponent("second", isDirectory: true)
+        try FileManager.default.createSymbolicLink(at: firstAlias, withDestinationURL: real)
+        try FileManager.default.createSymbolicLink(at: secondAlias, withDestinationURL: real)
+        let identityStore = HarnessSkillRootConfigurationStore(defaults: try isolatedDefaults())
+        _ = try identityStore.confirm(platform: .codex, registeredURL: firstAlias)
+        #expect(throws: HarnessSkillRootConfigurationError.conflictingRoot) {
+            _ = try identityStore.confirm(platform: .claude, registeredURL: secondAlias)
+        }
     }
 
     @Test("distribution filesystem uses the configured external root")

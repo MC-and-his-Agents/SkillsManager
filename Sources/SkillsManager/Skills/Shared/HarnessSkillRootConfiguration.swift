@@ -72,6 +72,9 @@ nonisolated struct HarnessSkillRootResolution: Hashable, Sendable {
 /// inspected by `resolution`; they are never persisted or used as write roots.
 nonisolated final class HarnessSkillRootConfigurationStore: @unchecked Sendable {
     static let shared = HarnessSkillRootConfigurationStore()
+    static let didChangeNotification = Notification.Name(
+        "SkillsManager.HarnessSkillRootConfigurationStore.didChange"
+    )
 
     private static let defaultsKey = "skillsManager.harnessSkillRoots.v1"
     private let defaults: UserDefaults
@@ -165,9 +168,7 @@ nonisolated final class HarnessSkillRootConfigurationStore: @unchecked Sendable 
         }
 
         let existing = configurations().filter { $0.platform != platform }
-        guard !existing.contains(where: {
-            $0.canonicalURL.standardizedFileURL == captured.canonicalURL.standardizedFileURL
-        }) else {
+        guard !existing.contains(where: { conflicts($0, with: captured) }) else {
             throw HarnessSkillRootConfigurationError.conflictingRoot
         }
         let configuration = HarnessSkillRootConfiguration(
@@ -187,6 +188,7 @@ nonisolated final class HarnessSkillRootConfigurationStore: @unchecked Sendable 
         } catch {
             throw HarnessSkillRootConfigurationError.persistenceFailed
         }
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
         return configuration
     }
 
@@ -194,6 +196,7 @@ nonisolated final class HarnessSkillRootConfigurationStore: @unchecked Sendable 
         let values = configurations().filter { $0.platform != platform }
         guard let data = try? JSONEncoder().encode(values) else { return }
         defaults.set(data, forKey: Self.defaultsKey)
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
     }
 
     private struct CapturedRoot {
@@ -201,6 +204,22 @@ nonisolated final class HarnessSkillRootConfigurationStore: @unchecked Sendable 
         let canonicalURL: URL
         let registeredIdentity: ManagedItemIdentity
         let canonicalIdentity: ManagedItemIdentity
+    }
+
+    private func conflicts(
+        _ configuration: HarnessSkillRootConfiguration,
+        with captured: CapturedRoot
+    ) -> Bool {
+        guard configuration.canonicalURL.standardizedFileURL
+                != captured.canonicalURL.standardizedFileURL else {
+            return true
+        }
+        guard let identity = try? ManagedItemIdentityCodec.decode(
+            configuration.canonicalIdentity
+        ) else {
+            return false
+        }
+        return identity == captured.canonicalIdentity
     }
 
     private func inspect(
@@ -278,9 +297,23 @@ nonisolated final class HarnessSkillRootConfigurationStore: @unchecked Sendable 
     private func hasConflict(_ configuration: HarnessSkillRootConfiguration) -> Bool {
         configurations().contains { other in
             other.platform != configuration.platform
-                && other.canonicalURL.standardizedFileURL
-                    == configuration.canonicalURL.standardizedFileURL
+                && (
+                    other.canonicalURL.standardizedFileURL
+                        == configuration.canonicalURL.standardizedFileURL
+                    || sameIdentity(
+                        other.canonicalIdentity,
+                        configuration.canonicalIdentity
+                    )
+                )
         }
+    }
+
+    private func sameIdentity(_ lhs: Data, _ rhs: Data) -> Bool {
+        guard let left = try? ManagedItemIdentityCodec.decode(lhs),
+              let right = try? ManagedItemIdentityCodec.decode(rhs) else {
+            return false
+        }
+        return left == right
     }
 
     private func environmentHint(
@@ -327,6 +360,9 @@ nonisolated final class HarnessSkillRootConfigurationStore: @unchecked Sendable 
         guard type == mode_t(S_IFDIR) || type == mode_t(S_IFLNK) else {
             throw HarnessSkillRootConfigurationError.unsupportedType
         }
+        guard registeredMetadata.st_uid == Darwin.geteuid() else {
+            throw HarnessSkillRootConfigurationError.permissionDenied
+        }
         var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
         guard Darwin.realpath(registered.path, &buffer) != nil else {
             throw captureFailure(errno)
@@ -343,6 +379,9 @@ nonisolated final class HarnessSkillRootConfigurationStore: @unchecked Sendable 
         }
         guard canonicalMetadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFDIR) else {
             throw HarnessSkillRootConfigurationError.unsupportedType
+        }
+        guard canonicalMetadata.st_uid == Darwin.geteuid() else {
+            throw HarnessSkillRootConfigurationError.permissionDenied
         }
         return CapturedRoot(
             registeredURL: registered,

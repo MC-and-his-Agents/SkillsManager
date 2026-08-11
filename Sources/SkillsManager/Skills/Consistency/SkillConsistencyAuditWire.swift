@@ -48,8 +48,10 @@ nonisolated enum SkillConsistencyAuditWire {
         _ value: SkillDiscoveryResult,
         homeURL: URL,
         bindingsBySkillID: [SkillID: [DistributionBinding]],
-        reconcileBySkillID: [SkillID: DistributionReconcileResult]
+        reconcileBySkillID: [SkillID: DistributionReconcileResult],
+        catalog suppliedCatalog: DistributionTargetCatalog? = nil
     ) throws -> SkillConsistencyAuditDiscovery {
+        let catalog = suppliedCatalog ?? DistributionTargetCatalog.current(homeURL: homeURL)
         let roots = try value.observedRoots.map {
             SkillConsistencyAuditObservedRoot(
                 root: discoveryRoot($0.root),
@@ -69,7 +71,8 @@ nonisolated enum SkillConsistencyAuditWire {
                     for: observation,
                     homeURL: homeURL,
                     bindingsBySkillID: bindingsBySkillID,
-                    reconcileBySkillID: reconcileBySkillID
+                    reconcileBySkillID: reconcileBySkillID,
+                    catalog: catalog
                 )
             )
         }
@@ -299,7 +302,8 @@ nonisolated enum SkillConsistencyAuditWire {
         for observation: SkillDiscoveryObservation,
         homeURL: URL,
         bindingsBySkillID: [SkillID: [DistributionBinding]],
-        reconcileBySkillID: [SkillID: DistributionReconcileResult]
+        reconcileBySkillID: [SkillID: DistributionReconcileResult],
+        catalog: DistributionTargetCatalog
     ) -> SkillConsistencyAuditDistributionAttribution? {
         let bindings = bindingsBySkillID.values.flatMap { $0 }.sorted {
             if $0.skillID != $1.skillID {
@@ -308,17 +312,24 @@ nonisolated enum SkillConsistencyAuditWire {
             return distributionBindingIntentPrecedes($0.intent, $1.intent)
         }
         for binding in bindings {
-            guard let entry = DistributionTargetCatalog.current.entry(
+            guard let entry = catalog.entry(
                 for: binding.scope,
                 slug: binding.distributionSlug
             ),
             observationTargets(
                 observation,
                 binding: binding,
-                expectedURL: absoluteTargetURL(entry: entry, homeURL: homeURL)
+                expectedURL: absoluteTargetURL(
+                    entry: entry,
+                    homeURL: homeURL
+                )
             ),
             let reconcile = reconcileBySkillID[binding.skillID],
-            ownsTarget(reconcile.observations[entry], binding: binding) else {
+            let targetObservation = reconcile.observations.first(where: { key, _ in
+                key.target.scope == entry.target.scope
+                    && key.distributionSlug == entry.distributionSlug
+            })?.value,
+            ownsTarget(targetObservation, binding: binding) else {
                 continue
             }
             return SkillConsistencyAuditDistributionAttribution(
@@ -389,10 +400,17 @@ nonisolated enum SkillConsistencyAuditWire {
         entry: DistributionTargetEntry,
         homeURL: URL
     ) -> URL {
-        homeURL.appendingPathComponent(
-            String(entry.target.rootLocator.dropFirst(2)),
-            isDirectory: true
-        ).appendingPathComponent(entry.distributionSlug.value, isDirectory: true)
+        let root = entry.target.resolvedRootURL ?? {
+            if entry.target.rootLocator.hasPrefix("~/") {
+                return homeURL.appendingPathComponent(
+                    String(entry.target.rootLocator.dropFirst(2)),
+                    isDirectory: true
+                )
+            }
+            return URL(fileURLWithPath: entry.target.rootLocator, isDirectory: true)
+        }()
+        return root.appendingPathComponent(entry.distributionSlug.value, isDirectory: true)
+            .standardizedFileURL
     }
 
     private static func fingerprint(

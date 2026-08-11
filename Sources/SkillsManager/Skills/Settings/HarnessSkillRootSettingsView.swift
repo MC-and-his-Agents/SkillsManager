@@ -68,9 +68,19 @@ struct HarnessSkillRootSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(resolution?.isUsable == true ? Color.secondary : Color.orange)
             }
-            Text(verbatim: (pendingURLs[platform] ?? resolution?.registeredURL)?.path ?? "—")
-                .font(.caption)
-                .textSelection(.enabled)
+            if let pending = pendingURLs[platform] {
+                Text("Current: \(resolution?.registeredURL.path ?? "—")")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                Text("New: \(pending.path)")
+                    .font(.caption)
+                    .textSelection(.enabled)
+            } else {
+                Text(verbatim: resolution?.registeredURL.path ?? "—")
+                    .font(.caption)
+                    .textSelection(.enabled)
+            }
             if let canonical = resolution?.canonicalURL,
                canonical.path != resolution?.registeredURL.path {
                 Text("Resolved: \(canonical.path)")
@@ -84,7 +94,7 @@ struct HarnessSkillRootSettingsView: View {
                 Button("Choose…") {
                     pickerPlatform = platform
                 }
-                if pendingURLs[platform] != nil {
+                if pendingURLs[platform] != nil || resolution?.status == .environmentHint {
                     Button("Confirm") { confirm(platform) }
                         .buttonStyle(.borderedProminent)
                 }
@@ -111,7 +121,9 @@ struct HarnessSkillRootSettingsView: View {
     }
 
     private func confirm(_ platform: SkillPlatform) {
-        guard let url = pendingURLs[platform] else { return }
+        guard let url = pendingURLs[platform] ?? resolutions[platform]?.registeredURL else {
+            return
+        }
         do {
             _ = try store.confirm(platform: platform, registeredURL: url)
             pendingURLs[platform] = nil
