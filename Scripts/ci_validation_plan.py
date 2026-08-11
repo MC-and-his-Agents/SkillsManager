@@ -158,9 +158,19 @@ def path_rule(path: str) -> dict[str, object]:
             full_ui=True,
         )
     if path.startswith("Scripts/"):
-        return result("scripts", "script-contract", ["ci-contracts"])
+        return result(
+            "scripts",
+            "script-contract",
+            ["ci-contracts", "swift-build", "swift-tests"],
+            swift=True,
+        )
     if path.startswith(".github/"):
-        return result("automation", "workflow-contract", ["ci-plan"])
+        return result(
+            "automation",
+            "workflow-contract",
+            ["ci-plan", "swift-build", "swift-tests"],
+            swift=True,
+        )
     raise PlanError(f"Changed path has no CI impact mapping: {path}")
 
 
