@@ -25,9 +25,9 @@ struct CustomRepositoryCandidateRow: View {
             accessibilityLabel: String(
                 localized: LocalizedStringResource(
             "\(candidate.displayName), Available, Repository, \(candidate.repository.displayName), \(candidate.snapshot.subpath.value.isEmpty ? "root" : candidate.snapshot.subpath.value)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )),
-            accessibilityValue: String(localized: "Available, Repository, 0 Agents", bundle: .module)
+            accessibilityValue: String(localized: "Available, Repository, 0 Agents", bundle: SkillsManagerLocalizationResources.bundle)
         ))
         .help(candidate.snapshot.subpath.value.isEmpty ? "/" : candidate.snapshot.subpath.value)
     }
@@ -61,31 +61,31 @@ struct CustomRepositoryCandidateDetailView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } label: {
-                    Text("Verified discovery", bundle: .module)
+                    Text("Verified discovery", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 if candidate.installProblem != nil {
-                    Label(String(localized: "This Skill cannot form a valid distribution slug.", bundle: .module), systemImage: "exclamationmark.triangle")
+                    Label(String(localized: "This Skill cannot form a valid distribution slug.", bundle: SkillsManagerLocalizationResources.bundle), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                         .accessibilityElement(children: .combine)
                 }
                 Button {
                     showingInstall = true
                 } label: {
-                    Text("Review and Install…", bundle: .module)
+                    Text("Review and Install…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                     .buttonStyle(.borderedProminent)
                     .disabled(candidate.distributionSlug == nil)
                     .accessibilityIdentifier("repository.review-install")
                     .accessibilityHint(Text(
                         "Verifies the immutable GitHub source before installation",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     ))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
         .navigationTitle(candidate.displayName)
-        .navigationSubtitle(String(localized: "Repository", bundle: .module))
+        .navigationSubtitle(String(localized: "Repository", bundle: SkillsManagerLocalizationResources.bundle))
         .sheet(isPresented: $showingInstall) {
             ManagedCustomRepositoryInstallView(candidate: candidate)
         }
@@ -103,10 +103,10 @@ struct CustomRepositoryCandidateDetailView: View {
 
     private func localizedDetailTitle(_ title: String) -> Text {
         switch title {
-        case "Repository": Text("Repository", bundle: .module)
-        case "Subpath": Text("Subpath", bundle: .module)
-        case "Revision": Text("Revision", bundle: .module)
-        case "Target slug": Text("Target slug", bundle: .module)
+        case "Repository": Text("Repository", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Subpath": Text("Subpath", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Revision": Text("Revision", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Target slug": Text("Target slug", bundle: SkillsManagerLocalizationResources.bundle)
         default: Text(verbatim: title)
         }
     }

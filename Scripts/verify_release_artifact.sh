@@ -44,12 +44,17 @@ build=$(plist_value CFBundleVersion)
 executable=$(plist_value CFBundleExecutable)
 feed_url=$(plist_value SUFeedURL)
 public_key=$(plist_value SUPublicEDKey)
+resource_bundle="$APP/Contents/Resources/SkillsManager_SkillsManager.bundle/Info.plist"
 
 assert_equal "Bundle identifier" "$bundle_id" "$EXPECTED_BUNDLE_ID"
 assert_equal "Marketing version" "$version" "$MARKETING_VERSION"
 assert_equal "Build number" "$build" "$BUILD_NUMBER"
 assert_equal "Sparkle feed URL" "$feed_url" "$EXPECTED_FEED_URL"
 assert_equal "Sparkle public key" "$public_key" "$EXPECTED_PUBLIC_KEY"
+[[ -f "$resource_bundle" ]] || {
+  echo "SwiftPM resource bundle is missing from the packaged app." >&2
+  exit 1
+}
 
 arches=$(lipo -archs "$APP/Contents/MacOS/$executable")
 [[ "$(wc -w <<<"$arches" | tr -d ' ')" == "2" ]] || {

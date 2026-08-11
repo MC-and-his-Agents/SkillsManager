@@ -123,7 +123,7 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
     }
 
     private(set) var loadState: LoadState = .blocked(
-        String(localized: "Preparing the managed library…", bundle: .module)
+        String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle)
     )
     private(set) var items: [Item] = []
     private(set) var plannedRoots: [SkillDiscoveryRoot] = []
@@ -397,26 +397,26 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
     ) -> String {
         switch disposition {
         case .created:
-            String(localized: "The Skill was imported into the managed library.", bundle: .module)
+            String(localized: "The Skill was imported into the managed library.", bundle: SkillsManagerLocalizationResources.bundle)
         case .claimed:
-            String(localized: "The existing managed Skill was linked to this local source.", bundle: .module)
+            String(localized: "The existing managed Skill was linked to this local source.", bundle: SkillsManagerLocalizationResources.bundle)
         case .alreadyManaged:
-            String(localized: "This Skill was already managed.", bundle: .module)
+            String(localized: "This Skill was already managed.", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private static func message(for error: ManagedSkillImportError) -> String {
         switch error {
         case .actionNotAllowed:
-            String(localized: "This action is no longer available.", bundle: .module)
+            String(localized: "This action is no longer available.", bundle: SkillsManagerLocalizationResources.bundle)
         case .invalidObservation:
-            String(localized: "The discovery result is no longer valid.", bundle: .module)
+            String(localized: "The discovery result is no longer valid.", bundle: SkillsManagerLocalizationResources.bundle)
         case .tokenExpired:
-            String(localized: "The preview expired.", bundle: .module)
+            String(localized: "The preview expired.", bundle: SkillsManagerLocalizationResources.bundle)
         case .sourceChanged:
-            String(localized: "The source changed after preview.", bundle: .module)
+            String(localized: "The source changed after preview.", bundle: SkillsManagerLocalizationResources.bundle)
         case .conflict:
-            String(localized: "The source now conflicts with another managed Skill.", bundle: .module)
+            String(localized: "The source now conflicts with another managed Skill.", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -424,23 +424,23 @@ nonisolated enum SkillDiscoveryFlowError: Error, Equatable, LocalizedError, Send
         if let error = error as? SkillDiscoveryPreflightError {
             switch error {
             case .runtimeBlocked:
-                return String(localized: "The managed library is not ready.", bundle: .module)
+                return String(localized: "The managed library is not ready.", bundle: SkillsManagerLocalizationResources.bundle)
             case .noUsableResult:
-                return String(localized: "No current discovery result is available.", bundle: .module)
+                return String(localized: "No current discovery result is available.", bundle: SkillsManagerLocalizationResources.bundle)
             case .rootUnavailable:
-                return String(localized: "One or more required discovery roots are unavailable.", bundle: .module)
+                return String(localized: "One or more required discovery roots are unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
         if let error = error as? SkillDiscoveryFlowError {
             switch error {
             case .runtimeBlocked:
-                return String(localized: "The managed library is not ready.", bundle: .module)
+                return String(localized: "The managed library is not ready.", bundle: SkillsManagerLocalizationResources.bundle)
             case .itemUnavailable:
-                return String(localized: "The discovered Skill is no longer available.", bundle: .module)
+                return String(localized: "The discovered Skill is no longer available.", bundle: SkillsManagerLocalizationResources.bundle)
             case .operationInProgress:
-                return String(localized: "Another import operation is already in progress.", bundle: .module)
+                return String(localized: "Another import operation is already in progress.", bundle: SkillsManagerLocalizationResources.bundle)
             case .previewSuperseded:
-                return String(localized: "Discovery changed before the preview completed. Review the latest result and try again.", bundle: .module)
+                return String(localized: "Discovery changed before the preview completed. Review the latest result and try again.", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
         return error.localizedDescription

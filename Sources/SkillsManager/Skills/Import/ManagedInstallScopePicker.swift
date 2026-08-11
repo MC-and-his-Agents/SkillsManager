@@ -14,14 +14,14 @@ struct ManagedInstallScopePicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Enable for", bundle: .module)
+            Text("Enable for", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.headline)
             Picker(selection: $mode) {
                 ForEach(ManagedInstallDistributionMode.allCases) { option in
                     Text(verbatim: modeText(option)).tag(option)
                 }
             } label: {
-                Text("Distribution scope", bundle: .module)
+                Text("Distribution scope", bundle: SkillsManagerLocalizationResources.bundle)
             }
             .pickerStyle(.segmented)
             .disabled(isDisabled)
@@ -41,7 +41,7 @@ struct ManagedInstallScopePicker: View {
                 String(
                     localized: LocalizedStringResource(
             "Compatible Agents share one managed link in \(DistributionTargetCatalog.current.globalTarget.rootLocator).",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
             )
             Text(verbatim: DistributionTargetCatalog.current.globalReaders
@@ -74,7 +74,7 @@ struct ManagedInstallScopePicker: View {
             }
             if selectedAgents.isEmpty {
                 Label {
-                    Text("Select at least one Agent.", bundle: .module)
+                    Text("Select at least one Agent.", bundle: SkillsManagerLocalizationResources.bundle)
                 } icon: {
                     Image(systemName: "exclamationmark.triangle")
                 }
@@ -85,17 +85,17 @@ struct ManagedInstallScopePicker: View {
 
     private func modeText(_ mode: ManagedInstallDistributionMode) -> String {
         switch mode {
-        case .global: String(localized: "Global", bundle: .module)
-        case .agents: String(localized: "Agent-specific", bundle: .module)
+        case .global: String(localized: "Global", bundle: SkillsManagerLocalizationResources.bundle)
+        case .agents: String(localized: "Agent-specific", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func platformText(_ platform: SkillPlatform) -> String {
         switch platform {
-        case .codex: String(localized: "Codex", bundle: .module)
-        case .claude: String(localized: "Claude Code", bundle: .module)
-        case .opencode: String(localized: "OpenCode", bundle: .module)
-        case .copilot: String(localized: "GitHub Copilot", bundle: .module)
+        case .codex: String(localized: "Codex", bundle: SkillsManagerLocalizationResources.bundle)
+        case .claude: String(localized: "Claude Code", bundle: SkillsManagerLocalizationResources.bundle)
+        case .opencode: String(localized: "OpenCode", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copilot: String(localized: "GitHub Copilot", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }

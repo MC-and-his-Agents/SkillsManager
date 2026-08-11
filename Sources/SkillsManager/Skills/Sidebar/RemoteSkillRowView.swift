@@ -6,8 +6,8 @@ struct RemoteSkillRowView: View {
     let onInstall: () -> Void
 
     var body: some View {
-        let status = String(localized: "Available", bundle: .module)
-        let source = String(localized: "ClawHub", bundle: .module)
+        let status = String(localized: "Available", bundle: SkillsManagerLocalizationResources.bundle)
+        let source = String(localized: "ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
         SkillListRow(data: SkillListRowData(
             id: skill.id,
             title: skill.displayName,
@@ -42,12 +42,12 @@ struct RemoteSkillRowView: View {
                     : "arrow.down.circle")
             }
             .buttonStyle(.borderless)
-            .help(Text(isInstalled ? "Review or update" : "Install", bundle: .module))
+            .help(Text(isInstalled ? "Review or update" : "Install", bundle: SkillsManagerLocalizationResources.bundle))
             .accessibilityLabel(Text(
                 isInstalled
                     ? "Review or update \(skill.displayName)"
                     : "Install \(skill.displayName)",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         }
     }

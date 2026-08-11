@@ -8,9 +8,9 @@ struct SkillBackupLibraryView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Skill Backups", bundle: .module)
+                    Text("Skill Backups", bundle: SkillsManagerLocalizationResources.bundle)
                         .font(.title.bold())
-                    Text("Verified backups remain available after a managed Skill is deleted.", bundle: .module)
+                    Text("Verified backups remain available after a managed Skill is deleted.", bundle: SkillsManagerLocalizationResources.bundle)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -22,7 +22,7 @@ struct SkillBackupLibraryView: View {
                             .controlSize(.small)
                     } else {
                         Label {
-                            Text("Refresh backups", bundle: .module)
+                            Text("Refresh backups", bundle: SkillsManagerLocalizationResources.bundle)
                         } icon: {
                             Image(systemName: "arrow.clockwise")
                         }
@@ -30,8 +30,8 @@ struct SkillBackupLibraryView: View {
                     }
                 }
                 .disabled(model.isRefreshingBackups || model.isMutating)
-                .help(Text("Refresh backups", bundle: .module))
-                .accessibilityLabel(Text("Refresh backups", bundle: .module))
+                .help(Text("Refresh backups", bundle: SkillsManagerLocalizationResources.bundle))
+                .accessibilityLabel(Text("Refresh backups", bundle: SkillsManagerLocalizationResources.bundle))
             }
 
             stateContent
@@ -47,7 +47,7 @@ struct SkillBackupLibraryView: View {
                 Button {
                     dismiss()
                 } label: {
-                    Text("Done", bundle: .module)
+                    Text("Done", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                     .keyboardShortcut(.cancelAction)
                     .disabled(model.isMutating)
@@ -67,16 +67,16 @@ struct SkillBackupLibraryView: View {
         switch model.backupState {
         case .blocked(let message):
             ContentUnavailableView(
-                String(localized: "Backups unavailable", bundle: .module),
+                String(localized: "Backups unavailable", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "lock.trianglebadge.exclamationmark",
                 description: Text(verbatim: message)
             )
         case .loading:
-            ProgressView(String(localized: "Loading and validating backups…", bundle: .module))
+            ProgressView(String(localized: "Loading and validating backups…", bundle: SkillsManagerLocalizationResources.bundle))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed(let problem):
             ContentUnavailableView(
-                String(localized: "Backups unavailable", bundle: .module),
+                String(localized: "Backups unavailable", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "exclamationmark.triangle",
                 description: Text(verbatim: problem.message)
             )
@@ -89,9 +89,9 @@ struct SkillBackupLibraryView: View {
     private var loadedContent: some View {
         if model.backups.isEmpty, model.recoverableDeletions.isEmpty {
             ContentUnavailableView(
-                String(localized: "No backups", bundle: .module),
+                String(localized: "No backups", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "archivebox",
-                description: Text("Deleting a managed Skill creates a verified backup here.", bundle: .module)
+                description: Text("Deleting a managed Skill creates a verified backup here.", bundle: SkillsManagerLocalizationResources.bundle)
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -102,7 +102,7 @@ struct SkillBackupLibraryView: View {
                             deletionRow(readback)
                         }
                     } header: {
-                        Text("Deletion operations", bundle: .module)
+                        Text("Deletion operations", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                 }
                 Section {
@@ -110,7 +110,7 @@ struct SkillBackupLibraryView: View {
                         backupRow(item)
                     }
                 } header: {
-                    Text("Backups", bundle: .module)
+                    Text("Backups", bundle: SkillsManagerLocalizationResources.bundle)
                 }
             }
         }
@@ -129,7 +129,7 @@ struct SkillBackupLibraryView: View {
                     String(
                         localized: LocalizedStringResource(
             "Skill \(readback.skillID.directoryName)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                 )
                     .font(.caption.monospaced())
@@ -139,12 +139,12 @@ struct SkillBackupLibraryView: View {
             Button {
                 Task { await model.retryDeletion(readback) }
             } label: {
-                Text("Retry", bundle: .module)
+                Text("Retry", bundle: SkillsManagerLocalizationResources.bundle)
             }
             .disabled(model.isMutating)
             .accessibilityHint(Text(
                 "Continues this journaled deletion operation.",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         }
         .accessibilityElement(children: .contain)
@@ -161,7 +161,7 @@ struct SkillBackupLibraryView: View {
                 Text(verbatim: item.summary?.content.displayName ?? String(
                     localized: LocalizedStringResource(
             "Backup \(item.backupID.uuid.uuidString)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
                     .font(.headline)
                     .lineLimit(1)
@@ -177,7 +177,7 @@ struct SkillBackupLibraryView: View {
                             String(
                                 localized: LocalizedStringResource(
             "\(summary.targets.count) target\(summary.targets.count == 1 ? "" : "s")",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                         )
                     }
@@ -204,28 +204,28 @@ struct SkillBackupLibraryView: View {
                 Button {
                     Task { await model.setBackupPinned(item, isPinned: !item.isPinned) }
                 } label: {
-                    Text(item.isPinned ? "Unpin" : "Pin", bundle: .module)
+                    Text(item.isPinned ? "Unpin" : "Pin", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .disabled(model.isMutating)
                 .accessibilityLabel(Text(
                     item.isPinned ? "Unpin backup" : "Pin backup",
-                    bundle: .module
+                    bundle: SkillsManagerLocalizationResources.bundle
                 ))
 
                 if model.preparingRestoreBackupID == item.backupID {
                     ProgressView()
                         .controlSize(.small)
-                        .accessibilityLabel(Text("Preparing restore preview", bundle: .module))
+                        .accessibilityLabel(Text("Preparing restore preview", bundle: SkillsManagerLocalizationResources.bundle))
                 } else {
                     Button {
                         Task { await model.prepareRestore(item) }
                     } label: {
-                        Text("Restore…", bundle: .module)
+                        Text("Restore…", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     .disabled(model.isMutating)
                     .accessibilityHint(Text(
                         "Opens a verified restore preview.",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     ))
                 }
             }
@@ -243,37 +243,37 @@ struct SkillBackupLibraryView: View {
 
     private func deletionStatusText(_ status: SkillDeletionStatus) -> String {
         return switch status {
-        case .ready: String(localized: "Ready", bundle: .module)
-        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
-        case .needsRepair: String(localized: "Needs repair", bundle: .module)
-        case .completed: String(localized: "Completed", bundle: .module)
-        case .cleanupPending: String(localized: "Cleanup pending", bundle: .module)
-        case .rolledBack: String(localized: "Rolled back", bundle: .module)
+        case .ready: String(localized: "Ready", bundle: SkillsManagerLocalizationResources.bundle)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: SkillsManagerLocalizationResources.bundle)
+        case .needsRepair: String(localized: "Needs repair", bundle: SkillsManagerLocalizationResources.bundle)
+        case .completed: String(localized: "Completed", bundle: SkillsManagerLocalizationResources.bundle)
+        case .cleanupPending: String(localized: "Cleanup pending", bundle: SkillsManagerLocalizationResources.bundle)
+        case .rolledBack: String(localized: "Rolled back", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func backupAvailabilityText(_ availability: SkillBackupCatalogAvailability) -> String {
         return switch availability {
-        case .available: String(localized: "Available", bundle: .module)
-        case .preparing: String(localized: "Preparing", bundle: .module)
-        case .pruning: String(localized: "Cleaning up", bundle: .module)
-        case .needsRepair: String(localized: "Needs repair", bundle: .module)
-        case .corrupt: String(localized: "Corrupt", bundle: .module)
-        case .permissionDenied: String(localized: "Permission required", bundle: .module)
-        case .unavailable: String(localized: "Unavailable", bundle: .module)
+        case .available: String(localized: "Available", bundle: SkillsManagerLocalizationResources.bundle)
+        case .preparing: String(localized: "Preparing", bundle: SkillsManagerLocalizationResources.bundle)
+        case .pruning: String(localized: "Cleaning up", bundle: SkillsManagerLocalizationResources.bundle)
+        case .needsRepair: String(localized: "Needs repair", bundle: SkillsManagerLocalizationResources.bundle)
+        case .corrupt: String(localized: "Corrupt", bundle: SkillsManagerLocalizationResources.bundle)
+        case .permissionDenied: String(localized: "Permission required", bundle: SkillsManagerLocalizationResources.bundle)
+        case .unavailable: String(localized: "Unavailable", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func deletionErrorText(_ error: SkillDeletionError) -> String {
         switch error {
-        case .skillNotFound: String(localized: "The managed Skill was not found.", bundle: .module)
-        case .conflict: String(localized: "The managed Skill changed during deletion.", bundle: .module)
-        case .previewExpired: String(localized: "The preview expired because the managed state changed.", bundle: .module)
-        case .operationInProgress: String(localized: "A deletion operation is already in progress.", bundle: .module)
-        case .needsRepair: String(localized: "The deletion operation requires repair.", bundle: .module)
-        case .backupCorrupt: String(localized: "The Skill backup is missing or corrupt.", bundle: .module)
-        case .permissionDenied: String(localized: "Skills Manager does not have permission for this operation.", bundle: .module)
-        case .unavailable: String(localized: "The deletion service is unavailable.", bundle: .module)
+        case .skillNotFound: String(localized: "The managed Skill was not found.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .conflict: String(localized: "The managed Skill changed during deletion.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .previewExpired: String(localized: "The preview expired because the managed state changed.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .operationInProgress: String(localized: "A deletion operation is already in progress.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .needsRepair: String(localized: "The deletion operation requires repair.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .backupCorrupt: String(localized: "The Skill backup is missing or corrupt.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .permissionDenied: String(localized: "Skills Manager does not have permission for this operation.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .unavailable: String(localized: "The deletion service is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }
@@ -286,7 +286,7 @@ private struct SkillRestoreConfirmationView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Restore Skill", bundle: .module)
+            Text("Restore Skill", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.title.bold())
                     Text(verbatim: pending.preview.summary.content.displayName)
                 .font(.title3)
@@ -299,8 +299,8 @@ private struct SkillRestoreConfirmationView: View {
             }
 
             if model.isRestoring {
-                ProgressView(String(localized: "Restoring verified backup…", bundle: .module))
-                    .accessibilityLabel(Text("Restoring verified Skill backup", bundle: .module))
+                ProgressView(String(localized: "Restoring verified backup…", bundle: SkillsManagerLocalizationResources.bundle))
+                    .accessibilityLabel(Text("Restoring verified Skill backup", bundle: SkillsManagerLocalizationResources.bundle))
             }
             if let problem = model.problem {
                 Label(problem.message, systemImage: "exclamationmark.triangle.fill")
@@ -327,40 +327,40 @@ private struct SkillRestoreConfirmationView: View {
                 LabeledContent {
                     Text(pending.preview.originalSkillID.directoryName)
                 } label: {
-                    Text("Original Skill ID", bundle: .module)
+                    Text("Original Skill ID", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 LabeledContent {
                     Text(pending.preview.targetSkillID.directoryName)
                 } label: {
-                    Text("Target Skill ID", bundle: .module)
+                    Text("Target Skill ID", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 LabeledContent {
                     Text(verbatim: pending.preview.targetSkillID == pending.preview.originalSkillID
-                        ? String(localized: "Original identity", bundle: .module)
-                        : String(localized: "Independent Skill", bundle: .module))
+                        ? String(localized: "Original identity", bundle: SkillsManagerLocalizationResources.bundle)
+                        : String(localized: "Independent Skill", bundle: SkillsManagerLocalizationResources.bundle))
                 } label: {
-                    Text("Restore mode", bundle: .module)
+                    Text("Restore mode", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 LabeledContent {
                     Text(pending.preview.summary.content.contentFingerprint.shortDisplayName)
                 } label: {
-                    Text("Content", bundle: .module)
+                    Text("Content", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 LabeledContent {
                     Text(pending.preview.summary.content.statistics.fileCount.formatted(.number))
                 } label: {
-                    Text("Files", bundle: .module)
+                    Text("Files", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 LabeledContent {
                     Text(pending.preview.summary.content.statistics.byteCountDescription)
                 } label: {
-                    Text("Size", bundle: .module)
+                    Text("Size", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 if let source = pending.preview.summary.sourceLocator {
                     LabeledContent {
                         Text(verbatim: source)
                     } label: {
-                        Text("Source", bundle: .module)
+                        Text("Source", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                 }
 
@@ -371,15 +371,15 @@ private struct SkillRestoreConfirmationView: View {
                         set: { model.restoreDistribution = $0 }
                     )
                 ) {
-                    Text("Also restore the original Agent targets", bundle: .module)
+                    Text("Also restore the original Agent targets", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                     .disabled(pending.preview.summary.targets.isEmpty || model.isRestoring)
                     .accessibilityHint(Text(
                         "If a target conflicts, the Skill remains restored without Agent links.",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     ))
                 if pending.preview.summary.targets.isEmpty {
-                    Text("This backup did not have any Agent targets.", bundle: .module)
+                    Text("This backup did not have any Agent targets.", bundle: SkillsManagerLocalizationResources.bundle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -393,7 +393,7 @@ private struct SkillRestoreConfirmationView: View {
             }
             .padding(.top, 4)
         } label: {
-            Text("Verified manifest", bundle: .module)
+            Text("Verified manifest", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -405,7 +405,7 @@ private struct SkillRestoreConfirmationView: View {
                 LabeledContent {
                     Text(verbatim: result.restoredSkillID.directoryName)
                 } label: {
-                    Text("Restored Skill ID", bundle: .module)
+                    Text("Restored Skill ID", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 ForEach(result.warnings, id: \.self) { warning in
                     Label {
@@ -418,7 +418,7 @@ private struct SkillRestoreConfirmationView: View {
             }
             .padding(.top, 4)
         } label: {
-            Text("Result", bundle: .module)
+            Text("Result", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -430,7 +430,7 @@ private struct SkillRestoreConfirmationView: View {
                     model.cancelRestorePreview()
                     dismiss()
                 } label: {
-                    Text("Cancel", bundle: .module)
+                    Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut(.cancelAction)
                 .disabled(model.isRestoring)
@@ -443,7 +443,7 @@ private struct SkillRestoreConfirmationView: View {
                     model.finishRestorePresentation()
                     dismiss()
                 } label: {
-                    Text("Done", bundle: .module)
+                    Text("Done", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.isRestoring)
@@ -451,14 +451,14 @@ private struct SkillRestoreConfirmationView: View {
                 Button {
                     Task { await model.confirmRestore() }
                 } label: {
-                    Text("Restore", bundle: .module)
+                    Text("Restore", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.isRestoring)
                 .accessibilityLabel(Text(
                     model.isRestoring ? "Restore in progress" : "Restore verified backup",
-                    bundle: .module
+                    bundle: SkillsManagerLocalizationResources.bundle
                 ))
             }
         }
@@ -466,27 +466,27 @@ private struct SkillRestoreConfirmationView: View {
 
     private func restoreStatusText(_ status: SkillRestoreStatus) -> String {
         return switch status {
-        case .ready: String(localized: "Ready to restore", bundle: .module)
-        case .noOp: String(localized: "Matching Skill already exists", bundle: .module)
-        case .completed: String(localized: "Restored", bundle: .module)
-        case .restoredUndistributed: String(localized: "Restored without Agent targets", bundle: .module)
+        case .ready: String(localized: "Ready to restore", bundle: SkillsManagerLocalizationResources.bundle)
+        case .noOp: String(localized: "Matching Skill already exists", bundle: SkillsManagerLocalizationResources.bundle)
+        case .completed: String(localized: "Restored", bundle: SkillsManagerLocalizationResources.bundle)
+        case .restoredUndistributed: String(localized: "Restored without Agent targets", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func restoreWarningText(_ warning: String) -> String {
         switch warning {
         case "distribution_conflict":
-            return String(localized: "The original Agent targets conflict with current managed content.", bundle: .module)
+            return String(localized: "The original Agent targets conflict with current managed content.", bundle: SkillsManagerLocalizationResources.bundle)
         case "source_conflict":
-            return String(localized: "The original repository identity is already used by another Skill.", bundle: .module)
+            return String(localized: "The original repository identity is already used by another Skill.", bundle: SkillsManagerLocalizationResources.bundle)
         case "source_unavailable":
-            return String(localized: "The original source could not be restored.", bundle: .module)
+            return String(localized: "The original source could not be restored.", bundle: SkillsManagerLocalizationResources.bundle)
         default:
             if warning.hasPrefix("alias_conflict:") {
-                return String(localized: "A provider alias is already used and was not restored.", bundle: .module)
+                return String(localized: "A provider alias is already used and was not restored.", bundle: SkillsManagerLocalizationResources.bundle)
             }
             if warning.hasPrefix("origin_conflict:") {
-                return String(localized: "A local origin is already used and was not restored.", bundle: .module)
+                return String(localized: "A local origin is already used and was not restored.", bundle: SkillsManagerLocalizationResources.bundle)
             }
             return warning
         }

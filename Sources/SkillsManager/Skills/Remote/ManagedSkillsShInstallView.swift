@@ -31,11 +31,11 @@ struct ManagedCustomRepositoryInstallView: View {
             )
         } else {
             ContentUnavailableView(
-                String(localized: "Installation unavailable", bundle: .module),
+                String(localized: "Installation unavailable", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "exclamationmark.triangle",
                 description: Text(
                     candidate.installProblem
-                        ?? String(localized: "The managed library is unavailable.", bundle: .module)
+                        ?? String(localized: "The managed library is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
                 )
             )
             .frame(minWidth: 520, minHeight: 320)
@@ -64,7 +64,7 @@ nonisolated struct ManagedGitHubResolvedInstall: Sendable {
             detail: String(
                 localized: LocalizedStringResource(
             "verify \(item.source), find one matching SKILL.md, and pin the install to an immutable GitHub commit.",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )),
             resolve: {
                 let source = try await client.resolve(item.id, item.source, item.skillID)
@@ -113,7 +113,7 @@ nonisolated struct ManagedGitHubResolvedInstall: Sendable {
             detail: String(
                 localized: LocalizedStringResource(
             "verify \(candidate.repository.displayName) at the discovered commit and exact Skill subpath.",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )),
             resolve: {
                 let source = try await client.resolveCustomRepository(candidate.snapshot)
@@ -165,7 +165,7 @@ private struct ManagedGitHubInstallView: View {
                     isDisabled: isWorking
                 )
                 if isResolving {
-                    ProgressView(String(localized: "Resolving and validating GitHub source…", bundle: .module))
+                    ProgressView(String(localized: "Resolving and validating GitHub source…", bundle: SkillsManagerLocalizationResources.bundle))
                 }
                 if let problem = model.problem {
                     problemLabel(localizedManagedLocalImportProblem(problem))
@@ -202,7 +202,7 @@ private struct ManagedGitHubInstallView: View {
                 String(
                     localized: LocalizedStringResource(
             "Resolve and Install \(request.displayName)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
             )
                 .font(.title.bold())
@@ -210,7 +210,7 @@ private struct ManagedGitHubInstallView: View {
                 verbatim: String(
                     localized: LocalizedStringResource(
             "Skills Manager will \(request.detail)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
             )
                 .foregroundStyle(.secondary)
@@ -222,7 +222,7 @@ private struct ManagedGitHubInstallView: View {
             Button {
                 cancelAndDismiss()
             } label: {
-                Text("Cancel", bundle: .module)
+                Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
             }
             .keyboardShortcut(.cancelAction)
             .disabled(model.isExecuting || model.isFinalizing)
@@ -232,7 +232,7 @@ private struct ManagedGitHubInstallView: View {
             Button {
                 prepareInstall()
             } label: {
-                Text("Resolve and Review…", bundle: .module)
+                Text("Resolve and Review…", bundle: SkillsManagerLocalizationResources.bundle)
             }
             .buttonStyle(.borderedProminent)
             .disabled(!canPrepare)
@@ -374,7 +374,7 @@ private struct ManagedGitHubInstallView: View {
             Button {
                 dismiss()
             } label: {
-                Text("Close", bundle: .module)
+                Text("Close", bundle: SkillsManagerLocalizationResources.bundle)
             }
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("install.result.close")

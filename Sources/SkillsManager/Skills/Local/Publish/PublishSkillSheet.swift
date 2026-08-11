@@ -18,12 +18,12 @@ struct PublishSkillSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Publish Skill", bundle: .module)
+                Text("Publish Skill", bundle: SkillsManagerLocalizationResources.bundle)
                     .font(.title.bold())
                 Text(String(
                     localized: LocalizedStringResource(
             "Push changes for \(displayName) to ClawHub.",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
                     .foregroundStyle(.secondary)
             }
@@ -35,19 +35,19 @@ struct PublishSkillSheet: View {
                             Text(verbatim: bumpText(bump)).tag(bump)
                         }
                     } label: {
-                        Text("Version bump", bundle: .module)
+                        Text("Version bump", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     Text(String(
                         localized: LocalizedStringResource(
             "Will publish v\(nextVersion)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Changelog", bundle: .module)
+                    Text("Changelog", bundle: SkillsManagerLocalizationResources.bundle)
                         .font(.subheadline.weight(.semibold))
                     TextEditor(text: $changelog)
                         .frame(minHeight: 90)
@@ -66,13 +66,13 @@ struct PublishSkillSheet: View {
                 Button {
                     dismiss()
                 } label: {
-                    Text("Cancel", bundle: .module)
+                    Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 Spacer()
                 Button {
                     Task { await publishSkill() }
                 } label: {
-                    Text(isPublishing ? "Publishing…" : "Publish", bundle: .module)
+                    Text(isPublishing ? "Publishing…" : "Publish", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isPublishing || changelog.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -80,16 +80,16 @@ struct PublishSkillSheet: View {
         }
         .padding(24)
         .frame(minWidth: 420, minHeight: 360)
-        .alert(Text("Publish result", bundle: .module), isPresented: errorBinding) {
+        .alert(Text("Publish result", bundle: SkillsManagerLocalizationResources.bundle), isPresented: errorBinding) {
             Button(role: .cancel) {
             } label: {
-                Text("OK", bundle: .module)
+                Text("OK", bundle: SkillsManagerLocalizationResources.bundle)
             }
         } message: {
             if let errorMessage {
                 Text(errorMessage)
             } else {
-                Text("Unable to publish this skill.", bundle: .module)
+                Text("Unable to publish this skill.", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
     }
@@ -132,9 +132,9 @@ struct PublishSkillSheet: View {
 
     private func bumpText(_ bump: PublishBump) -> String {
         switch bump {
-        case .patch: String(localized: "Patch", bundle: .module)
-        case .minor: String(localized: "Minor", bundle: .module)
-        case .major: String(localized: "Major", bundle: .module)
+        case .patch: String(localized: "Patch", bundle: SkillsManagerLocalizationResources.bundle)
+        case .minor: String(localized: "Minor", bundle: SkillsManagerLocalizationResources.bundle)
+        case .major: String(localized: "Major", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }

@@ -31,9 +31,9 @@ import Observation
     }
 
     private(set) var deletionState: DeletionLoadState =
-        .blocked(String(localized: "Preparing the managed library…", bundle: .module))
+        .blocked(String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle))
     private(set) var backupState: BackupLoadState =
-        .blocked(String(localized: "Preparing the managed library…", bundle: .module))
+        .blocked(String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle))
     private(set) var backups: [SkillBackupCatalogItem] = []
     private(set) var recoverableDeletions: [SkillDeletionResult] = []
     private(set) var pendingDeletion: PendingDeletion?
@@ -54,7 +54,7 @@ import Observation
 
     private var dependencies: SkillLifecycleDependencies?
     private var runtimeReady = false
-    private var runtimeBlockMessage = String(localized: "Preparing the managed library…", bundle: .module)
+    private var runtimeBlockMessage = String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle)
     private var activeSkillID: SkillID?
     private var deletionGeneration: UInt64 = 0
     private var backupGeneration: UInt64 = 0
@@ -357,9 +357,9 @@ import Observation
     private func publishDeletionResult(_ result: SkillDeletionResult) {
         switch result.status {
         case .completed:
-            successMessage = String(localized: "The Skill was deleted and cleanup completed.", bundle: .module)
+            successMessage = String(localized: "The Skill was deleted and cleanup completed.", bundle: SkillsManagerLocalizationResources.bundle)
         case .cleanupPending:
-            successMessage = String(localized: "The Skill was deleted. Cleanup still needs to finish.", bundle: .module)
+            successMessage = String(localized: "The Skill was deleted. Cleanup still needs to finish.", bundle: SkillsManagerLocalizationResources.bundle)
         case .rolledBack:
             problem = .rolledBack
         case .needsRepair:
@@ -374,9 +374,9 @@ import Observation
     private func publishRestoreResult(_ result: SkillRestoreResult) {
         switch result.status {
         case .completed:
-            successMessage = String(localized: "The Skill was restored.", bundle: .module)
+            successMessage = String(localized: "The Skill was restored.", bundle: SkillsManagerLocalizationResources.bundle)
         case .noOp:
-            successMessage = String(localized: "The matching Skill was already restored.", bundle: .module)
+            successMessage = String(localized: "The matching Skill was already restored.", bundle: SkillsManagerLocalizationResources.bundle)
         case .restoredUndistributed:
             problem = .restoredUndistributed
         case .ready:

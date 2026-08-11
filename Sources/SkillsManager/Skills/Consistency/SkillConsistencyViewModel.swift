@@ -131,7 +131,7 @@ private actor SkillConsistencySession {
     }
 
     private(set) var loadState: LoadState =
-        .blocked(String(localized: "Preparing the managed library…", bundle: .module))
+        .blocked(String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle))
     private(set) var pendingPreview: PendingPreview?
     private(set) var problem: Problem?
     private(set) var successMessage: String?
@@ -143,7 +143,7 @@ private actor SkillConsistencySession {
     private var dependencies: SkillConsistencyDependencies?
     private var preparedAudit: SkillConsistencyAuditPrepared?
     private var runtimeReady = false
-    private var runtimeBlockMessage = String(localized: "Preparing the managed library…", bundle: .module)
+    private var runtimeBlockMessage = String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle)
     private var generation: UInt64 = 0
     private var auditRequested = false
 
@@ -163,7 +163,7 @@ private actor SkillConsistencySession {
         self.dependencies = dependencies
         runtimeReady = true
         if preparedAudit == nil {
-            loadState = .blocked(String(localized: "Run an audit to inspect the managed library.", bundle: .module))
+            loadState = .blocked(String(localized: "Run an audit to inspect the managed library.", bundle: SkillsManagerLocalizationResources.bundle))
         }
         return needsRefresh
     }
@@ -234,7 +234,7 @@ private actor SkillConsistencySession {
             problem = nil
             successMessage = String(
                 localized: "Kept for this session. A future audit will show it again.",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             )
             return
         }
@@ -314,8 +314,8 @@ private actor SkillConsistencySession {
             )
             return PendingPreview(
                 id: repair.confirmationID,
-                title: String(localized: "Rebuild missing links", bundle: .module),
-                summary: String(localized: "Recreate every missing managed Symlink for this Skill.", bundle: .module),
+                title: String(localized: "Rebuild missing links", bundle: SkillsManagerLocalizationResources.bundle),
+                summary: String(localized: "Recreate every missing managed Symlink for this Skill.", bundle: SkillsManagerLocalizationResources.bundle),
                 details: scopeKeys.sorted(),
                 affectedFindingIDs: finding.affectedFindingIDs,
                 generation: generation,
@@ -331,8 +331,8 @@ private actor SkillConsistencySession {
             )
             return PendingPreview(
                 id: repair.confirmationID,
-                title: String(localized: "Disable missing target", bundle: .module),
-                summary: String(localized: "Remove the selected missing target from managed distribution.", bundle: .module),
+                title: String(localized: "Disable missing target", bundle: SkillsManagerLocalizationResources.bundle),
+                summary: String(localized: "Remove the selected missing target from managed distribution.", bundle: SkillsManagerLocalizationResources.bundle),
                 details: scopeKeys.sorted(),
                 affectedFindingIDs: [finding.id],
                 generation: generation,
@@ -350,39 +350,39 @@ private actor SkillConsistencySession {
             var details = [
                 String(localized: LocalizedStringResource(
             "Source: \(migration.sourceLocator)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )),
                 String(localized: LocalizedStringResource(
             "SSOT: \(migration.ssotAbsoluteTarget)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )),
                 String(localized: LocalizedStringResource(
             "Backup: \(migration.backupID.uuid.uuidString.lowercased())",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )),
                 String(localized: LocalizedStringResource(
             "Operation: \(migration.operationID.uuid.uuidString.lowercased())",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )),
             ]
             if independent {
-                details.insert(String(localized: "Identity: new independent Skill UUID", bundle: .module), at: 0)
+                details.insert(String(localized: "Identity: new independent Skill UUID", bundle: SkillsManagerLocalizationResources.bundle), at: 0)
             }
             let localizedTitle: String
             switch action {
             case .migrate(.importNew, true):
-                localizedTitle = String(localized: "Import as independent Skill, back up and migrate", bundle: .module)
+                localizedTitle = String(localized: "Import as independent Skill, back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
             case .migrate(.importNew, false):
-                localizedTitle = String(localized: "Import, back up and migrate", bundle: .module)
+                localizedTitle = String(localized: "Import, back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
             case .migrate(.claimExisting, _):
-                localizedTitle = String(localized: "Claim, back up and migrate", bundle: .module)
+                localizedTitle = String(localized: "Claim, back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
             case .migrate(nil, _), .keepForNow, .rebuildMissingSymlinks(_), .disableMissingBinding(_):
-                localizedTitle = String(localized: "Back up and migrate", bundle: .module)
+                localizedTitle = String(localized: "Back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
             }
             return PendingPreview(
                 id: migration.token.uuid,
                 title: localizedTitle,
-                summary: String(localized: "Back up the original directory, then replace it with a managed Symlink.", bundle: .module),
+                summary: String(localized: "Back up the original directory, then replace it with a managed Symlink.", bundle: SkillsManagerLocalizationResources.bundle),
                 details: details,
                 affectedFindingIDs: [finding.id],
                 generation: generation,
@@ -418,7 +418,7 @@ private actor SkillConsistencySession {
         generation &+= 1
         pendingPreview = nil
         keptFindingIDs = []
-        successMessage = String(localized: "Completed and verified by a fresh consistency audit.", bundle: .module)
+        successMessage = String(localized: "Completed and verified by a fresh consistency audit.", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
     private enum VerificationError: Error {
@@ -429,49 +429,49 @@ private actor SkillConsistencySession {
         if error is VerificationError {
             return Problem(
                 kind: .partial,
-                message: String(localized: "The operation finished, but a fresh audit could not verify consistency.", bundle: .module)
+                message: String(localized: "The operation finished, but a fresh audit could not verify consistency.", bundle: SkillsManagerLocalizationResources.bundle)
             )
         }
         if let error = error as? SkillConsistencyAuditError {
             return switch error {
             case .sourceChanged:
-                Problem(kind: .stale, message: String(localized: "The library changed. Refresh the audit.", bundle: .module))
+                Problem(kind: .stale, message: String(localized: "The library changed. Refresh the audit.", bundle: SkillsManagerLocalizationResources.bundle))
             case .permissionDenied:
-                Problem(kind: .permission, message: String(localized: "Permission denied while auditing the library.", bundle: .module))
+                Problem(kind: .permission, message: String(localized: "Permission denied while auditing the library.", bundle: SkillsManagerLocalizationResources.bundle))
             case .inconsistentCatalog:
-                Problem(kind: .needsRepair, message: String(localized: "Managed catalog repair is required.", bundle: .module))
+                Problem(kind: .needsRepair, message: String(localized: "Managed catalog repair is required.", bundle: SkillsManagerLocalizationResources.bundle))
             case .rootUnavailable, .databaseUnavailable, .writerUnavailable:
-                Problem(kind: .unavailable, message: String(localized: "The managed library is unavailable.", bundle: .module))
+                Problem(kind: .unavailable, message: String(localized: "The managed library is unavailable.", bundle: SkillsManagerLocalizationResources.bundle))
             }
         }
         if let error = error as? SkillConsistencyRepairError {
             return switch error {
             case .stalePreview:
-                Problem(kind: .stale, message: String(localized: "The preview is stale. Refresh the audit.", bundle: .module))
+                Problem(kind: .stale, message: String(localized: "The preview is stale. Refresh the audit.", bundle: SkillsManagerLocalizationResources.bundle))
             case .permissionDenied:
-                Problem(kind: .permission, message: String(localized: "Permission denied while applying the repair.", bundle: .module))
+                Problem(kind: .permission, message: String(localized: "Permission denied while applying the repair.", bundle: SkillsManagerLocalizationResources.bundle))
             case .operationInProgress:
-                Problem(kind: .operationInProgress, message: String(localized: "Another operation is in progress.", bundle: .module))
+                Problem(kind: .operationInProgress, message: String(localized: "Another operation is in progress.", bundle: SkillsManagerLocalizationResources.bundle))
             case .needsRepair:
-                Problem(kind: .needsRepair, message: String(localized: "The operation requires manual recovery.", bundle: .module))
+                Problem(kind: .needsRepair, message: String(localized: "The operation requires manual recovery.", bundle: SkillsManagerLocalizationResources.bundle))
             default:
-                Problem(kind: .unavailable, message: String(localized: "This repair is not currently available.", bundle: .module))
+                Problem(kind: .unavailable, message: String(localized: "This repair is not currently available.", bundle: SkillsManagerLocalizationResources.bundle))
             }
         }
         if let error = error as? HistoricalSkillMigrationError {
             return switch error {
             case .stalePreview, .sourceChanged:
-                Problem(kind: .stale, message: String(localized: "The source changed. Refresh the audit.", bundle: .module))
+                Problem(kind: .stale, message: String(localized: "The source changed. Refresh the audit.", bundle: SkillsManagerLocalizationResources.bundle))
             case .permissionDenied:
-                Problem(kind: .permission, message: String(localized: "Permission denied while migrating the Skill.", bundle: .module))
+                Problem(kind: .permission, message: String(localized: "Permission denied while migrating the Skill.", bundle: SkillsManagerLocalizationResources.bundle))
             case .operationInProgress:
-                Problem(kind: .operationInProgress, message: String(localized: "Another operation is in progress.", bundle: .module))
+                Problem(kind: .operationInProgress, message: String(localized: "Another operation is in progress.", bundle: SkillsManagerLocalizationResources.bundle))
             case .needsRepair, .backupUnavailable:
-                Problem(kind: .needsRepair, message: String(localized: "Migration recovery is required.", bundle: .module))
+                Problem(kind: .needsRepair, message: String(localized: "Migration recovery is required.", bundle: SkillsManagerLocalizationResources.bundle))
             default:
-                Problem(kind: .unavailable, message: String(localized: "This migration is not currently available.", bundle: .module))
+                Problem(kind: .unavailable, message: String(localized: "This migration is not currently available.", bundle: SkillsManagerLocalizationResources.bundle))
             }
         }
-        return Problem(kind: .unavailable, message: String(localized: "The operation could not be completed.", bundle: .module))
+        return Problem(kind: .unavailable, message: String(localized: "The operation could not be completed.", bundle: SkillsManagerLocalizationResources.bundle))
     }
 }

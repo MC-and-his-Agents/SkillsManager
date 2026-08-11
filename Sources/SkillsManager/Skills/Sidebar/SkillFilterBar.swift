@@ -79,13 +79,13 @@ struct SkillFilterBar: View {
                         String(
                             localized: LocalizedStringResource(
             "Status: \(statusText(value))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                     ))
                     .accessibilityValue(
                         Text(
                             filters.status == value ? "Selected" : "Not selected",
-                            bundle: .module
+                            bundle: SkillsManagerLocalizationResources.bundle
                         )
                     )
                     .accessibilityIdentifier("skills.filter.status.\(statusKey(for: value))")
@@ -119,10 +119,10 @@ struct SkillFilterBar: View {
 
     private func statusText(_ value: SkillListStatusFilter) -> String {
         switch value {
-        case .all: String(localized: "All Statuses", bundle: .module)
-        case .managed: String(localized: "Managed", bundle: .module)
-        case .needsImport: String(localized: "Needs Import", bundle: .module)
-        case .available: String(localized: "Available", bundle: .module)
+        case .all: String(localized: "All Statuses", bundle: SkillsManagerLocalizationResources.bundle)
+        case .managed: String(localized: "Managed", bundle: SkillsManagerLocalizationResources.bundle)
+        case .needsImport: String(localized: "Needs Import", bundle: SkillsManagerLocalizationResources.bundle)
+        case .available: String(localized: "Available", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -144,13 +144,13 @@ struct SkillFilterBar: View {
                         String(
                             localized: LocalizedStringResource(
             "Source: \(sourceText(value))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                     ))
                     .accessibilityValue(
                         Text(
                             filters.source == value ? "Selected" : "Not selected",
-                            bundle: .module
+                            bundle: SkillsManagerLocalizationResources.bundle
                         )
                     )
                     .accessibilityIdentifier("skills.filter.source.\(sourceKey(for: value))")
@@ -165,25 +165,25 @@ struct SkillFilterBar: View {
 
     private func sourceShortText(for value: SkillListSourceFilter) -> String {
         guard case .source(let source) = value else {
-            return String(localized: "All", bundle: .module)
+            return String(localized: "All", bundle: SkillsManagerLocalizationResources.bundle)
         }
         switch source {
-        case .local: return String(localized: "Local", bundle: .module)
-        case .repository: return String(localized: "Repo", bundle: .module)
-        case .clawHub: return String(localized: "ClawHub", bundle: .module)
-        case .skillsSh: return String(localized: "skills.sh", bundle: .module)
+        case .local: return String(localized: "Local", bundle: SkillsManagerLocalizationResources.bundle)
+        case .repository: return String(localized: "Repo", bundle: SkillsManagerLocalizationResources.bundle)
+        case .clawHub: return String(localized: "ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
+        case .skillsSh: return String(localized: "skills.sh", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func sourceText(_ value: SkillListSourceFilter) -> String {
         switch value {
-        case .all: String(localized: "All Sources", bundle: .module)
+        case .all: String(localized: "All Sources", bundle: SkillsManagerLocalizationResources.bundle)
         case .source(let source):
             switch source {
-            case .local: String(localized: "Local", bundle: .module)
-            case .repository: String(localized: "Repository", bundle: .module)
-            case .clawHub: String(localized: "ClawHub", bundle: .module)
-            case .skillsSh: String(localized: "skills.sh", bundle: .module)
+            case .local: String(localized: "Local", bundle: SkillsManagerLocalizationResources.bundle)
+            case .repository: String(localized: "Repository", bundle: SkillsManagerLocalizationResources.bundle)
+            case .clawHub: String(localized: "ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
+            case .skillsSh: String(localized: "skills.sh", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
     }
@@ -221,13 +221,13 @@ struct SkillFilterBar: View {
                         String(
                             localized: LocalizedStringResource(
             "Agent: \(agentText(value))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                     ))
                     .accessibilityValue(
                         Text(
                             filters.agent == value ? "Selected" : "Not selected",
-                            bundle: .module
+                            bundle: SkillsManagerLocalizationResources.bundle
                         )
                     )
                     .accessibilityIdentifier("skills.filter.agent.\(agentKey(for: value))")
@@ -242,25 +242,25 @@ struct SkillFilterBar: View {
 
     private func agentShortText(for value: SkillListAgentFilter) -> String {
         guard case .agent(let platform) = value else {
-            return String(localized: "All", bundle: .module)
+            return String(localized: "All", bundle: SkillsManagerLocalizationResources.bundle)
         }
         switch platform {
-        case .codex: return String(localized: "Codex", bundle: .module)
-        case .claude: return String(localized: "Claude", bundle: .module)
-        case .opencode: return String(localized: "OpenCode", bundle: .module)
-        case .copilot: return String(localized: "Copilot", bundle: .module)
+        case .codex: return String(localized: "Codex", bundle: SkillsManagerLocalizationResources.bundle)
+        case .claude: return String(localized: "Claude", bundle: SkillsManagerLocalizationResources.bundle)
+        case .opencode: return String(localized: "OpenCode", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copilot: return String(localized: "Copilot", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func agentText(_ value: SkillListAgentFilter) -> String {
         switch value {
-        case .all: String(localized: "All Agents", bundle: .module)
+        case .all: String(localized: "All Agents", bundle: SkillsManagerLocalizationResources.bundle)
         case .agent(let platform):
             switch platform {
-            case .codex: String(localized: "Codex", bundle: .module)
-            case .claude: String(localized: "Claude Code", bundle: .module)
-            case .opencode: String(localized: "OpenCode", bundle: .module)
-            case .copilot: String(localized: "GitHub Copilot", bundle: .module)
+            case .codex: String(localized: "Codex", bundle: SkillsManagerLocalizationResources.bundle)
+            case .claude: String(localized: "Claude Code", bundle: SkillsManagerLocalizationResources.bundle)
+            case .opencode: String(localized: "OpenCode", bundle: SkillsManagerLocalizationResources.bundle)
+            case .copilot: String(localized: "GitHub Copilot", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
     }
@@ -305,9 +305,9 @@ struct SkillFilterBar: View {
 
     private var collapseLabelText: String {
         if collapsed {
-            return String(localized: "Show filters", bundle: .module)
+            return String(localized: "Show filters", bundle: SkillsManagerLocalizationResources.bundle)
         }
-        return String(localized: "Hide filters", bundle: .module)
+        return String(localized: "Hide filters", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
     private var summaryLine: some View {
@@ -327,7 +327,7 @@ struct SkillFilterBar: View {
             String(
                 localized: LocalizedStringResource(
             "Active filters: \(summaryText)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
         ))
         .accessibilityIdentifier("skills.filter.summary")
@@ -335,7 +335,7 @@ struct SkillFilterBar: View {
 
     private var summaryText: String {
         if !filters.isActive {
-            return String(localized: "All Skills", bundle: .module)
+            return String(localized: "All Skills", bundle: SkillsManagerLocalizationResources.bundle)
         }
         let components = [
             (statusText(filters.status), filters.status != .all),

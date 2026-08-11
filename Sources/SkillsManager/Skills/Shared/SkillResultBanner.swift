@@ -19,7 +19,7 @@ struct SkillResultBanner: View {
                 .accessibilityLabel(Text(String(
                     localized: LocalizedStringResource(
                         "Result: \(message)",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     )
                 )))
             Spacer(minLength: 4)
@@ -28,7 +28,7 @@ struct SkillResultBanner: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("skills.result.close")
-            .accessibilityLabel(Text("Close", bundle: .module))
+            .accessibilityLabel(Text("Close", bundle: SkillsManagerLocalizationResources.bundle))
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)

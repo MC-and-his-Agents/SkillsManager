@@ -12,7 +12,7 @@ import Observation
     }
 
     private(set) var loadState: LoadState = .blocked(
-        String(localized: "Preparing the managed library…", bundle: .module)
+        String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle)
     )
     private(set) var activeSkillID: SkillID?
     private(set) var isChecking = false
@@ -32,7 +32,7 @@ import Observation
     private var hasDeferredRefresh = false
     private var deferredRefreshSkillID: SkillID?
     private var generation: UInt64 = 0
-    private var runtimeBlockMessage = String(localized: "Preparing the managed library…", bundle: .module)
+    private var runtimeBlockMessage = String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle)
 
     init(
         admission: ManagedSkillUpdateAdmission = ManagedSkillUpdateAdmission(),

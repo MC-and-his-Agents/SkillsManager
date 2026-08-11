@@ -17,14 +17,14 @@ struct SkillsShSearchDetailView: View {
                             TagView(text: item.source)
                             TagView(localized: LocalizedStringResource(
             "\(item.installs) installs",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                         }
 
                         Label {
                             Text(
                                 "Before installation, Skills Manager verifies a unique repository subpath and immutable GitHub revision.",
-                                bundle: .module
+                                bundle: SkillsManagerLocalizationResources.bundle
                             )
                         } icon: {
                             Image(systemName: "lock.shield")
@@ -35,24 +35,24 @@ struct SkillsShSearchDetailView: View {
                         Button {
                             installItem = item
                         } label: {
-                            Text("Resolve and Install…", bundle: .module)
+                            Text("Resolve and Install…", bundle: SkillsManagerLocalizationResources.bundle)
                         }
                         .buttonStyle(.borderedProminent)
                         .accessibilityHint(Text(
                             "Verifies the public GitHub source before showing an install preview",
-                            bundle: .module
+                            bundle: SkillsManagerLocalizationResources.bundle
                         ))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                 }
                 .navigationTitle(item.name)
-                .navigationSubtitle(String(localized: "skills.sh", bundle: .module))
+                .navigationSubtitle(String(localized: "skills.sh", bundle: SkillsManagerLocalizationResources.bundle))
             } else {
                 ContentUnavailableView(
-                    String(localized: "Select a skill", bundle: .module),
+                    String(localized: "Select a skill", bundle: SkillsManagerLocalizationResources.bundle),
                     systemImage: "magnifyingglass",
-                    description: Text("Choose a skills.sh result.", bundle: .module)
+                    description: Text("Choose a skills.sh result.", bundle: SkillsManagerLocalizationResources.bundle)
                 )
             }
         }
@@ -88,9 +88,9 @@ struct SkillsShSearchRow: View {
             accessibilityLabel: String(
                 localized: LocalizedStringResource(
             "\(item.name), Available, skills.sh, \(item.installs) installs, source \(item.source)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )),
-            accessibilityValue: String(localized: "Available, skills.sh, 0 Agents", bundle: .module)
+            accessibilityValue: String(localized: "Available, skills.sh, 0 Agents", bundle: SkillsManagerLocalizationResources.bundle)
         ))
     }
 }

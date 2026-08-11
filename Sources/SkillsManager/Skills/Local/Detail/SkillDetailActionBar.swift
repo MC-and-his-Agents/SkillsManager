@@ -119,7 +119,7 @@ private struct SkillDetailActionBarContent: View {
         .accessibilityLabel(Text(String(
             localized: LocalizedStringResource(
             "Status: \(badgeText(badge.title))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))))
         .accessibilityValue(Text(verbatim: badgeAccessibilityText(badge.accessibilityValue)))
         .accessibilityIdentifier("skills.detail.badge")
@@ -133,7 +133,7 @@ private struct SkillDetailActionBarContent: View {
                     .accessibilityLabel(Text(String(
                         localized: LocalizedStringResource(
             "Source: \(sourceText(label))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))))
                     .accessibilityIdentifier("skills.detail.source.\(label.text)")
             }
@@ -161,7 +161,7 @@ private struct SkillDetailActionBarContent: View {
                 .accessibilityLabel(Text(String(
                     localized: LocalizedStringResource(
             "\(platformText(row.platform)) distribution",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))))
                 .accessibilityValue(
                     String(
@@ -169,13 +169,13 @@ private struct SkillDetailActionBarContent: View {
             row.isSelected
                             ? "Selected; currently \(enabledText(row.isCurrentlyEnabled))"
                             : "Not selected; currently \(enabledText(row.isCurrentlyEnabled))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                 )
                 .accessibilityHint(Text(String(
                     localized: LocalizedStringResource(
             "Target: \(row.locator)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))))
                 .accessibilityIdentifier("skills.detail.agent.\(row.platform.storageKey)")
             }
@@ -189,13 +189,13 @@ private struct SkillDetailActionBarContent: View {
             || updateCheckModel.isUpdating {
             ProgressView()
                 .controlSize(.small)
-                .accessibilityLabel(Text("Checking for updates", bundle: .module))
+                .accessibilityLabel(Text("Checking for updates", bundle: SkillsManagerLocalizationResources.bundle))
         } else if let snapshot = loadedSnapshot, snapshot.hasExecutableRemoteUpdate {
             Button {
                 Task { await updateCheckModel.prepareUpdate(snapshot) }
             } label: {
             Label {
-                Text("Review Update", bundle: .module)
+                Text("Review Update", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "arrow.down.circle.fill")
             }
@@ -203,17 +203,17 @@ private struct SkillDetailActionBarContent: View {
             .buttonStyle(.borderedProminent)
             .keyboardShortcut("u", modifiers: [.command, .shift])
             .accessibilityIdentifier("skills.detail.update")
-            .accessibilityValue(Text("Update available", bundle: .module))
+            .accessibilityValue(Text("Update available", bundle: SkillsManagerLocalizationResources.bundle))
             .accessibilityHint(Text(
                 "Reviews the remote update before anything is written.",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         } else {
             Button {
                 Task { await updateCheckModel.checkCurrent() }
             } label: {
                 Label {
-                    Text("Check for Updates", bundle: .module)
+                    Text("Check for Updates", bundle: SkillsManagerLocalizationResources.bundle)
                 } icon: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -223,7 +223,7 @@ private struct SkillDetailActionBarContent: View {
             .accessibilityIdentifier("skills.detail.update")
             .accessibilityValue(Text(
                 loadedSnapshot == nil ? "Update check unavailable" : "No update available",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         }
     }
@@ -239,7 +239,7 @@ private struct SkillDetailActionBarContent: View {
             showingBatchUpdates = true
         } label: {
             Label {
-                Text("Batch Updates", bundle: .module)
+                Text("Batch Updates", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "arrow.down.circle")
             }
@@ -258,15 +258,15 @@ private struct SkillDetailActionBarContent: View {
 
     private var batchUpdateHelp: String {
         if libraryRuntime.readiness != .ready {
-            return String(localized: "Batch updates are unavailable until the managed library is ready.", bundle: .module)
+            return String(localized: "Batch updates are unavailable until the managed library is ready.", bundle: SkillsManagerLocalizationResources.bundle)
         }
         if store.skills.isEmpty {
-            return String(localized: "Import a managed Skill before checking for batch updates.", bundle: .module)
+            return String(localized: "Import a managed Skill before checking for batch updates.", bundle: SkillsManagerLocalizationResources.bundle)
         }
         if batchUpdateModel.operationActive {
-            return String(localized: "A batch update is already running.", bundle: .module)
+            return String(localized: "A batch update is already running.", bundle: SkillsManagerLocalizationResources.bundle)
         }
-        return String(localized: "Check all managed Skills for updates.", bundle: .module)
+        return String(localized: "Check all managed Skills for updates.", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
     private func configureBatchUpdates() {
@@ -284,26 +284,26 @@ private struct SkillDetailActionBarContent: View {
             NSWorkspace.shared.open(finderURL)
         } label: {
             Label {
-                Text("Show in Finder", bundle: .module)
+                Text("Show in Finder", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "folder")
             }
         }
         .disabled(finderURL == nil)
         .accessibilityIdentifier("skills.detail.finder")
-        .help(Text("Opens the Skill folder in Finder", bundle: .module))
+        .help(Text("Opens the Skill folder in Finder", bundle: SkillsManagerLocalizationResources.bundle))
     }
 
     private var fullSettingsButton: some View {
         Button(action: onFullSettings) {
             Label {
-                Text("Full Settings…", bundle: .module)
+                Text("Full Settings…", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "slider.horizontal.3")
             }
         }
         .accessibilityIdentifier("skills.detail.full-settings")
-        .help(Text("Scrolls to the complete distribution editor", bundle: .module))
+        .help(Text("Scrolls to the complete distribution editor", bundle: SkillsManagerLocalizationResources.bundle))
     }
 
     private var deleteButton: some View {
@@ -311,7 +311,7 @@ private struct SkillDetailActionBarContent: View {
             lifecycleModel.prepareDeletion()
         } label: {
             Label {
-                Text("Delete", bundle: .module)
+                Text("Delete", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "trash")
             }
@@ -321,7 +321,7 @@ private struct SkillDetailActionBarContent: View {
         .accessibilityIdentifier("skills.detail.delete")
         .accessibilityHint(Text(
             "Backs up the Skill, removes managed Agent links, and deletes the managed Skill.",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
     }
 
@@ -336,9 +336,9 @@ private struct SkillDetailActionBarContent: View {
     private func badgeText(_ value: String) -> String {
         switch value {
         case "Managed":
-            String(localized: "Managed", bundle: .module)
+            String(localized: "Managed", bundle: SkillsManagerLocalizationResources.bundle)
         case "Needs Attention":
-            String(localized: "Needs Attention", bundle: .module)
+            String(localized: "Needs Attention", bundle: SkillsManagerLocalizationResources.bundle)
         default:
             value
         }
@@ -347,11 +347,11 @@ private struct SkillDetailActionBarContent: View {
     private func badgeAccessibilityText(_ value: String) -> String {
         switch value {
         case "Managed and in sync":
-            String(localized: "Managed and in sync", bundle: .module)
+            String(localized: "Managed and in sync", bundle: SkillsManagerLocalizationResources.bundle)
         case "Managed Skill needs repair":
-            String(localized: "Managed Skill needs repair", bundle: .module)
+            String(localized: "Managed Skill needs repair", bundle: SkillsManagerLocalizationResources.bundle)
         case "Matches an existing managed Skill":
-            String(localized: "Matches an existing managed Skill", bundle: .module)
+            String(localized: "Matches an existing managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
         default:
             value
         }
@@ -361,33 +361,33 @@ private struct SkillDetailActionBarContent: View {
         guard let source = label.knownSource else { return label.text }
         switch source {
         case .local:
-            return String(localized: "Local", bundle: .module)
+            return String(localized: "Local", bundle: SkillsManagerLocalizationResources.bundle)
         case .repository:
-            return String(localized: "Repository", bundle: .module)
+            return String(localized: "Repository", bundle: SkillsManagerLocalizationResources.bundle)
         case .clawHub:
-            return String(localized: "ClawHub", bundle: .module)
+            return String(localized: "ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
         case .skillsSh:
-            return String(localized: "skills.sh", bundle: .module)
+            return String(localized: "skills.sh", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func platformText(_ platform: SkillPlatform) -> String {
         switch platform {
         case .codex:
-            String(localized: "Codex", bundle: .module)
+            String(localized: "Codex", bundle: SkillsManagerLocalizationResources.bundle)
         case .claude:
-            String(localized: "Claude Code", bundle: .module)
+            String(localized: "Claude Code", bundle: SkillsManagerLocalizationResources.bundle)
         case .opencode:
-            String(localized: "OpenCode", bundle: .module)
+            String(localized: "OpenCode", bundle: SkillsManagerLocalizationResources.bundle)
         case .copilot:
-            String(localized: "GitHub Copilot", bundle: .module)
+            String(localized: "GitHub Copilot", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func enabledText(_ enabled: Bool) -> String {
         if enabled {
-            return String(localized: "enabled", bundle: .module)
+            return String(localized: "enabled", bundle: SkillsManagerLocalizationResources.bundle)
         }
-        return String(localized: "disabled", bundle: .module)
+        return String(localized: "disabled", bundle: SkillsManagerLocalizationResources.bundle)
     }
 }

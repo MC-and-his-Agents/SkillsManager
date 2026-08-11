@@ -152,21 +152,21 @@ nonisolated enum DistributionConflictReason: String, CaseIterable, Sendable {
 extension DistributionConflictReason {
     var localizedDisplayName: String {
         switch self {
-        case .invalidDesiredScope: String(localized: "The selected scope is invalid.", bundle: .module)
-        case .unsupportedAdapter: String(localized: "The selected Agent is unsupported.", bundle: .module)
-        case .globalCoverageMismatch: String(localized: "The global Agent coverage is inconsistent.", bundle: .module)
-        case .dedicatedTargetUnavailable: String(localized: "An Agent-specific target is unavailable.", bundle: .module)
-        case .targetUnavailable: String(localized: "The target folder is unavailable.", bundle: .module)
-        case .currentBindingMissing: String(localized: "A saved link is missing.", bundle: .module)
-        case .managedTargetMismatch: String(localized: "The saved link points to a different managed Skill.", bundle: .module)
-        case .unknownObject: String(localized: "An unmanaged item already exists at this target.", bundle: .module)
-        case .slugOccupied: String(localized: "Another managed Skill already uses this name.", bundle: .module)
-        case .copyContentDrift: String(localized: "The managed copy contains local content changes.", bundle: .module)
-        case .copyPhysicalDrift: String(localized: "The managed copy contains unexpected files or permissions.", bundle: .module)
-        case .copyRootReplaced: String(localized: "The managed copy root was replaced.", bundle: .module)
-        case .copyTargetReplaced: String(localized: "The managed copy directory was replaced.", bundle: .module)
-        case .copyTargetMissing: String(localized: "The managed copy is missing.", bundle: .module)
-        case .copyBaselineInvalid: String(localized: "The managed copy baseline is unavailable or invalid.", bundle: .module)
+        case .invalidDesiredScope: String(localized: "The selected scope is invalid.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .unsupportedAdapter: String(localized: "The selected Agent is unsupported.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .globalCoverageMismatch: String(localized: "The global Agent coverage is inconsistent.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .dedicatedTargetUnavailable: String(localized: "An Agent-specific target is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .targetUnavailable: String(localized: "The target folder is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .currentBindingMissing: String(localized: "A saved link is missing.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .managedTargetMismatch: String(localized: "The saved link points to a different managed Skill.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .unknownObject: String(localized: "An unmanaged item already exists at this target.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .slugOccupied: String(localized: "Another managed Skill already uses this name.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copyContentDrift: String(localized: "The managed copy contains local content changes.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copyPhysicalDrift: String(localized: "The managed copy contains unexpected files or permissions.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copyRootReplaced: String(localized: "The managed copy root was replaced.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copyTargetReplaced: String(localized: "The managed copy directory was replaced.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copyTargetMissing: String(localized: "The managed copy is missing.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copyBaselineInvalid: String(localized: "The managed copy baseline is unavailable or invalid.", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }

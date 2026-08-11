@@ -468,9 +468,9 @@ actor ManagedSkillUpdateExecutionService {
         let scope: String
         switch configuration.scope {
         case .disabled:
-            scope = String(localized: "Disabled", bundle: .module)
+            scope = String(localized: "Disabled", bundle: SkillsManagerLocalizationResources.bundle)
         case .global:
-            scope = String(localized: "Global", bundle: .module)
+            scope = String(localized: "Global", bundle: SkillsManagerLocalizationResources.bundle)
         case .agents(let platforms, _):
             let agents = platforms.sorted {
                 $0.storageKey.utf8.lexicographicallyPrecedes($1.storageKey.utf8)
@@ -478,13 +478,13 @@ actor ManagedSkillUpdateExecutionService {
             scope = String(
                 localized: LocalizedStringResource(
             "Agents: \(agents)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
         }
         return String(
             localized: LocalizedStringResource(
             "\(scope) · \(configuration.syncMode.displayName)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
     }
 

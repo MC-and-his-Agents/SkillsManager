@@ -161,16 +161,16 @@ func localizedManagedSkillUpdateCheckProblem(
     _ problem: ManagedSkillUpdateCheckProblem
 ) -> String {
     switch problem {
-    case .unavailable: String(localized: "Update checking is unavailable for this Skill.", bundle: .module)
-    case .stale: String(localized: "The Skill changed while it was being checked. Try again.", bundle: .module)
-    case .cancelled: String(localized: "The update check was cancelled.", bundle: .module)
-    case .timeout: String(localized: "The remote source timed out.", bundle: .module)
-    case .offline: String(localized: "The network is offline.", bundle: .module)
-    case .rateLimited: String(localized: "The remote source is rate limited. Try again later.", bundle: .module)
-    case .providerUnavailable: String(localized: "The remote source is temporarily unavailable.", bundle: .module)
-    case .unsafeContent: String(localized: "The remote Skill contents were rejected as unsafe or invalid.", bundle: .module)
-    case .databaseUnavailable: String(localized: "The last update check could not be saved.", bundle: .module)
-    case .failed: String(localized: "The update check failed.", bundle: .module)
+    case .unavailable: String(localized: "Update checking is unavailable for this Skill.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .stale: String(localized: "The Skill changed while it was being checked. Try again.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .cancelled: String(localized: "The update check was cancelled.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .timeout: String(localized: "The remote source timed out.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .offline: String(localized: "The network is offline.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .rateLimited: String(localized: "The remote source is rate limited. Try again later.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .providerUnavailable: String(localized: "The remote source is temporarily unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .unsafeContent: String(localized: "The remote Skill contents were rejected as unsafe or invalid.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .databaseUnavailable: String(localized: "The last update check could not be saved.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .failed: String(localized: "The update check failed.", bundle: SkillsManagerLocalizationResources.bundle)
     }
 }
 
@@ -179,7 +179,7 @@ func localizedManagedSkillUpdateCapabilityReason(_ reason: String?) -> String? {
     guard let reason else { return nil }
     switch reason {
     case "No exact remote source is available for this Skill.":
-        return String(localized: "No exact remote source is available for this Skill.", bundle: .module)
+        return String(localized: "No exact remote source is available for this Skill.", bundle: SkillsManagerLocalizationResources.bundle)
     default:
         return reason
     }

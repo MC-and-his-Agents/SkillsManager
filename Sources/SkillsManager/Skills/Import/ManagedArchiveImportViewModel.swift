@@ -85,7 +85,7 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
         generation &+= 1
         guard let writer else {
             service = nil
-            errorMessage = String(localized: "The managed library session is unavailable.", bundle: .module)
+            errorMessage = String(localized: "The managed library session is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
             return
         }
         service = ManagedInstallService(dependencies: .live(writer: writer))
@@ -140,7 +140,7 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
         do {
             try session.requireCurrent()
         } catch {
-            errorMessage = String(localized: "The archive preview is no longer available.", bundle: .module)
+            errorMessage = String(localized: "The archive preview is no longer available.", bundle: SkillsManagerLocalizationResources.bundle)
             state = .selecting
             return
         }
@@ -157,7 +157,7 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
                     candidate: candidate,
                     preview: nil,
                     reason: candidate.blockedReason
-                        ?? String(localized: "This candidate is not importable.", bundle: .module)
+                        ?? String(localized: "This candidate is not importable.", bundle: SkillsManagerLocalizationResources.bundle)
                 ))
                 continue
             }
@@ -215,7 +215,7 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
                     canonicalSubpath: item.candidate.canonicalSubpath,
                     displayName: item.candidate.displayName,
                     management: .skipped(
-                        item.reason ?? String(localized: "This candidate was skipped.", bundle: .module)
+                        item.reason ?? String(localized: "This candidate was skipped.", bundle: SkillsManagerLocalizationResources.bundle)
                     )
                 )
                 resultItems.append(result)

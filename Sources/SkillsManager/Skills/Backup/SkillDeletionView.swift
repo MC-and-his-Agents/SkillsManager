@@ -11,7 +11,7 @@ struct SkillDeletionView: View {
             .padding(.top, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("Skills Manager", bundle: .module)
+            Text("Skills Manager", bundle: SkillsManagerLocalizationResources.bundle)
         }
         .sheet(item: pendingDeletionBinding) { pending in
             SkillDeletionConfirmationView(pending: pending)
@@ -30,14 +30,14 @@ struct SkillDeletionView: View {
                 systemImage: "archivebox"
             )
         case .loading:
-            ProgressView(String(localized: "Verifying managed Skill…", bundle: .module))
+            ProgressView(String(localized: "Verifying managed Skill…", bundle: SkillsManagerLocalizationResources.bundle))
         case .failed(let problem):
             VStack(alignment: .leading, spacing: 10) {
                 status(problem.message, systemImage: "exclamationmark.triangle")
                 Button {
                     Task { await model.refreshCurrent() }
                 } label: {
-                    Text("Retry", bundle: .module)
+                    Text("Retry", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .disabled(model.isRefreshingDeletion || model.isMutating)
             }
@@ -59,7 +59,7 @@ struct SkillDeletionView: View {
                         String(
                             localized: LocalizedStringResource(
             "Managed Skill status: \(deletionStatusText(preview.status))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                     ))
                 Spacer()
@@ -71,7 +71,7 @@ struct SkillDeletionView: View {
                             .controlSize(.small)
                     } else {
                         Label {
-                            Text("Refresh managed Skill", bundle: .module)
+                            Text("Refresh managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
                         } icon: {
                             Image(systemName: "arrow.clockwise")
                         }
@@ -79,8 +79,8 @@ struct SkillDeletionView: View {
                     }
                 }
                 .disabled(model.isRefreshingDeletion || model.isMutating)
-                .help(Text("Refresh managed Skill", bundle: .module))
-                .accessibilityLabel(Text("Refresh managed Skill", bundle: .module))
+                .help(Text("Refresh managed Skill", bundle: SkillsManagerLocalizationResources.bundle))
+                .accessibilityLabel(Text("Refresh managed Skill", bundle: SkillsManagerLocalizationResources.bundle))
             }
 
             if let content = preview.content {
@@ -88,26 +88,26 @@ struct SkillDeletionView: View {
                     LabeledContent {
                         Text(verbatim: content.contentFingerprint.shortDisplayName)
                     } label: {
-                        Text("Content", bundle: .module)
+                        Text("Content", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     LabeledContent {
                         Text(content.statistics.fileCount.formatted(.number))
                     } label: {
-                        Text("Files", bundle: .module)
+                        Text("Files", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     LabeledContent {
                         Text(verbatim: content.statistics.byteCountDescription)
                     } label: {
-                        Text("Size", bundle: .module)
+                        Text("Size", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                 }
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Current Agent targets", bundle: .module)
+                Text("Current Agent targets", bundle: SkillsManagerLocalizationResources.bundle)
                     .font(.headline)
                 if preview.targets.isEmpty {
-                    Text("Not enabled for any Agent.", bundle: .module)
+                    Text("Not enabled for any Agent.", bundle: SkillsManagerLocalizationResources.bundle)
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(preview.targets) { target in
@@ -133,26 +133,26 @@ struct SkillDeletionView: View {
                 Button(role: .destructive) {
                     model.prepareDeletion()
                 } label: {
-                    Text("Delete from Skills Manager…", bundle: .module)
+                    Text("Delete from Skills Manager…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .disabled(model.isMutating || preview.token == nil)
                 .accessibilityHint(Text(
                     "Opens a confirmation showing the backup, Agent links, and managed content that will be removed.",
-                    bundle: .module
+                    bundle: SkillsManagerLocalizationResources.bundle
                 ))
             } else if let operation = preview.operation {
                 Button {
                     Task { await model.retryDeletion(operation) }
                 } label: {
-                    Text("Retry deletion", bundle: .module)
+                    Text("Retry deletion", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .disabled(model.isMutating)
-                .accessibilityHint(Text("Continues the interrupted deletion safely.", bundle: .module))
+                .accessibilityHint(Text("Continues the interrupted deletion safely.", bundle: SkillsManagerLocalizationResources.bundle))
             }
 
             Text(
                 "This is different from removing Agent links. It backs up the Skill, removes all managed Agent links, and deletes the managed Skill itself.",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             )
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -197,12 +197,12 @@ struct SkillDeletionView: View {
 
     private func deletionStatusText(_ status: SkillDeletionStatus) -> String {
         return switch status {
-        case .ready: String(localized: "Ready", bundle: .module)
-        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
-        case .needsRepair: String(localized: "Needs repair", bundle: .module)
-        case .completed: String(localized: "Completed", bundle: .module)
-        case .cleanupPending: String(localized: "Cleanup pending", bundle: .module)
-        case .rolledBack: String(localized: "Rolled back", bundle: .module)
+        case .ready: String(localized: "Ready", bundle: SkillsManagerLocalizationResources.bundle)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: SkillsManagerLocalizationResources.bundle)
+        case .needsRepair: String(localized: "Needs repair", bundle: SkillsManagerLocalizationResources.bundle)
+        case .completed: String(localized: "Completed", bundle: SkillsManagerLocalizationResources.bundle)
+        case .cleanupPending: String(localized: "Cleanup pending", bundle: SkillsManagerLocalizationResources.bundle)
+        case .rolledBack: String(localized: "Rolled back", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }
@@ -215,7 +215,7 @@ private struct SkillDeletionConfirmationView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Delete from Skills Manager?", bundle: .module)
+            Text("Delete from Skills Manager?", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.title.bold())
             Text(verbatim: pending.preview.displayName)
                 .font(.title3)
@@ -263,7 +263,7 @@ private struct SkillDeletionConfirmationView: View {
                             String(
                                 localized: LocalizedStringResource(
             "Managed Agent target \(target.canonicalLocator)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                         ))
                 }
@@ -274,19 +274,19 @@ private struct SkillDeletionConfirmationView: View {
                     LabeledContent {
                         Text(content.statistics.fileCount.formatted(.number))
                     } label: {
-                        Text("Files", bundle: .module)
+                        Text("Files", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     LabeledContent {
                         Text(verbatim: content.statistics.byteCountDescription)
                     } label: {
-                        Text("Size", bundle: .module)
+                        Text("Size", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                 }
             }
             .padding(.top, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("Impact", bundle: .module)
+            Text("Impact", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -300,14 +300,14 @@ private struct SkillDeletionConfirmationView: View {
                 }
                     .font(.headline)
                 LabeledContent {
-                    Text("Saved in Skill Backups", bundle: .module)
+                    Text("Saved in Skill Backups", bundle: SkillsManagerLocalizationResources.bundle)
                 } label: {
-                    Text("Backup", bundle: .module)
+                    Text("Backup", bundle: SkillsManagerLocalizationResources.bundle)
                 }
             }
             .padding(.top, 4)
         } label: {
-            Text("Result", bundle: .module)
+            Text("Result", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -319,7 +319,7 @@ private struct SkillDeletionConfirmationView: View {
                     model.cancelDeletionPreview()
                     dismiss()
                 } label: {
-                    Text("Cancel", bundle: .module)
+                    Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut(.cancelAction)
                 .disabled(model.isDeleting)
@@ -332,7 +332,7 @@ private struct SkillDeletionConfirmationView: View {
                     Button {
                         Task { await model.retryDeletion(result) }
                     } label: {
-                        Text("Retry", bundle: .module)
+                        Text("Retry", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     .disabled(model.isMutating)
                 }
@@ -340,7 +340,7 @@ private struct SkillDeletionConfirmationView: View {
                     model.finishDeletionPresentation()
                     dismiss()
                 } label: {
-                    Text("Done", bundle: .module)
+                    Text("Done", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.isMutating)
@@ -348,12 +348,12 @@ private struct SkillDeletionConfirmationView: View {
                 Button(role: .destructive) {
                     Task { await model.confirmDeletion() }
                 } label: {
-                    Text("Delete", bundle: .module)
+                    Text("Delete", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .disabled(model.isDeleting)
                 .accessibilityLabel(Text(
                     model.isDeleting ? "Deletion in progress" : "Delete from Skills Manager",
-                    bundle: .module
+                    bundle: SkillsManagerLocalizationResources.bundle
                 ))
             }
         }
@@ -372,13 +372,13 @@ private struct SkillDeletionConfirmationView: View {
         let targetDescription = String(
             localized: LocalizedStringResource(
             "Managed Agent targets: \(pending.preview.targets.count)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
         return Label {
             Text(String(
                 localized: LocalizedStringResource(
             "Remove \(targetDescription)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
         } icon: {
             Image(systemName: "link.badge.minus")
@@ -389,7 +389,7 @@ private struct SkillDeletionConfirmationView: View {
     private func deletionProgressText() -> String {
         String(
             localized: model.isDeleting ? "Backing up and deleting…" : "Continuing deletion…",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )
     }
 
@@ -398,18 +398,18 @@ private struct SkillDeletionConfirmationView: View {
             localized: model.isDeleting
                 ? "Backing up and deleting the managed Skill"
                 : "Continuing the managed Skill deletion",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )
     }
 
     private func deletionStatusText(_ status: SkillDeletionStatus) -> String {
         return switch status {
-        case .ready: String(localized: "Ready", bundle: .module)
-        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
-        case .needsRepair: String(localized: "Needs repair", bundle: .module)
-        case .completed: String(localized: "Completed", bundle: .module)
-        case .cleanupPending: String(localized: "Cleanup pending", bundle: .module)
-        case .rolledBack: String(localized: "Rolled back", bundle: .module)
+        case .ready: String(localized: "Ready", bundle: SkillsManagerLocalizationResources.bundle)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: SkillsManagerLocalizationResources.bundle)
+        case .needsRepair: String(localized: "Needs repair", bundle: SkillsManagerLocalizationResources.bundle)
+        case .completed: String(localized: "Completed", bundle: SkillsManagerLocalizationResources.bundle)
+        case .cleanupPending: String(localized: "Cleanup pending", bundle: SkillsManagerLocalizationResources.bundle)
+        case .rolledBack: String(localized: "Rolled back", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }

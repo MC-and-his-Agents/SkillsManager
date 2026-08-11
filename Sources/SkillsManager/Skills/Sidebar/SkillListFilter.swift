@@ -210,7 +210,7 @@ enum SkillListAgentSummary {
             localized: LocalizedStringResource(
             "\(count) Agents",
             locale: locale ?? .current,
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
     }
 }

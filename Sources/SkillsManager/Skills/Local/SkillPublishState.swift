@@ -13,7 +13,7 @@ nonisolated enum SkillPublishError: LocalizedError, Equatable {
 func localizedSkillPublishError(_ error: SkillPublishError) -> String {
     switch error {
     case .publishedButStateNotRecorded:
-        String(localized: "ClawHub published the Skill, but Skills Manager could not save its local publish state. Refresh before publishing again.", bundle: .module)
+        String(localized: "ClawHub published the Skill, but Skills Manager could not save its local publish state. Refresh before publishing again.", bundle: SkillsManagerLocalizationResources.bundle)
     }
 }
 
