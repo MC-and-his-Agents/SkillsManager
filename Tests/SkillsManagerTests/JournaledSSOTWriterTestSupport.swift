@@ -57,6 +57,7 @@ final class WriterWorkspace: @unchecked Sendable {
     deinit { try? FileManager.default.removeItem(at: workspace) }
 
     func openWriter(
+        configurationStore: HarnessSkillRootConfigurationStore = .shared,
         hooks: JournaledSSOTWriterHooks = .init()
     ) async throws -> JournaledSSOTWriter {
         try await JournaledSSOTWriter.open(
@@ -64,6 +65,7 @@ final class WriterWorkspace: @unchecked Sendable {
             ssotRoot: verifiedRoot,
             databaseURL: database,
             distributionHomeURL: distributionHomeURL,
+            configurationStore: configurationStore,
             hooks: hooks
         )
     }

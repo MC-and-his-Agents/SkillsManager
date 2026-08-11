@@ -149,7 +149,10 @@ nonisolated struct DistributionTargetCatalog: Sendable {
 
         if locator.hasPrefix("~/") {
             let expectedRoot = "~/" + scope.relativeDistributionPath
-            guard rootLocator == expectedRoot else { return nil }
+            guard rootLocator == expectedRoot
+                || scope.compatibilityRootLocators.contains(rootLocator) else {
+                return nil
+            }
         } else {
             guard locator.hasPrefix("/") else { return nil }
             let url = URL(fileURLWithPath: locator, isDirectory: true)
@@ -173,4 +176,12 @@ private extension DistributionBindingScope {
             platform.dedicatedDistributionRelativePath
         }
     }
+
+    nonisolated var compatibilityRootLocators: [String] {
+        guard case .agent(let platform) = self else { return [] }
+        return platform.discoveryCompatibilityRelativePaths.map { path in
+            "~/\(path)"
+        }
+    }
+
 }

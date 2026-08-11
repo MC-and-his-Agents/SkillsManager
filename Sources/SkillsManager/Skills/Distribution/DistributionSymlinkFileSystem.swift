@@ -94,6 +94,8 @@ nonisolated final class DistributionSymlinkFileSystem {
     private let suppliedCatalog: DistributionTargetCatalog?
     let hooks: DistributionFilesystemTestHooks
 
+    var distributionHomeURL: URL { homeURL }
+
     init(
         homeURL: URL,
         catalog: DistributionTargetCatalog? = nil,
@@ -167,8 +169,21 @@ nonisolated final class DistributionSymlinkFileSystem {
         }
     }
 
+    func existingRoot(for entry: DistributionTargetEntry) throws -> ManagedItemIdentity? {
+        do {
+            let handle = try openDirectory(
+                components: components(for: entry),
+                createMissing: false
+            )
+            defer { Darwin.close(handle.descriptor) }
+            return handle.identity
+        } catch DistributionSymlinkFileSystemError.unavailable {
+            return nil
+        }
+    }
+
     func observe(_ entry: DistributionTargetEntry) throws -> DistributionSymlinkObservation {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let handle: DirectoryHandle
         do {
             handle = try openDirectory(components: components, createMissing: false)
@@ -213,7 +228,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         operationID: UUID,
         actionIndex: Int
     ) throws -> DistributionQuarantinedSymlink {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let handle = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(handle.descriptor) }
         guard handle.identity == expected.rootIdentity else {
@@ -264,7 +279,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         absoluteTarget: String,
         expectedRootIdentity: ManagedItemIdentity
     ) throws -> DistributionSymlinkEvidence {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let handle = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(handle.descriptor) }
         guard handle.identity == expectedRootIdentity else {
@@ -302,7 +317,7 @@ nonisolated final class DistributionSymlinkFileSystem {
         _ entry: DistributionTargetEntry,
         quarantined: DistributionQuarantinedSymlink
     ) throws {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let handle = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(handle.descriptor) }
         guard handle.identity == quarantined.evidence.rootIdentity else {
@@ -420,6 +435,12 @@ nonisolated final class DistributionSymlinkFileSystem {
     func classifyUnavailableRoot(
         _ components: [String]
     ) throws -> RootAvailability {
+        if components.count == 1, let absolutePath = components.first,
+           absolutePath.hasPrefix("/") {
+            return classifyAbsoluteRoot(
+                URL(fileURLWithPath: absolutePath, isDirectory: true)
+            )
+        }
         if let root = configuredRoot(for: components) {
             guard root.target.isAvailable else { return .unavailable }
             return classifyAbsoluteRoot(root.url)
@@ -451,6 +472,12 @@ nonisolated final class DistributionSymlinkFileSystem {
         components: [String],
         createMissing: Bool
     ) throws -> DirectoryHandle {
+        if components.count == 1, let absolutePath = components.first,
+           absolutePath.hasPrefix("/") {
+            return try openAbsoluteRoot(
+                URL(fileURLWithPath: absolutePath, isDirectory: true)
+            )
+        }
         if let configured = configuredRoot(for: components) {
             guard configured.target.isAvailable else {
                 throw DistributionSymlinkFileSystemError.unavailable
@@ -573,6 +600,75 @@ nonisolated final class DistributionSymlinkFileSystem {
             throw DistributionSymlinkFileSystemError.invalidTarget
         }
         return components
+    }
+
+    /// Resolves a catalog entry's root for source-only compatibility paths.
+    /// Primary targets continue to use the scope components; compatibility
+    /// entries may point at a nested root under the validated temporary home.
+    func components(for entry: DistributionTargetEntry) throws -> [String] {
+        let root = try rootURL(for: entry.target)
+        let homePath = homeURL.standardizedFileURL.path
+        let rootPath = root.standardizedFileURL.path
+        if rootPath.hasPrefix(homePath + "/") {
+            let relative = String(rootPath.dropFirst(homePath.count + 1))
+            let components = relative.split(separator: "/").map(String.init)
+            guard !components.isEmpty,
+                  components.allSatisfy({
+                      !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains("\0")
+                  }) else {
+                throw DistributionSymlinkFileSystemError.invalidTarget
+            }
+            return components
+        }
+        guard approvedExternalRoot(root, for: entry.target) else {
+            throw DistributionSymlinkFileSystemError.invalidTarget
+        }
+        return [rootPath]
+    }
+
+    private func approvedExternalRoot(
+        _ root: URL,
+        for target: DistributionTarget
+    ) -> Bool {
+        guard let configured = catalog.target(for: target.scope),
+              configured.isConfigured,
+              configured.isAvailable,
+              let primary = configured.resolvedRootURL?.standardizedFileURL else {
+            return false
+        }
+        let candidate = root.standardizedFileURL
+        if candidate == primary {
+            return true
+        }
+        guard case .agent(let platform) = target.scope else { return false }
+        let nestedPrefix = platform.dedicatedDistributionRelativePath + "/"
+        return platform.discoveryCompatibilityRelativePaths.contains { relative in
+            guard relative.hasPrefix(nestedPrefix) else { return false }
+            return candidate == primary.appendingPathComponent(
+                String(relative.dropFirst(nestedPrefix.count)),
+                isDirectory: true
+            ).standardizedFileURL
+        }
+    }
+
+    private func rootURL(for target: DistributionTarget) throws -> URL {
+        if let resolved = target.resolvedRootURL {
+            guard target.isAvailable else {
+                throw DistributionSymlinkFileSystemError.unavailable
+            }
+            return resolved.standardizedFileURL
+        }
+        if target.rootLocator.hasPrefix("~/") {
+            return homeURL.appendingPathComponent(
+                String(target.rootLocator.dropFirst(2)),
+                isDirectory: true
+            ).standardizedFileURL
+        }
+        guard target.rootLocator.hasPrefix("/") else {
+            throw DistributionSymlinkFileSystemError.invalidTarget
+        }
+        return URL(fileURLWithPath: target.rootLocator, isDirectory: true)
+            .standardizedFileURL
     }
 
     func defaultRootURL(for scope: DistributionBindingScope) throws -> URL {

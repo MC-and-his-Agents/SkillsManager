@@ -125,6 +125,75 @@ nonisolated struct SkillConsistencyAuditDiscovery: Codable, Equatable, Sendable 
     let roots: [SkillConsistencyAuditObservedRoot]
     let rootDiagnostics: [SkillConsistencyAuditRootDiagnostic]
     let observations: [SkillConsistencyAuditDiscoveryObservation]
+
+    /// Cross-root occupancy derived from the same stable observation set.
+    /// Keeping it in the manifest makes the preview and confirmation bind to
+    /// one catalog without introducing a second source of truth.
+    let occupancies: [SkillConsistencyAuditOccupancy]
+
+    init(
+        roots: [SkillConsistencyAuditObservedRoot],
+        rootDiagnostics: [SkillConsistencyAuditRootDiagnostic],
+        observations: [SkillConsistencyAuditDiscoveryObservation],
+        occupancies: [SkillConsistencyAuditOccupancy] = []
+    ) {
+        self.roots = roots
+        self.rootDiagnostics = rootDiagnostics
+        self.observations = observations
+        self.occupancies = occupancies
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case roots
+        case rootDiagnostics
+        case observations
+        case occupancies
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        roots = try container.decode([SkillConsistencyAuditObservedRoot].self, forKey: .roots)
+        rootDiagnostics = try container.decode(
+            [SkillConsistencyAuditRootDiagnostic].self,
+            forKey: .rootDiagnostics
+        )
+        observations = try container.decode(
+            [SkillConsistencyAuditDiscoveryObservation].self,
+            forKey: .observations
+        )
+        occupancies = try container.decodeIfPresent(
+            [SkillConsistencyAuditOccupancy].self,
+            forKey: .occupancies
+        ) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(roots, forKey: .roots)
+        try container.encode(rootDiagnostics, forKey: .rootDiagnostics)
+        try container.encode(observations, forKey: .observations)
+        if !occupancies.isEmpty {
+            try container.encode(occupancies, forKey: .occupancies)
+        }
+    }
+}
+
+nonisolated enum SkillConsistencyAuditOccupancyRelation: String, Codable, Sendable {
+    case managed
+    case sameFingerprint = "same_fingerprint"
+    case differentFingerprint = "different_fingerprint"
+    case nameOnly = "name_only"
+    case ambiguous
+    case unknown
+}
+
+nonisolated struct SkillConsistencyAuditOccupancy: Codable, Equatable, Sendable {
+    let key: String
+    let relativeLocator: String
+    let relativeLocatorKey: String
+    let skillID: String?
+    let relation: SkillConsistencyAuditOccupancyRelation
+    let entries: [SkillConsistencyAuditDiscoveryObservation]
 }
 
 nonisolated struct SkillConsistencyAuditObservedRoot: Codable, Equatable, Sendable {

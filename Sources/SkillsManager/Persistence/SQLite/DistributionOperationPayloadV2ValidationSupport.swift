@@ -5,7 +5,8 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         _ data: Data,
         skillID: SkillID,
         oldBindings: [DistributionBindingWireV2],
-        newBindings: [DistributionBindingWireV2]
+        newBindings: [DistributionBindingWireV2],
+        allowsHistoricalUnboundCleanup: Bool = false
     ) throws -> DistributionPlanWire {
         let plan = try decodePlanV2(data)
         guard let expectedConfigured = plan.expectedOldConfigured,
@@ -28,6 +29,12 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         guard plan.bindingReplacement.count == new.count,
               Set(replacement) == Set(new),
               plan.bindingsChanged == (Set(old) != Set(new)),
+              !allowsHistoricalUnboundCleanup
+                || (plan.filesystemActions.count == 1
+                    && (plan.filesystemActions[0].action
+                        == DistributionFilesystemActionKind.removeCopy.rawValue
+                        || plan.filesystemActions[0].action
+                            == DistributionFilesystemActionKind.replaceCopyWithSymlink.rawValue)),
               !plan.filesystemActions.isEmpty
                 || plan.bindingsChanged
                 || plan.configurationChanged == true else {
@@ -37,7 +44,8 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             plan.filesystemActions,
             skillID: skillID,
             old: old,
-            new: new
+            new: new,
+            allowsHistoricalUnboundCleanup: allowsHistoricalUnboundCleanup
         )
         return plan
     }
@@ -105,7 +113,8 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         _ actions: [DistributionPlanActionWire],
         skillID: SkillID,
         old: [DistributionBindingIntent],
-        new: [DistributionBindingIntent]
+        new: [DistributionBindingIntent],
+        allowsHistoricalUnboundCleanup: Bool = false
     ) throws {
         var actionKinds: [String: DistributionFilesystemActionKind] = [:]
         for action in actions {
@@ -128,6 +137,9 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         guard Set(actions.map(\.targetScopeKey)).count <= 5 else {
             throw DistributionOperationStoreError.invalidRecord
         }
+        guard !allowsHistoricalUnboundCleanup || actions.count == 1 else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
         let oldByKey = Dictionary(uniqueKeysWithValues: old.map {
             (bindingKeyV2(scope: $0.scope, slug: $0.distributionSlug), $0)
         })
@@ -135,7 +147,13 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             (bindingKeyV2(scope: $0.scope, slug: $0.distributionSlug), $0)
         })
         let bindingKeys = Set(oldByKey.keys).union(newByKey.keys)
-        guard Set(actionKinds.keys).isSubset(of: bindingKeys) else {
+        let unboundHistoricalCleanup = actionKinds.filter { key, kind in
+            !bindingKeys.contains(key) && kind == .removeCopy
+        }
+        guard Set(actionKinds.keys).subtracting(bindingKeys).isEmpty
+                || (allowsHistoricalUnboundCleanup
+                    && unboundHistoricalCleanup.count == 1
+                    && Set(actionKinds.keys).subtracting(bindingKeys).count == 1) else {
             throw DistributionOperationStoreError.invalidRecord
         }
         for key in bindingKeys {
@@ -157,7 +175,10 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                 actionKinds[key] == .refreshCopy
                     || actionKinds[key] == .discardCopyDrift
                     ? actionKinds[key] : nil
-            case (.symlink, .symlink): nil
+            case (.symlink, .symlink):
+                allowsHistoricalUnboundCleanup
+                    && actionKinds[key] == .replaceCopyWithSymlink
+                    ? .replaceCopyWithSymlink : nil
             case (nil, nil): nil
             }
             guard actionKinds[key] == expected else {
@@ -166,7 +187,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         }
     }
 
-    private static func scopeV2(
+    static func scopeV2(
         _ key: String
     ) -> DistributionBindingScope? {
         if key == "global" { return .global }
@@ -175,7 +196,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         }.map(DistributionBindingScope.agent)
     }
 
-    private static func slugV2(
+    static func slugV2(
         _ locator: String,
         scope: DistributionBindingScope
     ) -> DefaultDistributionSlug? {
@@ -222,8 +243,13 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         let actionKind = DistributionFilesystemActionKind(rawValue: action.kind)
         let isHistoricalMigration = action.historicalMigrationBackup != nil
         let oldCopyMatches = if isHistoricalMigration,
-                                actionKind == .replaceCopyWithSymlink,
+                                (actionKind == .replaceCopyWithSymlink
+                                    || actionKind == .removeCopy),
                                 oldBinding == nil {
+            action.oldCopy != nil
+        } else if isHistoricalMigration,
+                  actionKind == .replaceCopyWithSymlink,
+                  oldBinding?.syncMode == DistributionSyncMode.symlink.rawValue {
             action.oldCopy != nil
         } else if let evidence = action.oldCopy,
                                 let baseline = oldBinding?.copyBaseline {
@@ -245,10 +271,17 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             throw DistributionOperationStoreError.invalidRecord
         }
         if let backup = action.historicalMigrationBackup {
-            guard actionKind == .replaceCopyWithSymlink,
-                  oldBinding == nil,
+            let requiresExtendedApproval = (actionKind == .removeCopy && oldBinding == nil)
+                || (actionKind == .replaceCopyWithSymlink
+                    && oldBinding?.syncMode == DistributionSyncMode.symlink.rawValue)
+            guard actionKind == .replaceCopyWithSymlink
+                    || actionKind == .removeCopy,
+                  oldBinding == nil
+                    || (actionKind == .replaceCopyWithSymlink
+                        && oldBinding?.syncMode == DistributionSyncMode.symlink.rawValue),
                   action.oldCopy != nil,
-                  action.oldLink == nil,
+                  actionKind == .removeCopy ? action.oldLink == nil
+                      : (oldBinding == nil ? action.oldLink == nil : action.oldLink != nil),
                   UUID(uuidString: backup.backupID)?.uuidString.lowercased()
                     == backup.backupID,
                   !backup.locator.hasPrefix("/"),
@@ -257,6 +290,43 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                   backup.manifestDigest.count == 32 else {
                 throw DistributionOperationStoreError.invalidRecord
             }
+            if requiresExtendedApproval, action.localOriginCleanup == nil {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            try validateHistoricalApproval(
+                backup,
+                action: action,
+                planAction: planAction,
+                skillID: skillID,
+                operationID: operationID,
+                requiresExtendedApproval: requiresExtendedApproval
+            )
+        } else if action.localOriginCleanup != nil {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        if let cleanup = action.localOriginCleanup {
+            let origin = try cleanup.origin()
+            guard origin.skillID == skillID,
+                  origin.normalizedLocator == action.slug,
+                  origin.collisionKey == planSlug.collisionKey,
+                  action.historicalMigrationBackup != nil,
+                  actionKind == .removeCopy
+                    || actionKind == .replaceCopyWithSymlink,
+                  let oldCopy = action.oldCopy,
+                  origin.fingerprint == (try oldCopy.evidence()).contentFingerprint else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            let originScope = try originDistributionScope(origin.scope)
+            guard originScope == scope,
+                  let backup = action.historicalMigrationBackup,
+                  let sourceRootLocator = backup.sourceRootLocator else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            try validateHistoricalSourceScope(
+                origin.scope,
+                sourceRootLocator: sourceRootLocator,
+                expectedScope: scope
+            )
         }
         guard action.oldCopy == nil
                 || action.rootIdentity == action.oldCopy?.rootIdentity,
@@ -301,14 +371,193 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                 && action.stagingName == copyStage
                 && action.quarantineName == linkQuarantine
         case .replaceCopyWithSymlink:
-            action.oldCopy != nil && action.oldLink == nil
+            action.oldCopy != nil
                 && action.stagingName == nil
                 && action.quarantineName == copyQuarantine
-                && (oldBinding != nil || action.historicalMigrationBackup != nil)
+                && (isHistoricalMigration
+                    ? (oldBinding == nil
+                        ? action.oldLink == nil
+                        : oldBinding?.syncMode == DistributionSyncMode.symlink.rawValue
+                            && action.oldLink != nil)
+                    : oldBinding != nil && action.oldLink == nil)
         case nil:
             false
         }
         guard valid else { throw DistributionOperationStoreError.invalidRecord }
+    }
+
+    private static func validateHistoricalApproval(
+        _ backup: DistributionHistoricalMigrationBackupWireV2,
+        action: DistributionOperationPreflightActionV2,
+        planAction: DistributionPlanActionWire,
+        skillID: SkillID,
+        operationID: SSOTOperationID,
+        requiresExtendedApproval: Bool
+    ) throws {
+        // Journals written before the extended approval fields remain valid;
+        // the executor revalidates their backup manifest before mutation.
+        let fieldCount = [
+            backup.skillID != nil,
+            backup.sourceScopeKey != nil,
+            backup.sourceLocator != nil,
+            backup.approvalOperationID != nil,
+            backup.sourceRootIdentity != nil,
+            backup.sourceEntryIdentity != nil,
+            backup.sourceContent != nil,
+            backup.sourcePhysicalTree != nil,
+            backup.targetLocator != nil,
+            backup.sourceRootLocator != nil,
+        ].count(where: { $0 })
+        guard fieldCount == 0 || fieldCount == 10,
+              !requiresExtendedApproval || fieldCount == 10 else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        guard fieldCount == 10,
+              let recordedSkillID = backup.skillID,
+              let sourceScopeKey = backup.sourceScopeKey,
+              let sourceLocator = backup.sourceLocator,
+              let approvalOperationID = backup.approvalOperationID,
+              let sourceRootIdentity = backup.sourceRootIdentity,
+              let sourceEntryIdentity = backup.sourceEntryIdentity,
+              let sourceContent = backup.sourceContent,
+              let sourcePhysicalTree = backup.sourcePhysicalTree,
+              let targetLocator = backup.targetLocator,
+              let sourceRootLocator = backup.sourceRootLocator else {
+            return
+        }
+        guard recordedSkillID == skillID.directoryName,
+              sourceScopeKey == action.targetScopeKey,
+              sourceLocator == action.slug,
+              targetLocator == planAction.targetLocator,
+              sourceRootLocator == String(
+                  planAction.targetLocator.dropLast("/\(action.slug)".count)
+              ),
+              try SSOTOperationID(bytes: approvalOperationID) == operationID,
+              let oldCopy = action.oldCopy,
+              sourceRootIdentity == oldCopy.rootIdentity,
+              sourceEntryIdentity == oldCopy.entryIdentity,
+              sourceContent == oldCopy.content,
+              sourcePhysicalTree == oldCopy.physicalTree else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    private static func originDistributionScope(
+        _ scope: SkillDiscoveryScope
+    ) throws -> DistributionBindingScope {
+        switch scope.kind {
+        case .global:
+            guard scope.adapterCode == nil,
+                  scope.pathVariant == nil,
+                  scope.customPathID == nil else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            return .global
+        case .agent:
+            guard let adapter = scope.adapterCode,
+                  scope.customPathID == nil,
+                  let platform = SkillPlatform.allCases.first(where: {
+                      $0.storageKey == adapter
+                  }) else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            return .agent(platform)
+        case .custom:
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    static func completeHistoricalApproval(
+        _ backup: DistributionHistoricalMigrationBackupWireV2?
+    ) -> Bool {
+        guard let backup else { return false }
+        return [
+            backup.skillID != nil,
+            backup.sourceScopeKey != nil,
+            backup.sourceLocator != nil,
+            backup.approvalOperationID != nil,
+            backup.sourceRootIdentity != nil,
+            backup.sourceEntryIdentity != nil,
+            backup.sourceContent != nil,
+            backup.sourcePhysicalTree != nil,
+            backup.targetLocator != nil,
+            backup.sourceRootLocator != nil,
+        ].allSatisfy { $0 }
+    }
+
+    private static func validateHistoricalSourceScope(
+        _ scope: SkillDiscoveryScope,
+        sourceRootLocator: String,
+        expectedScope: DistributionBindingScope
+    ) throws {
+        guard validHistoricalRootLocator(sourceRootLocator) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        switch scope.kind {
+        case .global:
+            guard expectedScope == .global,
+                  scope.adapterCode == nil,
+                  scope.pathVariant == nil,
+                  scope.customPathID == nil,
+                  hasHistoricalPathSuffix(sourceRootLocator, ".agents/skills") else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case .agent:
+            guard case .agent(let platform) = expectedScope,
+                  scope.adapterCode == platform.storageKey,
+                  scope.customPathID == nil,
+                  let pathVariant = scope.pathVariant,
+                  !pathVariant.isEmpty else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            if pathVariant.hasPrefix("/") {
+                guard URL(fileURLWithPath: pathVariant, isDirectory: true)
+                    .standardizedFileURL.path == pathVariant,
+                      sourceRootLocator == pathVariant else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+                return
+            }
+            let knownVariants = [platform.dedicatedDistributionRelativePath]
+                + platform.discoveryCompatibilityRelativePaths
+            guard knownVariants.contains(pathVariant),
+                  hasHistoricalPathSuffix(sourceRootLocator, pathVariant) else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case .custom:
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    private static func validHistoricalRootLocator(_ locator: String) -> Bool {
+        guard locator == locator.precomposedStringWithCanonicalMapping else {
+            return false
+        }
+        if locator.hasPrefix("~/") {
+            return locator.count > 2
+                && !locator.contains("\\")
+                && !locator.contains("//")
+                && !locator.contains("\0")
+        }
+        return locator.hasPrefix("/")
+            && URL(fileURLWithPath: locator, isDirectory: true)
+                .standardizedFileURL.path == locator
+    }
+
+    private static func hasHistoricalPathSuffix(
+        _ path: String,
+        _ relative: String
+    ) -> Bool {
+        if path.hasPrefix("~/") {
+            return path == "~/\(relative)"
+        }
+        let pathComponents = URL(fileURLWithPath: path, isDirectory: true)
+            .standardizedFileURL.pathComponents
+        let suffixComponents = relative.split(separator: "/").map(String.init)
+        guard !suffixComponents.isEmpty, pathComponents.count >= suffixComponents.count else {
+            return false
+        }
+        return Array(pathComponents.suffix(suffixComponents.count)) == suffixComponents
     }
 
     static func validateRuntimeAction(

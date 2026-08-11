@@ -104,6 +104,45 @@ nonisolated extension SSOTJournalStore {
         }
     }
 
+    /// Removes exactly one origin position after its source filesystem entry
+    /// has been durably removed. A missing row is an idempotent rerun; a row
+    /// with different evidence is a conflict and therefore fails closed.
+    func removeLocalOrigin(_ expected: LocalSkillOriginRecord) throws {
+        try transaction {
+            let stored = try localOriginsByPosition()[expected.position]
+            guard stored == nil || sameLocalOriginCleanupEvidence(stored!, expected) else {
+                throw LocalSkillOriginStoreError.conflict
+            }
+            guard stored != nil else { return }
+            let statement = try connection.prepare(
+                """
+                DELETE FROM local_skill_origins
+                WHERE skill_id = ? AND scope_kind = ? AND adapter_code IS ?
+                  AND path_variant IS ? AND custom_path_id IS ?
+                  AND raw_locator = ? AND normalized_locator = ?
+                  AND collision_key = ? AND fingerprint_algorithm_version = ?
+                  AND content_fingerprint = ? AND confirmed_at_ms = ?
+                """
+            )
+            try statement.bind(expected.skillID.bytes, at: 1)
+            try statement.bind(expected.scope.kind.rawValue, at: 2)
+            try bindOptional(expected.scope.adapterCode, to: statement, at: 3)
+            try bindOptional(expected.scope.pathVariant, to: statement, at: 4)
+            if let customPathID = expected.scope.customPathID {
+                try statement.bind(SkillID(customPathID).bytes, at: 5)
+            } else {
+                try statement.bindNull(at: 5)
+            }
+            try statement.bind(expected.rawLocator, at: 6)
+            try statement.bind(expected.normalizedLocator, at: 7)
+            try statement.bind(expected.collisionKey, at: 8)
+            try statement.bind(Int64(expected.fingerprint.algorithmVersion), at: 9)
+            try statement.bind(expected.fingerprint.digest, at: 10)
+            try statement.bind(expected.confirmedAtMilliseconds, at: 11)
+            try finishMutation(statement)
+        }
+    }
+
     private func localOriginsByPosition() throws
         -> [LocalSkillOriginPosition: LocalSkillOriginRecord] {
         let records = try localOrigins()
@@ -227,4 +266,12 @@ private nonisolated func sameLocalOriginPositionEvidence(
         && lhs.normalizedLocator == rhs.normalizedLocator
         && lhs.collisionKey == rhs.collisionKey
         && lhs.fingerprint == rhs.fingerprint
+}
+
+private nonisolated func sameLocalOriginCleanupEvidence(
+    _ lhs: LocalSkillOriginRecord,
+    _ rhs: LocalSkillOriginRecord
+) -> Bool {
+    sameLocalOriginEvidence(lhs, rhs)
+        && lhs.confirmedAtMilliseconds == rhs.confirmedAtMilliseconds
 }

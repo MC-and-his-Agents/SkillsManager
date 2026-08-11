@@ -62,7 +62,7 @@ nonisolated extension DistributionSymlinkFileSystem {
         expectedRootIdentity: ManagedItemIdentity,
         expectedEntryIdentity: ManagedItemIdentity
     ) throws -> DistributionCopyCapture {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let root = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(root.descriptor) }
         guard root.identity == expectedRootIdentity else {
@@ -138,7 +138,7 @@ nonisolated extension DistributionSymlinkFileSystem {
     func observeCopy(
         _ entry: DistributionTargetEntry
     ) throws -> DistributionCopyFilesystemObservation {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let root: DirectoryHandle
         do {
             root = try openDirectory(components: components, createMissing: false)
@@ -190,7 +190,7 @@ nonisolated extension DistributionSymlinkFileSystem {
         operationID: UUID,
         actionIndex: Int
     ) throws -> DistributionStagedCopy {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let root = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(root.descriptor) }
         guard root.identity == expectedRootIdentity else {
@@ -260,7 +260,7 @@ nonisolated extension DistributionSymlinkFileSystem {
         operationID: UUID,
         actionIndex: Int
     ) throws -> DistributionQuarantinedCopy {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let root = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(root.descriptor) }
         guard root.identity == expected.rootIdentity else {
@@ -309,7 +309,7 @@ nonisolated extension DistributionSymlinkFileSystem {
         _ entry: DistributionTargetEntry,
         staged: DistributionStagedCopy
     ) throws -> DistributionCopyEvidence {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let root = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(root.descriptor) }
         guard root.identity == staged.evidence.rootIdentity,
@@ -349,7 +349,7 @@ nonisolated extension DistributionSymlinkFileSystem {
         _ entry: DistributionTargetEntry,
         quarantined: DistributionQuarantinedCopy
     ) throws {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let root = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(root.descriptor) }
         guard root.identity == quarantined.evidence.rootIdentity else {
@@ -392,7 +392,7 @@ nonisolated extension DistributionSymlinkFileSystem {
         _ entry: DistributionTargetEntry,
         quarantined: DistributionQuarantinedCopy
     ) throws {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let root = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(root.descriptor) }
         guard root.identity == quarantined.evidence.rootIdentity else {
@@ -415,7 +415,7 @@ nonisolated extension DistributionSymlinkFileSystem {
         _ entry: DistributionTargetEntry,
         expected: DistributionCopyEvidence
     ) throws {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let root = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(root.descriptor) }
         guard root.identity == expected.rootIdentity else {
@@ -438,7 +438,7 @@ nonisolated extension DistributionSymlinkFileSystem {
         expectedContent: SkillContentFingerprint,
         expectedPhysicalTree: CopyPhysicalTreeDigest
     ) throws {
-        let components = try components(for: entry.target.scope)
+        let components = try components(for: entry)
         let root: DirectoryHandle
         do {
             root = try openDirectory(components: components, createMissing: false)

@@ -148,7 +148,7 @@ nonisolated extension DistributionCopyExecutor {
         var observations: [DistributionTargetEntry: DistributionTargetObservation] = [:]
         var drifted = false
         for binding in current {
-            guard let entry = DistributionTargetCatalog.current.entry(
+            guard let entry = fileSystem.catalog.entry(
                 for: binding.scope,
                 slug: binding.distributionSlug
             ) else {
@@ -252,9 +252,8 @@ nonisolated extension DistributionCopyExecutor {
         let oldLink = oldLinks.first {
             $0.targetScopeKey == action.entry.target.scope.targetScopeKey
         }
-        let isHistoricalMigration = old == nil
-            && action.kind == .replaceCopyWithSymlink
-            && approvedHistoricalMigration != nil
+        let isHistoricalMigration = approvedHistoricalMigration != nil
+            && (action.kind == .replaceCopyWithSymlink || action.kind == .removeCopy)
         let observation = try old.map {
             try observeCurrent(
                 action.entry,
@@ -280,7 +279,9 @@ nonisolated extension DistributionCopyExecutor {
                 approvedCopyDrift: approvedCopyDrift
             )
         }
-        let root = try fileSystem.existingRoot(for: action.entry.target.scope)
+        let root = try isHistoricalMigration
+            ? fileSystem.existingRoot(for: action.entry)
+            : fileSystem.existingRoot(for: action.entry.target.scope)
         if let approvedHistoricalMigration, isHistoricalMigration {
             guard root == approvedHistoricalMigration.source.rootIdentity else {
                 throw DistributionSymlinkExecutorError.conflict
@@ -324,8 +325,21 @@ nonisolated extension DistributionCopyExecutor {
                 : nil,
             historicalMigrationBackup: try isHistoricalMigration
                 ? approvedHistoricalMigration.map {
-                    try DistributionHistoricalMigrationBackupWireV2($0.backup)
-                } : nil
+                    try DistributionHistoricalMigrationBackupWireV2(
+                        $0.backup,
+                        source: $0.source,
+                        sourceScopeKey: $0.metadata.sourceScope.targetScopeKey,
+                        sourceLocator: $0.metadata.normalizedLocator,
+                        operationID: operationID,
+                        targetLocator: action.entry.canonicalLocator,
+                        sourceRootLocator: action.entry.target.rootLocator
+                    )
+                } : nil,
+            localOriginCleanup: isHistoricalMigration
+                ? approvedHistoricalMigration?.localOriginCleanup.map(
+                    DistributionLocalSkillOriginCleanupWireV2.init
+                )
+                : nil
         )
     }
 

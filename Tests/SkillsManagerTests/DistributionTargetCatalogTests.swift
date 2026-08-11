@@ -66,6 +66,12 @@ struct DistributionTargetCatalogTests {
         ))
         #expect(externalTarget.rootLocator == "/Volumes/skills/.codex")
         #expect(externalTarget.slug.value == "demo")
+        let compatibilityTarget = try #require(DistributionTargetCatalog.persistedTarget(
+            from: "~/.codex/skills/public/demo",
+            for: .agent(.codex)
+        ))
+        #expect(compatibilityTarget.rootLocator == "~/.codex/skills/public")
+        #expect(compatibilityTarget.slug.value == "demo")
         #expect(DistributionTargetCatalog.persistedTarget(
             from: "/Volumes/skills/.codex/../demo",
             for: .agent(.codex)

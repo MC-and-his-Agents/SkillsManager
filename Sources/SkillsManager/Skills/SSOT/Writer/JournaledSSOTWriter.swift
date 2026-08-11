@@ -10,6 +10,7 @@ actor JournaledSSOTWriter {
     let distribution: DistributionSymlinkExecutor
     let copyDistribution: DistributionCopyExecutor
     let backupFileSystem: SkillBackupFileSystem
+    let distributionCatalog: DistributionTargetCatalog
     let hooks: JournaledSSOTWriterHooks
     var updateCheckTokens: [SkillID: ManagedSkillUpdateCheckToken] = [:]
 
@@ -20,6 +21,7 @@ actor JournaledSSOTWriter {
         distribution: DistributionSymlinkExecutor,
         copyDistribution: DistributionCopyExecutor,
         backupFileSystem: SkillBackupFileSystem,
+        distributionCatalog: DistributionTargetCatalog,
         hooks: JournaledSSOTWriterHooks
     ) throws {
         self.connection = connection
@@ -28,6 +30,7 @@ actor JournaledSSOTWriter {
         self.distribution = distribution
         self.copyDistribution = copyDistribution
         self.backupFileSystem = backupFileSystem
+        self.distributionCatalog = distributionCatalog
         journal = try SSOTJournalStore(connection: connection)
         self.hooks = hooks
     }
@@ -37,6 +40,7 @@ actor JournaledSSOTWriter {
         ssotRoot: VerifiedSSOTRoot,
         databaseURL: URL,
         distributionHomeURL: URL,
+        configurationStore: HarnessSkillRootConfigurationStore = .shared,
         hooks: JournaledSSOTWriterHooks = .init()
     ) async throws -> JournaledSSOTWriter {
         guard managementRoot.identity != ssotRoot.identity,
@@ -57,6 +61,7 @@ actor JournaledSSOTWriter {
             connection: connection,
             ownership: ownership,
             distributionHomeURL: distributionHomeURL,
+            configurationStore: configurationStore,
             hooks: hooks
         )
     }
@@ -67,6 +72,7 @@ actor JournaledSSOTWriter {
         connection: sending SQLiteConnection,
         ownership: SSOTWriterOwnership,
         distributionHomeURL: URL,
+        configurationStore: HarnessSkillRootConfigurationStore = .shared,
         hooks: JournaledSSOTWriterHooks = .init()
     ) async throws -> JournaledSSOTWriter {
         guard connection.accessMode != .readOnly,
@@ -87,8 +93,13 @@ actor JournaledSSOTWriter {
                 }
             )
         )
+        let distributionCatalog = DistributionTargetCatalog.current(
+            homeURL: distributionHomeURL,
+            configurationStore: configurationStore
+        )
         let distributionFileSystem = try DistributionSymlinkFileSystem(
-            homeURL: distributionHomeURL
+            homeURL: distributionHomeURL,
+            catalog: distributionCatalog
         )
         let distribution = try DistributionSymlinkExecutor(
             connection: connection,
@@ -112,6 +123,7 @@ actor JournaledSSOTWriter {
             distribution: distribution,
             copyDistribution: copyDistribution,
             backupFileSystem: backupFileSystem,
+            distributionCatalog: distributionCatalog,
             hooks: hooks
         )
         try await writer.recoverAll()
@@ -119,6 +131,10 @@ actor JournaledSSOTWriter {
         try await writer.recoverDeletions()
         try await writer.recoverIndependentUpdateBackups()
         return writer
+    }
+
+    func currentDistributionCatalog() -> DistributionTargetCatalog {
+        distributionCatalog
     }
 
     func loadCustomPaths() throws -> [SQLiteCustomPathRecord] {

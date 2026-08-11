@@ -10,6 +10,7 @@ nonisolated final class DistributionCopyExecutor {
     let bindingStore: DistributionBindingStore
     let configurationStore: DistributionConfigurationStore
     let linkOwnershipStore: DistributionLinkOwnershipStore
+    let localOriginStore: SSOTJournalStore
     let operationStore: DistributionOperationStore
     let backupStore: SkillBackupStore
     let fileSystem: DistributionSymlinkFileSystem
@@ -29,6 +30,7 @@ nonisolated final class DistributionCopyExecutor {
         bindingStore = DistributionBindingStore(connection: connection)
         configurationStore = DistributionConfigurationStore(connection: connection)
         linkOwnershipStore = DistributionLinkOwnershipStore(connection: connection)
+        localOriginStore = try SSOTJournalStore(connection: connection)
         operationStore = try DistributionOperationStore(connection: connection)
         backupStore = try SkillBackupStore(connection: connection)
         self.fileSystem = fileSystem
@@ -104,13 +106,17 @@ nonisolated final class DistributionCopyExecutor {
         let discardActions = plan.filesystemActions.filter {
             $0.kind == .discardCopyDrift
         }
-        let historicalActions = plan.filesystemActions.filter { action in
-            action.kind == .replaceCopyWithSymlink
-                && !expectedOldBindings.contains(where: {
-                    $0.scope == action.entry.target.scope
-                        && $0.distributionSlug == action.entry.distributionSlug
-                })
-        }
+        let historicalActions = approvedHistoricalMigration == nil
+            ? []
+            : plan.filesystemActions.filter { action in
+                guard action.kind == .replaceCopyWithSymlink || action.kind == .removeCopy else {
+                    return false
+                }
+                // A convergence cleanup can replace a stale ordinary directory
+                // at an existing binding, or remove an extra directory beside
+                // the selected binding. Both use the same historical backup contract.
+                return true
+            }
         let requiresApprovedCopySource = !discardActions.isEmpty || !historicalActions.isEmpty
         guard discardActions.isEmpty == (approvedCopyDrift == nil),
               requiresApprovedCopySource == (approvedCopySource != nil),
@@ -120,8 +126,7 @@ nonisolated final class DistributionCopyExecutor {
         }
         guard historicalActions.isEmpty == (approvedHistoricalMigration == nil),
               historicalActions.count <= 1,
-              historicalActions.isEmpty || plan.filesystemActions.count == 1,
-              historicalActions.isEmpty || expectedOldBindings.isEmpty else {
+              historicalActions.isEmpty || plan.filesystemActions.count == 1 else {
             throw DistributionSymlinkExecutorError.conflict
         }
         let timestamp = nowMilliseconds ?? self.nowMilliseconds()
@@ -149,7 +154,8 @@ nonisolated final class DistributionCopyExecutor {
            try source.decisionEvidence() != approvedCopySource {
             throw DistributionSymlinkExecutorError.conflict
         }
-        let preflight = try makePreflight(
+        let preflight: DistributionOperationPreflightV2
+        preflight = try makePreflight(
             skillID: skillID,
             plan: plan,
             expectedOldBindings: expectedOldBindings,
