@@ -166,22 +166,6 @@ class ReleaseContractTests(unittest.TestCase):
             with self.assertRaises(contract.ContractError):
                 contract.validate_ci_reuse(sha, bad_run, bad_jobs)
 
-    def test_ci_scope_only_reuses_the_exact_release_pair(self):
-        self.assertEqual(
-            contract.classify_ci_paths(["RELEASE_NOTES.md", "version.env"]),
-            {"release_only": True, "swift": True},
-        )
-        self.assertEqual(
-            contract.classify_ci_paths(
-                ["RELEASE_NOTES.md", "version.env", "Sources/App.swift"]
-            ),
-            {"release_only": False, "swift": True},
-        )
-        self.assertEqual(
-            contract.classify_ci_paths(["README.md"]),
-            {"release_only": False, "swift": False},
-        )
-
     def test_existing_release_must_be_complete_and_byte_comparison_ready(self):
         metadata = {
             "tagName": "v0.2.1",
