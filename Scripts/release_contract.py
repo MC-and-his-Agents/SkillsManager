@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import re
 from dataclasses import dataclass
@@ -142,6 +143,89 @@ def validate_release_plan(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def classify_ci_paths(paths: list[str]) -> dict[str, bool]:
+    swift_patterns = (
+        "Package.swift",
+        "Package.resolved",
+        "version.env",
+        "Sources/*",
+        "Tests/*",
+        "Scripts/*",
+        "UITests/*",
+        "Icon.icns",
+        "Icon.iconset/*",
+        ".github/workflows/*",
+    )
+    release_only = len(paths) == 2 and sorted(paths) == ["RELEASE_NOTES.md", "version.env"]
+    swift = any(
+        any(fnmatch.fnmatchcase(path, pattern) for pattern in swift_patterns) for path in paths
+    )
+    return {"release_only": release_only, "swift": swift}
+
+
+def validate_ci_reuse(
+    proof_sha: str, run: dict[str, object], jobs: list[dict[str, object]]
+) -> dict[str, object]:
+    if not re.fullmatch(r"[0-9a-f]{40}", proof_sha):
+        raise ContractError("CI reuse proof SHA must be a full lowercase commit SHA.")
+    if (
+        run.get("event") != "push"
+        or run.get("head_branch") != "main"
+        or run.get("head_sha") != proof_sha
+        or run.get("status") != "completed"
+        or run.get("conclusion") != "success"
+    ):
+        raise ContractError("CI reuse requires a successful main push run for the exact SHA.")
+    run_id = run.get("id")
+    run_attempt = run.get("run_attempt")
+    run_url = run.get("html_url")
+    if (
+        not isinstance(run_id, int)
+        or run_id < 1
+        or not isinstance(run_attempt, int)
+        or run_attempt < 1
+        or not isinstance(run_url, str)
+        or not run_url.startswith("https://github.com/")
+    ):
+        raise ContractError("CI reuse run metadata is malformed.")
+
+    build_jobs = [job for job in jobs if isinstance(job, dict) and job.get("name") == "build"]
+    if len(build_jobs) != 1 or build_jobs[0].get("conclusion") != "success":
+        raise ContractError("CI reuse requires one successful build job.")
+    build_steps = build_jobs[0].get("steps")
+    if not isinstance(build_steps, list):
+        raise ContractError("CI reuse build steps are missing.")
+    build_results = {
+        step.get("name"): step.get("conclusion")
+        for step in build_steps
+        if isinstance(step, dict)
+    }
+    if build_results.get("Build") != "success" or build_results.get("Skip Swift build") != "skipped":
+        raise ContractError("CI reuse requires the real Build step and rejects skipped builds.")
+
+    test_jobs = [job for job in jobs if isinstance(job, dict) and job.get("name") == "test"]
+    if len(test_jobs) != 1 or test_jobs[0].get("conclusion") != "success":
+        raise ContractError("CI reuse requires one successful test job.")
+    steps = test_jobs[0].get("steps")
+    if not isinstance(steps, list):
+        raise ContractError("CI reuse test steps are missing.")
+    step_results = {
+        step.get("name"): step.get("conclusion") for step in steps if isinstance(step, dict)
+    }
+    if step_results.get("Test") != "success" or step_results.get("Skip Swift tests") != "skipped":
+        raise ContractError("CI reuse requires the real Test step and rejects skipped tests.")
+    test_job_id = test_jobs[0].get("id")
+    if not isinstance(test_job_id, int) or test_job_id < 1:
+        raise ContractError("CI reuse test job metadata is malformed.")
+    return {
+        "proof_sha": proof_sha,
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+        "run_url": run_url,
+        "test_job_url": f"{run_url}/job/{test_job_id}",
+    }
+
+
 def dispatch_action(marker: str, runs: list[dict[str, object]]) -> str:
     if len(runs) > 1:
         raise ContractError("Multiple Release runs exist for one tag and head.")
@@ -200,6 +284,14 @@ def main() -> None:
     plan.add_argument("--issue-body", required=True)
     plan.add_argument("--release-notes", required=True)
 
+    scope = subparsers.add_parser("ci-scope")
+    scope.add_argument("--changed-paths", required=True)
+
+    reuse = subparsers.add_parser("ci-reuse")
+    reuse.add_argument("--proof-sha", required=True)
+    reuse.add_argument("--run", required=True)
+    reuse.add_argument("--jobs", required=True)
+
     dispatch = subparsers.add_parser("dispatch")
     dispatch.add_argument("--marker", default="")
     dispatch.add_argument("--runs", required=True)
@@ -221,6 +313,16 @@ def main() -> None:
             result = select_stable_release(json.loads(read_text(args.releases)))
         elif args.command == "plan":
             result = validate_release_plan(args)
+        elif args.command == "ci-scope":
+            result = classify_ci_paths(
+                [line for line in read_text(args.changed_paths).splitlines() if line]
+            )
+        elif args.command == "ci-reuse":
+            run = json.loads(read_text(args.run))
+            jobs = json.loads(read_text(args.jobs))
+            if not isinstance(run, dict) or not isinstance(jobs, list):
+                raise ContractError("CI reuse metadata has an invalid shape.")
+            result = validate_ci_reuse(args.proof_sha, run, jobs)
         elif args.command == "dispatch":
             result = {"action": dispatch_action(args.marker, json.loads(read_text(args.runs)))}
         else:

@@ -7,33 +7,139 @@ on:
   pull_request:
 
 permissions:
+  actions: read
   contents: read
+  issues: read
+  pull-requests: read
 
 jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      swift: ${{ steps.filter.outputs.swift }}
+      swift: ${{ steps.proof.outputs.reuse == 'true' && 'false' || steps.scope.outputs.swift }}
+      reuse: ${{ steps.proof.outputs.reuse || 'false' }}
+      proof_sha: ${{ steps.proof.outputs.proof_sha }}
+      proof_url: ${{ steps.proof.outputs.proof_url }}
+      proof_test_job_url: ${{ steps.proof.outputs.proof_test_job_url }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Detect Swift changes
-        id: filter
+      - name: Detect change scope
+        id: scope
         env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: |
           set -euo pipefail
-          swift=false
-          while IFS= read -r file; do
-            case "$file" in
-              Package.swift|Package.resolved|version.env|Sources/*|Tests/*|Scripts/*|UITests/*|Icon.icns|Icon.iconset/*|.github/workflows/*)
-                swift=true
-                break
-                ;;
-            esac
-          done < <(git diff --name-only "$BASE_SHA" "$GITHUB_SHA")
-          echo "swift=$swift" >> "$GITHUB_OUTPUT"
+          base_sha=$PR_BASE_SHA
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            base_sha=$(git rev-parse "$GITHUB_SHA^1")
+          fi
+          git diff --name-only "$base_sha" "$GITHUB_SHA" > "$RUNNER_TEMP/changed-paths.txt"
+          scope=$(python3 Scripts/release_contract.py ci-scope \
+            --changed-paths "$RUNNER_TEMP/changed-paths.txt")
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          echo "release_only=$(jq -r '.release_only' <<<"$scope")" >> "$GITHUB_OUTPUT"
+          echo "swift=$(jq -r '.swift' <<<"$scope")" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release contract
+        if: steps.scope.outputs.release_only == 'true'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "${{ steps.scope.outputs.base_sha }}" "$GITHUB_SHA" \
+            > "$RUNNER_TEMP/changed-paths.txt"
+          git fetch --force --tags origin main
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            | jq -s 'add // [] | map({tagName: .tag_name, isDraft: .draft, isPrerelease: .prerelease})' \
+            > "$RUNNER_TEMP/releases.json"
+          baseline=$(python3 Scripts/release_contract.py stable-release \
+            --releases "$RUNNER_TEMP/releases.json")
+          baseline_tag=$(jq -r '.tag' <<<"$baseline")
+          git show "$baseline_tag:version.env" > "$RUNNER_TEMP/previous-version.env"
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$RUNNER_TEMP/pull.json"
+            jq -e --arg head "$PR_HEAD_SHA" \
+              '.head.sha == $head and .base.ref == "main"' "$RUNNER_TEMP/pull.json" >/dev/null
+            jq -r '.body // ""' "$RUNNER_TEMP/pull.json" > "$RUNNER_TEMP/pr-body.md"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+              > "$RUNNER_TEMP/pulls.json"
+            [[ "$(jq 'length' "$RUNNER_TEMP/pulls.json")" == "1" ]]
+            jq -e --arg head "$GITHUB_SHA" \
+              '.[0] | .merged_at != null and .base.ref == "main" and .merge_commit_sha == $head' \
+              "$RUNNER_TEMP/pulls.json" >/dev/null
+            jq -r '.[0].body // ""' "$RUNNER_TEMP/pulls.json" > "$RUNNER_TEMP/pr-body.md"
+          fi
+
+          impact=$(python3 Scripts/release_contract.py impact --body "$RUNNER_TEMP/pr-body.md")
+          [[ "$(jq -r '.impact' <<<"$impact")" == "bundled" ]]
+          release_issue=$(jq -r '.issue' <<<"$impact")
+          gh api "repos/$GITHUB_REPOSITORY/issues/$release_issue" \
+            > "$RUNNER_TEMP/release-issue.json"
+          jq -e '(has("pull_request") | not) and \
+            (.labels | map(.name) | index("release") != null)' \
+            "$RUNNER_TEMP/release-issue.json" >/dev/null
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            [[ "$(jq -r '.state' "$RUNNER_TEMP/release-issue.json")" == "open" ]]
+          fi
+          jq -r '.body // ""' "$RUNNER_TEMP/release-issue.json" \
+            > "$RUNNER_TEMP/release-issue.md"
+          [[ "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --label release-blocker --limit 1 --json number --jq 'length')" == "0" ]]
+          python3 Scripts/release_contract.py plan \
+            --current-version version.env \
+            --previous-version "$RUNNER_TEMP/previous-version.env" \
+            --changed-paths "$RUNNER_TEMP/changed-paths.txt" \
+            --pr-body "$RUNNER_TEMP/pr-body.md" \
+            --issue-body "$RUNNER_TEMP/release-issue.md" \
+            --release-notes RELEASE_NOTES.md
+
+      - name: Verify reusable main CI
+        id: proof
+        if: steps.scope.outputs.release_only == 'true'
+        continue-on-error: true
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+          PROOF_SHA: ${{ steps.scope.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            current_main=$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')
+            [[ "$PR_BASE_REF" == "main" && "$current_main" == "$PROOF_SHA" ]]
+          else
+            [[ "$(git rev-list --parents -n 1 "$GITHUB_SHA" | wc -w | tr -d ' ')" == "3" ]]
+          fi
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=push&branch=main&status=success&per_page=100" \
+            > "$RUNNER_TEMP/runs.json"
+          jq --arg sha "$PROOF_SHA" \
+            '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.id) | last // empty' \
+            "$RUNNER_TEMP/runs.json" > "$RUNNER_TEMP/proof-run.json"
+          run_id=$(jq -er '.id' "$RUNNER_TEMP/proof-run.json")
+          run_attempt=$(jq -er '.run_attempt' "$RUNNER_TEMP/proof-run.json")
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/attempts/$run_attempt/jobs?per_page=100" \
+            --jq '.jobs' > "$RUNNER_TEMP/proof-jobs.json"
+          proof=$(python3 Scripts/release_contract.py ci-reuse \
+            --proof-sha "$PROOF_SHA" \
+            --run "$RUNNER_TEMP/proof-run.json" \
+            --jobs "$RUNNER_TEMP/proof-jobs.json")
+          echo "reuse=true" >> "$GITHUB_OUTPUT"
+          echo "proof_sha=$PROOF_SHA" >> "$GITHUB_OUTPUT"
+          echo "proof_url=$(jq -r '.run_url' <<<"$proof")" >> "$GITHUB_OUTPUT"
+          echo "proof_test_job_url=$(jq -r '.test_job_url' <<<"$proof")" >> "$GITHUB_OUTPUT"
+
+      - name: Fall back to the full macOS gate
+        if: steps.scope.outputs.release_only == 'true' && steps.proof.outcome != 'success'
+        run: echo "Verified CI evidence is unavailable; running the full macOS gate."
 
   build:
     needs: changes
@@ -50,8 +156,14 @@ jobs:
           swift --version
           swift build
       - name: Skip Swift build
-        if: needs.changes.outputs.swift != 'true'
+        if: needs.changes.outputs.swift != 'true' && needs.changes.outputs.reuse != 'true'
         run: echo "No Swift changes; build is not required."
+      - name: Reuse verified product build
+        if: needs.changes.outputs.reuse == 'true'
+        env:
+          PROOF_SHA: ${{ needs.changes.outputs.proof_sha }}
+          PROOF_URL: ${{ needs.changes.outputs.proof_url }}
+        run: echo "Release-only commit reuses the successful product build from $PROOF_SHA ($PROOF_URL)."
 
   test:
     needs: changes
@@ -69,5 +181,15 @@ jobs:
           swift test --no-parallel
           ./Scripts/run_ui_tests.sh
       - name: Skip Swift tests
-        if: needs.changes.outputs.swift != 'true'
+        if: needs.changes.outputs.swift != 'true' && needs.changes.outputs.reuse != 'true'
         run: echo "No Swift changes; tests are not required."
+      - name: Reuse verified product tests
+        if: needs.changes.outputs.reuse == 'true'
+        env:
+          PROOF_SHA: ${{ needs.changes.outputs.proof_sha }}
+          PROOF_URL: ${{ needs.changes.outputs.proof_url }}
+          PROOF_TEST_JOB_URL: ${{ needs.changes.outputs.proof_test_job_url }}
+        run: |
+          echo "Release-only commit reuses full product tests from $PROOF_SHA."
+          echo "Run: $PROOF_URL"
+          echo "Successful real Test step: $PROOF_TEST_JOB_URL"

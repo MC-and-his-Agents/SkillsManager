@@ -107,6 +107,81 @@ class ReleaseContractTests(unittest.TestCase):
             with self.assertRaises(contract.ContractError):
                 contract.dispatch_action(marker, runs)
 
+    def test_ci_reuse_requires_exact_main_run_and_real_test_step(self):
+        sha = "a" * 40
+        run = {
+            "id": 123,
+            "run_attempt": 2,
+            "html_url": "https://github.com/example/repo/actions/runs/123",
+            "event": "push",
+            "head_branch": "main",
+            "head_sha": sha,
+            "status": "completed",
+            "conclusion": "success",
+        }
+        jobs = [
+            {
+                "id": 455,
+                "name": "build",
+                "conclusion": "success",
+                "steps": [
+                    {"name": "Build", "conclusion": "success"},
+                    {"name": "Skip Swift build", "conclusion": "skipped"},
+                ],
+            },
+            {
+                "id": 456,
+                "name": "test",
+                "conclusion": "success",
+                "steps": [
+                    {"name": "Test", "conclusion": "success"},
+                    {"name": "Skip Swift tests", "conclusion": "skipped"},
+                ],
+            }
+        ]
+        proof = contract.validate_ci_reuse(sha, run, jobs)
+        self.assertEqual(proof["run_attempt"], 2)
+        self.assertEqual(proof["test_job_url"], f"{run['html_url']}/job/456")
+
+        invalid = [
+            ({**run, "head_sha": "b" * 40}, jobs),
+            ({**run, "event": "pull_request"}, jobs),
+            ({**run, "conclusion": "failure"}, jobs),
+            (run, [{**jobs[0], "conclusion": "failure"}, jobs[1]]),
+            (
+                run,
+                [
+                    jobs[0],
+                    {
+                        **jobs[1],
+                        "steps": [
+                            {"name": "Test", "conclusion": "skipped"},
+                            {"name": "Skip Swift tests", "conclusion": "success"},
+                        ],
+                    }
+                ],
+            ),
+        ]
+        for bad_run, bad_jobs in invalid:
+            with self.assertRaises(contract.ContractError):
+                contract.validate_ci_reuse(sha, bad_run, bad_jobs)
+
+    def test_ci_scope_only_reuses_the_exact_release_pair(self):
+        self.assertEqual(
+            contract.classify_ci_paths(["RELEASE_NOTES.md", "version.env"]),
+            {"release_only": True, "swift": True},
+        )
+        self.assertEqual(
+            contract.classify_ci_paths(
+                ["RELEASE_NOTES.md", "version.env", "Sources/App.swift"]
+            ),
+            {"release_only": False, "swift": True},
+        )
+        self.assertEqual(
+            contract.classify_ci_paths(["README.md"]),
+            {"release_only": False, "swift": False},
+        )
+
     def test_existing_release_must_be_complete_and_byte_comparison_ready(self):
         metadata = {
             "tagName": "v0.2.1",
