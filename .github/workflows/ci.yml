@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       swift: ${{ steps.proof.outputs.reuse == 'true' && 'false' || steps.scope.outputs.swift }}
+      ui_scope: ${{ steps.scope.outputs.ui_scope }}
+      ui_groups: ${{ steps.scope.outputs.ui_groups }}
       reuse: ${{ steps.proof.outputs.reuse || 'false' }}
       proof_sha: ${{ steps.proof.outputs.proof_sha }}
       proof_url: ${{ steps.proof.outputs.proof_url }}
@@ -37,11 +39,23 @@ jobs:
             base_sha=$(git rev-parse "$GITHUB_SHA^1")
           fi
           git diff --name-only "$base_sha" "$GITHUB_SHA" > "$RUNNER_TEMP/changed-paths.txt"
-          scope=$(python3 Scripts/release_contract.py ci-scope \
+          scope=$(python3 Scripts/ci_validation_plan.py \
             --changed-paths "$RUNNER_TEMP/changed-paths.txt")
+          echo "ci-validation-plan=$scope"
           echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
           echo "release_only=$(jq -r '.release_only' <<<"$scope")" >> "$GITHUB_OUTPUT"
           echo "swift=$(jq -r '.swift' <<<"$scope")" >> "$GITHUB_OUTPUT"
+          echo "ui_scope=$(jq -r '.ui_scope' <<<"$scope")" >> "$GITHUB_OUTPUT"
+          echo "ui_groups=$(jq -r '.ui_groups' <<<"$scope")" >> "$GITHUB_OUTPUT"
+
+      - name: Validate CI planning contracts
+        run: |
+          python3 -m unittest \
+            Scripts/tests/test_ci_validation_plan.py \
+            Scripts/tests/test_release_contract.py
+          /bin/bash -n Scripts/*.sh Scripts/tests/*.sh
+          /bin/bash Scripts/tests/test_ui_test_selection.sh
+          /bin/bash Scripts/tests/test_run_ui_tests.sh
 
       - name: Validate release contract
         if: steps.scope.outputs.release_only == 'true'
@@ -175,11 +189,19 @@ jobs:
         if: needs.changes.outputs.swift == 'true'
         env:
           DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+          UI_SCOPE: ${{ needs.changes.outputs.ui_scope }}
+          UI_GROUPS: ${{ needs.changes.outputs.ui_groups }}
         run: |
           xcodebuild -version
           swift --version
           swift test --no-parallel
-          ./Scripts/run_ui_tests.sh
+          echo "ci-validation-execution swift-tests=full ui_scope=$UI_SCOPE ui_groups=${UI_GROUPS:-none}"
+          case "$UI_SCOPE" in
+            none) echo "No UI journey is affected; UI tests are not required." ;;
+            targeted) UI_TEST_GROUPS="$UI_GROUPS" ./Scripts/run_ui_tests.sh ;;
+            full) ./Scripts/run_ui_tests.sh ;;
+            *) echo "ERROR: unsupported UI validation scope." >&2; exit 1 ;;
+          esac
       - name: Skip Swift tests
         if: needs.changes.outputs.swift != 'true' && needs.changes.outputs.reuse != 'true'
         run: echo "No Swift changes; tests are not required."

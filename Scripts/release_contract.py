@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import fnmatch
 import json
 import re
 from dataclasses import dataclass
@@ -143,26 +142,6 @@ def validate_release_plan(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
-def classify_ci_paths(paths: list[str]) -> dict[str, bool]:
-    swift_patterns = (
-        "Package.swift",
-        "Package.resolved",
-        "version.env",
-        "Sources/*",
-        "Tests/*",
-        "Scripts/*",
-        "UITests/*",
-        "Icon.icns",
-        "Icon.iconset/*",
-        ".github/workflows/*",
-    )
-    release_only = len(paths) == 2 and sorted(paths) == ["RELEASE_NOTES.md", "version.env"]
-    swift = any(
-        any(fnmatch.fnmatchcase(path, pattern) for pattern in swift_patterns) for path in paths
-    )
-    return {"release_only": release_only, "swift": swift}
-
-
 def validate_ci_reuse(
     proof_sha: str, run: dict[str, object], jobs: list[dict[str, object]]
 ) -> dict[str, object]:
@@ -284,9 +263,6 @@ def main() -> None:
     plan.add_argument("--issue-body", required=True)
     plan.add_argument("--release-notes", required=True)
 
-    scope = subparsers.add_parser("ci-scope")
-    scope.add_argument("--changed-paths", required=True)
-
     reuse = subparsers.add_parser("ci-reuse")
     reuse.add_argument("--proof-sha", required=True)
     reuse.add_argument("--run", required=True)
@@ -313,10 +289,6 @@ def main() -> None:
             result = select_stable_release(json.loads(read_text(args.releases)))
         elif args.command == "plan":
             result = validate_release_plan(args)
-        elif args.command == "ci-scope":
-            result = classify_ci_paths(
-                [line for line in read_text(args.changed_paths).splitlines() if line]
-            )
         elif args.command == "ci-reuse":
             run = json.loads(read_text(args.run))
             jobs = json.loads(read_text(args.jobs))
