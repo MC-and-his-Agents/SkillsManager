@@ -375,16 +375,20 @@ run_attempt() {
   local summary="$RUN_DIR/attempt-${attempt}.summary.json"
   local summary_stderr="$RUN_DIR/attempt-${attempt}.summary.stderr"
   local status summary_valid=0 test_total=unknown test_started=0 allowlisted=0 category
+  local -a test_arguments
 
   : > "$log"
   : > "$summary_stderr"
+  test_arguments=(-resultBundlePath "$result")
+  if [[ "$UI_TEST_SELECTION_MODE" != full ]]; then
+    test_arguments=("${UI_TEST_ARGUMENTS[@]}" "${test_arguments[@]}")
+  fi
   set +e
   DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
     xcodebuild test-without-building \
       -xctestrun "$XCTESTRUN" \
       -destination 'platform=macOS,arch=arm64' \
-      "${UI_TEST_ARGUMENTS[@]}" \
-      -resultBundlePath "$result" >"$log" 2>&1
+      "${test_arguments[@]}" >"$log" 2>&1
   status=$?
   set -e
 

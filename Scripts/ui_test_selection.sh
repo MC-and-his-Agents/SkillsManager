@@ -70,11 +70,13 @@ ui_test_identifier_is_registered() {
 }
 
 ui_test_add_method() {
-  local method="$1" argument existing
+  local method="$1" argument
   argument="-only-testing:$UI_TEST_TARGET_PREFIX$method"
-  for existing in "${UI_TEST_ARGUMENTS[@]}"; do
-    [[ "$existing" == "$argument" ]] && return 0
-  done
+  case ",${UI_TEST_SELECTED_METHODS}," in
+    *,"$method",*) return 0 ;;
+  esac
+  [[ -n "$UI_TEST_SELECTED_METHODS" ]] && UI_TEST_SELECTED_METHODS+=,
+  UI_TEST_SELECTED_METHODS+="$method"
   UI_TEST_ARGUMENTS+=("$argument")
 }
 
@@ -92,6 +94,7 @@ ui_test_select() {
   local item method
   local -a requested
   UI_TEST_ARGUMENTS=()
+  UI_TEST_SELECTED_METHODS=""
   UI_TEST_SELECTION_MODE=full
   UI_TEST_SELECTED_GROUPS=full
   UI_TEST_SELECTED_COUNT=${#UI_TEST_REGISTERED_METHODS[@]}

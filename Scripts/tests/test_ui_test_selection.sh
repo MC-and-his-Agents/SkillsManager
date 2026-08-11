@@ -15,7 +15,9 @@ select_tests() (
   ui_test_select || return 1
   printf 'selection=%s|%s|%s\n' \
     "$UI_TEST_SELECTION_MODE" "$UI_TEST_SELECTED_GROUPS" "$UI_TEST_SELECTED_COUNT"
-  printf '%s\n' "${UI_TEST_ARGUMENTS[@]}"
+  if [[ "$UI_TEST_SELECTION_MODE" != full ]]; then
+    printf '%s\n' "${UI_TEST_ARGUMENTS[@]}"
+  fi
 )
 
 default=$(select_tests "" "")
