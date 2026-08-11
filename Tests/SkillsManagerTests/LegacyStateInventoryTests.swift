@@ -102,6 +102,14 @@ struct LegacyStateInventoryTests {
         } catch let failure as LegacyMigrationFailure {
             #expect(failure.code == .legacyDuplicateRecord)
         }
+
+        let collectionPath = Data(
+            """
+            [{"id":"aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb","url":"file:///tmp/.codex/skills","displayName":"Codex","addedAt":0,"mode":"collection","adapterCode":"codex"}]
+            """.utf8
+        )
+        #expect(try LegacyStateWireDecoder.decodeCustomPaths(collectionPath).first?.mode
+            == .collection(adapter: .codex))
     }
 
     @Test("encodes legacy reference dates as bounded Unix milliseconds")

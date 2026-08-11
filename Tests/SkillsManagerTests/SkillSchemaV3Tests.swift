@@ -19,8 +19,8 @@ struct SkillSchemaV3Tests {
         #expect(try rolledBack.userTableNames().isEmpty)
 
         let migrated = try SkillSchemaMigrator.open(at: fixture.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 15)
-        #expect(try migrated.userTableNames() == SkillSchemaV15.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 16)
+        #expect(try migrated.userTableNames() == SkillSchemaV16.tableNames)
     }
 
     @Test("migrates v2 to v3 atomically")
@@ -39,11 +39,11 @@ struct SkillSchemaV3Tests {
         #expect(try rolledBack.userTableNames() == SkillSchemaV2.tableNames)
 
         let migrated = try SkillSchemaMigrator.open(at: fixture.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 15)
-        #expect(try migrated.userTableNames() == SkillSchemaV15.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 16)
+        #expect(try migrated.userTableNames() == SkillSchemaV16.tableNames)
         #expect(try migrated.querySingleInt(
             "SELECT count(*) FROM pragma_table_list WHERE strict = 1 AND name NOT LIKE 'sqlite_%'"
-        ) == Int64(SkillSchemaV15.tableNames.count))
+        ) == Int64(SkillSchemaV16.tableNames.count))
     }
 
     @Test("enforces custom path identity and uniqueness")
@@ -51,15 +51,27 @@ struct SkillSchemaV3Tests {
         let fixture = try LegacyMigrationTestFixture()
         let connection = try fixture.connection()
         try connection.execute(
-            "INSERT INTO custom_paths VALUES (X'\(v3CustomID)', 'file:///tmp/a/', X'2f746d702f61', 'A', 1)"
+            """
+            INSERT INTO custom_paths(
+              custom_path_id, absolute_url, normalized_url_key, display_name, added_at_ms
+            ) VALUES (X'\(v3CustomID)', 'file:///tmp/a/', X'2f746d702f61', 'A', 1)
+            """
         )
         #expect(v2SQLIsRejected(
             connection,
-            "INSERT INTO custom_paths VALUES (X'00', 'file:///tmp/b/', X'2f746d702f62', 'B', 1)"
+            """
+            INSERT INTO custom_paths(
+              custom_path_id, absolute_url, normalized_url_key, display_name, added_at_ms
+            ) VALUES (X'00', 'file:///tmp/b/', X'2f746d702f62', 'B', 1)
+            """
         ))
         #expect(v2SQLIsRejected(
             connection,
-            "INSERT INTO custom_paths VALUES (X'\(v3SecondCustomID)', 'file:///tmp/a/', X'2f746d702f61', 'B', 1)"
+            """
+            INSERT INTO custom_paths(
+              custom_path_id, absolute_url, normalized_url_key, display_name, added_at_ms
+            ) VALUES (X'\(v3SecondCustomID)', 'file:///tmp/a/', X'2f746d702f61', 'B', 1)
+            """
         ))
         #expect(v2SQLIsRejected(
             connection,

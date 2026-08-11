@@ -80,9 +80,12 @@ import Observation
         referenceState = .idle
     }
 
-    func addCustomPath(_ url: URL) async throws {
+    func addCustomPath(
+        _ url: URL,
+        mode: CustomSkillPathMode = .project
+    ) async throws {
         guard persistence != nil else { throw LibraryPersistenceError.runtimeNotReady }
-        try await customPathStore.addPath(url)
+        try await customPathStore.addPath(url, mode: mode)
     }
 
     func removeCustomPath(_ path: CustomSkillPath) async throws {

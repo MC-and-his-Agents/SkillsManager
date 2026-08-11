@@ -1,6 +1,18 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+nonisolated struct AddCustomPathValidationRequest: Equatable, Sendable {
+    let id: UUID
+    let url: URL
+    let mode: CustomSkillPathMode
+
+    init(id: UUID = UUID(), url: URL, mode: CustomSkillPathMode) {
+        self.id = id
+        self.url = url
+        self.mode = mode
+    }
+}
+
 struct AddCustomPathView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SkillStore.self) private var store
@@ -8,11 +20,17 @@ struct AddCustomPathView: View {
 
     @State private var showingPicker = false
     @State private var selectedURL: URL?
+    @State private var selectedMode: CustomSkillPathMode = .project
+    @State private var suggestedAdapters: [SkillPlatform] = []
+    @State private var selectedAdapter: SkillPlatform?
+    @State private var previewRoots: [SkillDiscoveryRoot] = []
     @State private var errorMessage: String?
     @State private var isValidating = false
     @State private var discoveredSkills: [SkillPlatform: [DiscoveredSkill]] = [:]
     @State private var rootDiagnostics: [SkillDiscoveryRootDiagnostic] = []
     @State private var validSkillCount = 0
+    @State private var activeValidationTask: Task<Void, Never>?
+    @State private var validationRequest: AddCustomPathValidationRequest?
 
     private struct DiscoveredSkill: Identifiable {
         let id: String
@@ -31,6 +49,19 @@ struct AddCustomPathView: View {
         SkillPlatform.allCases.filter { discoveredSkills[$0]?.isEmpty == false }
     }
 
+    private var adapterOptions: [SkillPlatform] {
+        suggestedAdapters.isEmpty ? SkillPlatform.allCases : suggestedAdapters
+    }
+
+    private var selectedModeLabel: String {
+        switch selectedMode {
+        case .project:
+            String(localized: "Project root", bundle: SkillsManagerLocalizationResources.bundle)
+        case .collection:
+            String(localized: "Direct Skill collection root", bundle: SkillsManagerLocalizationResources.bundle)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
@@ -47,13 +78,16 @@ struct AddCustomPathView: View {
         ) { result in
             handlePick(result)
         }
+        .onDisappear {
+            cancelValidation()
+        }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Add Custom Skill Path", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.title.bold())
-            Text("Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).", bundle: SkillsManagerLocalizationResources.bundle)
+            Text("Select a project folder or a direct Skill collection root. Project roots use known platform subpaths; collection roots scan direct Skill children.", bundle: SkillsManagerLocalizationResources.bundle)
                 .foregroundStyle(.secondary)
         }
     }
@@ -82,6 +116,16 @@ struct AddCustomPathView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     folderPreview(url: url)
+                    modePicker
+                    scanRootsView
+                    Text(String(
+                        localized: LocalizedStringResource(
+                            "\(validSkillCount) valid · \(totalSkillCount) observed candidate(s)",
+                            bundle: SkillsManagerLocalizationResources.bundle
+                        )
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(validSkillCount > 0 ? .green : .secondary)
                     if !discoveredSkills.isEmpty {
                         discoveredSkillsView
                     }
@@ -117,10 +161,96 @@ struct AddCustomPathView: View {
                 Text(verbatim: url.path)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Text(verbatim: selectedModeLabel)
+                    .font(.caption)
+                if let selectedAdapter {
+                    TagView(localized: platformResource(selectedAdapter), tint: selectedAdapter.badgeTint)
+                }
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 8).fill(.secondary.opacity(0.1)))
+    }
+
+    private var modePicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker(selection: Binding(
+                get: {
+                    if case .project = selectedMode { return "project" }
+                    return "collection"
+                },
+                set: { value in
+                    if value == "project" {
+                        selectedMode = .project
+                        selectedAdapter = nil
+                    } else {
+                        if selectedAdapter == nil, suggestedAdapters.count == 1 {
+                            selectedAdapter = suggestedAdapters[0]
+                        }
+                        selectedMode = .collection(adapter: selectedAdapter ?? suggestedAdapters.first ?? .codex)
+                    }
+                    rescanSelectedURL()
+                }
+            )) {
+                Text("Project root", bundle: SkillsManagerLocalizationResources.bundle).tag("project")
+                Text("Direct Skill collection root", bundle: SkillsManagerLocalizationResources.bundle).tag("collection")
+            } label: {
+                Text("Path type", bundle: SkillsManagerLocalizationResources.bundle)
+            }
+            .pickerStyle(.segmented)
+
+            if case .collection = selectedMode {
+                Picker(selection: Binding<SkillPlatform?>(
+                    get: { selectedAdapter },
+                    set: {
+                        selectedAdapter = $0
+                        if let adapter = $0 {
+                            selectedMode = .collection(adapter: adapter)
+                        }
+                        rescanSelectedURL()
+                    }
+                )) {
+                    Text("Choose an adapter", bundle: SkillsManagerLocalizationResources.bundle)
+                        .tag(nil as SkillPlatform?)
+                    ForEach(adapterOptions) { platform in
+                        Text(platformResource(platform)).tag(Optional(platform))
+                    }
+                } label: {
+                    Text("Adapter", bundle: SkillsManagerLocalizationResources.bundle)
+                }
+                .labelsHidden()
+                if suggestedAdapters.count > 1 && selectedAdapter == nil {
+                    Text("This standard path matches more than one adapter; choose one explicitly.", bundle: SkillsManagerLocalizationResources.bundle)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
+    private var scanRootsView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Actual scan roots", bundle: SkillsManagerLocalizationResources.bundle)
+                .font(.headline)
+            if previewRoots.isEmpty {
+                Text("No scan roots", bundle: SkillsManagerLocalizationResources.bundle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(previewRoots, id: \.self) { root in
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "arrow.turn.down.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(verbatim: root.url.standardizedFileURL.path)
+                            .font(.caption)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+        }
     }
 
     private var discoveredSkillsView: some View {
@@ -138,7 +268,7 @@ struct AddCustomPathView: View {
                     .foregroundStyle(validSkillCount > 0 ? .green : .secondary)
             }
 
-            Text("All skills will be added automatically.", bundle: SkillsManagerLocalizationResources.bundle)
+            Text("Skills stay in place; this path is registered for read-only discovery.", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -219,9 +349,14 @@ struct AddCustomPathView: View {
             Text("Scan Issues", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.headline)
             ForEach(rootDiagnostics, id: \.self) { diagnostic in
-                Label(diagnostic.localizedAccessibilitySummary, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Label(diagnostic.localizedAccessibilitySummary, systemImage: "exclamationmark.triangle")
+                    Text(verbatim: diagnostic.root.url.standardizedFileURL.path)
+                        .font(.caption2)
+                        .textSelection(.enabled)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
     }
@@ -229,7 +364,7 @@ struct AddCustomPathView: View {
     private var actions: some View {
         HStack {
             Button {
-                dismiss()
+                dismissView()
             } label: {
                 Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
             }
@@ -251,9 +386,10 @@ struct AddCustomPathView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(
                     selectedURL == nil
-                        || validSkillCount == 0
-                        || isValidating
-                        || libraryRuntime.readiness != .ready
+                    || validSkillCount == 0
+                    || isValidating
+                    || (isCollectionMode && selectedAdapter == nil)
+                    || libraryRuntime.readiness != .ready
                 )
                 .keyboardShortcut(.defaultAction)
         }
@@ -271,25 +407,73 @@ struct AddCustomPathView: View {
     }
 
     private func validateAndSetURL(_ url: URL) {
+        cancelValidation()
         isValidating = true
         selectedURL = url
         discoveredSkills = [:]
         rootDiagnostics = []
+        previewRoots = []
         validSkillCount = 0
+        suggestedAdapters = CustomSkillPathMode.suggestedAdapters(for: url)
+        selectedAdapter = suggestedAdapters.count == 1 ? suggestedAdapters[0] : nil
+        selectedMode = suggestedAdapters.isEmpty
+            ? .project
+            : .collection(adapter: suggestedAdapters.first ?? .codex)
+        rescanSelectedURL()
+    }
 
-        Task {
+    private var isCollectionMode: Bool {
+        if case .collection = selectedMode { return true }
+        return false
+    }
+
+    private func rescanSelectedURL() {
+        guard let url = selectedURL else { return }
+        guard case .collection = selectedMode, selectedAdapter == nil else {
+            validateSelectedURL(url, mode: selectedMode)
+            return
+        }
+        // An ambiguous collection root is displayed but cannot be added until an adapter is chosen.
+        cancelValidation()
+        validationRequest = AddCustomPathValidationRequest(url: url, mode: selectedMode)
+        previewRoots = []
+        discoveredSkills = [:]
+        rootDiagnostics = []
+        validSkillCount = 0
+        errorMessage = nil
+        isValidating = false
+    }
+
+    private func validateSelectedURL(_ url: URL, mode: CustomSkillPathMode) {
+        cancelValidation()
+        let request = AddCustomPathValidationRequest(url: url, mode: mode)
+        validationRequest = request
+        isValidating = true
+        discoveredSkills = [:]
+        rootDiagnostics = []
+        validSkillCount = 0
+        errorMessage = nil
+        let customPath = CustomSkillPath(url: url, mode: mode)
+        let roots = SkillDiscoveryRootPlan.make(
+            homeURL: url,
+            customPaths: [customPath]
+        ).filter { $0.scope.customPathID == customPath.id }
+        previewRoots = roots
+
+        activeValidationTask = Task { [request, roots] in
+            let scanTask = Task.detached(priority: .userInitiated) {
+                try SkillDiscoveryScanner().scan(
+                    roots: roots,
+                    checkpoint: { try Task.checkCancellation() }
+                )
+            }
             do {
-                let customPath = CustomSkillPath(url: url)
-                let roots = SkillDiscoveryRootPlan.make(
-                    homeURL: url,
-                    customPaths: [customPath]
-                ).filter { $0.scope.customPathID == customPath.id }
-                let result = try await Task.detached(priority: .userInitiated) {
-                    try SkillDiscoveryScanner().scan(
-                        roots: roots,
-                        checkpoint: { try Task.checkCancellation() }
-                    )
-                }.value
+                let result = try await withTaskCancellationHandler(operation: {
+                    try await scanTask.value
+                }, onCancel: {
+                    scanTask.cancel()
+                })
+                guard !Task.isCancelled, validationRequest == request else { return }
                 var discovered: [SkillPlatform: [DiscoveredSkill]] = [:]
                 for observation in result.observations {
                     let scopesByPlatform = Dictionary(grouping: observation.scopes) {
@@ -320,17 +504,33 @@ struct AddCustomPathView: View {
                             == .orderedAscending
                     }
                 }
+                guard !Task.isCancelled, validationRequest == request else { return }
                 discoveredSkills = discovered
                 rootDiagnostics = result.rootDiagnostics
                 validSkillCount = result.observations.filter { $0.fingerprint != nil }.count
                 errorMessage = validSkillCount == 0
-                    ? String(localized: "No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.", bundle: SkillsManagerLocalizationResources.bundle)
+                    ? String(localized: "No valid Skill candidates found. Check the actual scan roots and reported diagnostics.", bundle: SkillsManagerLocalizationResources.bundle)
                     : nil
+                isValidating = false
+            } catch is CancellationError {
+                return
             } catch {
+                guard !Task.isCancelled, validationRequest == request else { return }
                 errorMessage = localizedPathError(error)
+                isValidating = false
             }
-            isValidating = false
         }
+    }
+
+    private func cancelValidation() {
+        activeValidationTask?.cancel()
+        activeValidationTask = nil
+        validationRequest = nil
+    }
+
+    private func dismissView() {
+        cancelValidation()
+        dismiss()
     }
 
     private func addPath() {
@@ -345,9 +545,13 @@ struct AddCustomPathView: View {
                 return
             }
             do {
-                try await store.addCustomPath(url)
+                if case .collection = selectedMode, selectedAdapter == nil {
+                    errorMessage = String(localized: "Choose an adapter for this direct Skill collection root.", bundle: SkillsManagerLocalizationResources.bundle)
+                    return
+                }
+                try await store.addCustomPath(url, mode: selectedMode)
                 await store.loadSkills()
-                dismiss()
+                dismissView()
             } catch {
                 errorMessage = localizedPathError(error)
             }
@@ -366,6 +570,8 @@ struct AddCustomPathView: View {
             return String(localized: "The selected directory does not exist.", bundle: SkillsManagerLocalizationResources.bundle)
         case .duplicatePath:
             return String(localized: "This path has already been added.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .invalidMode:
+            return String(localized: "The selected custom path mode is invalid.", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }

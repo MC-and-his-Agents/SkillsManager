@@ -298,13 +298,25 @@ nonisolated struct SkillDiscoveryRootPlan {
             }
         }
         for customPath in customPaths {
-            roots.append(contentsOf: platformRoots(in: customPath.url) { platform, relativePath in
-                .custom(
-                    pathID: customPath.id,
-                    adapterCode: platform.storageKey,
-                    pathVariant: relativePath
-                )
-            })
+            switch customPath.mode {
+            case .project:
+                roots.append(contentsOf: platformRoots(in: customPath.url) { platform, relativePath in
+                    .custom(
+                        pathID: customPath.id,
+                        adapterCode: platform.storageKey,
+                        pathVariant: relativePath
+                    )
+                })
+            case .collection(let adapter):
+                roots.append(SkillDiscoveryRoot(
+                    scope: .custom(
+                        pathID: customPath.id,
+                        adapterCode: adapter.storageKey,
+                        pathVariant: CustomSkillPathMode.directPathVariant
+                    ),
+                    url: customPath.url.standardizedFileURL
+                ))
+            }
         }
         var seen: Set<String> = []
         return roots.filter { root in

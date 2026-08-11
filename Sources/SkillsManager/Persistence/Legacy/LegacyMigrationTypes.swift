@@ -54,6 +54,7 @@ nonisolated struct LegacyCustomPathRecord: Equatable, Sendable {
     let normalizedURLKey: Data
     let displayName: String
     let addedAtMilliseconds: Int64
+    let mode: CustomSkillPathMode
 }
 
 nonisolated struct LegacyPublishStateRecord: Equatable, Sendable {

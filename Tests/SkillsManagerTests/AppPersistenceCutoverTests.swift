@@ -79,6 +79,33 @@ struct AppPersistenceCutoverTests {
     }
 
     @MainActor
+    @Test("persists direct collection semantics and rejects equivalent paths")
+    func persistsCollectionMode() async throws {
+        let fixture = try LibraryRuntimeTestHome()
+        defer { fixture.remove() }
+        let collection = fixture.root.appendingPathComponent(".codex/skills", isDirectory: true)
+        try FileManager.default.createDirectory(at: collection, withIntermediateDirectories: true)
+        let result = await LibraryStartupCoordinator(homeURL: fixture.home).start()
+        let session = try #require(result.session)
+        let paths = CustomPathStore()
+        try await paths.activate(using: session)
+
+        try await paths.addPath(collection, mode: .collection(adapter: .codex))
+        #expect(paths.customPaths.first?.mode == .collection(adapter: .codex))
+        await #expect(throws: CustomPathError.duplicatePath) {
+            try await paths.addPath(
+                URL(fileURLWithPath: collection.path + "/", isDirectory: true),
+                mode: .project
+            )
+        }
+        #expect(try await session.loadCustomPaths().first?.mode == .collection(adapter: .codex))
+
+        let reloaded = CustomPathStore()
+        try await reloaded.activate(using: session)
+        #expect(reloaded.customPaths.first?.mode == .collection(adapter: .codex))
+    }
+
+    @MainActor
     @Test("repeated window startup shares one ready runtime and one persistence cutover")
     func coalescesRepeatedStartup() async throws {
         let fixture = try LibraryRuntimeTestHome()

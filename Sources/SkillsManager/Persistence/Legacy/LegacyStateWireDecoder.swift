@@ -12,7 +12,7 @@ nonisolated enum LegacyStateWireDecoder {
             let object = try exactObject(
                 value,
                 required: ["id", "url", "displayName", "addedAt"],
-                optional: [],
+                optional: ["mode", "adapterCode"],
                 locator: "custom-paths.json"
             )
             let id = try UUID(uuidString: string(object["id"], locator: "custom-paths.json"))
@@ -27,6 +27,14 @@ nonisolated enum LegacyStateWireDecoder {
             let addedAt = try LegacyDateCodec.milliseconds(
                 fromReferenceDateNumber: number(object["addedAt"], locator: "custom-paths.json")
             )
+            let modeKey = try optionalString(object["mode"], locator: "custom-paths.json") ?? "project"
+            let adapterCode = try optionalString(object["adapterCode"], locator: "custom-paths.json")
+            let mode: CustomSkillPathMode
+            do {
+                mode = try CustomSkillPathMode(storageKey: modeKey, adapterCode: adapterCode)
+            } catch {
+                throw LegacyMigrationFailure(.legacyUnsupportedFormat, locator: "custom-paths.json")
+            }
             guard ids.insert(id).inserted, keys.insert(normalized.key).inserted else {
                 throw LegacyMigrationFailure(.legacyDuplicateRecord, locator: "custom-paths.json")
             }
@@ -35,7 +43,8 @@ nonisolated enum LegacyStateWireDecoder {
                 absoluteURL: normalized.absoluteURL,
                 normalizedURLKey: normalized.key,
                 displayName: displayName,
-                addedAtMilliseconds: addedAt
+                addedAtMilliseconds: addedAt,
+                mode: mode
             )
         }
     }
@@ -115,6 +124,14 @@ nonisolated enum LegacyStateWireDecoder {
             throw LegacyMigrationFailure(.legacyInvalidJSON, locator: locator)
         }
         return result
+    }
+
+    private static func optionalString(
+        _ value: StrictLegacyJSONValue?,
+        locator: String
+    ) throws -> String? {
+        guard let value else { return nil }
+        return try string(value, locator: locator)
     }
 
     private static func number(

@@ -4,6 +4,7 @@ import Observation
 enum CustomPathError: LocalizedError {
     case directoryNotFound
     case duplicatePath
+    case invalidMode
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +12,8 @@ enum CustomPathError: LocalizedError {
             return "The selected directory does not exist."
         case .duplicatePath:
             return "This path has already been added."
+        case .invalidMode:
+            return "The selected custom path mode is invalid."
         }
     }
 }
@@ -27,24 +30,33 @@ enum CustomPathError: LocalizedError {
                 id: $0.id,
                 url: $0.url,
                 displayName: $0.displayName,
-                addedAt: Date(timeIntervalSince1970: Double($0.addedAtMilliseconds) / 1_000)
+                addedAt: Date(timeIntervalSince1970: Double($0.addedAtMilliseconds) / 1_000),
+                mode: $0.mode
             )
         }
         self.persistence = persistence
     }
 
-    func addPath(_ url: URL) async throws {
+    func addPath(
+        _ url: URL,
+        mode: CustomSkillPathMode = .project
+    ) async throws {
         guard let persistence else { throw LibraryPersistenceError.runtimeNotReady }
         let fileManager = FileManager.default
-        guard fileManager.fileExists(atPath: url.path) else {
+        var isDirectory = ObjCBool(false)
+        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
             throw CustomPathError.directoryNotFound
         }
 
-        guard !customPaths.contains(where: { $0.url == url }) else {
+        let normalized = try LegacyCustomPathURLNormalizer.normalize(url.absoluteString)
+        guard !customPaths.contains(where: {
+            (try? LegacyCustomPathURLNormalizer.normalize($0.url.absoluteString))?.key == normalized.key
+        }) else {
             throw CustomPathError.duplicatePath
         }
 
-        let newPath = CustomSkillPath(url: url)
+        let newPath = CustomSkillPath(url: url, mode: mode)
         try await persistence.insertCustomPath(newPath)
         customPaths.append(newPath)
     }

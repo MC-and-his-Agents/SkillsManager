@@ -20,7 +20,7 @@ struct SkillSchemaV14Tests {
             #expect(try connection.userTableNames().contains("skill_update_checks") == false)
 
             try SkillSchemaMigrator.migrateIfNeeded(connection)
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 15)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 16)
             #expect(try connection.querySingleInt("SELECT count(*) FROM skill_update_checks") == 0)
 
             try SkillSchemaMigrator.migrateIfNeeded(connection)
@@ -59,6 +59,7 @@ private func withRawV13Database(
 ) throws {
     try withV14DatabaseURL { databaseURL in
         let connection = try SkillSchemaMigrator.open(at: databaseURL)
+        try restoreV3CustomPathsForLegacyFixture(connection)
         try connection.execute("DROP TABLE repository_catalog")
         try connection.execute("DROP TABLE skill_update_checks")
         try connection.execute(

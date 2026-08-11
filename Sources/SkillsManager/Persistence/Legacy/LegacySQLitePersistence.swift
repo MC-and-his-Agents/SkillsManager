@@ -5,6 +5,7 @@ nonisolated struct SQLiteCustomPathRecord: Equatable, Sendable {
     let url: URL
     let displayName: String
     let addedAtMilliseconds: Int64
+    let mode: CustomSkillPathMode
 }
 
 nonisolated final class SQLiteCustomPathPersistence {
@@ -20,7 +21,8 @@ nonisolated final class SQLiteCustomPathPersistence {
         do {
             let statement = try connection.prepare(
                 """
-                SELECT custom_path_id, absolute_url, normalized_url_key, display_name, added_at_ms
+                SELECT custom_path_id, absolute_url, normalized_url_key, display_name, added_at_ms,
+                       root_mode, adapter_code
                 FROM custom_paths ORDER BY added_at_ms, custom_path_id
                 """
             )
@@ -34,14 +36,25 @@ nonisolated final class SQLiteCustomPathPersistence {
                       normalized.key == normalizedKey,
                       let url = URL(string: absoluteURL),
                       let displayName = statement.text(at: 3),
-                      !statement.isNull(at: 4) else {
+                      !statement.isNull(at: 4),
+                      let rootMode = statement.text(at: 5) else {
+                    throw LegacyMigrationFailure(.ledgerConflict)
+                }
+                let mode: CustomSkillPathMode
+                do {
+                    mode = try CustomSkillPathMode(
+                        storageKey: rootMode,
+                        adapterCode: statement.text(at: 6)
+                    )
+                } catch {
                     throw LegacyMigrationFailure(.ledgerConflict)
                 }
                 records.append(SQLiteCustomPathRecord(
                     id: try catalogUUID(from: idBytes),
                     url: url,
                     displayName: displayName,
-                    addedAtMilliseconds: statement.int64(at: 4)
+                    addedAtMilliseconds: statement.int64(at: 4),
+                    mode: mode
                 ))
             }
             return records
@@ -58,8 +71,9 @@ nonisolated final class SQLiteCustomPathPersistence {
             let statement = try connection.prepare(
                 """
                 INSERT INTO custom_paths(
-                  custom_path_id, absolute_url, normalized_url_key, display_name, added_at_ms
-                ) VALUES (?, ?, ?, ?, ?)
+                  custom_path_id, absolute_url, normalized_url_key, display_name, added_at_ms,
+                  root_mode, adapter_code
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """
             )
             try statement.bind(catalogUUIDBytes(path.id), at: 1)
@@ -67,6 +81,12 @@ nonisolated final class SQLiteCustomPathPersistence {
             try statement.bind(normalized.key, at: 3)
             try statement.bind(path.displayName, at: 4)
             try statement.bind(milliseconds, at: 5)
+            try statement.bind(path.mode.storageKey, at: 6)
+            if let adapter = path.mode.adapter {
+                try statement.bind(adapter.storageKey, at: 7)
+            } else {
+                try statement.bindNull(at: 7)
+            }
             guard try !statement.step() else { throw LegacyMigrationFailure(.databaseFailure) }
         } catch {
             throw mapLegacySQLiteError(error, invalidCode: .databaseFailure)

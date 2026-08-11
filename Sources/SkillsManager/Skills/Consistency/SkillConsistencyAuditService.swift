@@ -156,7 +156,8 @@ actor SkillConsistencyAuditService {
             id: record.id,
             url: record.url,
             displayName: record.displayName,
-            addedAt: Date(timeIntervalSince1970: Double(record.addedAtMilliseconds) / 1_000)
+            addedAt: Date(timeIntervalSince1970: Double(record.addedAtMilliseconds) / 1_000),
+            mode: record.mode
         )
     }
 }
