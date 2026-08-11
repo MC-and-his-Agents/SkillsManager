@@ -9,14 +9,14 @@ struct ReferenceDetailInlineView: View {
         case .idle:
             EmptyView()
         case .loading:
-            ProgressView(String(localized: "Loading reference…", bundle: .module))
+            ProgressView(String(localized: "Loading reference…", bundle: SkillsManagerLocalizationResources.bundle))
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .missing:
-            ContentUnavailableView(String(localized: "Missing reference", bundle: .module),
+            ContentUnavailableView(String(localized: "Missing reference", bundle: SkillsManagerLocalizationResources.bundle),
                                    systemImage: "doc",
-                                   description: Text("This reference file could not be found.", bundle: .module))
+                                   description: Text("This reference file could not be found.", bundle: SkillsManagerLocalizationResources.bundle))
         case .failed(let message):
-            ContentUnavailableView(String(localized: "Unable to load reference", bundle: .module),
+            ContentUnavailableView(String(localized: "Unable to load reference", bundle: SkillsManagerLocalizationResources.bundle),
                                    systemImage: "exclamationmark.triangle",
                                    description: Text(verbatim: message))
         case .loaded:

@@ -102,19 +102,19 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
 
         var message: String {
             switch self {
-            case .invalidURL: String(localized: "Enter a public https://github.com/owner/repository URL.", bundle: .module)
-            case .invalidRef: String(localized: "Enter a valid Git branch, tag, or commit reference.", bundle: .module)
-            case .alreadyExists: String(localized: "This GitHub repository is already registered.", bundle: .module)
-            case .notFound: String(localized: "The repository is no longer registered.", bundle: .module)
-            case .conflict: String(localized: "The repository changed. Review the latest catalog state and try again.", bundle: .module)
-            case .rateLimited: String(localized: "GitHub rate limited this request.", bundle: .module)
-            case .offline: String(localized: "GitHub is unavailable while the network is offline.", bundle: .module)
-            case .timeout: String(localized: "GitHub did not respond in time.", bundle: .module)
-            case .cancelled: String(localized: "The GitHub request was cancelled.", bundle: .module)
-            case .unavailable: String(localized: "The GitHub repository is unavailable.", bundle: .module)
-            case .treeTooLarge: String(localized: "The GitHub repository tree is too large to inspect safely.", bundle: .module)
-            case .noUniqueSkill: String(localized: "The selected repository path does not identify one Skill.", bundle: .module)
-            case .contractChanged: String(localized: "GitHub returned an unsupported repository layout.", bundle: .module)
+            case .invalidURL: String(localized: "Enter a public https://github.com/owner/repository URL.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .invalidRef: String(localized: "Enter a valid Git branch, tag, or commit reference.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .alreadyExists: String(localized: "This GitHub repository is already registered.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .notFound: String(localized: "The repository is no longer registered.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .conflict: String(localized: "The repository changed. Review the latest catalog state and try again.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .rateLimited: String(localized: "GitHub rate limited this request.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .offline: String(localized: "GitHub is unavailable while the network is offline.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .timeout: String(localized: "GitHub did not respond in time.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .cancelled: String(localized: "The GitHub request was cancelled.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .unavailable: String(localized: "The GitHub repository is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .treeTooLarge: String(localized: "The GitHub repository tree is too large to inspect safely.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .noUniqueSkill: String(localized: "The selected repository path does not identify one Skill.", bundle: SkillsManagerLocalizationResources.bundle)
+            case .contractChanged: String(localized: "GitHub returned an unsupported repository layout.", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
     }

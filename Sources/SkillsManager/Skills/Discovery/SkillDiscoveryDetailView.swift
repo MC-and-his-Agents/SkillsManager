@@ -15,7 +15,7 @@ struct SkillDiscoveryDetailView: View {
                     systemImage: "lock.trianglebadge.exclamationmark"
                 )
             case .idle, .loading:
-                ProgressView(String(localized: "Scanning registered folders…", bundle: .module))
+                ProgressView(String(localized: "Scanning registered folders…", bundle: SkillsManagerLocalizationResources.bundle))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed(let message):
                 unavailableView(
@@ -29,7 +29,7 @@ struct SkillDiscoveryDetailView: View {
         }
         .navigationTitle(
             model.selectedItem?.observation.relativeLocator
-                ?? String(localized: "Discovery", bundle: .module)
+                ?? String(localized: "Discovery", bundle: SkillsManagerLocalizationResources.bundle)
         )
         .sheet(isPresented: pendingImportBinding) {
             if let pending = model.pendingImport {
@@ -114,7 +114,7 @@ struct SkillDiscoveryDetailView: View {
                             .padding(.top, 4)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         } label: {
-                            Text("Local locations", bundle: .module)
+                            Text("Local locations", bundle: SkillsManagerLocalizationResources.bundle)
                         }
 
                         GroupBox {
@@ -122,41 +122,41 @@ struct SkillDiscoveryDetailView: View {
                                 LabeledContent {
                                     Text(verbatim: discoveryStatusText(observation.status))
                                 } label: {
-                                    Text("Status", bundle: .module)
+                                    Text("Status", bundle: SkillsManagerLocalizationResources.bundle)
                                 }
                                 LabeledContent {
                                     Text(scopeSummaryText(observation))
                                 } label: {
-                                    Text("Scope", bundle: .module)
+                                    Text("Scope", bundle: SkillsManagerLocalizationResources.bundle)
                                 }
                                 LabeledContent {
                                     Text(verbatim: observation.localizedSourceSummary)
                                 } label: {
-                                    Text("Source", bundle: .module)
+                                    Text("Source", bundle: SkillsManagerLocalizationResources.bundle)
                                 }
                                 LabeledContent {
                                     Text(observation.localizedFingerprintSummary)
                                 } label: {
-                                    Text("Content fingerprint", bundle: .module)
+                                    Text("Content fingerprint", bundle: SkillsManagerLocalizationResources.bundle)
                                 }
                                 if let matchedSkillID = observation.matchedSkillID {
                                     LabeledContent {
                                         Text(verbatim: matchedSkillID.uuid.uuidString.lowercased())
                                     } label: {
-                                        Text("Matched Skill ID", bundle: .module)
+                                        Text("Matched Skill ID", bundle: SkillsManagerLocalizationResources.bundle)
                                     }
                                 }
                                 if let reason = observation.reason {
                                     LabeledContent {
                                         Text(verbatim: discoveryReasonText(reason))
                                     } label: {
-                                        Text("Reason", bundle: .module)
+                                        Text("Reason", bundle: SkillsManagerLocalizationResources.bundle)
                                     }
                                 }
                             }
                             .padding(.top, 4)
                         } label: {
-                            Text("Discovery evidence", bundle: .module)
+                            Text("Discovery evidence", bundle: SkillsManagerLocalizationResources.bundle)
                         }
 
                         if isManagedMatch {
@@ -181,7 +181,7 @@ struct SkillDiscoveryDetailView: View {
         if !item.allowedActions.isEmpty {
             GroupBox {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Preview the change before anything is written to the managed library.", bundle: .module)
+                    Text("Preview the change before anything is written to the managed library.", bundle: SkillsManagerLocalizationResources.bundle)
                         .foregroundStyle(.secondary)
 
                     HStack {
@@ -208,7 +208,7 @@ struct SkillDiscoveryDetailView: View {
                 .padding(.top, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
             } label: {
-                Text("Available action", bundle: .module)
+                Text("Available action", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
     }
@@ -239,7 +239,7 @@ struct SkillDiscoveryDetailView: View {
         .disabled(model.isPreparingPreview || model.isImporting)
         .accessibilityHint(Text(
             "Opens a confirmation preview. No files are changed yet.",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
     }
 
@@ -247,9 +247,9 @@ struct SkillDiscoveryDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 ContentUnavailableView(
-                    String(localized: "Select a discovered Skill", bundle: .module),
+                    String(localized: "Select a discovered Skill", bundle: SkillsManagerLocalizationResources.bundle),
                     systemImage: "sparkle.magnifyingglass",
-                    description: Text("Review its status, evidence, and available actions.", bundle: .module)
+                    description: Text("Review its status, evidence, and available actions.", bundle: SkillsManagerLocalizationResources.bundle)
                 )
                 scanScopeDisclosure
             }
@@ -262,12 +262,12 @@ struct SkillDiscoveryDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Label {
-                    Text("No usable discovery result", bundle: .module)
+                    Text("No usable discovery result", bundle: SkillsManagerLocalizationResources.bundle)
                 } icon: {
                     Image(systemName: "exclamationmark.triangle")
                 }
                     .font(.largeTitle.bold())
-                Text("Every visible result is unavailable. Fix the folders below, then refresh.", bundle: .module)
+                Text("Every visible result is unavailable. Fix the folders below, then refresh.", bundle: SkillsManagerLocalizationResources.bundle)
                     .foregroundStyle(.secondary)
 
                 ForEach(model.rootDiagnostics, id: \.self) { diagnostic in
@@ -310,7 +310,7 @@ struct SkillDiscoveryDetailView: View {
                 String(
                     localized: LocalizedStringResource(
             "Scan scope (\(model.plannedRoots.count) roots)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
             )
         }
@@ -341,39 +341,39 @@ struct SkillDiscoveryDetailView: View {
 
     private func discoveryStatusText(_ status: SkillDiscoveryStatus) -> String {
         return switch status {
-        case .managed: String(localized: "Managed", bundle: .module)
-        case .claimable: String(localized: "Ready to claim", bundle: .module)
-        case .unmanaged: String(localized: "Unmanaged", bundle: .module)
-        case .conflict: String(localized: "Conflict", bundle: .module)
-        case .permissionDenied: String(localized: "Permission denied", bundle: .module)
-        case .damaged: String(localized: "Damaged", bundle: .module)
+        case .managed: String(localized: "Managed", bundle: SkillsManagerLocalizationResources.bundle)
+        case .claimable: String(localized: "Ready to claim", bundle: SkillsManagerLocalizationResources.bundle)
+        case .unmanaged: String(localized: "Unmanaged", bundle: SkillsManagerLocalizationResources.bundle)
+        case .conflict: String(localized: "Conflict", bundle: SkillsManagerLocalizationResources.bundle)
+        case .permissionDenied: String(localized: "Permission denied", bundle: SkillsManagerLocalizationResources.bundle)
+        case .damaged: String(localized: "Damaged", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func discoveryReasonText(_ reason: SkillDiscoveryReason) -> String {
         return switch reason {
-        case .rootPermissionDenied: String(localized: "The scan root cannot be read.", bundle: .module)
-        case .rootChanged: String(localized: "The scan root changed while it was being inspected.", bundle: .module)
-        case .rootUnsupportedType: String(localized: "The scan root is not a directory or supported link.", bundle: .module)
-        case .rootReadFailed: String(localized: "The scan root could not be read.", bundle: .module)
-        case .unknownSymlink: String(localized: "The Skill uses a symbolic link that cannot be trusted.", bundle: .module)
-        case .symbolicLinkTargetUnavailable: String(localized: "The Skill link target is unavailable.", bundle: .module)
-        case .symbolicLinkTargetUnsupported: String(localized: "The Skill link target is not a directory.", bundle: .module)
-        case .candidatePermissionDenied: String(localized: "The Skill folder cannot be read.", bundle: .module)
-        case .sourceChanged: String(localized: "The Skill changed while it was being inspected.", bundle: .module)
-        case .missingSkillManifest: String(localized: "SKILL.md is missing.", bundle: .module)
-        case .containerDirectory: String(localized: "This folder contains Skill subdirectories.", bundle: .module)
-        case .invalidSkillManifest: String(localized: "SKILL.md is not valid UTF-8.", bundle: .module)
-        case .unsupportedEntryType: String(localized: "The Skill contains an unsupported file type.", bundle: .module)
-        case .unsafeContent: String(localized: "The Skill contains an unsafe path or link.", bundle: .module)
-        case .resourceLimitExceeded: String(localized: "The Skill exceeds the safe import limits.", bundle: .module)
-        case .candidateReadFailed: String(localized: "The Skill content could not be read.", bundle: .module)
-        case .ambiguousLocalAssociation: String(localized: "This location is linked to more than one managed Skill.", bundle: .module)
-        case .localAssociationDrift: String(localized: "This location no longer matches its managed Skill.", bundle: .module)
-        case .ambiguousSource: String(localized: "The source metadata matches more than one managed Skill.", bundle: .module)
-        case .ambiguousFingerprint: String(localized: "The content matches more than one managed Skill.", bundle: .module)
-        case .evidenceConflict: String(localized: "The source and content point to different managed Skills.", bundle: .module)
-        case .scopeSlugConflict: String(localized: "More than one Skill uses this name in the same scope.", bundle: .module)
+        case .rootPermissionDenied: String(localized: "The scan root cannot be read.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .rootChanged: String(localized: "The scan root changed while it was being inspected.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .rootUnsupportedType: String(localized: "The scan root is not a directory or supported link.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .rootReadFailed: String(localized: "The scan root could not be read.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .unknownSymlink: String(localized: "The Skill uses a symbolic link that cannot be trusted.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .symbolicLinkTargetUnavailable: String(localized: "The Skill link target is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .symbolicLinkTargetUnsupported: String(localized: "The Skill link target is not a directory.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .candidatePermissionDenied: String(localized: "The Skill folder cannot be read.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .sourceChanged: String(localized: "The Skill changed while it was being inspected.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .missingSkillManifest: String(localized: "SKILL.md is missing.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .containerDirectory: String(localized: "This folder contains Skill subdirectories.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .invalidSkillManifest: String(localized: "SKILL.md is not valid UTF-8.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .unsupportedEntryType: String(localized: "The Skill contains an unsupported file type.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .unsafeContent: String(localized: "The Skill contains an unsafe path or link.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .resourceLimitExceeded: String(localized: "The Skill exceeds the safe import limits.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .candidateReadFailed: String(localized: "The Skill content could not be read.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .ambiguousLocalAssociation: String(localized: "This location is linked to more than one managed Skill.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .localAssociationDrift: String(localized: "This location no longer matches its managed Skill.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .ambiguousSource: String(localized: "The source metadata matches more than one managed Skill.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .ambiguousFingerprint: String(localized: "The content matches more than one managed Skill.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .evidenceConflict: String(localized: "The source and content point to different managed Skills.", bundle: SkillsManagerLocalizationResources.bundle)
+        case .scopeSlugConflict: String(localized: "More than one Skill uses this name in the same scope.", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -382,13 +382,13 @@ struct SkillDiscoveryDetailView: View {
         if let adapterCode = scope.adapterCode {
             switch adapterCode {
             case SkillPlatform.codex.storageKey:
-                adapter = String(localized: "Codex", bundle: .module)
+                adapter = String(localized: "Codex", bundle: SkillsManagerLocalizationResources.bundle)
             case SkillPlatform.claude.storageKey:
-                adapter = String(localized: "Claude Code", bundle: .module)
+                adapter = String(localized: "Claude Code", bundle: SkillsManagerLocalizationResources.bundle)
             case SkillPlatform.opencode.storageKey:
-                adapter = String(localized: "OpenCode", bundle: .module)
+                adapter = String(localized: "OpenCode", bundle: SkillsManagerLocalizationResources.bundle)
             case SkillPlatform.copilot.storageKey:
-                adapter = String(localized: "GitHub Copilot", bundle: .module)
+                adapter = String(localized: "GitHub Copilot", bundle: SkillsManagerLocalizationResources.bundle)
             default:
                 adapter = adapterCode
             }
@@ -396,11 +396,11 @@ struct SkillDiscoveryDetailView: View {
             adapter = nil
         }
         switch scope.kind {
-        case .global: return String(localized: "Global", bundle: .module)
+        case .global: return String(localized: "Global", bundle: SkillsManagerLocalizationResources.bundle)
         case .agent:
             return [adapter, scope.pathVariant].compactMap { $0 }.joined(separator: " · ")
         case .custom:
-            return [String(localized: "Custom", bundle: .module), adapter, scope.pathVariant]
+            return [String(localized: "Custom", bundle: SkillsManagerLocalizationResources.bundle), adapter, scope.pathVariant]
                 .compactMap { $0 }
                 .joined(separator: " · ")
         }
@@ -414,17 +414,17 @@ struct SkillDiscoveryDetailView: View {
 
     private func actionTitleText(_ title: String) -> String {
         return switch title {
-        case "Preview claim": String(localized: "Preview claim", bundle: .module)
-        case "Preview independent import": String(localized: "Preview independent import", bundle: .module)
-        case "Preview import": String(localized: "Preview import", bundle: .module)
+        case "Preview claim": String(localized: "Preview claim", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Preview independent import": String(localized: "Preview independent import", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Preview import": String(localized: "Preview import", bundle: SkillsManagerLocalizationResources.bundle)
         default: title
         }
     }
 
     private func unavailableTitleText(_ title: String) -> String {
         return switch title {
-        case "Discovery unavailable": String(localized: "Discovery unavailable", bundle: .module)
-        case "Discovery failed": String(localized: "Discovery failed", bundle: .module)
+        case "Discovery unavailable": String(localized: "Discovery unavailable", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Discovery failed": String(localized: "Discovery failed", bundle: SkillsManagerLocalizationResources.bundle)
         default: title
         }
     }
@@ -451,32 +451,32 @@ private struct SkillDiscoveryImportConfirmationView: View {
                     LabeledContent {
                         Text(verbatim: actionNameText)
                     } label: {
-                        Text("Action", bundle: .module)
+                        Text("Action", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     LabeledContent {
                         Text(verbatim: targetDescription)
                     } label: {
-                        Text("Target", bundle: .module)
+                        Text("Target", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     LabeledContent {
                         Text(verbatim: managedResultDescriptionText)
                     } label: {
-                        Text("Managed result", bundle: .module)
+                        Text("Managed result", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     LabeledContent {
-                        Text("Remains unchanged", bundle: .module)
+                        Text("Remains unchanged", bundle: SkillsManagerLocalizationResources.bundle)
                     } label: {
-                        Text("Original folder", bundle: .module)
+                        Text("Original folder", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     LabeledContent {
-                        Text("None will be created", bundle: .module)
+                        Text("None will be created", bundle: SkillsManagerLocalizationResources.bundle)
                     } label: {
-                        Text("Agent bindings", bundle: .module)
+                        Text("Agent bindings", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                 }
                 .padding(.top, 4)
             } label: {
-                Text("Change preview", bundle: .module)
+                Text("Change preview", bundle: SkillsManagerLocalizationResources.bundle)
             }
 
             if let message = model.importErrorMessage {
@@ -496,7 +496,7 @@ private struct SkillDiscoveryImportConfirmationView: View {
                     model.cancelPendingImport()
                     dismiss()
                 } label: {
-                    Text("Cancel", bundle: .module)
+                    Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut(.cancelAction)
                 .disabled(model.isImporting)
@@ -517,7 +517,7 @@ private struct SkillDiscoveryImportConfirmationView: View {
                 .keyboardShortcut(.defaultAction)
                 .disabled(model.isImporting)
                 .accessibilityLabel(Text(verbatim: model.isImporting
-                    ? String(localized: "Import in progress", bundle: .module)
+                    ? String(localized: "Import in progress", bundle: SkillsManagerLocalizationResources.bundle)
                     : confirmButtonTitleText))
             }
         }
@@ -532,8 +532,8 @@ private struct SkillDiscoveryImportConfirmationView: View {
 
     private var titleText: String {
         switch title {
-        case "Confirm claim": String(localized: "Confirm claim", bundle: .module)
-        case "Confirm import": String(localized: "Confirm import", bundle: .module)
+        case "Confirm claim": String(localized: "Confirm claim", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Confirm import": String(localized: "Confirm import", bundle: SkillsManagerLocalizationResources.bundle)
         default: title
         }
     }
@@ -551,10 +551,10 @@ private struct SkillDiscoveryImportConfirmationView: View {
         if let id = pending.preview.newSkillID {
             return String(localized: LocalizedStringResource(
                 "New Skill ID \(id.uuid.uuidString.lowercased())",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         }
-        return String(localized: "New managed Skill", bundle: .module)
+        return String(localized: "New managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
     private var managedResultDescription: String {
@@ -570,9 +570,9 @@ private struct SkillDiscoveryImportConfirmationView: View {
     private var actionNameText: String {
         return switch actionName {
         case "Associate this local folder with an existing Skill":
-            String(localized: "Associate this local folder with an existing Skill", bundle: .module)
+            String(localized: "Associate this local folder with an existing Skill", bundle: SkillsManagerLocalizationResources.bundle)
         case "Import this local folder as a managed Skill":
-            String(localized: "Import this local folder as a managed Skill", bundle: .module)
+            String(localized: "Import this local folder as a managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
         default: actionName
         }
     }
@@ -580,17 +580,17 @@ private struct SkillDiscoveryImportConfirmationView: View {
     private var managedResultDescriptionText: String {
         return switch managedResultDescription {
         case "A local-origin record will be added to the matched Skill":
-            String(localized: "A local-origin record will be added to the matched Skill", bundle: .module)
+            String(localized: "A local-origin record will be added to the matched Skill", bundle: SkillsManagerLocalizationResources.bundle)
         case "Content will be copied into the SSOT and recorded in the database":
-            String(localized: "Content will be copied into the SSOT and recorded in the database", bundle: .module)
+            String(localized: "Content will be copied into the SSOT and recorded in the database", bundle: SkillsManagerLocalizationResources.bundle)
         default: managedResultDescription
         }
     }
 
     private var confirmButtonTitleText: String {
         return switch confirmButtonTitle {
-        case "Confirm claim": String(localized: "Confirm claim", bundle: .module)
-        case "Confirm import": String(localized: "Confirm import", bundle: .module)
+        case "Confirm claim": String(localized: "Confirm claim", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Confirm import": String(localized: "Confirm import", bundle: SkillsManagerLocalizationResources.bundle)
         default: confirmButtonTitle
         }
     }

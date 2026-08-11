@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable final class SkillBatchUpdateViewModel {
     private(set) var state: SkillBatchUpdateRunState =
-        .blocked(String(localized: "Preparing the managed library…", bundle: .module))
+        .blocked(String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle))
     var items: [SkillBatchUpdateItem] = []
     private(set) var stopRequested = false
     private(set) var operationActive = false
@@ -81,14 +81,14 @@ import Observation
         let ids = catalog.map(\.skillID)
         guard Set(ids).count == ids.count else {
             items = []
-            state = .blocked(String(localized: "The managed catalog contains a duplicate Skill identity.", bundle: .module))
+            state = .blocked(String(localized: "The managed catalog contains a duplicate Skill identity.", bundle: SkillsManagerLocalizationResources.bundle))
             return
         }
         items = catalog.sorted(by: Self.catalogItemPrecedes).map {
             SkillBatchUpdateItem(skillID: $0.skillID, displayName: $0.displayName)
         }
         if dependencies == nil {
-            state = .blocked(String(localized: "The managed library session is unavailable.", bundle: .module))
+            state = .blocked(String(localized: "The managed library session is unavailable.", bundle: SkillsManagerLocalizationResources.bundle))
         } else {
             state = items.isEmpty ? .empty : .idle
         }
@@ -222,7 +222,7 @@ import Observation
               let snapshot = items[index].snapshot else {
             setResult(
                 .conflict,
-                detail: String(localized: "The update check is no longer available.", bundle: .module),
+                detail: String(localized: "The update check is no longer available.", bundle: SkillsManagerLocalizationResources.bundle),
                 for: skillID
             )
             return
@@ -246,7 +246,7 @@ import Observation
                 await dependencies.cancel(preview.token)
                 setResult(
                     .conflict,
-                    detail: String(localized: "The Copy targets changed. Check this Skill again.", bundle: .module),
+                    detail: String(localized: "The Copy targets changed. Check this Skill again.", bundle: SkillsManagerLocalizationResources.bundle),
                     for: skillID
                 )
                 await admission.release(lease)

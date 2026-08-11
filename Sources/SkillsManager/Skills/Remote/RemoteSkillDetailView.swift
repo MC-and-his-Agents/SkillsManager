@@ -23,12 +23,12 @@ struct RemoteSkillDetailView: View {
                 }
             }
             .navigationTitle(skill.displayName)
-            .navigationSubtitle(String(localized: "ClawHub", bundle: .module))
+            .navigationSubtitle(String(localized: "ClawHub", bundle: SkillsManagerLocalizationResources.bundle))
         } else {
             ContentUnavailableView(
-                String(localized: "Select a skill", bundle: .module),
+                String(localized: "Select a skill", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "sparkles",
-                description: Text("Pick a skill from ClawHub.", bundle: .module)
+                description: Text("Pick a skill from ClawHub.", bundle: SkillsManagerLocalizationResources.bundle)
             )
         }
     }
@@ -38,7 +38,7 @@ struct RemoteSkillDetailView: View {
             headerView(for: skill)
             HStack(spacing: 8) {
                 ProgressView()
-                Text("Loading SKILL.md…", bundle: .module)
+                Text("Loading SKILL.md…", bundle: SkillsManagerLocalizationResources.bundle)
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -50,11 +50,11 @@ struct RemoteSkillDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             headerView(for: skill)
             Label {
-                Text("ClawHub unavailable", bundle: .module)
+                Text("ClawHub unavailable", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "exclamationmark.triangle")
             }
-            Text("Try again without affecting your local Skills.", bundle: .module)
+            Text("Try again without affecting your local Skills.", bundle: SkillsManagerLocalizationResources.bundle)
                 .foregroundStyle(.secondary)
             retryButton
             Spacer()
@@ -69,7 +69,7 @@ struct RemoteSkillDetailView: View {
                 if store.detailState == .cachedUnavailable {
                     HStack {
                         Label {
-                            Text("ClawHub unavailable — cached content may be out of date.", bundle: .module)
+                            Text("ClawHub unavailable — cached content may be out of date.", bundle: SkillsManagerLocalizationResources.bundle)
                         } icon: {
                             Image(systemName: "exclamationmark.triangle")
                         }
@@ -90,10 +90,10 @@ struct RemoteSkillDetailView: View {
         Button {
             Task { await store.loadSelectedSkill() }
         } label: {
-            Text("Retry", bundle: .module)
+            Text("Retry", bundle: SkillsManagerLocalizationResources.bundle)
         }
         .disabled(store.detailState == .loading || store.detailState == .cachedRefreshing)
-        .accessibilityLabel(Text("Retry loading this Skill from ClawHub", bundle: .module))
+        .accessibilityLabel(Text("Retry loading this Skill from ClawHub", bundle: SkillsManagerLocalizationResources.bundle))
     }
 
     private func headerView(for skill: RemoteSkill) -> some View {
@@ -109,13 +109,13 @@ struct RemoteSkillDetailView: View {
                 if let owner = ownerDisplayName {
                     TagView(localized: LocalizedStringResource(
             "By \(owner)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                 }
                 if let version = skill.latestVersion {
                     TagView(localized: LocalizedStringResource(
                         "Version \(version)",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     ))
                 }
                 if let statsText = statsText(for: skill) {
@@ -127,23 +127,23 @@ struct RemoteSkillDetailView: View {
                     onInstall(skill)
                 } label: {
                     Label {
-                        Text("Install", bundle: .module)
+                        Text("Install", bundle: SkillsManagerLocalizationResources.bundle)
                     } icon: {
                         Image(systemName: "arrow.down.circle")
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("skills.remote.install")
-                .accessibilityLabel(Text("Install this ClawHub Skill", bundle: .module))
+                .accessibilityLabel(Text("Install this ClawHub Skill", bundle: SkillsManagerLocalizationResources.bundle))
                 .accessibilityHint(Text(
                     "Opens the installation review. Nothing is written until you confirm.",
-                    bundle: .module
+                    bundle: SkillsManagerLocalizationResources.bundle
                 ))
                 Button {
                     openClawdhubURL(for: skill)
                 } label: {
                     Label {
-                        Text("Open on ClawHub", bundle: .module)
+                        Text("Open on ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
                     } icon: {
                         Image(systemName: "globe")
                     }

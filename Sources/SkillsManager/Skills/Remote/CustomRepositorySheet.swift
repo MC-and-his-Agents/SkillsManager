@@ -23,7 +23,7 @@ struct CustomRepositorySheet: View {
                 Button {
                     Task { await model.refreshAll() }
                 } label: {
-                    Text("Refresh All", bundle: .module)
+                    Text("Refresh All", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                     .disabled(model.repositories.isEmpty || model.isRefreshing || model.isMutating)
                     .accessibilityIdentifier("repository.refresh-all")
@@ -31,7 +31,7 @@ struct CustomRepositorySheet: View {
                 Button {
                     dismiss()
                 } label: {
-                    Text("Done", bundle: .module)
+                    Text("Done", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("repository.done")
@@ -40,7 +40,7 @@ struct CustomRepositorySheet: View {
         .padding(20)
         .frame(minWidth: 680, minHeight: 500)
         .confirmationDialog(
-            Text("Remove this discovery source?", bundle: .module),
+            Text("Remove this discovery source?", bundle: SkillsManagerLocalizationResources.bundle),
             isPresented: Binding(
                 get: { pendingRemoval != nil },
                 set: { if !$0 { pendingRemoval = nil } }
@@ -52,23 +52,23 @@ struct CustomRepositorySheet: View {
                     if await model.remove(record) { pendingRemoval = nil }
                 }
             } label: {
-                Text("Remove Repository", bundle: .module)
+                Text("Remove Repository", bundle: SkillsManagerLocalizationResources.bundle)
             }
             Button(role: .cancel) {
                 pendingRemoval = nil
             } label: {
-                Text("Cancel", bundle: .module)
+                Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
             }
         } message: { _ in
-            Text("This removes only the discovery source. Installed Skills are not deleted.", bundle: .module)
+            Text("This removes only the discovery source. Installed Skills are not deleted.", bundle: SkillsManagerLocalizationResources.bundle)
         }
         .interactiveDismissDisabled(model.isMutating)
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("GitHub Repositories", bundle: .module).font(.title.bold())
-            Text("Discover Skills from public GitHub repositories.", bundle: .module)
+            Text("GitHub Repositories", bundle: SkillsManagerLocalizationResources.bundle).font(.title.bold())
+            Text("Discover Skills from public GitHub repositories.", bundle: SkillsManagerLocalizationResources.bundle)
                 .foregroundStyle(.secondary)
         }
     }
@@ -76,18 +76,18 @@ struct CustomRepositorySheet: View {
     private var addForm: some View {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
             GridRow {
-                Text("Repository", bundle: .module)
+                Text("Repository", bundle: SkillsManagerLocalizationResources.bundle)
                 TextField("https://github.com/owner/repository", text: $repositoryURL)
                     .textFieldStyle(.roundedBorder)
-                    .accessibilityLabel(Text("GitHub repository URL", bundle: .module))
+                    .accessibilityLabel(Text("GitHub repository URL", bundle: SkillsManagerLocalizationResources.bundle))
             }
             GridRow {
-                Text("Ref", bundle: .module)
+                Text("Ref", bundle: SkillsManagerLocalizationResources.bundle)
                 TextField("Default branch", text: $requestedRef)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityLabel(Text(
                         "Optional Git branch, tag, or commit reference",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     ))
             }
             GridRow {
@@ -104,7 +104,7 @@ struct CustomRepositorySheet: View {
                             requestedRef = ""
                         }
                     } label: {
-                        Text("Add Repository", bundle: .module)
+                        Text("Add Repository", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("repository.add")
@@ -119,9 +119,9 @@ struct CustomRepositorySheet: View {
     private var repositoryList: some View {
         if model.repositories.isEmpty {
             ContentUnavailableView(
-                String(localized: "No GitHub repositories", bundle: .module),
+                String(localized: "No GitHub repositories", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "shippingbox",
-                description: Text("Add a public repository to discover its Skills.", bundle: .module)
+                description: Text("Add a public repository to discover its Skills.", bundle: SkillsManagerLocalizationResources.bundle)
             )
             .frame(maxHeight: .infinity)
         } else {
@@ -143,7 +143,7 @@ struct CustomRepositorySheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Label {
-                    Text(record.enabled ? "Enabled" : "Disabled", bundle: .module)
+                    Text(record.enabled ? "Enabled" : "Disabled", bundle: SkillsManagerLocalizationResources.bundle)
                 } icon: {
                     Image(systemName: record.enabled
                         ? "checkmark.circle" : "pause.circle")
@@ -160,12 +160,12 @@ struct CustomRepositorySheet: View {
             }
             .buttonStyle(.borderless)
             .disabled(model.state(for: record.repositoryID) == .loading || model.isMutating)
-            .help(Text("Refresh repository", bundle: .module))
+            .help(Text("Refresh repository", bundle: SkillsManagerLocalizationResources.bundle))
             .accessibilityLabel(Text(
                 String(
                     localized: LocalizedStringResource(
             "Refresh \(record.displayName)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
             ))
             Button(role: .destructive) {
@@ -175,12 +175,12 @@ struct CustomRepositorySheet: View {
             }
             .buttonStyle(.borderless)
             .disabled(model.isMutating)
-            .help(Text("Remove repository", bundle: .module))
+            .help(Text("Remove repository", bundle: SkillsManagerLocalizationResources.bundle))
             .accessibilityLabel(Text(
                 String(
                     localized: LocalizedStringResource(
             "Remove \(record.displayName)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
             ))
         }
@@ -195,32 +195,32 @@ struct CustomRepositorySheet: View {
         switch state {
         case .idle:
             Label {
-                Text("Not refreshed", bundle: .module)
+                Text("Not refreshed", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "circle.dashed")
             }
         case .loading:
             ProgressView().controlSize(.small)
-                .accessibilityLabel(Text("Refreshing", bundle: .module))
+                .accessibilityLabel(Text("Refreshing", bundle: SkillsManagerLocalizationResources.bundle))
         case .loaded(let count):
             Label {
                 Text(String(
                     localized: LocalizedStringResource(
             "\(count) Skills",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
             } icon: {
                 Image(systemName: "checkmark.circle")
             }
         case .empty:
             Label {
-                Text("No Skills", bundle: .module)
+                Text("No Skills", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "tray")
             }
         case .failed(let problem):
             Label {
-                Text("Failed", bundle: .module)
+                Text("Failed", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "exclamationmark.triangle")
             }

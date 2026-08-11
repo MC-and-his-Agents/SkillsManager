@@ -16,9 +16,9 @@ struct SkillRowView: View {
     private var statusText: String {
         switch skill.managedStatus {
         case .managed:
-            String(localized: "Managed", bundle: .module)
+            String(localized: "Managed", bundle: SkillsManagerLocalizationResources.bundle)
         case .needsRepair:
-            String(localized: "Needs Attention", bundle: .module)
+            String(localized: "Needs Attention", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -78,13 +78,13 @@ struct SkillRowView: View {
                 localized: LocalizedStringResource(
             "Update available, version \(version)",
             locale: locale ?? .current,
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
         case .needsAttention:
             let resource = LocalizedStringResource(
             "Needs Repair",
             locale: locale ?? .current,
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )
             return String(localized: resource)
         }
@@ -94,13 +94,13 @@ struct SkillRowView: View {
         guard let source = label.knownSource else { return label.text }
         switch source {
         case .local:
-            return String(localized: "Local", bundle: .module)
+            return String(localized: "Local", bundle: SkillsManagerLocalizationResources.bundle)
         case .repository:
-            return String(localized: "Repository", bundle: .module)
+            return String(localized: "Repository", bundle: SkillsManagerLocalizationResources.bundle)
         case .clawHub:
-            return String(localized: "ClawHub", bundle: .module)
+            return String(localized: "ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
         case .skillsSh:
-            return String(localized: "skills.sh", bundle: .module)
+            return String(localized: "skills.sh", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }

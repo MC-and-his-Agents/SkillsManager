@@ -113,14 +113,14 @@ struct SkillsManagerApp: App {
                 Button {
                     openWindow(id: "about")
                 } label: {
-                    Text("About Skills Manager", bundle: .module)
+                    Text("About Skills Manager", bundle: SkillsManagerLocalizationResources.bundle)
                 }
             }
             CommandGroup(after: .appInfo) {
                 Button {
                     appDelegate.checkForUpdates()
                 } label: {
-                    Text("Check for Updates…", bundle: .module)
+                    Text("Check for Updates…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut("u", modifiers: [.command, .option])
             }

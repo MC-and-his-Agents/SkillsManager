@@ -17,25 +17,25 @@ extension SkillLifecycleViewModel {
         var message: String {
             switch self {
             case .previewExpired:
-                String(localized: "The preview expired because the managed state changed. Review it again.", bundle: .module)
+                String(localized: "The preview expired because the managed state changed. Review it again.", bundle: SkillsManagerLocalizationResources.bundle)
             case .conflict:
-                String(localized: "The Skill or its distribution changed. Resolve Copy changes in Distribution, then refresh before deleting.", bundle: .module)
+                String(localized: "The Skill or its distribution changed. Resolve Copy changes in Distribution, then refresh before deleting.", bundle: SkillsManagerLocalizationResources.bundle)
             case .permissionDenied:
-                String(localized: "Skills Manager does not have permission to complete this operation.", bundle: .module)
+                String(localized: "Skills Manager does not have permission to complete this operation.", bundle: SkillsManagerLocalizationResources.bundle)
             case .unavailable:
-                String(localized: "The Skill lifecycle service is unavailable.", bundle: .module)
+                String(localized: "The Skill lifecycle service is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
             case .operationInProgress:
-                String(localized: "A deletion operation is still in progress.", bundle: .module)
+                String(localized: "A deletion operation is still in progress.", bundle: SkillsManagerLocalizationResources.bundle)
             case .needsRepair:
-                String(localized: "This deletion or backup requires repair before another change can start.", bundle: .module)
+                String(localized: "This deletion or backup requires repair before another change can start.", bundle: SkillsManagerLocalizationResources.bundle)
             case .backupCorrupt:
-                String(localized: "The backup is missing, changed, or corrupt and cannot be restored.", bundle: .module)
+                String(localized: "The backup is missing, changed, or corrupt and cannot be restored.", bundle: SkillsManagerLocalizationResources.bundle)
             case .rolledBack:
-                String(localized: "Deletion did not complete. The active Skill was restored to its prior state.", bundle: .module)
+                String(localized: "Deletion did not complete. The active Skill was restored to its prior state.", bundle: SkillsManagerLocalizationResources.bundle)
             case .restoredUndistributed:
-                String(localized: "The Skill was restored, but its original Agent targets could not be restored.", bundle: .module)
+                String(localized: "The Skill was restored, but its original Agent targets could not be restored.", bundle: SkillsManagerLocalizationResources.bundle)
             case .operationDidNotComplete:
-                String(localized: "The operation did not reach a successful terminal state.", bundle: .module)
+                String(localized: "The operation did not reach a successful terminal state.", bundle: SkillsManagerLocalizationResources.bundle)
             case .failed(let message):
                 message
             }

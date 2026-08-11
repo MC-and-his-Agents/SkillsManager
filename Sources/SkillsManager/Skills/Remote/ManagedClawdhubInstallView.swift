@@ -33,7 +33,7 @@ struct ManagedClawdhubInstallView: View {
                     isDisabled: isWorking
                 )
                 if isDownloading {
-                    ProgressView(String(localized: "Downloading and validating…", bundle: .module))
+                    ProgressView(String(localized: "Downloading and validating…", bundle: SkillsManagerLocalizationResources.bundle))
                 }
                 if let problem = model.problem {
                     Label(localizedManagedLocalImportProblem(problem), systemImage: "exclamationmark.triangle")
@@ -75,13 +75,13 @@ struct ManagedClawdhubInstallView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Install or Update Skill", bundle: .module)
+            Text("Install or Update Skill", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.title.bold())
             Text(
                 String(
                     localized: LocalizedStringResource(
             "Add \(skill.displayName) to the managed library or safely update it.",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )
                 )
             )
@@ -93,7 +93,7 @@ struct ManagedClawdhubInstallView: View {
                     String(
                         localized: LocalizedStringResource(
             "Source \(sourceSummary)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )
                     )
                 ))
@@ -105,14 +105,14 @@ struct ManagedClawdhubInstallView: View {
             return String(
                 localized: LocalizedStringResource(
             "ClawHub · \(skill.slug)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )
             )
         }
         return String(
             localized: LocalizedStringResource(
             "ClawHub · \(skill.slug) · \(version)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )
         )
     }
@@ -122,7 +122,7 @@ struct ManagedClawdhubInstallView: View {
             Button {
                 cancelAndDismiss()
             } label: {
-                Text("Cancel", bundle: .module)
+                Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
             }
             .keyboardShortcut(.cancelAction)
             .disabled(model.isExecuting || model.isFinalizing)
@@ -132,7 +132,7 @@ struct ManagedClawdhubInstallView: View {
             Button {
                 prepareInstall()
             } label: {
-                Text("Review…", bundle: .module)
+                Text("Review…", bundle: SkillsManagerLocalizationResources.bundle)
             }
             .buttonStyle(.borderedProminent)
             .disabled(!canPrepare)
@@ -249,7 +249,7 @@ struct ManagedClawdhubInstallView: View {
             Button {
                 dismiss()
             } label: {
-                Text("Close", bundle: .module)
+                Text("Close", bundle: SkillsManagerLocalizationResources.bundle)
             }
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("install.result.close")

@@ -43,7 +43,7 @@ struct LocalizationContractTests {
         }
     }
 
-    @Test("Bundle.module exposes the native Chinese development locale")
+    @Test("resource entry point exposes the native Chinese development locale")
     func bundleLookup() {
         let bundle = SkillsManagerLocalizationResources.bundle
         let zh = String(localized: LocalizedStringResource(

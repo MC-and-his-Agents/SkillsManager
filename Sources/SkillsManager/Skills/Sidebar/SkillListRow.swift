@@ -39,7 +39,7 @@ struct SkillListRow: View {
                             String(
                                 localized: LocalizedStringResource(
             "Source: \(sourceText(label))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                         ))
                 }
@@ -68,7 +68,7 @@ struct SkillListRow: View {
                 Text(String(
                     localized: LocalizedStringResource(
             "↻ v\(version)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
             } icon: {
                 Image(systemName: "arrow.triangle.2.circlepath")
@@ -78,17 +78,17 @@ struct SkillListRow: View {
                 .accessibilityLabel(Text(String(
                     localized: LocalizedStringResource(
             "Update available, version \(version)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))))
         case .needsAttention:
             Label {
-                Text("Needs Repair", bundle: .module)
+                Text("Needs Repair", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "exclamationmark.triangle.fill")
             }
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.yellow)
-                .accessibilityLabel(Text("Needs Repair", bundle: .module))
+                .accessibilityLabel(Text("Needs Repair", bundle: SkillsManagerLocalizationResources.bundle))
         }
     }
 
@@ -96,13 +96,13 @@ struct SkillListRow: View {
         guard let source = label.knownSource else { return label.text }
         switch source {
         case .local:
-            return String(localized: "Local", bundle: .module)
+            return String(localized: "Local", bundle: SkillsManagerLocalizationResources.bundle)
         case .repository:
-            return String(localized: "Repository", bundle: .module)
+            return String(localized: "Repository", bundle: SkillsManagerLocalizationResources.bundle)
         case .clawHub:
-            return String(localized: "ClawHub", bundle: .module)
+            return String(localized: "ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
         case .skillsSh:
-            return String(localized: "skills.sh", bundle: .module)
+            return String(localized: "skills.sh", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }

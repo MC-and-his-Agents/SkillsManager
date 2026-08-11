@@ -44,31 +44,31 @@ nonisolated struct SkillsShSearchResultID: Hashable, Sendable {
         var message: String {
             switch self {
             case .invalidRequest:
-                return String(localized: "Enter a search query between 2 and 200 characters.", bundle: .module)
+                return String(localized: "Enter a search query between 2 and 200 characters.", bundle: SkillsManagerLocalizationResources.bundle)
             case .timeout:
-                return String(localized: "skills.sh did not respond in time.", bundle: .module)
+                return String(localized: "skills.sh did not respond in time.", bundle: SkillsManagerLocalizationResources.bundle)
             case .offline:
-                return String(localized: "Connect to the internet and try again.", bundle: .module)
+                return String(localized: "Connect to the internet and try again.", bundle: SkillsManagerLocalizationResources.bundle)
             case .network:
-                return String(localized: "skills.sh could not be reached.", bundle: .module)
+                return String(localized: "skills.sh could not be reached.", bundle: SkillsManagerLocalizationResources.bundle)
             case .redirectRejected:
-                return String(localized: "The skills.sh search endpoint redirected unexpectedly.", bundle: .module)
+                return String(localized: "The skills.sh search endpoint redirected unexpectedly.", bundle: SkillsManagerLocalizationResources.bundle)
             case .rateLimited(let seconds):
                 guard let seconds else {
-                    return String(localized: "skills.sh rate limited this request. Try again later.", bundle: .module)
+                    return String(localized: "skills.sh rate limited this request. Try again later.", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 let secondsText = String(seconds)
                 return String(
                     localized: LocalizedStringResource(
             "skills.sh rate limited this request. Try again in \(secondsText) seconds.",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
             case .providerUnavailable:
-                return String(localized: "skills.sh is temporarily unavailable.", bundle: .module)
+                return String(localized: "skills.sh is temporarily unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
             case .responseTooLarge:
-                return String(localized: "skills.sh returned more search data than can be handled safely.", bundle: .module)
+                return String(localized: "skills.sh returned more search data than can be handled safely.", bundle: SkillsManagerLocalizationResources.bundle)
             case .contractChanged:
-                return String(localized: "The skills.sh search interface has changed.", bundle: .module)
+                return String(localized: "The skills.sh search interface has changed.", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
     }

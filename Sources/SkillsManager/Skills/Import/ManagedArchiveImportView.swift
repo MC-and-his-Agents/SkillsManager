@@ -31,11 +31,11 @@ struct ManagedArchiveImportView: View {
     private var content: some View {
         switch model.state {
         case .idle:
-            ContentUnavailableView(String(localized: "Choose a ZIP archive", bundle: .module), systemImage: "archivebox")
+            ContentUnavailableView(String(localized: "Choose a ZIP archive", bundle: SkillsManagerLocalizationResources.bundle), systemImage: "archivebox")
         case .selecting:
             selection
         case .preparing:
-            ProgressView(String(localized: "Preparing previews…", bundle: .module))
+            ProgressView(String(localized: "Preparing previews…", bundle: SkillsManagerLocalizationResources.bundle))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .ready:
             preview
@@ -52,14 +52,14 @@ struct ManagedArchiveImportView: View {
                 Button {
                     model.selectAllSafe()
                 } label: {
-                    Text("Select safe", bundle: .module)
+                    Text("Select safe", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                     .disabled(model.availableCandidateCount == 0)
                     .accessibilityIdentifier("archive.select-safe")
                 Button {
                     model.clearSelection()
                 } label: {
-                    Text("Clear", bundle: .module)
+                    Text("Clear", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                     .disabled(model.selectedCount == 0)
                     .accessibilityIdentifier("archive.clear-selection")
@@ -67,7 +67,7 @@ struct ManagedArchiveImportView: View {
                 Text(String(
                     localized: LocalizedStringResource(
             "\(model.selectedCount) selected",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -82,7 +82,7 @@ struct ManagedArchiveImportView: View {
                 Button {
                     onPrepare(requestedScope)
                 } label: {
-                    Text("Review selected…", bundle: .module)
+                    Text("Review selected…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canPrepare || !scopeIsValid)
@@ -111,7 +111,7 @@ struct ManagedArchiveImportView: View {
                         Text(String(
                             localized: LocalizedStringResource(
             "Slug: \(slug.value)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -129,7 +129,7 @@ struct ManagedArchiveImportView: View {
             .accessibilityValue(
             candidate.blockedReason
                     .map(blockedReasonText)
-                    ?? String(localized: "Importable", bundle: .module)
+                    ?? String(localized: "Importable", bundle: SkillsManagerLocalizationResources.bundle)
             )
             .accessibilityIdentifier("archive.candidate.\(candidate.canonicalSubpath)")
         }
@@ -141,7 +141,7 @@ struct ManagedArchiveImportView: View {
             Label {
                 Text(
                     "Nothing has been written. Confirm once to import the selected Skills in order.",
-                    bundle: .module
+                    bundle: SkillsManagerLocalizationResources.bundle
                 )
             } icon: {
                 Image(systemName: "eye")
@@ -157,7 +157,7 @@ struct ManagedArchiveImportView: View {
                         Text(String(
                             localized: LocalizedStringResource(
             "Slug: \(slug.value)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -176,7 +176,7 @@ struct ManagedArchiveImportView: View {
                         Label {
                             Text(
                                 "Distribution is blocked. This Skill will be added without enabling.",
-                                bundle: .module
+                                bundle: SkillsManagerLocalizationResources.bundle
                             )
                         } icon: {
                             Image(systemName: "exclamationmark.triangle")
@@ -202,7 +202,7 @@ struct ManagedArchiveImportView: View {
                 Button {
                     model.cancelPreview()
                 } label: {
-                    Text("Back", bundle: .module)
+                    Text("Back", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 Spacer()
                 Button {
@@ -212,7 +212,7 @@ struct ManagedArchiveImportView: View {
                         model.hasBlockedDistribution
                             ? "Add selected to library"
                             : "Import selected",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     )
                 }
                 .buttonStyle(.borderedProminent)
@@ -224,7 +224,7 @@ struct ManagedArchiveImportView: View {
 
     private var execution: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ProgressView(String(localized: "Importing selected Skills…", bundle: .module))
+            ProgressView(String(localized: "Importing selected Skills…", bundle: SkillsManagerLocalizationResources.bundle))
             List(model.resultItems) { result in
                 resultRow(result)
             }
@@ -236,8 +236,8 @@ struct ManagedArchiveImportView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label(
                 model.summary.failed == 0
-                    ? String(localized: "Batch import finished.", bundle: .module)
-                    : String(localized: "Batch import finished with failures.", bundle: .module),
+                    ? String(localized: "Batch import finished.", bundle: SkillsManagerLocalizationResources.bundle)
+                    : String(localized: "Batch import finished with failures.", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: model.summary.failed == 0
                     ? "checkmark.circle"
                     : "exclamationmark.triangle"
@@ -279,45 +279,45 @@ struct ManagedArchiveImportView: View {
 
     private func managementText(_ status: ManagedLocalImportResultStatus) -> String {
         switch status {
-        case .distributed: String(localized: "Imported and enabled", bundle: .module)
-        case .noDistributionChanges, .alreadyManaged: String(localized: "Imported", bundle: .module)
-        case .managedUndistributed: String(localized: "Imported but not enabled", bundle: .module)
+        case .distributed: String(localized: "Imported and enabled", bundle: SkillsManagerLocalizationResources.bundle)
+        case .noDistributionChanges, .alreadyManaged: String(localized: "Imported", bundle: SkillsManagerLocalizationResources.bundle)
+        case .managedUndistributed: String(localized: "Imported but not enabled", bundle: SkillsManagerLocalizationResources.bundle)
         case .managedDistributionIndeterminate, .managementIndeterminate:
-            String(localized: "Imported; status needs attention", bundle: .module)
-        case .updateRequired: String(localized: "Update required", bundle: .module)
-        case .updated: String(localized: "Updated", bundle: .module)
+            String(localized: "Imported; status needs attention", bundle: SkillsManagerLocalizationResources.bundle)
+        case .updateRequired: String(localized: "Update required", bundle: SkillsManagerLocalizationResources.bundle)
+        case .updated: String(localized: "Updated", bundle: SkillsManagerLocalizationResources.bundle)
         case .updatedDistributionNeedsAttention, .updateIndeterminate:
-            String(localized: "Updated; status needs attention", bundle: .module)
+            String(localized: "Updated; status needs attention", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func blockedReasonText(_ reason: String) -> String {
         switch reason {
         case "The selected item must be a regular folder, not a symbolic link.":
-            return String(localized: "The selected item must be a regular folder, not a symbolic link.", bundle: .module)
+            return String(localized: "The selected item must be a regular folder, not a symbolic link.", bundle: SkillsManagerLocalizationResources.bundle)
         case "The selected item doesn’t contain a SKILL.md file.":
-            return String(localized: "The selected item doesn’t contain a SKILL.md file.", bundle: .module)
+            return String(localized: "The selected item doesn’t contain a SKILL.md file.", bundle: SkillsManagerLocalizationResources.bundle)
         case "The selected item contains more than one Skill folder.":
-            return String(localized: "The selected item contains more than one Skill folder.", bundle: .module)
+            return String(localized: "The selected item contains more than one Skill folder.", bundle: SkillsManagerLocalizationResources.bundle)
         case "The Skill candidate could not be validated safely.":
-            return String(localized: "The Skill candidate could not be validated safely.", bundle: .module)
+            return String(localized: "The Skill candidate could not be validated safely.", bundle: SkillsManagerLocalizationResources.bundle)
         case let value where value.hasPrefix("The Skill manifest must be a regular file: "):
             let path = String(value.dropFirst("The Skill manifest must be a regular file: ".count))
             return String(localized: LocalizedStringResource(
                 "The Skill manifest must be a regular file: \(path)",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         case let value where value.hasPrefix("The zip archive is unsafe or invalid: "):
             let detail = String(value.dropFirst("The zip archive is unsafe or invalid: ".count))
             return String(localized: LocalizedStringResource(
                 "The zip archive is unsafe or invalid: \(detail)",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         case let value where value.hasPrefix("The Skill contents are unsafe or invalid: "):
             let detail = String(value.dropFirst("The Skill contents are unsafe or invalid: ".count))
             return String(localized: LocalizedStringResource(
                 "The Skill contents are unsafe or invalid: \(detail)",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         default:
             return reason

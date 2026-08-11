@@ -101,16 +101,16 @@ func localizedManagedSkillUpdateExecutionProblem(
     _ problem: ManagedSkillUpdateExecutionProblem
 ) -> String {
     switch problem {
-    case .unavailable: String(localized: "Updating is unavailable for this Skill.", bundle: .module)
-    case .noUpdate: String(localized: "The remote Skill no longer contains an update.", bundle: .module)
-    case .stale: String(localized: "The Skill or remote source changed. Check for updates again.", bundle: .module)
-    case .invalidDecisions: String(localized: "Choose how to handle every modified Copy before updating.", bundle: .module)
-    case .unsafeCopyState: String(localized: "A Copy target changed in a way that cannot be updated safely.", bundle: .module)
-    case .operationInProgress: String(localized: "This Skill is already being prepared or updated.", bundle: .module)
-    case .permissionDenied: String(localized: "Skills Manager does not have permission to complete this update.", bundle: .module)
-    case .providerUnavailable: String(localized: "The remote source is temporarily unavailable.", bundle: .module)
-    case .needsRepair: String(localized: "The managed Skill requires repair before it can be updated.", bundle: .module)
-    case .failed: String(localized: "The Skill could not be updated.", bundle: .module)
+    case .unavailable: String(localized: "Updating is unavailable for this Skill.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .noUpdate: String(localized: "The remote Skill no longer contains an update.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .stale: String(localized: "The Skill or remote source changed. Check for updates again.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .invalidDecisions: String(localized: "Choose how to handle every modified Copy before updating.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .unsafeCopyState: String(localized: "A Copy target changed in a way that cannot be updated safely.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .operationInProgress: String(localized: "This Skill is already being prepared or updated.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .permissionDenied: String(localized: "Skills Manager does not have permission to complete this update.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .providerUnavailable: String(localized: "The remote source is temporarily unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .needsRepair: String(localized: "The managed Skill requires repair before it can be updated.", bundle: SkillsManagerLocalizationResources.bundle)
+    case .failed: String(localized: "The Skill could not be updated.", bundle: SkillsManagerLocalizationResources.bundle)
     }
 }
 

@@ -11,7 +11,7 @@ struct SkillDistributionView: View {
             .padding(.top, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("Distribution", bundle: .module)
+            Text("Distribution", bundle: SkillsManagerLocalizationResources.bundle)
         }
         .sheet(item: previewBinding) { preview in
             SkillDistributionPreviewView(preview: preview)
@@ -30,14 +30,14 @@ struct SkillDistributionView: View {
                 systemImage: "link"
             )
         case .loading:
-            ProgressView(String(localized: "Loading distribution state…", bundle: .module))
+            ProgressView(String(localized: "Loading distribution state…", bundle: SkillsManagerLocalizationResources.bundle))
         case .failed(let problem):
             VStack(alignment: .leading, spacing: 10) {
                 statusMessage(problem.message, systemImage: "exclamationmark.triangle")
                 Button {
                     Task { await model.refreshCurrent() }
                 } label: {
-                    Text("Retry", bundle: .module)
+                    Text("Retry", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .disabled(model.isRefreshing || model.isApplying)
             }
@@ -59,7 +59,7 @@ struct SkillDistributionView: View {
                         String(
                             localized: LocalizedStringResource(
             "Distribution status: \(statusText(status))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                     ))
                 Spacer()
@@ -71,7 +71,7 @@ struct SkillDistributionView: View {
                             .controlSize(.small)
                     } else {
                         Label {
-                            Text("Refresh distribution", bundle: .module)
+                            Text("Refresh distribution", bundle: SkillsManagerLocalizationResources.bundle)
                         } icon: {
                             Image(systemName: "arrow.clockwise")
                         }
@@ -81,11 +81,11 @@ struct SkillDistributionView: View {
                 .disabled(model.isRefreshing || model.isPreparingPreview || model.isApplying)
                 .help(Text(
                     model.isRefreshing ? "Refreshing distribution" : "Refresh distribution",
-                    bundle: .module
+                    bundle: SkillsManagerLocalizationResources.bundle
                 ))
                 .accessibilityLabel(Text(
                     model.isRefreshing ? "Refreshing distribution" : "Refresh distribution",
-                    bundle: .module
+                    bundle: SkillsManagerLocalizationResources.bundle
                 ))
             }
 
@@ -96,7 +96,7 @@ struct SkillDistributionView: View {
                 Label {
                     Text(
                         "Applying this selection will replace the global target with Agent-specific targets.",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     )
                 } icon: {
                     Image(systemName: "arrow.triangle.branch")
@@ -107,27 +107,27 @@ struct SkillDistributionView: View {
                     model.selectedSyncMode == .symlink
                         ? "The compatible Agent set uses one link in ~/.agents/skills."
                         : "The compatible Agent set uses one Copy in ~/.agents/skills."
-                    , bundle: .module
+                    , bundle: SkillsManagerLocalizationResources.bundle
                 )
                     .foregroundStyle(.secondary)
             }
 
             if model.hasUnappliedDraft {
                 Label {
-                    Text("Agent selection has unapplied changes.", bundle: .module)
+                    Text("Agent selection has unapplied changes.", bundle: SkillsManagerLocalizationResources.bundle)
                 } icon: {
                     Image(systemName: "pencil.circle")
                 }
                     .foregroundStyle(.secondary)
                     .accessibilityLabel(Text(
                         "Agent selection has unapplied changes",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     ))
             }
 
             if !model.currentTargets.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Current targets", bundle: .module)
+                    Text("Current targets", bundle: SkillsManagerLocalizationResources.bundle)
                         .font(.headline)
                     ForEach(model.currentTargets) { target in
                         VStack(alignment: .leading, spacing: 2) {
@@ -146,7 +146,7 @@ struct SkillDistributionView: View {
             if let lineage = model.forkLineage {
                 VStack(alignment: .leading, spacing: 4) {
                     Label {
-                        Text("Independent local Fork", bundle: .module)
+                        Text("Independent local Fork", bundle: SkillsManagerLocalizationResources.bundle)
                     } icon: {
                         Image(systemName: "arrow.triangle.branch")
                     }
@@ -155,14 +155,14 @@ struct SkillDistributionView: View {
                         String(
                             localized: LocalizedStringResource(
             "Based on \(lineage.parentLabel)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                     )
                     Text(
                         String(
                             localized: LocalizedStringResource(
             "Source \(lineage.fingerprintLabel)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                     )
                         .font(.caption.monospaced())
@@ -192,7 +192,7 @@ struct SkillDistributionView: View {
                     ProgressView()
                 } else {
                     Label {
-                        Text("Preview changes", bundle: .module)
+                        Text("Preview changes", bundle: SkillsManagerLocalizationResources.bundle)
                     } icon: {
                         Image(systemName: "eye")
                     }
@@ -202,25 +202,25 @@ struct SkillDistributionView: View {
             .disabled(!model.canPreparePreview)
             .accessibilityLabel(Text(
                 model.isPreparingPreview ? "Preparing distribution preview" : "Preview changes",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
             .accessibilityHint(Text(
                 "Shows planned distribution changes before anything is written.",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
 
             Button {
                 model.removeFromAllAgents()
                 Task { await model.preparePreview() }
             } label: {
-                Text("Remove from all Agents…", bundle: .module)
+                Text("Remove from all Agents…", bundle: SkillsManagerLocalizationResources.bundle)
             }
             .disabled(model.selectedAgents.isEmpty || !model.canPreparePreview)
             .accessibilityHint(Text(
                 "Previews removal of managed distribution targets. The managed Skill is retained.",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
-            Text("This removes only managed distribution targets. The Skill remains in the managed library.", bundle: .module)
+            Text("This removes only managed distribution targets. The Skill remains in the managed library.", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -228,7 +228,7 @@ struct SkillDistributionView: View {
 
     private var modeSelection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Mode", bundle: .module)
+            Text("Mode", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.headline)
             Picker(
                 selection: Binding(
@@ -236,20 +236,20 @@ struct SkillDistributionView: View {
                     set: { model.setSyncMode($0) }
                 )
             ) {
-                Text("Symlink", bundle: .module).tag(DistributionSyncMode.symlink)
-                Text("Copy", bundle: .module).tag(DistributionSyncMode.copy)
+                Text("Symlink", bundle: SkillsManagerLocalizationResources.bundle).tag(DistributionSyncMode.symlink)
+                Text("Copy", bundle: SkillsManagerLocalizationResources.bundle).tag(DistributionSyncMode.copy)
             } label: {
-                Text("Distribution mode", bundle: .module)
+                Text("Distribution mode", bundle: SkillsManagerLocalizationResources.bundle)
             }
             .pickerStyle(.segmented)
             .disabled(model.isApplying)
             .accessibilityValue(Text(verbatim: syncModeText(model.selectedSyncMode)))
             if model.selectedSyncMode == .symlink {
-                Text("Agents use the managed Skill directly.", bundle: .module)
+                Text("Agents use the managed Skill directly.", bundle: SkillsManagerLocalizationResources.bundle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                Text("Each target receives a managed Copy.", bundle: .module)
+                Text("Each target receives a managed Copy.", bundle: SkillsManagerLocalizationResources.bundle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -258,7 +258,7 @@ struct SkillDistributionView: View {
 
     private var agentSelection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Agents", bundle: .module)
+            Text("Agents", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.headline)
             ForEach(model.agentRows) { row in
                 Toggle(
@@ -272,7 +272,7 @@ struct SkillDistributionView: View {
                             Text(verbatim: platformText(row.platform))
                             Text(
                                 row.isCurrentlyEnabled ? "Enabled now" : "Disabled now",
-                                bundle: .module
+                                bundle: SkillsManagerLocalizationResources.bundle
                             )
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -282,7 +282,7 @@ struct SkillDistributionView: View {
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                         if !row.readsGlobalTarget {
-                            Text("Uses an Agent-specific target", bundle: .module)
+                            Text("Uses an Agent-specific target", bundle: SkillsManagerLocalizationResources.bundle)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -292,7 +292,7 @@ struct SkillDistributionView: View {
                     String(
                         localized: LocalizedStringResource(
             "\(platformText(row.platform)) distribution",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                 ))
                 .accessibilityValue(Text(
@@ -301,14 +301,14 @@ struct SkillDistributionView: View {
             row.isSelected
                             ? "Selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")"
                             : "Not selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                 ))
                 .accessibilityHint(Text(
                     String(
                         localized: LocalizedStringResource(
             "Target: \(row.locator)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                 ))
                 .disabled(model.isApplying)
@@ -348,27 +348,27 @@ struct SkillDistributionView: View {
 
     private func statusText(_ status: SkillDistributionViewModel.Status) -> String {
         return switch status {
-        case .notConfigured: String(localized: "Not configured", bundle: .module)
-        case .inSync: String(localized: "In sync", bundle: .module)
-        case .drifted: String(localized: "Needs update", bundle: .module)
-        case .needsRepair: String(localized: "Needs repair", bundle: .module)
-        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
+        case .notConfigured: String(localized: "Not configured", bundle: SkillsManagerLocalizationResources.bundle)
+        case .inSync: String(localized: "In sync", bundle: SkillsManagerLocalizationResources.bundle)
+        case .drifted: String(localized: "Needs update", bundle: SkillsManagerLocalizationResources.bundle)
+        case .needsRepair: String(localized: "Needs repair", bundle: SkillsManagerLocalizationResources.bundle)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func syncModeText(_ mode: DistributionSyncMode) -> String {
         return switch mode {
-        case .symlink: String(localized: "Symlink", bundle: .module)
-        case .copy: String(localized: "Copy", bundle: .module)
+        case .symlink: String(localized: "Symlink", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copy: String(localized: "Copy", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func platformText(_ platform: SkillPlatform) -> String {
         return switch platform {
-        case .codex: String(localized: "Codex", bundle: .module)
-        case .claude: String(localized: "Claude Code", bundle: .module)
-        case .opencode: String(localized: "OpenCode", bundle: .module)
-        case .copilot: String(localized: "GitHub Copilot", bundle: .module)
+        case .codex: String(localized: "Codex", bundle: SkillsManagerLocalizationResources.bundle)
+        case .claude: String(localized: "Claude Code", bundle: SkillsManagerLocalizationResources.bundle)
+        case .opencode: String(localized: "OpenCode", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copilot: String(localized: "GitHub Copilot", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }
@@ -381,16 +381,16 @@ private struct SkillDistributionPreviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Distribution preview", bundle: .module)
+            Text("Distribution preview", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.title.bold())
-            Text("Review every target before applying changes.", bundle: .module)
+            Text("Review every target before applying changes.", bundle: SkillsManagerLocalizationResources.bundle)
                 .foregroundStyle(.secondary)
 
             if preview.plan.status == .blocked {
                 blockedConflicts
             } else if preview.rows.isEmpty {
                 Label {
-                    Text("No distribution changes are needed.", bundle: .module)
+                    Text("No distribution changes are needed.", bundle: SkillsManagerLocalizationResources.bundle)
                 } icon: {
                     Image(systemName: "checkmark.circle")
                 }
@@ -419,7 +419,7 @@ private struct SkillDistributionPreviewView: View {
                 } label: {
                     Text(
                         preview.plan.status == .blocked ? "Close" : "Cancel",
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     )
                 }
                 .keyboardShortcut(.cancelAction)
@@ -435,9 +435,9 @@ private struct SkillDistributionPreviewView: View {
                             ProgressView()
                         } else {
                             if preview.plan.status == .noOp {
-                                Text("Confirm", bundle: .module)
+                                Text("Confirm", bundle: SkillsManagerLocalizationResources.bundle)
                             } else {
-                                Text("Apply", bundle: .module)
+                                Text("Apply", bundle: SkillsManagerLocalizationResources.bundle)
                             }
                         }
                     }
@@ -448,7 +448,7 @@ private struct SkillDistributionPreviewView: View {
                         model.isApplying
                             ? "Applying distribution changes"
                             : (preview.plan.status == .noOp ? "Confirm" : "Apply"),
-                        bundle: .module
+                        bundle: SkillsManagerLocalizationResources.bundle
                     ))
                 }
             }
@@ -461,7 +461,7 @@ private struct SkillDistributionPreviewView: View {
     private var blockedConflicts: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label {
-                Text("Changes cannot be applied", bundle: .module)
+                Text("Changes cannot be applied", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "exclamationmark.triangle")
             }
@@ -483,14 +483,14 @@ private struct SkillDistributionPreviewView: View {
                         String(
                             localized: LocalizedStringResource(
             "Local changes at \(decision.locator)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
                     )
                         .font(.headline)
                     Text(
                         String(
                             localized: "Discard restores the managed Skill and cannot be undone. Choose Fork to preserve the local content independently.",
-                            bundle: .module
+                            bundle: SkillsManagerLocalizationResources.bundle
                         )
                     )
                     .font(.callout)
@@ -499,22 +499,22 @@ private struct SkillDistributionPreviewView: View {
                         Button(role: .destructive) {
                             Task { await model.discardLocalChanges(decision) }
                         } label: {
-                            Text("Discard local changes", bundle: .module)
+                            Text("Discard local changes", bundle: SkillsManagerLocalizationResources.bundle)
                         }
                         .disabled(model.isApplying)
                         .accessibilityHint(Text(
                             "Replaces this Copy with the current managed Skill.",
-                            bundle: .module
+                            bundle: SkillsManagerLocalizationResources.bundle
                         ))
                         Button {
                             Task { await model.keepAsFork(decision) }
                         } label: {
-                            Text("Keep as independent Fork", bundle: .module)
+                            Text("Keep as independent Fork", bundle: SkillsManagerLocalizationResources.bundle)
                         }
                         .disabled(model.isApplying)
                         .accessibilityHint(Text(
                             "Preserves the local content as a separately managed Skill.",
-                            bundle: .module
+                            bundle: SkillsManagerLocalizationResources.bundle
                         ))
                     }
                 }
@@ -525,13 +525,13 @@ private struct SkillDistributionPreviewView: View {
 
     private func previewKindText(_ kind: SkillDistributionViewModel.PreviewRow.Kind) -> String {
         return switch kind {
-        case .remove: String(localized: "Remove target", bundle: .module)
-        case .create: String(localized: "Create target", bundle: .module)
-        case .refresh: String(localized: "Refresh Copy", bundle: .module)
-        case .replace: String(localized: "Change distribution mode", bundle: .module)
-        case .binding: String(localized: "Update saved target", bundle: .module)
-        case .configuration: String(localized: "Save Agent selection", bundle: .module)
-        case .noChange: String(localized: "No change", bundle: .module)
+        case .remove: String(localized: "Remove target", bundle: SkillsManagerLocalizationResources.bundle)
+        case .create: String(localized: "Create target", bundle: SkillsManagerLocalizationResources.bundle)
+        case .refresh: String(localized: "Refresh Copy", bundle: SkillsManagerLocalizationResources.bundle)
+        case .replace: String(localized: "Change distribution mode", bundle: SkillsManagerLocalizationResources.bundle)
+        case .binding: String(localized: "Update saved target", bundle: SkillsManagerLocalizationResources.bundle)
+        case .configuration: String(localized: "Save Agent selection", bundle: SkillsManagerLocalizationResources.bundle)
+        case .noChange: String(localized: "No change", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 

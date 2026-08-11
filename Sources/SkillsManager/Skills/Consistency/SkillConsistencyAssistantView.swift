@@ -22,24 +22,24 @@ struct SkillConsistencyAssistantView: View {
                     Task { await model.refresh() }
                 } label: {
                     Label {
-                        Text("Refresh audit", bundle: .module)
+                        Text("Refresh audit", bundle: SkillsManagerLocalizationResources.bundle)
                     } icon: {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
                 .disabled(!model.canRefresh)
                 .keyboardShortcut("r", modifiers: [.command])
-                .help(Text("Refresh consistency audit", bundle: .module))
+                .help(Text("Refresh consistency audit", bundle: SkillsManagerLocalizationResources.bundle))
                 .accessibilityLabel(Text(
                     model.canRefresh ? "Refresh consistency audit" : "Consistency audit is busy",
-                    bundle: .module
+                    bundle: SkillsManagerLocalizationResources.bundle
                 ))
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button {
                     dismiss()
                 } label: {
-                    Text("Done", bundle: .module)
+                    Text("Done", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                     .keyboardShortcut(.cancelAction)
                     .disabled(model.isExecuting)
@@ -68,7 +68,7 @@ struct SkillConsistencyAssistantView: View {
                             Text(findingTitleText(finding.title))
                                 .lineLimit(1)
                             Text(verbatim: model.isKept(finding.id)
-                                ? String(localized: "Kept for now", bundle: .module)
+                                ? String(localized: "Kept for now", bundle: SkillsManagerLocalizationResources.bundle)
                                 : findingDetailText(finding.detail))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -84,9 +84,9 @@ struct SkillConsistencyAssistantView: View {
                 .listStyle(.sidebar)
             } else if model.snapshot?.findings.isEmpty == false {
                 ContentUnavailableView(
-                    String(localized: "No matching findings", bundle: .module),
+                    String(localized: "No matching findings", bundle: SkillsManagerLocalizationResources.bundle),
                     systemImage: "magnifyingglass",
-                    description: Text("Clear the filter to restore the complete audit.", bundle: .module)
+                    description: Text("Clear the filter to restore the complete audit.", bundle: SkillsManagerLocalizationResources.bundle)
                 )
             } else {
                 ContentUnavailableView(
@@ -98,7 +98,7 @@ struct SkillConsistencyAssistantView: View {
         }
         .searchable(
             text: $query,
-            prompt: Text("Filter audit findings", bundle: .module)
+            prompt: Text("Filter audit findings", bundle: SkillsManagerLocalizationResources.bundle)
         )
     }
 
@@ -116,13 +116,13 @@ struct SkillConsistencyAssistantView: View {
                 Spacer()
             }
             if model.isPreparingPreview {
-                ProgressView(String(localized: "Preparing preview…", bundle: .module))
+                ProgressView(String(localized: "Preparing preview…", bundle: SkillsManagerLocalizationResources.bundle))
                     .controlSize(.small)
             } else if model.isExecuting {
-                ProgressView(String(localized: "Applying changes…", bundle: .module))
+                ProgressView(String(localized: "Applying changes…", bundle: SkillsManagerLocalizationResources.bundle))
                     .controlSize(.small)
             } else if model.isVerifying {
-                ProgressView(String(localized: "Verifying with a fresh audit…", bundle: .module))
+                ProgressView(String(localized: "Verifying with a fresh audit…", bundle: SkillsManagerLocalizationResources.bundle))
                     .controlSize(.small)
             }
         }
@@ -154,20 +154,20 @@ struct SkillConsistencyAssistantView: View {
                     LabeledContent {
                         Text(verbatim: snapshot.managedSkillCount.formatted(.number))
                     } label: {
-                        Text("Managed Skills", bundle: .module)
+                        Text("Managed Skills", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     LabeledContent {
                         Text(verbatim: snapshot.observedSkillCount.formatted(.number))
                     } label: {
-                        Text("Observed directories", bundle: .module)
+                        Text("Observed directories", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     LabeledContent {
                         Text(verbatim: snapshot.findings.count.formatted(.number))
                     } label: {
-                        Text("Findings", bundle: .module)
+                        Text("Findings", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                 } label: {
-                    Text("Audit summary", bundle: .module)
+                    Text("Audit summary", bundle: SkillsManagerLocalizationResources.bundle)
                 }
             }
             feedback
@@ -198,14 +198,14 @@ struct SkillConsistencyAssistantView: View {
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } label: {
-                        Text("Location", bundle: .module)
+                        Text("Location", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                 }
                 if model.isKept(finding.id) {
                     Label {
                         Text(
                             "Kept for this session. Refreshing will show the finding again.",
-                            bundle: .module
+                            bundle: SkillsManagerLocalizationResources.bundle
                         )
                     } icon: {
                         Image(systemName: "clock")
@@ -226,7 +226,7 @@ struct SkillConsistencyAssistantView: View {
         _ finding: SkillConsistencyPresentation.Finding
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Actions", bundle: .module)
+            Text("Actions", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.headline)
             ForEach(finding.actions, id: \.self) { action in
                 Button {
@@ -271,7 +271,7 @@ struct SkillConsistencyAssistantView: View {
                 Button {
                     Task { await model.refresh() }
                 } label: {
-                    Text("Refresh audit", bundle: .module)
+                    Text("Refresh audit", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .disabled(!model.canRefresh)
                 if currentProblem?.showsBackups == true
@@ -280,7 +280,7 @@ struct SkillConsistencyAssistantView: View {
                         dismiss()
                         openBackups()
                     } label: {
-                        Text("Open Skill Backups", bundle: .module)
+                        Text("Open Skill Backups", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                     .disabled(model.isExecuting)
                 }
@@ -329,21 +329,21 @@ struct SkillConsistencyAssistantView: View {
         switch model.loadState {
         case .blocked(let message): message
         case .auditing:
-            String(localized: "Reading SSOT, database, distribution targets and discovered directories.", bundle: .module)
+            String(localized: "Reading SSOT, database, distribution targets and discovered directories.", bundle: SkillsManagerLocalizationResources.bundle)
         case .ready(let snapshot):
             switch snapshot.status {
             case .healthy:
-                String(localized: "SSOT, database and managed targets are consistent.", bundle: .module)
+                String(localized: "SSOT, database and managed targets are consistent.", bundle: SkillsManagerLocalizationResources.bundle)
             case .findings:
                 findingsStatusText(count: snapshot.findings.count)
             case .incomplete:
-                String(localized: "Some roots could not be inspected. Write actions are disabled.", bundle: .module)
+                String(localized: "Some roots could not be inspected. Write actions are disabled.", bundle: SkillsManagerLocalizationResources.bundle)
             case .blocked:
-                String(localized: "A blocking library diagnostic prevents changes.", bundle: .module)
+                String(localized: "A blocking library diagnostic prevents changes.", bundle: SkillsManagerLocalizationResources.bundle)
             case .operationInProgress:
-                String(localized: "Wait for the current operation, then refresh.", bundle: .module)
+                String(localized: "Wait for the current operation, then refresh.", bundle: SkillsManagerLocalizationResources.bundle)
             case .needsRepair:
-                String(localized: "Use the existing backup and recovery tools before making more changes.", bundle: .module)
+                String(localized: "Use the existing backup and recovery tools before making more changes.", bundle: SkillsManagerLocalizationResources.bundle)
             }
         case .failed(let problem): problem.message
         }
@@ -351,10 +351,10 @@ struct SkillConsistencyAssistantView: View {
 
     private var statusTitleText: String {
         switch model.loadState {
-        case .blocked: String(localized: "Consistency audit", bundle: .module)
-        case .auditing: String(localized: "Auditing", bundle: .module)
+        case .blocked: String(localized: "Consistency audit", bundle: SkillsManagerLocalizationResources.bundle)
+        case .auditing: String(localized: "Auditing", bundle: SkillsManagerLocalizationResources.bundle)
         case .ready(let snapshot): consistencyStatusText(snapshot.status)
-        case .failed: String(localized: "Audit unavailable", bundle: .module)
+        case .failed: String(localized: "Audit unavailable", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -365,19 +365,19 @@ struct SkillConsistencyAssistantView: View {
         case .ready(let snapshot) where snapshot.status == .findings:
             findingsStatusText(count: snapshot.findings.count)
         case .auditing:
-            String(localized: "Reading SSOT, database, distribution targets and discovered directories.", bundle: .module)
+            String(localized: "Reading SSOT, database, distribution targets and discovered directories.", bundle: SkillsManagerLocalizationResources.bundle)
         case .ready(let snapshot):
             switch snapshot.status {
             case .healthy:
-                String(localized: "SSOT, database and managed targets are consistent.", bundle: .module)
+                String(localized: "SSOT, database and managed targets are consistent.", bundle: SkillsManagerLocalizationResources.bundle)
             case .incomplete:
-                String(localized: "Some roots could not be inspected. Write actions are disabled.", bundle: .module)
+                String(localized: "Some roots could not be inspected. Write actions are disabled.", bundle: SkillsManagerLocalizationResources.bundle)
             case .blocked:
-                String(localized: "A blocking library diagnostic prevents changes.", bundle: .module)
+                String(localized: "A blocking library diagnostic prevents changes.", bundle: SkillsManagerLocalizationResources.bundle)
             case .operationInProgress:
-                String(localized: "Wait for the current operation, then refresh.", bundle: .module)
+                String(localized: "Wait for the current operation, then refresh.", bundle: SkillsManagerLocalizationResources.bundle)
             case .needsRepair:
-                String(localized: "Use the existing backup and recovery tools before making more changes.", bundle: .module)
+                String(localized: "Use the existing backup and recovery tools before making more changes.", bundle: SkillsManagerLocalizationResources.bundle)
             case .findings:
                 findingsStatusText(count: snapshot.findings.count)
             }
@@ -388,7 +388,7 @@ struct SkillConsistencyAssistantView: View {
         String(
             localized: LocalizedStringResource(
             "\(count) item(s) need review.",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
     }
 
@@ -419,7 +419,7 @@ struct SkillConsistencyAssistantView: View {
 
     private var emptyTitleText: String {
         if case .auditing = model.loadState {
-            return String(localized: "Auditing", bundle: .module)
+            return String(localized: "Auditing", bundle: SkillsManagerLocalizationResources.bundle)
         }
         return statusTitleText
     }
@@ -448,13 +448,13 @@ struct SkillConsistencyAssistantView: View {
     private func actionHintText(_ action: SkillConsistencyPresentation.Action) -> String {
         return switch action {
         case .rebuildMissingSymlinks:
-            String(localized: "Shows every missing Symlink before recreating them.", bundle: .module)
+            String(localized: "Shows every missing Symlink before recreating them.", bundle: SkillsManagerLocalizationResources.bundle)
         case .disableMissingBinding:
-            String(localized: "Shows the selected managed target before disabling it.", bundle: .module)
+            String(localized: "Shows the selected managed target before disabling it.", bundle: SkillsManagerLocalizationResources.bundle)
         case .migrate:
-            String(localized: "Shows the source, SSOT target, backup and operation before writing.", bundle: .module)
+            String(localized: "Shows the source, SSOT target, backup and operation before writing.", bundle: SkillsManagerLocalizationResources.bundle)
         case .keepForNow:
-            String(localized: "Makes no changes. The finding returns after the next audit.", bundle: .module)
+            String(localized: "Makes no changes. The finding returns after the next audit.", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -465,7 +465,7 @@ struct SkillConsistencyAssistantView: View {
         let title = findingTitleText(finding.title)
         return String(localized: LocalizedStringResource(
             "\(actionTitle(action)): \(title)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
     }
 
@@ -479,84 +479,84 @@ struct SkillConsistencyAssistantView: View {
         let localizedScope: String
         switch scope {
         case "All compatible Agents":
-            localizedScope = String(localized: "All compatible Agents", bundle: .module)
+            localizedScope = String(localized: "All compatible Agents", bundle: SkillsManagerLocalizationResources.bundle)
         case SkillPlatform.codex.rawValue:
-            localizedScope = String(localized: "Codex", bundle: .module)
+            localizedScope = String(localized: "Codex", bundle: SkillsManagerLocalizationResources.bundle)
         case SkillPlatform.claude.rawValue:
-            localizedScope = String(localized: "Claude Code", bundle: .module)
+            localizedScope = String(localized: "Claude Code", bundle: SkillsManagerLocalizationResources.bundle)
         case SkillPlatform.opencode.rawValue:
-            localizedScope = String(localized: "OpenCode", bundle: .module)
+            localizedScope = String(localized: "OpenCode", bundle: SkillsManagerLocalizationResources.bundle)
         case SkillPlatform.copilot.rawValue:
-            localizedScope = String(localized: "GitHub Copilot", bundle: .module)
+            localizedScope = String(localized: "GitHub Copilot", bundle: SkillsManagerLocalizationResources.bundle)
         default:
             localizedScope = scope
         }
         return String(localized: LocalizedStringResource(
             "\(name) · \(localizedScope)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))
     }
 
     private func findingDetailText(_ detail: String) -> String {
         switch detail {
         case "The managed link points to a different Skill.":
-            return String(localized: "The managed link points to a different Skill.", bundle: .module)
+            return String(localized: "The managed link points to a different Skill.", bundle: SkillsManagerLocalizationResources.bundle)
         case "The managed Symlink is missing.":
-            return String(localized: "The managed Symlink is missing.", bundle: .module)
+            return String(localized: "The managed Symlink is missing.", bundle: SkillsManagerLocalizationResources.bundle)
         case "The managed target is missing and requires a Copy/Fork decision.":
-            return String(localized: "The managed target is missing and requires a Copy/Fork decision.", bundle: .module)
+            return String(localized: "The managed target is missing and requires a Copy/Fork decision.", bundle: SkillsManagerLocalizationResources.bundle)
         case "The managed Copy has changed and requires an explicit Fork decision.":
-            return String(localized: "The managed Copy has changed and requires an explicit Fork decision.", bundle: .module)
+            return String(localized: "The managed Copy has changed and requires an explicit Fork decision.", bundle: SkillsManagerLocalizationResources.bundle)
         case "Another file or directory occupies this managed target.":
-            return String(localized: "Another file or directory occupies this managed target.", bundle: .module)
+            return String(localized: "Another file or directory occupies this managed target.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This target could not be inspected.":
-            return String(localized: "This target could not be inspected.", bundle: .module)
+            return String(localized: "This target could not be inspected.", bundle: SkillsManagerLocalizationResources.bundle)
         case "The target state is not supported by this repair assistant.":
-            return String(localized: "The target state is not supported by this repair assistant.", bundle: .module)
+            return String(localized: "The target state is not supported by this repair assistant.", bundle: SkillsManagerLocalizationResources.bundle)
         case "The audit could not bind this directory to one stable observation.":
-            return String(localized: "The audit could not bind this directory to one stable observation.", bundle: .module)
+            return String(localized: "The audit could not bind this directory to one stable observation.", bundle: SkillsManagerLocalizationResources.bundle)
         case "The audit found duplicate observations for the same directory.":
-            return String(localized: "The audit found duplicate observations for the same directory.", bundle: .module)
+            return String(localized: "The audit found duplicate observations for the same directory.", bundle: SkillsManagerLocalizationResources.bundle)
         case "Conflicting identity evidence requires import as an independent Skill.":
-            return String(localized: "Conflicting identity evidence requires import as an independent Skill.", bundle: .module)
+            return String(localized: "Conflicting identity evidence requires import as an independent Skill.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This directory is not yet distributed through the managed library.":
-            return String(localized: "This directory is not yet distributed through the managed library.", bundle: .module)
+            return String(localized: "This directory is not yet distributed through the managed library.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This directory is not associated with a registered scan root.":
-            return String(localized: "This directory is not associated with a registered scan root.", bundle: .module)
+            return String(localized: "This directory is not associated with a registered scan root.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This directory belongs to a custom scan root and cannot be migrated.":
-            return String(localized: "This directory belongs to a custom scan root and cannot be migrated.", bundle: .module)
+            return String(localized: "This directory belongs to a custom scan root and cannot be migrated.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This directory could not produce a stable content snapshot.":
-            return String(localized: "This directory could not produce a stable content snapshot.", bundle: .module)
+            return String(localized: "This directory could not produce a stable content snapshot.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This directory name is not a safe canonical locator.":
-            return String(localized: "This directory name is not a safe canonical locator.", bundle: .module)
+            return String(localized: "This directory name is not a safe canonical locator.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This Agent directory is not a canonical managed distribution root.":
-            return String(localized: "This Agent directory is not a canonical managed distribution root.", bundle: .module)
+            return String(localized: "This Agent directory is not a canonical managed distribution root.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This directory is not in a canonical managed distribution root.":
-            return String(localized: "This directory is not in a canonical managed distribution root.", bundle: .module)
+            return String(localized: "This directory is not in a canonical managed distribution root.", bundle: SkillsManagerLocalizationResources.bundle)
         case let value where value.hasPrefix("Recommended action: "):
             let code = String(value.dropFirst("Recommended action: ".count))
             return String(localized: LocalizedStringResource(
                 "Recommended action: \(localizedRecommendedActionCode(code))",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         case let value where value.hasPrefix("The root could not be fully audited: "):
             let reason = String(value.dropFirst("The root could not be fully audited: ".count))
             return String(localized: LocalizedStringResource(
                 "The root could not be fully audited: \(localizedConsistencyDiscoveryReason(reason))",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         case let value where value.hasPrefix("This directory cannot be safely imported: "):
             let reason = String(value.dropFirst("This directory cannot be safely imported: ".count))
             return String(localized: LocalizedStringResource(
                 "This directory cannot be safely imported: \(localizedConsistencyDiscoveryReason(reason))",
-                bundle: .module
+                bundle: SkillsManagerLocalizationResources.bundle
             ))
         case "This external Skill link changed after it was imported. Review it in Discovery; no files were changed.":
-            return String(localized: "This external Skill link changed after it was imported. Review it in Discovery; no files were changed.", bundle: .module)
+            return String(localized: "This external Skill link changed after it was imported. Review it in Discovery; no files were changed.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This external Skill link can be imported from Discovery. The source link and target will remain unchanged.":
-            return String(localized: "This external Skill link can be imported from Discovery. The source link and target will remain unchanged.", bundle: .module)
+            return String(localized: "This external Skill link can be imported from Discovery. The source link and target will remain unchanged.", bundle: SkillsManagerLocalizationResources.bundle)
         case "This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.":
-            return String(localized: "This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.", bundle: .module)
+            return String(localized: "This directory is visible through multiple registered root aliases. Review it in Discovery; automatic migration is disabled.", bundle: SkillsManagerLocalizationResources.bundle)
         default:
             return detail
         }
@@ -564,31 +564,31 @@ struct SkillConsistencyAssistantView: View {
 
     private func consistencyStatusText(_ status: SkillConsistencyPresentation.Status) -> String {
         return switch status {
-        case .healthy: String(localized: "Healthy", bundle: .module)
-        case .findings: String(localized: "Review needed", bundle: .module)
-        case .incomplete: String(localized: "Audit incomplete", bundle: .module)
-        case .blocked: String(localized: "Library unavailable", bundle: .module)
-        case .operationInProgress: String(localized: "Operation in progress", bundle: .module)
-        case .needsRepair: String(localized: "Repair required", bundle: .module)
+        case .healthy: String(localized: "Healthy", bundle: SkillsManagerLocalizationResources.bundle)
+        case .findings: String(localized: "Review needed", bundle: SkillsManagerLocalizationResources.bundle)
+        case .incomplete: String(localized: "Audit incomplete", bundle: SkillsManagerLocalizationResources.bundle)
+        case .blocked: String(localized: "Library unavailable", bundle: SkillsManagerLocalizationResources.bundle)
+        case .operationInProgress: String(localized: "Operation in progress", bundle: SkillsManagerLocalizationResources.bundle)
+        case .needsRepair: String(localized: "Repair required", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private func actionTitle(_ action: SkillConsistencyPresentation.Action) -> String {
         return switch action {
         case .rebuildMissingSymlinks:
-            String(localized: "Rebuild missing links", bundle: .module)
+            String(localized: "Rebuild missing links", bundle: SkillsManagerLocalizationResources.bundle)
         case .disableMissingBinding:
-            String(localized: "Disable missing target", bundle: .module)
+            String(localized: "Disable missing target", bundle: SkillsManagerLocalizationResources.bundle)
         case .migrate(.importNew, true):
-            String(localized: "Import as independent Skill, back up and migrate", bundle: .module)
+            String(localized: "Import as independent Skill, back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
         case .migrate(.importNew, false):
-            String(localized: "Import, back up and migrate", bundle: .module)
+            String(localized: "Import, back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
         case .migrate(.claimExisting, _):
-            String(localized: "Claim, back up and migrate", bundle: .module)
+            String(localized: "Claim, back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
         case .migrate(nil, _):
-            String(localized: "Back up and migrate", bundle: .module)
+            String(localized: "Back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
         case .keepForNow:
-            String(localized: "Keep for now", bundle: .module)
+            String(localized: "Keep for now", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
@@ -620,12 +620,12 @@ private struct SkillConsistencyPreviewView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } label: {
-                Text("Affected items", bundle: .module)
+                Text("Affected items", bundle: SkillsManagerLocalizationResources.bundle)
             }
             if model.isExecuting {
-                ProgressView(String(localized: "Applying changes…", bundle: .module))
+                ProgressView(String(localized: "Applying changes…", bundle: SkillsManagerLocalizationResources.bundle))
             } else if model.isVerifying {
-                ProgressView(String(localized: "Verifying with a fresh audit…", bundle: .module))
+                ProgressView(String(localized: "Verifying with a fresh audit…", bundle: SkillsManagerLocalizationResources.bundle))
             }
             HStack {
                 Spacer()
@@ -633,14 +633,14 @@ private struct SkillConsistencyPreviewView: View {
                     model.cancelPreview()
                     dismiss()
                 } label: {
-                    Text("Cancel", bundle: .module)
+                    Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut(.cancelAction)
                 .disabled(model.isExecuting || model.isVerifying)
                 Button {
                     Task { await model.confirmPreview() }
                 } label: {
-                    Text("Confirm", bundle: .module)
+                    Text("Confirm", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
@@ -654,11 +654,11 @@ private struct SkillConsistencyPreviewView: View {
 
     private func previewTitleText(_ title: String) -> String {
         return switch title {
-        case "Rebuild missing links": String(localized: "Rebuild missing links", bundle: .module)
-        case "Disable missing target": String(localized: "Disable missing target", bundle: .module)
-        case "Import, back up and migrate": String(localized: "Import, back up and migrate", bundle: .module)
-        case "Claim, back up and migrate": String(localized: "Claim, back up and migrate", bundle: .module)
-        case "Back up and migrate": String(localized: "Back up and migrate", bundle: .module)
+        case "Rebuild missing links": String(localized: "Rebuild missing links", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Disable missing target": String(localized: "Disable missing target", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Import, back up and migrate": String(localized: "Import, back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Claim, back up and migrate": String(localized: "Claim, back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Back up and migrate": String(localized: "Back up and migrate", bundle: SkillsManagerLocalizationResources.bundle)
         default: title
         }
     }
@@ -666,11 +666,11 @@ private struct SkillConsistencyPreviewView: View {
     private func previewSummaryText(_ summary: String) -> String {
         return switch summary {
         case "Recreate every missing managed Symlink for this Skill.":
-            String(localized: "Recreate every missing managed Symlink for this Skill.", bundle: .module)
+            String(localized: "Recreate every missing managed Symlink for this Skill.", bundle: SkillsManagerLocalizationResources.bundle)
         case "Remove the selected missing target from managed distribution.":
-            String(localized: "Remove the selected missing target from managed distribution.", bundle: .module)
+            String(localized: "Remove the selected missing target from managed distribution.", bundle: SkillsManagerLocalizationResources.bundle)
         case "Back up the original directory, then replace it with a managed Symlink.":
-            String(localized: "Back up the original directory, then replace it with a managed Symlink.", bundle: .module)
+            String(localized: "Back up the original directory, then replace it with a managed Symlink.", bundle: SkillsManagerLocalizationResources.bundle)
         default: summary
         }
     }

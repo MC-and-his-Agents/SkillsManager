@@ -23,11 +23,11 @@ struct AboutView: View {
                     Text(String(
                         localized: LocalizedStringResource(
             "Version \(version) (\(build))",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
-                    Text("Built for Codex and your other agents to manage and inspect skills on your Mac.", bundle: .module)
+                    Text("Built for Codex and your other agents to manage and inspect skills on your Mac.", bundle: SkillsManagerLocalizationResources.bundle)
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -44,7 +44,7 @@ struct AboutView: View {
             }
             .font(.system(size: 12, weight: .semibold))
 
-            Text("Maintained by MC and his Agents. Originally created by @Dimillian.", bundle: .module)
+            Text("Maintained by MC and his Agents. Originally created by @Dimillian.", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }

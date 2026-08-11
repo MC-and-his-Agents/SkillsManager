@@ -50,9 +50,9 @@ struct AddCustomPathView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Add Custom Skill Path", bundle: .module)
+            Text("Add Custom Skill Path", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.title.bold())
-            Text("Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).", bundle: .module)
+            Text("Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).", bundle: SkillsManagerLocalizationResources.bundle)
                 .foregroundStyle(.secondary)
         }
     }
@@ -62,7 +62,7 @@ struct AddCustomPathView: View {
         if isValidating {
             HStack {
                 ProgressView()
-                Text("Scanning for skills...", bundle: .module)
+                Text("Scanning for skills...", bundle: SkillsManagerLocalizationResources.bundle)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -80,9 +80,9 @@ struct AddCustomPathView: View {
             }
         } else {
             ContentUnavailableView(
-                String(localized: "Select a project folder", bundle: .module),
+                String(localized: "Select a project folder", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "folder.badge.plus",
-                description: Text("Choose a folder containing platform skill directories", bundle: .module)
+                description: Text("Choose a folder containing platform skill directories", bundle: SkillsManagerLocalizationResources.bundle)
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -114,19 +114,19 @@ struct AddCustomPathView: View {
     private var discoveredSkillsView: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Discovered Skills", bundle: .module)
+                Text("Discovered Skills", bundle: SkillsManagerLocalizationResources.bundle)
                     .font(.headline)
                 Spacer()
                 Text(String(
                     localized: LocalizedStringResource(
             "\(validSkillCount) valid · \(totalSkillCount) observed",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
                     .font(.subheadline)
                     .foregroundStyle(validSkillCount > 0 ? .green : .secondary)
             }
 
-            Text("All skills will be added automatically.", bundle: .module)
+            Text("All skills will be added automatically.", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -145,7 +145,7 @@ struct AddCustomPathView: View {
                 Text(String(
                     localized: LocalizedStringResource(
             "\(skills.count) skill(s)",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -195,16 +195,16 @@ struct AddCustomPathView: View {
 
     private func platformResource(_ platform: SkillPlatform) -> LocalizedStringResource {
         switch platform {
-        case .codex: LocalizedStringResource("Codex", bundle: .module)
-        case .claude: LocalizedStringResource("Claude Code", bundle: .module)
-        case .opencode: LocalizedStringResource("OpenCode", bundle: .module)
-        case .copilot: LocalizedStringResource("GitHub Copilot", bundle: .module)
+        case .codex: LocalizedStringResource("Codex", bundle: SkillsManagerLocalizationResources.bundle)
+        case .claude: LocalizedStringResource("Claude Code", bundle: SkillsManagerLocalizationResources.bundle)
+        case .opencode: LocalizedStringResource("OpenCode", bundle: SkillsManagerLocalizationResources.bundle)
+        case .copilot: LocalizedStringResource("GitHub Copilot", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
     private var diagnosticsView: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Scan Issues", bundle: .module)
+            Text("Scan Issues", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.headline)
             ForEach(rootDiagnostics, id: \.self) { diagnostic in
                 Label(diagnostic.localizedAccessibilitySummary, systemImage: "exclamationmark.triangle")
@@ -219,7 +219,7 @@ struct AddCustomPathView: View {
             Button {
                 dismiss()
             } label: {
-                Text("Cancel", bundle: .module)
+                Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
             }
                 .keyboardShortcut(.cancelAction)
 
@@ -228,13 +228,13 @@ struct AddCustomPathView: View {
             Button {
                 showingPicker = true
             } label: {
-                Text("Choose Folder...", bundle: .module)
+                Text("Choose Folder...", bundle: SkillsManagerLocalizationResources.bundle)
             }
 
             Button {
                 addPath()
             } label: {
-                Text("Add", bundle: .module)
+                Text("Add", bundle: SkillsManagerLocalizationResources.bundle)
             }
                 .buttonStyle(.borderedProminent)
                 .disabled(selectedURL == nil || validSkillCount == 0 || isValidating)
@@ -307,7 +307,7 @@ struct AddCustomPathView: View {
                 rootDiagnostics = result.rootDiagnostics
                 validSkillCount = result.observations.filter { $0.fingerprint != nil }.count
                 errorMessage = validSkillCount == 0
-                    ? String(localized: "No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.", bundle: .module)
+                    ? String(localized: "No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.", bundle: SkillsManagerLocalizationResources.bundle)
                     : nil
             } catch {
                 errorMessage = localizedPathError(error)
@@ -335,9 +335,9 @@ struct AddCustomPathView: View {
         }
         switch error {
         case .directoryNotFound:
-            return String(localized: "The selected directory does not exist.", bundle: .module)
+            return String(localized: "The selected directory does not exist.", bundle: SkillsManagerLocalizationResources.bundle)
         case .duplicatePath:
-            return String(localized: "This path has already been added.", bundle: .module)
+            return String(localized: "This path has already been added.", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 }

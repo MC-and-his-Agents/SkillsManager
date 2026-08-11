@@ -136,7 +136,7 @@ struct SkillSplitView: View {
         .searchable(
             text: $searchText,
             placement: .sidebar,
-            prompt: Text("Search Skills", bundle: .module)
+            prompt: Text("Search Skills", bundle: SkillsManagerLocalizationResources.bundle)
         )
         .sheet(isPresented: $showingImport) {
             ImportSkillView().environment(store)
@@ -210,7 +210,7 @@ struct SkillSplitView: View {
             } else {
                 ContentUnavailableView {
                     Label {
-                        Text("Skill unavailable", bundle: .module)
+                        Text("Skill unavailable", bundle: SkillsManagerLocalizationResources.bundle)
                     } icon: {
                         Image(systemName: "shippingbox")
                     }
@@ -225,12 +225,12 @@ struct SkillSplitView: View {
         case nil:
             ContentUnavailableView {
                 Label {
-                    Text("Select a skill", bundle: .module)
+                    Text("Select a skill", bundle: SkillsManagerLocalizationResources.bundle)
                 } icon: {
                     Image(systemName: "sparkles")
                 }
             } description: {
-                Text("Pick a skill from the list.", bundle: .module)
+                Text("Pick a skill from the list.", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
     }
@@ -255,17 +255,17 @@ struct SkillSplitView: View {
                     presentBatchImport()
                 } label: {
                     Label {
-                        Text("Batch Import", bundle: .module)
+                        Text("Batch Import", bundle: SkillsManagerLocalizationResources.bundle)
                     } icon: {
                         Image(systemName: "tray.and.arrow.down")
                     }
                 }
-                .help(Text("Batch Import discovered Skills", bundle: .module))
-                .accessibilityLabel(Text("Batch Import discovered Skills", bundle: .module))
+                .help(Text("Batch Import discovered Skills", bundle: SkillsManagerLocalizationResources.bundle))
+                .accessibilityLabel(Text("Batch Import discovered Skills", bundle: SkillsManagerLocalizationResources.bundle))
                 .accessibilityValue(Text(String(
                     localized: LocalizedStringResource(
             "\(batchCandidateCount) candidates available",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         ))))
                 .accessibilityIdentifier("skills.batch-import")
             }
@@ -277,14 +277,14 @@ struct SkillSplitView: View {
                     showingConsistency = true
                 } label: {
                     Label {
-                        Text("Consistency Audit", bundle: .module)
+                        Text("Consistency Audit", bundle: SkillsManagerLocalizationResources.bundle)
                     } icon: {
                         Image(systemName: "checkmark.shield")
                     }
                 }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
-                .help(Text("Consistency Audit", bundle: .module))
-                .accessibilityLabel(Text("Open consistency audit", bundle: .module))
+                .help(Text("Consistency Audit", bundle: SkillsManagerLocalizationResources.bundle))
+                .accessibilityLabel(Text("Open consistency audit", bundle: SkillsManagerLocalizationResources.bundle))
             }
         }
 
@@ -295,13 +295,13 @@ struct SkillSplitView: View {
                     Task { await lifecycleModel.refreshBackupsOnly() }
                 } label: {
                     Label {
-                        Text("Skill Backups", bundle: .module)
+                        Text("Skill Backups", bundle: SkillsManagerLocalizationResources.bundle)
                     } icon: {
                         Image(systemName: "archivebox")
                     }
                 }
                 .disabled(lifecycleModel.isMutating)
-                .help(Text("Skill Backups", bundle: .module))
+                .help(Text("Skill Backups", bundle: SkillsManagerLocalizationResources.bundle))
                 .accessibilityLabel(backupAccessibilityLabel)
             }
         }
@@ -311,26 +311,26 @@ struct SkillSplitView: View {
                 Button {
                     showingImport = true
                 } label: {
-                    Text("Import Skill...", bundle: .module)
+                    Text("Import Skill...", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 Button {
                     showingAddPath = true
                 } label: {
-                    Text("Add Custom Path...", bundle: .module)
+                    Text("Add Custom Path...", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 Button {
                     showingRepositories = true
                 } label: {
-                    Text("GitHub Repository...", bundle: .module)
+                    Text("GitHub Repository...", bundle: SkillsManagerLocalizationResources.bundle)
                 }
             } label: {
                 Label {
-                    Text("Add", bundle: .module)
+                    Text("Add", bundle: SkillsManagerLocalizationResources.bundle)
                 } icon: {
                     Image(systemName: "plus")
                 }
             }
-            .accessibilityLabel(Text("Add", bundle: .module))
+            .accessibilityLabel(Text("Add", bundle: SkillsManagerLocalizationResources.bundle))
             .accessibilityIdentifier("skills.add.menu")
         }
     }
@@ -344,12 +344,12 @@ struct SkillSplitView: View {
 
     private var backupAccessibilityLabel: Text {
         if lifecycleModel.availableBackupCount == 0 {
-            return Text("Skill Backups", bundle: .module)
+            return Text("Skill Backups", bundle: SkillsManagerLocalizationResources.bundle)
         }
         return Text(String(
             localized: LocalizedStringResource(
             "Skill Backups, \(lifecycleModel.availableBackupCount) available",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
     }
 

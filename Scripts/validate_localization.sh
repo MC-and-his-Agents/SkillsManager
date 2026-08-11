@@ -9,6 +9,12 @@ INFO_CATALOG="$ROOT_DIR/Sources/SkillsManager/Resources/InfoPlist.xcstrings"
   exit 1
 }
 
+if rg -n 'bundle: \.module|Bundle\.module' "$ROOT_DIR/Sources/SkillsManager"; then
+  echo "ERROR: localization must use SkillsManagerLocalizationResources.bundle." >&2
+  exit 1
+fi
+echo "OK: all localization calls use the packaged resource entry point"
+
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/skillsmanager-localization-XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT
 
@@ -193,8 +199,8 @@ PY
 # Static UI literal gate.  Only expression-backed external/user/provider/path/
 # raw-diagnostic values are excluded: Text(variable), Label(message, ...), and
 # accessibility values built from those expressions intentionally remain verbatim.
-# Every direct App-owned SwiftUI literal must resolve through Bundle.module (or
-# a String(localized:) / LocalizedStringResource bridge) before this gate passes.
+# Every direct App-owned SwiftUI literal must resolve through the packaged
+# resource entry point (or a String(localized:) / LocalizedStringResource bridge).
 python3 - "$ROOT_DIR/Sources/SkillsManager" <<'PY'
 import pathlib
 import re
@@ -219,7 +225,7 @@ for path in sorted(source_root.rglob("*.swift")):
         if not literal.search(line):
             continue
         if any(marker in line for marker in (
-            "bundle: .module",
+            "bundle: SkillsManagerLocalizationResources.bundle",
             "String(localized:",
             "LocalizedStringResource",
         )):
@@ -282,7 +288,11 @@ for path in sorted(source_root.rglob("*.swift")):
         body = match.group(1)
         first_argument = body.split(",", 1)[0].strip()
         if literal.match(first_argument) and not any(
-            marker in body for marker in ("bundle: .module", "String(localized:", "LocalizedStringResource")
+            marker in body for marker in (
+                "bundle: SkillsManagerLocalizationResources.bundle",
+                "String(localized:",
+                "LocalizedStringResource",
+            )
         ):
             line = text.count("\n", 0, match.start()) + 1
             findings.append(f"{path}:{line}:{first_argument}")

@@ -13,7 +13,7 @@ extension SkillBatchUpdateViewModel {
             guard hasRemoteChange(snapshot) else {
                 setResult(
                     .needsAttention,
-                    detail: String(localized: "The remote update could not be proven.", bundle: .module),
+                    detail: String(localized: "The remote update could not be proven.", bundle: SkillsManagerLocalizationResources.bundle),
                     at: index
                 )
                 return
@@ -26,7 +26,7 @@ extension SkillBatchUpdateViewModel {
                   drifts.allSatisfy({ $0.state == .contentDrift }) else {
                 setResult(
                     .needsAttention,
-                    detail: String(localized: "The Copy state cannot be handled safely in a batch.", bundle: .module),
+                    detail: String(localized: "The Copy state cannot be handled safely in a batch.", bundle: SkillsManagerLocalizationResources.bundle),
                     at: index
                 )
                 return
@@ -43,7 +43,7 @@ extension SkillBatchUpdateViewModel {
         case .localModified:
             setResult(
                 .conflict,
-                detail: String(localized: "The managed SSOT content was modified locally.", bundle: .module),
+                detail: String(localized: "The managed SSOT content was modified locally.", bundle: SkillsManagerLocalizationResources.bundle),
                 at: index
             )
         case .capabilityUnavailable:
@@ -55,7 +55,7 @@ extension SkillBatchUpdateViewModel {
         case .conflict:
             setResult(
                 .conflict,
-                detail: String(localized: "The managed or distributed state changed.", bundle: .module),
+                detail: String(localized: "The managed or distributed state changed.", bundle: SkillsManagerLocalizationResources.bundle),
                 at: index
             )
         }
@@ -106,37 +106,37 @@ extension SkillBatchUpdateViewModel {
         case .updateRolledBack:
             setResult(
                 .failed,
-                detail: String(localized: "The update was rolled back without changing the managed Skill.", bundle: .module),
+                detail: String(localized: "The update was rolled back without changing the managed Skill.", bundle: SkillsManagerLocalizationResources.bundle),
                 for: skillID
             )
         case .backupReadyUpdateNotStarted:
             setResult(
                 .needsAttention,
-                detail: String(localized: "A backup is ready, but the update did not start. Recheck first.", bundle: .module),
+                detail: String(localized: "A backup is ready, but the update did not start. Recheck first.", bundle: SkillsManagerLocalizationResources.bundle),
                 for: skillID
             )
         case .copyDecisionsAppliedUpdateNotCompleted:
             setResult(
                 .needsAttention,
-                detail: String(localized: "Copy decisions were saved, but the parent Skill was not updated.", bundle: .module),
+                detail: String(localized: "Copy decisions were saved, but the parent Skill was not updated.", bundle: SkillsManagerLocalizationResources.bundle),
                 for: skillID
             )
         case .updatedNeedsAttention:
             setResult(
                 .needsAttention,
-                detail: String(localized: "The Skill was updated, but distribution needs attention.", bundle: .module),
+                detail: String(localized: "The Skill was updated, but distribution needs attention.", bundle: SkillsManagerLocalizationResources.bundle),
                 for: skillID
             )
         case .updateIndeterminate:
             setResult(
                 .needsAttention,
-                detail: String(localized: "The update state could not be confirmed safely.", bundle: .module),
+                detail: String(localized: "The update state could not be confirmed safely.", bundle: SkillsManagerLocalizationResources.bundle),
                 for: skillID
             )
         case .needsRepair:
             setResult(
                 .needsAttention,
-                detail: String(localized: "The managed Skill requires repair.", bundle: .module),
+                detail: String(localized: "The managed Skill requires repair.", bundle: SkillsManagerLocalizationResources.bundle),
                 for: skillID
             )
         }

@@ -31,10 +31,10 @@ struct CustomPathSectionHeader: View {
         .contextMenu {
             menuContent
         }
-        .alert(Text("Remove Custom Path?", bundle: .module), isPresented: $showingRemoveAlert) {
+        .alert(Text("Remove Custom Path?", bundle: SkillsManagerLocalizationResources.bundle), isPresented: $showingRemoveAlert) {
             Button(role: .cancel) {
             } label: {
-                Text("Cancel", bundle: .module)
+                Text("Cancel", bundle: SkillsManagerLocalizationResources.bundle)
             }
             Button(role: .destructive) {
                 Task {
@@ -42,13 +42,13 @@ struct CustomPathSectionHeader: View {
                     await store.loadSkills()
                 }
             } label: {
-                Text("Remove", bundle: .module)
+                Text("Remove", bundle: SkillsManagerLocalizationResources.bundle)
             }
         } message: {
             Text(String(
                 localized: LocalizedStringResource(
             "This will remove \"\(customPath.displayName)\" from the sidebar. The skills will not be deleted from disk.",
-            bundle: .module
+            bundle: SkillsManagerLocalizationResources.bundle
         )))
         }
     }
@@ -59,7 +59,7 @@ struct CustomPathSectionHeader: View {
             NSWorkspace.shared.open(customPath.url)
         } label: {
             Label {
-                Text("Open in Finder", bundle: .module)
+                Text("Open in Finder", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "folder")
             }
@@ -69,7 +69,7 @@ struct CustomPathSectionHeader: View {
             showingRemoveAlert = true
         } label: {
             Label {
-                Text("Remove Path", bundle: .module)
+                Text("Remove Path", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "trash")
             }
