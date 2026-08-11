@@ -1,3 +1,27 @@
+# Skills Manager 0.5.1
+
+中文
+
+- 修复从 GitHub Release 下载并解压的正式 App 无法加载 SwiftPM 资源 bundle、启动即退出的问题。
+- 发布验证现在会在上传前确认本地化资源 bundle 已封装，并在公开 ZIP 下载后从独立目录验证签名、公证、Gatekeeper 与启动。
+
+已知限制
+
+- skills.sh 使用未文档化公共接口，可能临时或永久不可用；失败不会影响本地、ClawHub 或已管理 Skill。
+- 行内更新徽章仅覆盖 ClawHub 来源；仓库与 skills.sh 来源的更新检测不在本版本。
+- 本版本不通过 Mac App Store 分发。
+
+English
+
+- Fixed a launch failure in the signed App downloaded and extracted from GitHub Release when its SwiftPM resource bundle could not be loaded.
+- Release verification now requires the packaged localization bundle before upload and validates signing, notarization, Gatekeeper, and launch from a separately downloaded public ZIP.
+
+Known limitations
+
+- skills.sh uses an undocumented public endpoint that may become temporarily or permanently unavailable; failures do not affect local, ClawHub, or managed skills.
+- In-row update badges cover ClawHub sources only; repository and skills.sh update detection is not part of this version.
+- This release is not distributed through the Mac App Store.
+
 # Skills Manager 0.5.0
 
 中文
