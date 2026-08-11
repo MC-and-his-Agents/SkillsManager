@@ -243,6 +243,7 @@ struct HistoricalSkillMigrationTests {
 final class HistoricalMigrationFixture: @unchecked Sendable {
     let workspace: WriterWorkspace
     let writer: JournaledSSOTWriter
+    let configurationStore: HarnessSkillRootConfigurationStore
     let globalRoot: URL
     let sourceURL: URL
     let sourceScope: SkillDiscoveryScope
@@ -251,10 +252,12 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
     init(
         content: String,
         sourceScope: SkillDiscoveryScope = .global,
+        configurationStore: HarnessSkillRootConfigurationStore = .shared,
         writerHooks: JournaledSSOTWriterHooks = .init()
     ) async throws {
         workspace = try WriterWorkspace(distributionEnabled: true)
         self.sourceScope = sourceScope
+        self.configurationStore = configurationStore
         let sourceRoot: URL
         switch sourceScope.kind {
         case .global:
@@ -264,8 +267,11 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
             guard let pathVariant = sourceScope.pathVariant else {
                 throw HistoricalSkillMigrationError.invalidSelection
             }
-            sourceRoot = workspace.distributionHomeURL
-                .appendingPathComponent(pathVariant, isDirectory: true)
+            sourceRoot = pathVariant.hasPrefix("/")
+                ? URL(fileURLWithPath: pathVariant, isDirectory: true)
+                    .resolvingSymlinksInPath()
+                : workspace.distributionHomeURL
+                    .appendingPathComponent(pathVariant, isDirectory: true)
         case .custom:
             throw HistoricalSkillMigrationError.unsupportedCandidate
         }
@@ -276,7 +282,10 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
             to: sourceURL.appendingPathComponent("SKILL.md"),
             options: .atomic
         )
-        writer = try await workspace.openWriter(hooks: writerHooks)
+        writer = try await workspace.openWriter(
+            configurationStore: configurationStore,
+            hooks: writerHooks
+        )
         _ = try await writer.migrateLegacy(homeURL: workspace.distributionHomeURL)
     }
 
@@ -353,9 +362,7 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
         let imported = try await importer.execute(importPreview.token)
         if existingBinding {
             let slug = try DefaultDistributionSlug(validating: self.slug)
-            let catalog = DistributionTargetCatalog.current(
-                homeURL: workspace.distributionHomeURL
-            )
+            let catalog = await writer.currentDistributionCatalog()
             let plan = try await writer.distributionPlan(
                 skillID: imported.skill.skillID,
                 desiredConfiguration: .init(
@@ -474,11 +481,13 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
             managementRoot: workspace.verifiedManagementRoot,
             ownership: await writer.ownership
         )
+        let catalog = await writer.currentDistributionCatalog()
         return (
             try DistributionCopyExecutor(
                 connection: connection,
                 fileSystem: DistributionSymlinkFileSystem(
                     homeURL: workspace.distributionHomeURL,
+                    catalog: catalog,
                     hooks: hooks
                 ),
                 backupFileSystem: backupFileSystem,

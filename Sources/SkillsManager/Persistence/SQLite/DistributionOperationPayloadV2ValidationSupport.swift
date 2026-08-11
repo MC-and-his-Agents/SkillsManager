@@ -490,10 +490,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         sourceRootLocator: String,
         expectedScope: DistributionBindingScope
     ) throws {
-        guard sourceRootLocator == sourceRootLocator.precomposedStringWithCanonicalMapping,
-              sourceRootLocator.hasPrefix("/"),
-              URL(fileURLWithPath: sourceRootLocator, isDirectory: true)
-                .standardizedFileURL.path == sourceRootLocator else {
+        guard validHistoricalRootLocator(sourceRootLocator) else {
             throw DistributionOperationStoreError.invalidRecord
         }
         switch scope.kind {
@@ -502,7 +499,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                   scope.adapterCode == nil,
                   scope.pathVariant == nil,
                   scope.customPathID == nil,
-                  hasPathSuffix(sourceRootLocator, ".agents/skills") else {
+                  hasHistoricalPathSuffix(sourceRootLocator, ".agents/skills") else {
                 throw DistributionOperationStoreError.invalidRecord
             }
         case .agent:
@@ -524,7 +521,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             let knownVariants = [platform.dedicatedDistributionRelativePath]
                 + platform.discoveryCompatibilityRelativePaths
             guard knownVariants.contains(pathVariant),
-                  hasPathSuffix(sourceRootLocator, pathVariant) else {
+                  hasHistoricalPathSuffix(sourceRootLocator, pathVariant) else {
                 throw DistributionOperationStoreError.invalidRecord
             }
         case .custom:
@@ -532,7 +529,28 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         }
     }
 
-    private static func hasPathSuffix(_ path: String, _ relative: String) -> Bool {
+    private static func validHistoricalRootLocator(_ locator: String) -> Bool {
+        guard locator == locator.precomposedStringWithCanonicalMapping else {
+            return false
+        }
+        if locator.hasPrefix("~/") {
+            return locator.count > 2
+                && !locator.contains("\\")
+                && !locator.contains("//")
+                && !locator.contains("\0")
+        }
+        return locator.hasPrefix("/")
+            && URL(fileURLWithPath: locator, isDirectory: true)
+                .standardizedFileURL.path == locator
+    }
+
+    private static func hasHistoricalPathSuffix(
+        _ path: String,
+        _ relative: String
+    ) -> Bool {
+        if path.hasPrefix("~/") {
+            return path == "~/\(relative)"
+        }
         let pathComponents = URL(fileURLWithPath: path, isDirectory: true)
             .standardizedFileURL.pathComponents
         let suffixComponents = relative.split(separator: "/").map(String.init)

@@ -96,7 +96,7 @@ actor SkillConsistencyAuditService {
         try Task.checkCancellation()
         let customPaths = try await writer.loadCustomPaths().map(customPath)
         try Task.checkCancellation()
-        let targetCatalog = DistributionTargetCatalog.current(homeURL: homeURL)
+        let targetCatalog = await writer.currentDistributionCatalog()
         let discoveryResult = try SkillDiscoveryScanner().scan(
             roots: SkillDiscoveryRootPlan.make(
                 homeURL: homeURL,

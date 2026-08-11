@@ -81,9 +81,10 @@ extension JournaledSSOTWriter {
             }
             entry = sourceEntry
         } else {
-            guard let primaryEntry = DistributionTargetCatalog.current(
-                homeURL: copyDistribution.fileSystem.distributionHomeURL
-            ).entry(for: scope, slug: slug) else {
+            guard let primaryEntry = distributionCatalog.entry(
+                for: scope,
+                slug: slug
+            ) else {
                 throw HistoricalSkillMigrationError.invalidSelection
             }
             entry = primaryEntry
@@ -500,21 +501,79 @@ extension JournaledSSOTWriter {
     ) throws -> DistributionTargetEntry? {
         let slug = try DefaultDistributionSlug(validating: source.normalizedLocator)
         let homeURL = copyDistribution.fileSystem.distributionHomeURL
-        let catalog = DistributionTargetCatalog.current(homeURL: homeURL)
+        let catalog = distributionCatalog
         guard let target = catalog.target(for: source.scope) else { return nil }
         guard let root = sourceRootURL(source, target: target, homeURL: homeURL) else {
             return nil
         }
         let sourceTarget = DistributionTarget(
             scope: source.scope,
-            rootLocator: root.path,
+            rootLocator: try sourceRootLocator(
+                source,
+                target: target,
+                homeURL: homeURL
+            ),
             resolvedRootURL: root
         )
         return DistributionTargetEntry(
             target: sourceTarget,
             distributionSlug: slug,
-            canonicalLocator: root.appendingPathComponent(slug.value).path
+            canonicalLocator: "\(sourceTarget.rootLocator)/\(slug.value)"
+                .precomposedStringWithCanonicalMapping
         )
+    }
+
+    private func sourceRootLocator(
+        _ source: HistoricalSkillMigrationSource,
+        target: DistributionTarget,
+        homeURL: URL
+    ) throws -> String {
+        switch source.discoveryScope.kind {
+        case .global:
+            guard source.discoveryScope.pathVariant == nil,
+                  source.discoveryScope.adapterCode == nil,
+                  source.discoveryScope.customPathID == nil else {
+                throw HistoricalSkillMigrationError.invalidSelection
+            }
+            return target.rootLocator
+        case .custom:
+            throw HistoricalSkillMigrationError.unsupportedCandidate
+        case .agent:
+            guard let adapter = source.discoveryScope.adapterCode,
+                  let platform = SkillPlatform.allCases.first(where: {
+                      $0.storageKey == adapter
+                  }),
+                  let pathVariant = source.discoveryScope.pathVariant,
+                  source.discoveryScope.customPathID == nil else {
+                throw HistoricalSkillMigrationError.invalidSelection
+            }
+            if pathVariant == target.rootLocator
+                || pathVariant == platform.dedicatedDistributionRelativePath {
+                return target.rootLocator
+            }
+            let nestedPrefix = platform.dedicatedDistributionRelativePath + "/"
+            for compatibility in platform.discoveryCompatibilityRelativePaths {
+                guard pathVariant == compatibility else { continue }
+                if target.rootLocator.hasPrefix("~/") {
+                    return "~/\(compatibility)"
+                }
+                return homeURL.appendingPathComponent(
+                    compatibility,
+                    isDirectory: true
+                ).standardizedFileURL.path
+            }
+            if pathVariant.hasPrefix("/"),
+               pathVariant.hasPrefix(target.rootLocator + "/"),
+               platform.discoveryCompatibilityRelativePaths.contains(where: {
+                   $0.hasPrefix(nestedPrefix)
+                       && pathVariant == target.rootLocator + String(
+                           $0.dropFirst(platform.dedicatedDistributionRelativePath.count)
+                       )
+               }) {
+                return pathVariant
+            }
+            throw HistoricalSkillMigrationError.invalidSelection
+        }
     }
 
     private func sourceRootURL(

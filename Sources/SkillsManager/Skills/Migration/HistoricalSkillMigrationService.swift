@@ -91,7 +91,7 @@ actor HistoricalSkillMigrationService {
             let slug = try DefaultDistributionSlug(
                 validating: observation.relativeLocator
             )
-            try requireCanonicalRoot(root, scope: scope)
+            try await requireCanonicalRoot(root, scope: scope)
             let occupiedByOtherSkill = audit.manifest.managedSkills.flatMap(\.bindings).contains {
                 $0.scopeKey == scope.targetScopeKey
                     && $0.slugKey == slug.collisionKey
@@ -157,9 +157,7 @@ actor HistoricalSkillMigrationService {
             states[token] = .pending(pending)
             guard let sourceEntry = try await writer.historicalMigrationSourceEntry(source),
                   let targetIntent = plan.bindingReplacement.first,
-                  let targetEntry = DistributionTargetCatalog.current(
-                      homeURL: homeURL
-                  ).entry(
+                  let targetEntry = (await writer.currentDistributionCatalog()).entry(
                       for: targetIntent.scope,
                       slug: targetIntent.distributionSlug
                   ) else {
@@ -339,8 +337,8 @@ actor HistoricalSkillMigrationService {
     private func requireCanonicalRoot(
         _ root: SkillDiscoveryRoot,
         scope: DistributionBindingScope
-    ) throws {
-        let targetCatalog = DistributionTargetCatalog.current(homeURL: homeURL)
+    ) async throws {
+        let targetCatalog = await writer.currentDistributionCatalog()
         guard let target = targetCatalog.target(for: scope), target.isAvailable else {
             throw HistoricalSkillMigrationError.unsupportedCandidate
         }

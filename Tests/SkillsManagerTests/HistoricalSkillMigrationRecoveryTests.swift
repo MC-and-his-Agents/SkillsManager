@@ -130,6 +130,77 @@ struct HistoricalSkillMigrationRecoveryTests {
         #expect(try fixture.workspace.integer("SELECT count(*) FROM local_skill_origins") == 0)
     }
 
+    @Test("configured external primary uses registered locator across recovery")
+    func configuredExternalPrimaryRecoversWithRegisteredLocator() async throws {
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let canonicalRoot = temporaryRoot.appendingPathComponent("canonical", isDirectory: true)
+        let registeredRoot = temporaryRoot.appendingPathComponent("registered", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: canonicalRoot,
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createSymbolicLink(
+            at: registeredRoot,
+            withDestinationURL: canonicalRoot
+        )
+        let suiteName = "SkillsManagerTests.external-(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let configurationStore = HarnessSkillRootConfigurationStore(defaults: defaults)
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: temporaryRoot)
+        }
+        _ = try configurationStore.confirm(
+            platform: .codex,
+            registeredURL: registeredRoot
+        )
+
+        let sourceScope = SkillDiscoveryScope.agent(
+            adapterCode: SkillPlatform.codex.storageKey,
+            pathVariant: registeredRoot.path
+        )
+        let interruption = HistoricalCommittedInterruption(point: .cleaning)
+        let fixture = try await HistoricalMigrationFixture(
+            content: "# External primary",
+            sourceScope: sourceScope,
+            configurationStore: configurationStore
+        )
+        let prepared = try await fixture.prepareExecutorMigration(
+            hooks: .init(onCheckpoint: interruption.filesystem),
+            executorHooks: .init(afterDatabaseCommit: interruption.databaseCommitted)
+        )
+        let action = try #require(prepared.plan.filesystemActions.first)
+        #expect(action.entry.target.rootLocator == registeredRoot.path)
+        #expect(
+            action.entry.target.resolvedRootURL
+                == canonicalRoot.standardizedFileURL
+        )
+        #expect(action.entry.canonicalLocator == "\(registeredRoot.path)/demo")
+
+        #expect(throws: HistoricalCommittedInterruption.Failure.self) {
+            _ = try prepared.executor.apply(
+                skillID: prepared.skillID,
+                plan: prepared.plan,
+                expectedOldBindings: [],
+                approvedCopySource: prepared.ssotEvidence,
+                approvedHistoricalMigration: prepared.approval,
+                operationID: prepared.operationID,
+                nowMilliseconds: 42
+            )
+        }
+        #expect(try prepared.operationStore.load(prepared.operationID).phase == .cleaning)
+
+        let reopened = try await fixture.distributionExecutor()
+        try reopened.executor.recoverAll()
+        let completed = try reopened.operationStore.load(prepared.operationID)
+        #expect(completed.phase == .completed)
+        #expect(completed.outcome == .applied)
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM distribution_bindings") == 1)
+        #expect(try fixture.isSourceSymlink())
+    }
+
     @Test("origin cleanup conflict becomes needs repair without deleting provenance")
     func cleanupConflictNeedsRepairAndPreservesOrigin() async throws {
         let sourceScope = SkillDiscoveryScope.agent(

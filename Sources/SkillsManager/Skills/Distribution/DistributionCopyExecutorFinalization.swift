@@ -135,7 +135,7 @@ nonisolated extension DistributionCopyExecutor {
             )
         }
         for binding in bindings {
-            guard let entry = DistributionTargetCatalog.current.entry(
+            guard let entry = fileSystem.catalog.entry(
                 for: binding.scope,
                 slug: binding.distributionSlug
             ) else {

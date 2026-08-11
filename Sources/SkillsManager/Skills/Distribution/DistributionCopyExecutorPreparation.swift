@@ -148,7 +148,7 @@ nonisolated extension DistributionCopyExecutor {
         var observations: [DistributionTargetEntry: DistributionTargetObservation] = [:]
         var drifted = false
         for binding in current {
-            guard let entry = DistributionTargetCatalog.current.entry(
+            guard let entry = fileSystem.catalog.entry(
                 for: binding.scope,
                 slug: binding.distributionSlug
             ) else {
