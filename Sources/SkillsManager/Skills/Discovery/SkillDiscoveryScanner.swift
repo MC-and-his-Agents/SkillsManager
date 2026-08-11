@@ -61,6 +61,9 @@ nonisolated struct SkillDiscoveryScanner {
     }
 
     private func inspect(_ root: SkillDiscoveryRoot) -> RootInspection {
+        if let diagnostic = root.diagnostic {
+            return .diagnostic(SkillDiscoveryRootDiagnostic(root: root, reason: diagnostic))
+        }
         var metadata = stat()
         guard Darwin.lstat(root.url.path, &metadata) == 0 else {
             if errno == ENOENT || errno == ENOTDIR { return .missing }

@@ -17,7 +17,7 @@ struct SkillDiscoveryRootPlanTests {
 
         let roots = SkillDiscoveryRootPlan.make(homeURL: home, customPaths: [custom])
 
-        #expect(roots.count == 11)
+        #expect(roots.count == 12)
         #expect(roots[0] == SkillDiscoveryRoot(
             scope: .global,
             url: home.appendingPathComponent(".agents/skills", isDirectory: true)

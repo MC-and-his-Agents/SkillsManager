@@ -51,6 +51,27 @@ struct DistributionTargetCatalogTests {
             == "~/.SkillsManager/skills/00112233-4455-6677-8899-aabbccddeeff")
     }
 
+    @Test("parses immutable default and external journal locators")
+    func persistedLocators() throws {
+        let defaultTarget = try #require(DistributionTargetCatalog.persistedTarget(
+            from: "~/.codex/skills/demo",
+            for: .agent(.codex)
+        ))
+        #expect(defaultTarget.rootLocator == "~/.codex/skills")
+        #expect(defaultTarget.slug.value == "demo")
+
+        let externalTarget = try #require(DistributionTargetCatalog.persistedTarget(
+            from: "/Volumes/skills/.codex/demo",
+            for: .agent(.codex)
+        ))
+        #expect(externalTarget.rootLocator == "/Volumes/skills/.codex")
+        #expect(externalTarget.slug.value == "demo")
+        #expect(DistributionTargetCatalog.persistedTarget(
+            from: "/Volumes/skills/.codex/../demo",
+            for: .agent(.codex)
+        ) == nil)
+    }
+
     @Test("computes typed scope keys and validates Binding timestamps")
     func bindingDomain() throws {
         let skillID = SkillID(UUID(uuidString: "00112233-4455-6677-8899-aabbccddeeff")!)

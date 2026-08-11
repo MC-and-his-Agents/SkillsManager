@@ -62,6 +62,13 @@ struct SkillSplitLifecycleModifier: ViewModifier {
             .onChange(of: libraryRuntime.blockingObservation) { _, _ in
                 Task { await synchronizeDiscoveryRuntime() }
             }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: HarnessSkillRootConfigurationStore.didChangeNotification
+                )
+            ) { _ in
+                Task { await synchronizeDiscoveryRuntime(forceRefresh: true) }
+            }
             .onChange(of: lifecycleModel.publishedMutationGeneration) { _, _ in
                 Task {
                     await store.loadSkills()
@@ -82,7 +89,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
             }
     }
 
-    private func synchronizeDiscoveryRuntime() async {
+    private func synchronizeDiscoveryRuntime(forceRefresh: Bool = false) async {
         guard libraryRuntime.readiness == .ready else {
             await blockRuntime(message: libraryRuntime.blockingMessage)
             return
@@ -100,7 +107,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
                 )
             }
         )
-        if needsInitialRefresh { await discoveryModel.refresh() }
+        if needsInitialRefresh || forceRefresh { await discoveryModel.refresh() }
         discoveryBatchModel.activate(dependencies: .live(writer: writer))
         distributionModel.activate(dependencies: .live(writer: writer))
         lifecycleModel.activate(dependencies: .live(writer: writer))

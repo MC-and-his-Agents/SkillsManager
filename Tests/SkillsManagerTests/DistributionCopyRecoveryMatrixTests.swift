@@ -121,6 +121,111 @@ struct DistributionCopyRecoveryMatrixTests {
         #expect(!FileManager.default.fileExists(atPath: fixture.copyURL.path))
     }
 
+    @Test("default to external root change keeps the journal recoverable")
+    func defaultToExternalRootChangeReopen() throws {
+        let fixture = try CopyExecutorFixture()
+        defer { fixture.cleanup() }
+        let defaultRoot = fixture.home.appendingPathComponent(
+            ".codex/skills",
+            isDirectory: true
+        )
+        let externalRoot = fixture.home.appendingPathComponent(
+            "external-codex",
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(
+            at: defaultRoot,
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(
+            at: externalRoot,
+            withIntermediateDirectories: false
+        )
+
+        let oldCatalog = catalogWithCodexRoot(
+            locator: "~/.codex/skills",
+            resolvedURL: defaultRoot,
+            configured: false
+        )
+        let oldFileSystem = try DistributionSymlinkFileSystem(
+            homeURL: fixture.home,
+            catalog: oldCatalog
+        )
+        let oldExecutor = try DistributionCopyExecutor(
+            connection: fixture.connection,
+            fileSystem: oldFileSystem,
+            nowMilliseconds: { 10 }
+        )
+        let plan = try oldExecutor.dryRun(
+            skillID: fixture.skillID,
+            currentBindings: [],
+            desiredConfiguration: DistributionDesiredConfiguration(
+                scope: .agents([.codex], fixture.slug),
+                syncMode: .copy
+            ),
+            requiredAdapterCodes: [SkillPlatform.codex.storageKey],
+            catalog: oldCatalog
+        )
+        #expect(plan.filesystemActions.map(\.kind) == [.createCopy])
+        let completed = try oldExecutor.apply(
+            skillID: fixture.skillID,
+            plan: plan,
+            expectedOldBindings: [],
+            nowMilliseconds: 10
+        )
+
+        for table in ["distribution_bindings", "distribution_link_ownership"] {
+            let statement = try fixture.connection.prepare(
+                "DELETE FROM \(table) WHERE skill_id = ?"
+            )
+            try statement.bind(fixture.skillID.bytes, at: 1)
+            _ = try statement.step()
+        }
+        let deleteConfiguration = try fixture.connection.prepare(
+            "DELETE FROM distribution_configurations WHERE skill_id = ?"
+        )
+        try deleteConfiguration.bind(fixture.skillID.bytes, at: 1)
+        _ = try deleteConfiguration.step()
+        let rewind = try fixture.connection.prepare(
+            """
+            UPDATE distribution_operations
+            SET phase = 'filesystemApplied', outcome = NULL, cleanup_cursor = 0
+            WHERE operation_id = ?
+            """
+        )
+        try rewind.bind(completed.operationID.bytes, at: 1)
+        _ = try rewind.step()
+
+        let newCatalog = catalogWithCodexRoot(
+            locator: externalRoot.path,
+            resolvedURL: externalRoot,
+            configured: true
+        )
+        let reopenedFileSystem = try DistributionSymlinkFileSystem(
+            homeURL: fixture.home,
+            catalog: newCatalog
+        )
+        let reopened = try DistributionCopyExecutor(
+            connection: fixture.connection,
+            fileSystem: reopenedFileSystem,
+            nowMilliseconds: { 20 }
+        )
+        let pending = try reopened.operationStore.load(completed.operationID)
+        #expect(pending.phase == .filesystemApplied)
+        try reopened.recoverAll()
+
+        let repaired = try reopened.operationStore.load(completed.operationID)
+        #expect(repaired.phase == .filesystemApplied)
+        #expect(repaired.outcome == .needsRepair)
+        #expect(repaired.lastError?.contains("target changed") == true)
+        #expect(FileManager.default.fileExists(
+            atPath: defaultRoot.appendingPathComponent("demo").path
+        ))
+        #expect(!FileManager.default.fileExists(
+            atPath: externalRoot.appendingPathComponent("demo").path
+        ))
+    }
+
     @Test("explicit discard checkpoints recover in v2 and v3")
     func discardCheckpointRecovery() async throws {
         let checkpoints: [DistributionFilesystemCheckpoint] = [
@@ -275,6 +380,35 @@ struct DistributionCopyRecoveryMatrixTests {
             encoding: .utf8
         ) == fixture.driftedContents)
     }
+}
+
+private func catalogWithCodexRoot(
+    locator: String,
+    resolvedURL: URL,
+    configured: Bool
+) -> DistributionTargetCatalog {
+    let base = DistributionTargetCatalog.current
+    let targets = Dictionary(uniqueKeysWithValues: SkillPlatform.allCases.map { platform in
+        if platform == .codex {
+            return (
+                platform,
+                DistributionTarget(
+                    scope: .agent(platform),
+                    rootLocator: locator,
+                    resolvedRootURL: resolvedURL,
+                    isConfigured: configured
+                )
+            )
+        }
+        return (
+            platform,
+            base.target(for: .agent(platform))!
+        )
+    })
+    return DistributionTargetCatalog(
+        globalTarget: base.globalTarget,
+        dedicatedTargets: targets
+    )
 }
 
 private struct DiscardExecutorInput {

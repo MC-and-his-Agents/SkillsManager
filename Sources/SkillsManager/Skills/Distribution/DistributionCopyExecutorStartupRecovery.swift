@@ -96,14 +96,34 @@ nonisolated extension DistributionCopyExecutor {
             skillID: operation.skillID,
             formatVersion: operation.formatVersion
         )
-        let actions = try preflight.actions.map { value in
+        let planActions: [DistributionPlanActionWire]
+        do {
+            planActions = try DistributionOperationPayloadV2Validator.planActionsV2(
+                operation.planPayload
+            )
+        } catch {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "persisted Copy plan is invalid"
+            )
+        }
+        guard planActions.count == preflight.actions.count else {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "persisted Copy plan is invalid"
+            )
+        }
+        let actions = try preflight.actions.enumerated().map { index, value in
             guard let kind = DistributionFilesystemActionKind(
                 rawValue: value.kind
-            ), let entry = recoveryEntry(value) else {
+            ), value.targetScopeKey == planActions[index].targetScopeKey,
+                value.kind == planActions[index].action else {
                 throw DistributionSymlinkExecutorError.needsRepair(
                     "persisted Copy plan is invalid"
                 )
             }
+            let entry = try recoveryEntry(
+                value,
+                targetLocator: planActions[index].targetLocator
+            )
             return DistributionFilesystemAction(
                 kind: kind,
                 entry: entry,
@@ -126,8 +146,9 @@ nonisolated extension DistributionCopyExecutor {
     }
 
     private func recoveryEntry(
-        _ action: DistributionOperationPreflightActionV2
-    ) -> DistributionTargetEntry? {
+        _ action: DistributionOperationPreflightActionV2,
+        targetLocator: String
+    ) throws -> DistributionTargetEntry {
         let scope: DistributionBindingScope
         if action.targetScopeKey == DistributionBindingScope.global.targetScopeKey {
             scope = .global
@@ -137,12 +158,43 @@ nonisolated extension DistributionCopyExecutor {
                   }) {
             scope = .agent(platform)
         } else {
-            return nil
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "persisted Copy target scope is invalid"
+            )
         }
-        guard let slug = try? DefaultDistributionSlug(validating: action.slug) else {
-            return nil
+        let catalog = fileSystem.catalog
+        guard let persisted = DistributionTargetCatalog.persistedTarget(
+            from: targetLocator,
+            for: scope
+        ), persisted.slug.value == action.slug else {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "persisted Copy target locator is invalid"
+            )
         }
-        return DistributionTargetCatalog.current.entry(for: scope, slug: slug)
+        guard let current = catalog.target(for: scope) else {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "distribution target is unavailable"
+            )
+        }
+        let defaultRoot = try fileSystem.defaultRootURL(for: scope)
+        let currentMatchesPersisted = current.rootLocator == persisted.rootLocator
+            || (persisted.rootLocator.hasPrefix("~/")
+                && current.rootLocator == defaultRoot.path)
+        guard currentMatchesPersisted else {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "distribution target changed since the operation was prepared"
+            )
+        }
+        guard let slug = try? DefaultDistributionSlug(validating: action.slug),
+              let entry = catalog.entry(
+                  for: scope,
+                  slug: slug
+              ) else {
+            throw DistributionSymlinkExecutorError.needsRepair(
+                "persisted Copy target slug is invalid"
+            )
+        }
+        return entry
     }
 
     private func decodeBindingIntents(

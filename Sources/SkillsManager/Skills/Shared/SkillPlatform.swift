@@ -30,6 +30,15 @@ nonisolated enum SkillPlatform: String, CaseIterable, Identifiable, Hashable, Se
         }
     }
 
+    /// Environment values are discovery hints only; they are never persisted
+    /// as a distribution target without explicit user confirmation.
+    var rootEnvironmentVariable: String? {
+        switch self {
+        case .codex: "CODEX_HOME"
+        case .claude, .opencode, .copilot: nil
+        }
+    }
+
     /// Fixed MVP distribution target. Legacy discovery paths remain in `relativePaths`.
     var dedicatedDistributionRelativePath: String {
         switch self {

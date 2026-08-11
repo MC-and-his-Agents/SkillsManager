@@ -112,7 +112,10 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             guard let kind = DistributionFilesystemActionKind(
                 rawValue: action.action
             ), let scope = scopeV2(action.targetScopeKey),
-                  let slug = slugV2(action.targetLocator, scope: scope),
+                  let slug = DistributionTargetCatalog.persistedTarget(
+                      from: action.targetLocator,
+                      for: scope
+                  )?.slug,
                   action.ssotLocator
                     == DistributionTargetCatalog.current.ssotLocator(for: skillID),
                   actionKinds.updateValue(
@@ -176,17 +179,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         _ locator: String,
         scope: DistributionBindingScope
     ) -> DefaultDistributionSlug? {
-        guard let target = DistributionTargetCatalog.current.target(for: scope),
-              locator.hasPrefix(target.rootLocator + "/"),
-              let slug = try? DefaultDistributionSlug(
-                  validating: String(
-                      locator.dropFirst(target.rootLocator.count + 1)
-                  )
-              ),
-              locator == target.rootLocator + "/" + slug.value else {
-            return nil
-        }
-        return slug
+        DistributionTargetCatalog.persistedTarget(from: locator, for: scope)?.slug
     }
 
     private static func bindingKeyV2(
