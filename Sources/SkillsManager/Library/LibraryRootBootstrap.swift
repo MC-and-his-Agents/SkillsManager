@@ -5,6 +5,7 @@ nonisolated struct LibraryRootLayout: Sendable {
     static let managementDirectoryName = ".SkillsManager"
     static let databaseFileName = "manager.sqlite"
     static let ssotDirectoryName = "skills"
+    static let backupDirectoryName = "skill-backups"
     static let bootstrapMarkerName = "bootstrap.marker"
 
     let homeURL: URL
@@ -60,6 +61,11 @@ nonisolated struct LibraryManagementRootAdmission {
 }
 
 nonisolated enum LibraryRootBootstrap {
+    /// Finder's metadata file is harmless only at these managed roots and only
+    /// when it is the expected regular-file type.  Keep this exact allowlist
+    /// narrow; hidden files can still carry user Skill content.
+    static let harmlessMetadataNames: Set<String> = [".DS_Store"]
+
     static func openOrCreateManagementRoot(
         layout: LibraryRootLayout
     ) throws -> LibraryManagementRootAdmission {
@@ -112,9 +118,14 @@ nonisolated enum LibraryRootBootstrap {
         _ allowed: Set<String>,
         root: VerifiedSSOTRoot
     ) throws {
-        if let unknown = try managementEntryNames(root).first(where: { !allowed.contains($0) }) {
-            throw LibraryRootBootstrapError.unexpectedManagementEntry(unknown)
-        }
+        try requireOnlyEntries(allowed, root: root)
+    }
+
+    static func requireOnlySSOTEntries(
+        _ allowed: Set<String>,
+        root: VerifiedSSOTRoot
+    ) throws {
+        try requireOnlyEntries(allowed, root: root)
     }
 
     static func createMarker(
@@ -262,6 +273,34 @@ nonisolated enum LibraryRootBootstrap {
         }
         if errno == ENOENT { return false }
         throw posix("classify \(name)")
+    }
+
+    static func isHarmlessMetadataEntry(named name: String, descriptor: Int32) -> Bool {
+        guard harmlessMetadataNames.contains(name) else { return false }
+        var metadata = stat()
+        return Darwin.fstatat(
+            descriptor,
+            name,
+            &metadata,
+            AT_SYMLINK_NOFOLLOW
+        ) == 0 && metadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG)
+    }
+
+    private static func requireOnlyEntries(
+        _ allowed: Set<String>,
+        root: VerifiedSSOTRoot
+    ) throws {
+        let descriptor = try root.duplicateDescriptor()
+        defer { Darwin.close(descriptor) }
+        let names = try SafeSourceTree.names(in: descriptor, displayPath: root.url.lastPathComponent)
+            .map(\.precomposedStringWithCanonicalMapping)
+            .sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+        if let unknown = names.first(where: {
+            !allowed.contains($0)
+                && !isHarmlessMetadataEntry(named: $0, descriptor: descriptor)
+        }) {
+            throw LibraryRootBootstrapError.unexpectedManagementEntry(unknown)
+        }
     }
 
     private static func openAnchoredHome(_ homeURL: URL) throws -> Int32 {

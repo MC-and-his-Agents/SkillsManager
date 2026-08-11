@@ -66,6 +66,7 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
 
     private var service: ManagedInstallService?
     private var activeGeneration: UInt64 = 0
+    private var unavailableMessage = "The managed library session is unavailable."
 
     var candidates: [SkillImportWorker.ArchiveCandidate] { session?.candidates ?? [] }
     var selectedCount: Int { selectedIDs.count }
@@ -81,11 +82,15 @@ nonisolated struct ManagedArchiveImportSummary: Equatable, Sendable {
         state == .ready && !previewItems.isEmpty && generation == activeGeneration
     }
 
-    func activate(writer: JournaledSSOTWriter?) {
+    func activate(
+        writer: JournaledSSOTWriter?,
+        unavailableMessage runtimeMessage: String? = nil
+    ) {
         generation &+= 1
+        unavailableMessage = runtimeMessage ?? "The managed library session is unavailable."
         guard let writer else {
             service = nil
-            errorMessage = String(localized: "The managed library session is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
+            errorMessage = unavailableMessage
             return
         }
         service = ManagedInstallService(dependencies: .live(writer: writer))

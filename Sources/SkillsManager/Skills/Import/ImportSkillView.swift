@@ -55,8 +55,14 @@ struct ImportSkillView: View {
             .environment(model)
         }
         .task {
-            model.activate(writer: store.persistence)
-            archiveModel.activate(writer: store.persistence)
+            model.activate(
+                writer: store.persistence,
+                unavailableMessage: libraryRuntime.blockingMessage
+            )
+            archiveModel.activate(
+                writer: store.persistence,
+                unavailableMessage: libraryRuntime.blockingMessage
+            )
         }
 #if SKILLS_MANAGER_UI_TEST
         .task {
@@ -69,10 +75,16 @@ struct ImportSkillView: View {
 #endif
         .onChange(of: libraryRuntime.readiness) { _, _ in
             if !model.isWorking {
-                model.activate(writer: store.persistence)
+                model.activate(
+                    writer: store.persistence,
+                    unavailableMessage: libraryRuntime.blockingMessage
+                )
             }
             if !archiveModel.isWorking {
-                archiveModel.activate(writer: store.persistence)
+                archiveModel.activate(
+                    writer: store.persistence,
+                    unavailableMessage: libraryRuntime.blockingMessage
+                )
             }
         }
         .onDisappear {

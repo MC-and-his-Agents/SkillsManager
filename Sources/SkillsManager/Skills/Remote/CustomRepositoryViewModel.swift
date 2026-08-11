@@ -123,6 +123,7 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
     private(set) var candidates: [CustomRepositoryCandidate] = []
     private(set) var states: [UUID: RepositoryState] = [:]
     private(set) var operationProblem: Problem?
+    private(set) var runtimeBlockMessage: String?
     private(set) var isMutating = false
 
     private var dependencies: CustomRepositoryDependencies?
@@ -140,12 +141,13 @@ nonisolated struct CustomRepositoryCandidate: Identifiable, Equatable, Sendable 
         self.dependencies = dependencies
         runtimeReady = true
         operationProblem = nil
+        runtimeBlockMessage = nil
         return needsInitialLoad
     }
 
     func blockRuntime(message: String) {
-        _ = message
         runtimeReady = false
+        runtimeBlockMessage = message
         generations = generations.mapValues { $0 &+ 1 }
         repositories = []
         candidates = []

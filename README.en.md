@@ -29,6 +29,10 @@ This project started independent secondary development from commit [`3f2d809c`](
 
 If skills.sh is unavailable, local skills, ClawHub, GitHub repositories, and other managed features remain available.
 
+## Managed library startup troubleshooting
+
+If the managed library cannot start, open “View diagnostics…” from the app banner and follow the first blocking diagnostic’s recovery suggestion before retrying. Repair the reported entry, permissions, or competing lock holder; do not delete the entire `~/.SkillsManager` directory.
+
 ## Requirements
 
 - Runtime: macOS 15+

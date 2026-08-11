@@ -60,11 +60,17 @@ struct ManagedClawdhubInstallView: View {
             .environment(model)
         }
         .task {
-            model.activate(writer: store.persistence)
+            model.activate(
+                writer: store.persistence,
+                unavailableMessage: libraryRuntime.blockingMessage
+            )
         }
         .onChange(of: libraryRuntime.readiness) { _, _ in
             if !isWorking {
-                model.activate(writer: store.persistence)
+                model.activate(
+                    writer: store.persistence,
+                    unavailableMessage: libraryRuntime.blockingMessage
+                )
             }
         }
         .onDisappear {

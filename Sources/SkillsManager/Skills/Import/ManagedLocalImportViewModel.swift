@@ -12,18 +12,25 @@ import Observation
 
     private var service: ManagedInstallService?
     private var generation: UInt64 = 0
+    private var unavailableMessage = "The managed library session is unavailable."
 
     var isWorking: Bool { isPreparing || isExecuting || isFinalizing }
     var isAvailable: Bool { service != nil }
 
-    func activate(writer: JournaledSSOTWriter?) {
+    func activate(
+        writer: JournaledSSOTWriter?,
+        unavailableMessage runtimeMessage: String? = nil
+    ) {
         generation &+= 1
         preview = nil
         result = nil
         problem = nil
+        unavailableMessage = runtimeMessage ?? "The managed library session is unavailable."
         guard let writer else {
             service = nil
-            problem = .failed("The managed library session is unavailable.")
+            problem = .failed(
+                self.unavailableMessage
+            )
             return
         }
         activate(dependencies: .live(writer: writer))
@@ -80,7 +87,7 @@ import Observation
     ) async {
         guard !isWorking, let service else {
             if service == nil {
-                problem = .failed("The managed library session is unavailable.")
+                problem = .failed(unavailableMessage)
             }
             return
         }

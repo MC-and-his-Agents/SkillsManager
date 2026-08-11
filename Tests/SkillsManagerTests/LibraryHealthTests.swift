@@ -54,6 +54,36 @@ struct LibraryHealthTests {
         #expect(diagnostics == LibraryRuntimeDiagnostic.normalized(diagnostics))
     }
 
+    @Test("regular Finder metadata is ignored but a non-regular entry is blocking")
+    func finderMetadataPolicy() async throws {
+        let fixture = try LibraryRuntimeTestHome()
+        defer { fixture.remove() }
+        var initial = await LibraryStartupCoordinator(homeURL: fixture.home).start()
+        let writer = try #require(initial.session)
+        initial = LibraryStartupResult(
+            phase: initial.phase,
+            readiness: initial.readiness,
+            diagnostics: initial.diagnostics,
+            outcome: initial.outcome,
+            session: nil
+        )
+        let ssot = fixture.home.appendingPathComponent(".SkillsManager/skills", isDirectory: true)
+        try Data().write(to: ssot.appendingPathComponent(".DS_Store"))
+
+        let ignored = try await writer.healthDiagnostics()
+        #expect(!ignored.contains { $0.subjectID == ".DS_Store" })
+
+        try FileManager.default.removeItem(at: ssot.appendingPathComponent(".DS_Store"))
+        try FileManager.default.createDirectory(
+            at: ssot.appendingPathComponent(".DS_Store"),
+            withIntermediateDirectories: false
+        )
+        let blocked = try await writer.healthDiagnostics()
+        #expect(blocked.contains {
+            $0.code == .unknownSSOTEntry && $0.subjectID == ".DS_Store" && $0.blocking
+        })
+    }
+
     @Test("diagnostic policy keeps only cleanup and legacy warnings non-blocking")
     func fixedDiagnosticPolicy() {
         for code in [

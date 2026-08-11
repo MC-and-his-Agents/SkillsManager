@@ -88,7 +88,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
             return
         }
         guard let writer = store.persistence else {
-            await blockRuntime(message: "The managed library session is unavailable.")
+            await blockRuntime(message: libraryRuntime.blockingMessage)
             return
         }
         let needsInitialRefresh = discoveryModel.activate(
@@ -116,6 +116,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
     }
 
     private func blockRuntime(message: String) async {
+        store.blockRuntime(message: message)
         discoveryModel.blockRuntime(message: message)
         discoveryBatchModel.blockRuntime(message: message)
         distributionModel.blockRuntime(message: message)

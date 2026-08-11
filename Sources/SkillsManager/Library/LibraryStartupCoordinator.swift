@@ -75,19 +75,21 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
             let marker = try markerExists
                 ? LibraryRootBootstrap.openMarker(root: managementRoot)
                 : nil
+            var allowedManagementEntries: Set<String> = [
+                SSOTWriterOwnership.lockFileName,
+                LibraryRootLayout.databaseFileName,
+                "\(LibraryRootLayout.databaseFileName)-shm",
+                "\(LibraryRootLayout.databaseFileName)-wal",
+                LibraryRootLayout.ssotDirectoryName,
+                LibraryRootLayout.backupDirectoryName,
+            ]
             if marker != nil {
-                try LibraryRootBootstrap.requireOnlyManagementEntries(
-                    [
-                        SSOTWriterOwnership.lockFileName,
-                        LibraryRootLayout.bootstrapMarkerName,
-                        LibraryRootLayout.databaseFileName,
-                        "\(LibraryRootLayout.databaseFileName)-shm",
-                        "\(LibraryRootLayout.databaseFileName)-wal",
-                        LibraryRootLayout.ssotDirectoryName,
-                    ],
-                    root: managementRoot
-                )
+                allowedManagementEntries.insert(LibraryRootLayout.bootstrapMarkerName)
             }
+            try LibraryRootBootstrap.requireOnlyManagementEntries(
+                allowedManagementEntries,
+                root: managementRoot
+            )
             let connection = try SkillSchemaMigrator.open(
                 at: layout.databaseURL,
                 accessMode: .readWriteExisting,
@@ -194,7 +196,11 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
                 throw LibraryRootBootstrapError.invalidMarker
             }
             try LibraryRootBootstrap.requireOnlyManagementEntries(
-                [SSOTWriterOwnership.lockFileName, LibraryRootLayout.bootstrapMarkerName],
+                [
+                    SSOTWriterOwnership.lockFileName,
+                    LibraryRootLayout.bootstrapMarkerName,
+                    LibraryRootLayout.backupDirectoryName,
+                ],
                 root: managementRoot
             )
             return marker
@@ -226,6 +232,7 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
             "\(LibraryRootLayout.databaseFileName)-shm",
             "\(LibraryRootLayout.databaseFileName)-wal",
             LibraryRootLayout.ssotDirectoryName,
+            LibraryRootLayout.backupDirectoryName,
         ])
         try LibraryRootBootstrap.requireOnlyManagementEntries(allowed, root: managementRoot)
         let historyNow = try LegacyStateInventory.hasHistory(homeURL: homeURL)
@@ -277,11 +284,7 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
             layout: layout,
             root: managementRoot
         )
-        let descriptor = try ssotRoot.duplicateDescriptor()
-        defer { Darwin.close(descriptor) }
-        guard try SafeSourceTree.names(in: descriptor, displayPath: "skills").isEmpty else {
-            throw LibraryRootBootstrapError.unexpectedManagementEntry("skills")
-        }
+        try LibraryRootBootstrap.requireOnlySSOTEntries([], root: ssotRoot)
         try hooks.checkpoint(.ssotDurable)
 
         var completed = record
@@ -395,6 +398,24 @@ nonisolated final class LibraryStartupCoordinator: Sendable {
     }
 
     private func diagnostic(for error: Error) -> LibraryRuntimeDiagnostic {
+        if let error = error as? LibraryRootBootstrapError {
+            switch error {
+            case .unexpectedManagementEntry(let name):
+                return .make(
+                    .unknownSSOTEntry,
+                    subjectKind: .library,
+                    subjectID: name
+                )
+            case .itemMissing(let name)
+                where name == LibraryRootLayout.databaseFileName:
+                return .make(.databaseMissing, subjectKind: .database, subjectID: name)
+            case .itemMissing(let name)
+                where name == LibraryRootLayout.ssotDirectoryName:
+                return .make(.ssotMissing, subjectKind: .ssot, subjectID: name)
+            default:
+                break
+            }
+        }
         if let error = error as? SSOTWriterOwnershipError {
             let code: LibraryDiagnosticCode = switch error {
             case .busy: .databaseBusy

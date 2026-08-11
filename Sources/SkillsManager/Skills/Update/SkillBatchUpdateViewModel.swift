@@ -12,6 +12,7 @@ import Observation
     private let admission: ManagedSkillUpdateAdmission
     private var dependencies: SkillBatchUpdateDependencies?
     private var pendingBlockMessage: String?
+    private var runtimeBlockMessage = String(localized: "Preparing the managed library…", bundle: SkillsManagerLocalizationResources.bundle)
     private var generation: UInt64 = 0
 
     init(admission: ManagedSkillUpdateAdmission = ManagedSkillUpdateAdmission()) {
@@ -64,6 +65,7 @@ import Observation
 
     func blockRuntime(message: String) {
         dependencies = nil
+        runtimeBlockMessage = message
         stopRequested = true
         if operationActive {
             pendingBlockMessage = message
@@ -88,7 +90,7 @@ import Observation
             SkillBatchUpdateItem(skillID: $0.skillID, displayName: $0.displayName)
         }
         if dependencies == nil {
-            state = .blocked(String(localized: "The managed library session is unavailable.", bundle: SkillsManagerLocalizationResources.bundle))
+            state = .blocked(runtimeBlockMessage)
         } else {
             state = items.isEmpty ? .empty : .idle
         }
