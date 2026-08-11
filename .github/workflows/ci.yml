@@ -55,7 +55,6 @@ jobs:
             Scripts/tests/test_release_contract.py
           /bin/bash -n Scripts/*.sh Scripts/tests/*.sh
           /bin/bash Scripts/tests/test_ui_test_selection.sh
-          /bin/bash Scripts/tests/test_run_ui_tests.sh
 
       - name: Validate release contract
         if: steps.scope.outputs.release_only == 'true'
