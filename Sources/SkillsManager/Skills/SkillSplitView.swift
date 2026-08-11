@@ -194,14 +194,6 @@ struct SkillSplitView: View {
         }
         .onChange(of: store.skills) { _, _ in
             updateBadgeStore.invalidateAll()
-            for skill in filteredSkills {
-                Task { await updateBadgeStore.checkIfNeeded(for: skill) }
-            }
-        }
-        .onChange(of: filteredSkills) { _, skills in
-            for skill in skills {
-                Task { await updateBadgeStore.checkIfNeeded(for: skill) }
-            }
         }
     }
 

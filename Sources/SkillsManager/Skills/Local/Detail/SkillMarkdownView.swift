@@ -43,7 +43,7 @@ struct SkillMarkdownView: View {
                         }
                     }
                 )
-                SkillDetailFeedbackBanner(skillID: skill.id)
+                SkillDetailFeedbackBanner(subject: .managed(skill.id))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                 ScrollView {
@@ -312,6 +312,7 @@ struct SkillMarkdownView: View {
             isCheckingPublish = false
             return
         }
+        let badgeGeneration = badgeStore.refreshGeneration
         let latest = await fetchLatestVersion(slug: origin.slug)
         latestVersion = latest
         if let latest, let installed = installedVersion {
@@ -319,7 +320,11 @@ struct SkillMarkdownView: View {
         } else {
             updateAvailable = false
         }
-        badgeStore.backfill(skill, latestVersion: latest)
+        badgeStore.backfill(
+            skill,
+            latestVersion: latest,
+            generation: badgeGeneration
+        )
         isCheckingPublish = false
     }
 

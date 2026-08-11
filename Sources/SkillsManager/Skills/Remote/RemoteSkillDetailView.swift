@@ -8,14 +8,18 @@ struct RemoteSkillDetailView: View {
 
     var body: some View {
         if let skill = store.selectedSkill {
-            Group {
-                switch store.detailState {
-                case .idle, .loading:
-                    loadingView(for: skill)
-                case .failed:
-                    errorView(for: skill)
-                case .loaded, .cachedRefreshing, .cachedUnavailable:
-                    markdownView(for: skill)
+            VStack(spacing: 0) {
+                SkillResultCenterBanner(subject: .clawHub(skill.id))
+                    .padding([.top, .horizontal])
+                Group {
+                    switch store.detailState {
+                    case .idle, .loading:
+                        loadingView(for: skill)
+                    case .failed:
+                        errorView(for: skill)
+                    case .loaded, .cachedRefreshing, .cachedUnavailable:
+                        markdownView(for: skill)
+                    }
                 }
             }
             .navigationTitle(skill.displayName)

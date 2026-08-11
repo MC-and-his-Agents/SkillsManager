@@ -17,7 +17,7 @@ import Observation
 
     private(set) var badges: [Skill.ID: Badge] = [:]
     private(set) var refreshGeneration: UInt64 = 0
-    private var inFlight: Set<Skill.ID> = []
+    private var inFlight: [Skill.ID: UUID] = [:]
     private let remote: RemoteSkillClient
 
     init(remote: RemoteSkillClient) {
@@ -39,11 +39,21 @@ import Observation
             badges[skill.id] = .upToDate
             return
         }
-        guard !inFlight.contains(skill.id) else { return }
-        inFlight.insert(skill.id)
-        defer { inFlight.remove(skill.id) }
+        guard inFlight[skill.id] == nil else { return }
+        let generation = refreshGeneration
+        let token = UUID()
+        inFlight[skill.id] = token
+        defer {
+            if inFlight[skill.id] == token {
+                inFlight[skill.id] = nil
+            }
+        }
         guard let latest = try? await remote.fetchLatestVersion(slug),
               !latest.isEmpty else {
+            return
+        }
+        guard generation == refreshGeneration,
+              inFlight[skill.id] == token else {
             return
         }
         badges[skill.id] = SkillVersionComparison.isNewer(latest, than: installed)
@@ -52,10 +62,12 @@ import Observation
     }
 
     /// 详情更新检查结果回填，避免重复网络请求。
-    func backfill(_ skill: Skill, latestVersion: String?) {
-        guard let latest = latestVersion,
+    func backfill(_ skill: Skill, latestVersion: String?, generation: UInt64) {
+        guard generation == refreshGeneration,
+              let latest = latestVersion,
               !latest.isEmpty,
               let installed = skill.clawdhubVersion else { return }
+        inFlight[skill.id] = nil
         badges[skill.id] = SkillVersionComparison.isNewer(latest, than: installed)
             ? .updateAvailable(version: latest)
             : .upToDate
@@ -63,13 +75,13 @@ import Observation
 
     func invalidate(skillID: Skill.ID) {
         badges[skillID] = nil
-        inFlight.remove(skillID)
+        inFlight[skillID] = nil
     }
 
     /// 列表刷新时调用：清空缓存并推进 generation，让可见行重新检查。
     func invalidateAll() {
         badges = [:]
-        inFlight = []
+        inFlight = [:]
         refreshGeneration &+= 1
     }
 }

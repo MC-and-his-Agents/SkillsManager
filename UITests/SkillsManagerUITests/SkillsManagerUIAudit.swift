@@ -15,6 +15,7 @@ enum SkillsManagerUILocators {
     static let repositoryDone = "repository.done"
     static let repositoryRefreshAll = "repository.refresh-all"
     static let repositoryReviewInstall = "repository.review-install"
+    static let installResultClose = "install.result.close"
     static let archiveReviewSelected = "archive.review-selected"
     static let archiveClearSelection = "archive.clear-selection"
     static let archiveConfirm = "archive.confirm"
@@ -24,6 +25,7 @@ enum SkillsManagerUILocators {
     static let detailDelete = "skills.detail.delete"
     static let detailFullSettings = "skills.detail.full-settings"
     static let detailBatchUpdates = "skills.detail.batch-updates"
+    static let resultDismiss = "skills.result.close"
 
     static func filterStatus(_ key: String) -> String {
         "skills.filter.status.\(key)"

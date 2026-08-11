@@ -6,6 +6,7 @@ struct ManagedClawdhubInstallView: View {
     @Environment(RemoteSkillStore.self) private var remoteStore
     @Environment(SkillDiscoveryViewModel.self) private var discoveryModel
     @Environment(LibraryRuntimeState.self) private var libraryRuntime
+    @Environment(SkillResultCenter.self) private var resultCenter
 
     let skill: RemoteSkill
     @Binding var isInstalling: Bool
@@ -194,14 +195,20 @@ struct ManagedClawdhubInstallView: View {
                     skill: skill,
                     scope: distributionMode == .global ? .global : .agents(selectedAgents)
                 )
-                if model.problem != nil {
+                if let problem = model.problem {
+                    resultCenter.publishInstallFailure(
+                        localizedManagedLocalImportProblem(problem),
+                        subject: .clawHub(skill.id)
+                    )
                     await cleanupCandidate()
                 }
             } catch is CancellationError {
                 return
             } catch {
                 model.reset()
-                errorMessage = localizedManagedInstallError(error)
+                let message = localizedManagedInstallError(error)
+                errorMessage = message
+                resultCenter.publishInstallFailure(message, subject: .clawHub(skill.id))
             }
         }
     }
@@ -212,14 +219,18 @@ struct ManagedClawdhubInstallView: View {
             isInstalling = true
             defer { isInstalling = false }
             await model.confirm {
+                if let result = model.result {
+                    didInstall = true
+                    resultCenter.publishInstallResult(result, subject: .clawHub(skill.id))
+                }
                 await store.loadSkills()
                 await discoveryModel.refresh()
                 await cleanupCandidate()
             }
-            if model.result != nil {
-                didInstall = true
-            } else if let problem = model.problem {
-                errorMessage = localizedManagedLocalImportProblem(problem)
+            if let problem = model.problem {
+                let message = localizedManagedLocalImportProblem(problem)
+                errorMessage = message
+                resultCenter.publishInstallFailure(message, subject: .clawHub(skill.id))
             }
         }
     }
@@ -241,6 +252,7 @@ struct ManagedClawdhubInstallView: View {
                 Text("Close", bundle: .module)
             }
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("install.result.close")
         }
     }
 

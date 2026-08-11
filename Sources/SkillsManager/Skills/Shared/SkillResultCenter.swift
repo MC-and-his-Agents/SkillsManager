@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import SwiftUI
 
@@ -8,27 +9,41 @@ import SwiftUI
 /// 新结果覆盖，banner 组件按 skillID 匹配显示，跨视图重建不丢失。
 @MainActor
 @Observable final class SkillResultCenter {
+    enum Subject: Hashable {
+        case managed(String)
+        case discovery(SkillDiscoveryItemID)
+        case clawHub(String)
+        case skillsSh(SkillsShSearchResultID)
+        case repository(CustomRepositoryCandidateID)
+    }
+
     struct Entry: Equatable {
-        let skillID: String
+        let id = UUID()
+        let subject: Subject
         let text: String
         let systemImage: String
         let tint: Color
     }
 
     private(set) var current: Entry?
-    private var dismissed: Set<String> = []
+    private var autoDismissTask: Task<Void, Never>?
 
     func publish(_ entry: Entry) {
         current = entry
-        Task {
+        autoDismissTask?.cancel()
+        autoDismissTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(20))
-            dismissed.insert(entry.text)
+            guard !Task.isCancelled else { return }
+            self?.dismiss(entryID: entry.id)
         }
     }
 
-    /// 当前可见结果（未消退且未被手动关闭）。
-    var visible: Entry? {
-        guard let current, !dismissed.contains(current.text) else { return nil }
-        return current
+    func dismiss(entryID: UUID) {
+        guard current?.id == entryID else { return }
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
+        current = nil
     }
+
+    var visible: Entry? { current }
 }

@@ -70,7 +70,7 @@ struct SkillDiscoveryDetailView: View {
                     )
                 }
                 SkillDetailFeedbackBanner(
-                    skillID: item.id.relativeLocatorKey,
+                    subject: .discovery(item.id),
                     extraErrorMessage: flowErrorMessage
                 )
                 .padding(.horizontal, 16)

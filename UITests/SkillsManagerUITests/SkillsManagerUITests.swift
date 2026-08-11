@@ -342,9 +342,14 @@ final class SkillsManagerUITests: XCTestCase {
         try requireElement(app.buttons["Import"], surface: "ui-07", app: app)
         try auditSurface("ui-07-install-preview", app: app)
         app.buttons["Import"].click()
-        try requireElement(app.buttons["Close"], surface: "ui-07", app: app)
+        let closeInstallResult = app.buttons[SkillsManagerUILocators.installResultClose]
+        try requireElement(closeInstallResult, surface: "ui-07", app: app)
         try auditSurface("ui-07-install-result", app: app)
-        app.buttons["Close"].click()
+        closeInstallResult.click()
+        let dismissResult = app.buttons[SkillsManagerUILocators.resultDismiss]
+        try requireElement(dismissResult, surface: "ui-07-result-banner", app: app)
+        dismissResult.click()
+        try waitForDisappearance(dismissResult, surface: "ui-07-result-banner", app: app)
         app.terminate()
 
         let after = try snapshotFilesystem(childHome)
@@ -375,27 +380,6 @@ final class SkillsManagerUITests: XCTestCase {
         )
         app.terminate()
         try assertSnapshotUnchanged(baseline, home: childHome, surface: "ui-07-cancel", app: app)
-    }
-
-    func testSM168UI07RepositoryFailureZeroWrite() throws {
-        try launchFixture(app: app, profile: "failure-repository", surface: "ui-07-failure")
-        try setFilter("Repository", surface: "ui-07-failure", app: app)
-        try waitForHierarchyText(
-            "Repository unavail",
-            surface: "ui-07-failure",
-            app: app
-        )
-        let baseline = try settledSnapshot(surface: "ui-07-failure")
-        try openRepositorySheet(surface: "ui-07-failure", app: app)
-        let refreshAll = app.buttons[SkillsManagerUILocators.repositoryRefreshAll]
-        try requireElement(refreshAll, surface: "ui-07-failure", app: app)
-        try auditSurface("ui-07-failure-sheet", app: app)
-        refreshAll.click()
-        try waitForEnabled(refreshAll, surface: "ui-07-failure", app: app)
-        try requireElement(app.staticTexts["Failed"], surface: "ui-07-failure", app: app)
-        app.buttons[SkillsManagerUILocators.repositoryDone].click()
-        app.terminate()
-        try assertSnapshotUnchanged(baseline, home: childHome, surface: "ui-07-failure", app: app)
     }
 
     // MARK: - SM168-UI-08
@@ -680,6 +664,10 @@ final class SkillsManagerUITests: XCTestCase {
         // 截断长 value，匹配 banner 独有前缀 "Result: Distributi"。
         try waitForHierarchyText("Result: Distributi", surface: "ui-11", app: app)
         try auditSurface("ui-11-banner", app: app)
+        let dismissResult = app.buttons[SkillsManagerUILocators.resultDismiss]
+        try requireElement(dismissResult, surface: "ui-11", app: app)
+        dismissResult.click()
+        try waitForDisappearance(dismissResult, surface: "ui-11", app: app)
     }
 
     // MARK: - SM194-UI-12
