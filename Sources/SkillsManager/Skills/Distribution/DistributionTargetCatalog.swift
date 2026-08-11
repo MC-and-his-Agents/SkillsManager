@@ -128,4 +128,49 @@ nonisolated struct DistributionTargetCatalog: Sendable {
     func ssotLocator(for skillID: SkillID) -> String {
         "~/.SkillsManager/skills/\(skillID.directoryName)"
     }
+
+    /// Parses the target locator captured in a journal plan without consulting
+    /// the mutable current catalog. A changed root is handled as stale during
+    /// recovery instead of making the persisted payload look corrupt.
+    static func persistedTarget(
+        from locator: String,
+        for scope: DistributionBindingScope
+    ) -> (rootLocator: String, slug: DefaultDistributionSlug)? {
+        guard locator == locator.precomposedStringWithCanonicalMapping,
+              !locator.contains("\0"),
+              let component = locator.split(separator: "/", omittingEmptySubsequences: true).last,
+              let slug = try? DefaultDistributionSlug(validating: String(component)) else {
+            return nil
+        }
+        let suffix = "/\(slug.value)"
+        guard locator.hasSuffix(suffix) else { return nil }
+        let rootLocator = String(locator.dropLast(suffix.count))
+        guard !rootLocator.isEmpty else { return nil }
+
+        if locator.hasPrefix("~/") {
+            let expectedRoot = "~/" + scope.relativeDistributionPath
+            guard rootLocator == expectedRoot else { return nil }
+        } else {
+            guard locator.hasPrefix("/") else { return nil }
+            let url = URL(fileURLWithPath: locator, isDirectory: true)
+            guard url.standardizedFileURL.path == locator,
+                  rootLocator != "/",
+                  URL(fileURLWithPath: rootLocator, isDirectory: true)
+                    .standardizedFileURL.path == rootLocator else {
+                return nil
+            }
+        }
+        return (rootLocator, slug)
+    }
+}
+
+private extension DistributionBindingScope {
+    nonisolated var relativeDistributionPath: String {
+        switch self {
+        case .global:
+            ".agents/skills"
+        case .agent(let platform):
+            platform.dedicatedDistributionRelativePath
+        }
+    }
 }

@@ -713,7 +713,10 @@ private nonisolated enum DistributionOperationPayloadValidator {
             guard action.action == DistributionFilesystemActionKind.removeSymlink.rawValue
                     || action.action == DistributionFilesystemActionKind.createSymlink.rawValue,
                   let scope = scope(for: action.targetScopeKey),
-                  let slug = slug(for: action.targetLocator, scope: scope),
+                  let slug = DistributionTargetCatalog.persistedTarget(
+                      from: action.targetLocator,
+                      for: scope
+                  )?.slug.value,
                   action.ssotLocator == DistributionTargetCatalog.current.ssotLocator(for: skillID),
                   targets.insert("\(action.targetScopeKey):\(slug)").inserted else {
                 throw DistributionOperationStoreError.invalidRecord
@@ -791,7 +794,10 @@ private nonisolated enum DistributionOperationPayloadValidator {
                 guard action.action
                         == DistributionFilesystemActionKind.createSymlink.rawValue,
                       let scope = scope(for: action.targetScopeKey),
-                      let slug = slug(for: action.targetLocator, scope: scope),
+                      let slug = DistributionTargetCatalog.persistedTarget(
+                          from: action.targetLocator,
+                          for: scope
+                      )?.slug.value,
                       let current = oldByScope[action.targetScopeKey],
                       slug == current.slug,
                       action.ssotLocator
@@ -928,10 +934,9 @@ private nonisolated enum DistributionOperationPayloadValidator {
             (bindingScopeKey($0), $0)
         })
         for target in targets {
-            guard let scope = scope(for: target.targetScopeKey),
+            guard scope(for: target.targetScopeKey) != nil,
                   let slug = try? DefaultDistributionSlug(validating: target.slug),
                   oldByScope[target.targetScopeKey]?.slug == slug.value,
-                  DistributionTargetCatalog.current.entry(for: scope, slug: slug) != nil,
                   target.rootIdentity.isEmpty
                     || target.rootIdentity.count == ManagedItemIdentityCodec.encodedByteCount
             else {
@@ -1072,9 +1077,8 @@ private nonisolated enum DistributionOperationPayloadValidator {
     }
 
     private static func slug(for locator: String, scope: DistributionBindingScope?) -> String? {
-        guard let scope, let target = DistributionTargetCatalog.current.target(for: scope),
-              locator.hasPrefix(target.rootLocator + "/") else { return nil }
-        return String(locator.dropFirst(target.rootLocator.count + 1))
+        guard let scope else { return nil }
+        return DistributionTargetCatalog.persistedTarget(from: locator, for: scope)?.slug.value
     }
 
     private static func temporaryName(_ operationID: SSOTOperationID, _ index: Int) -> String {

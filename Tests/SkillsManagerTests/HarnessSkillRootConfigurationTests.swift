@@ -137,6 +137,32 @@ struct HarnessSkillRootConfigurationTests {
         }
     }
 
+    @Test("same lexical root retains Codex default and confirmed Claude scopes")
+    func sameRootRetainsScopeAliases() throws {
+        let defaults = try isolatedDefaults()
+        let store = HarnessSkillRootConfigurationStore(defaults: defaults)
+        let home = try temporaryDirectory("home")
+        let codexRoot = home.appendingPathComponent(".codex/skills", isDirectory: true)
+        try FileManager.default.createDirectory(at: codexRoot, withIntermediateDirectories: true)
+        _ = try store.confirm(platform: .claude, registeredURL: codexRoot)
+
+        let catalog = DistributionTargetCatalog.current(
+            homeURL: home,
+            configurationStore: store
+        )
+        let roots = SkillDiscoveryRootPlan.make(
+            homeURL: home,
+            customPaths: [],
+            catalog: catalog
+        )
+        let aliases = roots.filter {
+            $0.url.standardizedFileURL == codexRoot.standardizedFileURL
+                && $0.scope.kind == .agent
+        }
+        #expect(aliases.contains { $0.scope.adapterCode == SkillPlatform.codex.storageKey })
+        #expect(aliases.contains { $0.scope.adapterCode == SkillPlatform.claude.storageKey })
+    }
+
     @Test("distribution filesystem uses the configured external root")
     func externalDistributionLifecycle() throws {
         let defaults = try isolatedDefaults()

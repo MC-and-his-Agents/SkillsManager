@@ -308,7 +308,11 @@ nonisolated struct SkillDiscoveryRootPlan {
         }
         var seen: Set<String> = []
         return roots.filter { root in
-            let key = root.url.standardizedFileURL.path
+            let key = [
+                root.url.standardizedFileURL.path,
+                root.scope.sortKey,
+                root.diagnostic?.rawValue ?? "",
+            ].joined(separator: "\u{0}")
             return seen.insert(key).inserted
         }
     }

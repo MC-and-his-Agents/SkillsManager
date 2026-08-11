@@ -575,12 +575,18 @@ nonisolated final class DistributionSymlinkFileSystem {
         return components
     }
 
+    func defaultRootURL(for scope: DistributionBindingScope) throws -> URL {
+        try components(for: scope).reduce(homeURL) {
+            $0.appendingPathComponent($1, isDirectory: true)
+        }.standardizedFileURL
+    }
+
     private struct ConfiguredRoot {
         let target: DistributionTarget
         let url: URL
     }
 
-    private var activeCatalog: DistributionTargetCatalog {
+    var catalog: DistributionTargetCatalog {
         suppliedCatalog ?? DistributionTargetCatalog.current(homeURL: homeURL)
     }
 
@@ -596,7 +602,7 @@ nonisolated final class DistributionSymlinkFileSystem {
             }.map(DistributionBindingScope.agent)
         }
         guard let scope,
-              let target = activeCatalog.target(for: scope),
+              let target = catalog.target(for: scope),
               target.isConfigured,
               let url = target.resolvedRootURL else {
             return nil
