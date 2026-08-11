@@ -45,6 +45,19 @@ nonisolated struct DistributionHistoricalMigrationApproval: Sendable {
     let source: DistributionCopyEvidence
     let backup: SkillBackupRecord
     let metadata: SkillBackupMigrationMetadata
+    let localOriginCleanup: LocalSkillOriginRecord?
+
+    init(
+        source: DistributionCopyEvidence,
+        backup: SkillBackupRecord,
+        metadata: SkillBackupMigrationMetadata,
+        localOriginCleanup: LocalSkillOriginRecord? = nil
+    ) {
+        self.source = source
+        self.backup = backup
+        self.metadata = metadata
+        self.localOriginCleanup = localOriginCleanup
+    }
 }
 
 nonisolated struct HistoricalSkillMigrationSource: Sendable {

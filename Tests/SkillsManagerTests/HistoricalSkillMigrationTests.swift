@@ -245,15 +245,31 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
     let writer: JournaledSSOTWriter
     let globalRoot: URL
     let sourceURL: URL
+    let sourceScope: SkillDiscoveryScope
     let slug = "demo"
 
     init(
         content: String,
+        sourceScope: SkillDiscoveryScope = .global,
         writerHooks: JournaledSSOTWriterHooks = .init()
     ) async throws {
         workspace = try WriterWorkspace(distributionEnabled: true)
-        globalRoot = workspace.distributionHomeURL
-            .appendingPathComponent(".agents/skills", isDirectory: true)
+        self.sourceScope = sourceScope
+        let sourceRoot: URL
+        switch sourceScope.kind {
+        case .global:
+            sourceRoot = workspace.distributionHomeURL
+                .appendingPathComponent(".agents/skills", isDirectory: true)
+        case .agent:
+            guard let pathVariant = sourceScope.pathVariant else {
+                throw HistoricalSkillMigrationError.invalidSelection
+            }
+            sourceRoot = workspace.distributionHomeURL
+                .appendingPathComponent(pathVariant, isDirectory: true)
+        case .custom:
+            throw HistoricalSkillMigrationError.unsupportedCandidate
+        }
+        globalRoot = sourceRoot
         sourceURL = globalRoot.appendingPathComponent(slug, isDirectory: true)
         try FileManager.default.createDirectory(at: sourceURL, withIntermediateDirectories: true)
         try Data(content.utf8).write(
@@ -287,7 +303,7 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
         let catalog = try await writer.discoveryCatalog()
         return try #require(
             SkillDiscoveryScanner().scan(
-                roots: [SkillDiscoveryRoot(scope: .global, url: globalRoot)],
+                roots: [SkillDiscoveryRoot(scope: sourceScope, url: globalRoot)],
                 catalog: catalog
             ).observations.first
         )
@@ -324,8 +340,9 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
     }
 
     func prepareExecutorMigration(
-        hooks: DistributionFilesystemTestHooks,
-        executorHooks: DistributionCopyExecutorHooks = .init()
+        hooks: DistributionFilesystemTestHooks = .init(),
+        executorHooks: DistributionCopyExecutorHooks = .init(),
+        existingBinding: Bool = false
     ) async throws -> HistoricalExecutorPreparation {
         let observation = try await scanObservation()
         let importer = ManagedSkillImportService(writer: writer, nowMilliseconds: { 42 })
@@ -334,10 +351,44 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
             action: .importNew
         )
         let imported = try await importer.execute(importPreview.token)
+        if existingBinding {
+            let slug = try DefaultDistributionSlug(validating: self.slug)
+            let catalog = DistributionTargetCatalog.current(
+                homeURL: workspace.distributionHomeURL
+            )
+            let plan = try await writer.distributionPlan(
+                skillID: imported.skill.skillID,
+                desiredConfiguration: .init(
+                    scope: .global(slug),
+                    syncMode: .symlink
+                ),
+                requiredAdapterCodes: Set(catalog.globalReaders.map(\.storageKey)),
+                catalog: catalog
+            )
+            _ = try await writer.applyDistribution(
+                skillID: imported.skill.skillID,
+                plan: plan
+            )
+        }
         let root = try #require(observation.roots.first)
+        let sourceScope: DistributionBindingScope
+        switch root.scope.kind {
+        case .global:
+            sourceScope = .global
+        case .agent:
+            guard let adapter = root.scope.adapterCode,
+                  let platform = SkillPlatform.allCases.first(where: {
+                      $0.storageKey == adapter
+                  }) else {
+                throw HistoricalSkillMigrationError.invalidSelection
+            }
+            sourceScope = .agent(platform)
+        case .custom:
+            throw HistoricalSkillMigrationError.unsupportedCandidate
+        }
         let source = HistoricalSkillMigrationSource(
             discoveryScope: root.scope,
-            scope: .global,
+            scope: sourceScope,
             rawLocator: observation.rawRelativeLocator,
             normalizedLocator: observation.relativeLocator,
             rootIdentity: observation.rootIdentity,
@@ -355,7 +406,7 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
         let operationID = SSOTOperationID()
         let metadata = try SkillBackupMigrationMetadata(
             operationID: operationID,
-            sourceScope: .global,
+            sourceScope: sourceScope,
             rawLocator: source.rawLocator,
             normalizedLocator: source.normalizedLocator,
             rootIdentity: source.rootIdentity,
@@ -373,8 +424,9 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
         )
         let plan = try await writer.historicalMigrationPlan(
             skillID: imported.skill.skillID,
-            scope: .global,
-            slug: try DefaultDistributionSlug(validating: slug)
+            scope: sourceScope,
+            slug: try DefaultDistributionSlug(validating: slug),
+            source: source
         )
         let distribution = try await distributionExecutor(
             hooks: hooks,
@@ -397,7 +449,15 @@ final class HistoricalMigrationFixture: @unchecked Sendable {
             approval: DistributionHistoricalMigrationApproval(
                 source: capture.evidence,
                 backup: backup,
-                metadata: metadata
+                metadata: metadata,
+                localOriginCleanup: existingBinding
+                    ? domain.payload.localOrigins.first(where: {
+                        $0.scope == source.discoveryScope
+                            && $0.rawLocator == source.rawLocator
+                            && $0.normalizedLocator == source.normalizedLocator
+                            && $0.fingerprint == source.fingerprint
+                    })
+                    : nil
             )
         )
     }

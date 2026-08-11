@@ -233,6 +233,8 @@ struct SkillConsistencyConvergenceTests {
             observation: observation,
             importAction: .claimExisting
         )
+        #expect(preview.sourceLocator == globalTarget.standardizedFileURL.path)
+        #expect(preview.targetLocator == codexTarget.standardizedFileURL.path)
         let result = try await service.confirm(preview.token)
 
         #expect(result.distribution.outcome == .applied)
@@ -323,6 +325,16 @@ struct SkillConsistencyConvergenceTests {
             audit: audit,
             observation: observation,
             importAction: .claimExisting
+        )
+        #expect(preview.sourceLocator == compatibilityTarget.standardizedFileURL.path)
+        #expect(
+            preview.targetLocator
+                == workspace.distributionHomeURL
+                    .appendingPathComponent(
+                        ".agents/skills/\(payload.skill.defaultDistributionSlug.value)",
+                        isDirectory: true
+                    )
+                    .standardizedFileURL.path
         )
         let result = try await service.confirm(preview.token)
 

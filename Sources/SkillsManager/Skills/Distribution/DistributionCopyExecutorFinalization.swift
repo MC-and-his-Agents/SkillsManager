@@ -226,6 +226,14 @@ nonisolated extension DistributionCopyExecutor {
                 updatedAtMilliseconds: max(timestamp, record.updatedAtMilliseconds)
             )
         }
+        let originCleanups = preflight.actions.compactMap(\.localOriginCleanup)
+        guard originCleanups.count <= 1 else {
+            throw try markOriginCleanupNeedsRepair(
+                operationID: operationID,
+                detail: "multiple historical origin cleanup intents",
+                timestamp: timestamp
+            )
+        }
         guard try bindingStore.load(skillID: skillID)
                 == desiredBindings,
               try linkOwnershipStore.load(skillID: skillID)
@@ -239,6 +247,17 @@ nonisolated extension DistributionCopyExecutor {
             bindings: desiredBindings,
             links: desiredLinks
         )
+        if let originCleanup = originCleanups.first {
+            do {
+                try localOriginStore.removeLocalOrigin(originCleanup.origin())
+            } catch {
+                throw try markOriginCleanupNeedsRepair(
+                    operationID: operationID,
+                    detail: error.localizedDescription,
+                    timestamp: timestamp
+                )
+            }
+        }
         let terminal = try operationStore.load(operationID)
         try operationStore.complete(
             operationID: operationID,
@@ -287,6 +306,19 @@ nonisolated extension DistributionCopyExecutor {
             }
             return nil
         }
+    }
+
+    private func markOriginCleanupNeedsRepair(
+        operationID: SSOTOperationID,
+        detail: String,
+        timestamp: Int64
+    ) throws -> DistributionSymlinkExecutorError {
+        try? operationStore.markNeedsRepair(
+            operationID: operationID,
+            detail: String(detail.prefix(4_096)),
+            updatedAtMilliseconds: max(timestamp, nowMilliseconds())
+        )
+        return .needsRepair("historical local origin cleanup requires repair")
     }
 
     private func cleanup(_ item: CleanupItem) throws {

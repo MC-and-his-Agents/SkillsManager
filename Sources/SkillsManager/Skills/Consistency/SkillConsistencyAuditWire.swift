@@ -114,6 +114,11 @@ nonisolated enum SkillConsistencyAuditWire {
             let relation: SkillConsistencyAuditOccupancyRelation
             if entries.isEmpty {
                 relation = .unknown
+            } else if entries.contains(where: { !completeOccupancyEvidence($0) }) {
+                // One incomplete observation poisons the whole collision
+                // group; a known sibling must not turn an unverified entry
+                // into an automatic convergence decision.
+                relation = .unknown
             } else if skillIDs.count > 1 {
                 relation = .ambiguous
             } else if fingerprints.count > 1 {
@@ -140,6 +145,20 @@ nonisolated enum SkillConsistencyAuditWire {
             ($0.relativeLocatorKey, $0.relativeLocator, $0.key)
                 < ($1.relativeLocatorKey, $1.relativeLocator, $1.key)
         }
+    }
+
+    private static func completeOccupancyEvidence(
+        _ observation: SkillConsistencyAuditDiscoveryObservation
+    ) -> Bool {
+        guard observation.fingerprint != nil,
+              let candidateIdentity = observation.candidateIdentity,
+              let revision = observation.locationRevision,
+              let candidateRevision = revision.candidate,
+              revision.root.identity == observation.rootIdentity,
+              candidateRevision.identity == candidateIdentity else {
+            return false
+        }
+        return true
     }
 
     static func locator(_ url: URL) -> String {

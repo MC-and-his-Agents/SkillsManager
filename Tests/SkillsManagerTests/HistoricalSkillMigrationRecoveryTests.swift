@@ -87,6 +87,174 @@ struct HistoricalSkillMigrationRecoveryTests {
         #expect(try fixture.isSourceSymlink())
     }
 
+    @Test("reopen recovery removes the exact origin after source cleanup")
+    func committedCleanupRemovesOriginAfterReopen() async throws {
+        let sourceScope = SkillDiscoveryScope.agent(
+            adapterCode: SkillPlatform.codex.storageKey,
+            pathVariant: SkillPlatform.codex.dedicatedDistributionRelativePath
+        )
+        let interruption = HistoricalCommittedInterruption(point: .cleaning)
+        let fixture = try await HistoricalMigrationFixture(
+            content: "# Origin cleanup",
+            sourceScope: sourceScope
+        )
+        let prepared = try await fixture.prepareExecutorMigration(
+            hooks: .init(onCheckpoint: interruption.filesystem),
+            executorHooks: .init(afterDatabaseCommit: interruption.databaseCommitted),
+            existingBinding: true
+        )
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM local_skill_origins") == 1)
+        #expect(throws: HistoricalCommittedInterruption.Failure.self) {
+            _ = try prepared.executor.apply(
+                skillID: prepared.skillID,
+                plan: prepared.plan,
+                expectedOldBindings: try prepared.executor.bindingStore.load(
+                    skillID: prepared.skillID
+                ),
+                approvedCopySource: prepared.ssotEvidence,
+                approvedHistoricalMigration: prepared.approval,
+                operationID: prepared.operationID,
+                nowMilliseconds: 42
+            )
+        }
+        #expect(try prepared.operationStore.load(prepared.operationID).phase == .cleaning)
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM local_skill_origins") == 1)
+
+        let reopened = try await fixture.distributionExecutor()
+        try reopened.executor.recoverAll()
+        try reopened.executor.recoverAll()
+
+        let completed = try reopened.operationStore.load(prepared.operationID)
+        #expect(completed.phase == .completed)
+        #expect(completed.outcome == .applied)
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM local_skill_origins") == 0)
+    }
+
+    @Test("origin cleanup conflict becomes needs repair without deleting provenance")
+    func cleanupConflictNeedsRepairAndPreservesOrigin() async throws {
+        let sourceScope = SkillDiscoveryScope.agent(
+            adapterCode: SkillPlatform.codex.storageKey,
+            pathVariant: SkillPlatform.codex.dedicatedDistributionRelativePath
+        )
+        let interruption = HistoricalCommittedInterruption(point: .databaseCommitted)
+        let fixture = try await HistoricalMigrationFixture(
+            content: "# Origin conflict",
+            sourceScope: sourceScope
+        )
+        let prepared = try await fixture.prepareExecutorMigration(
+            executorHooks: .init(afterDatabaseCommit: interruption.databaseCommitted),
+            existingBinding: true
+        )
+        #expect(throws: HistoricalCommittedInterruption.Failure.self) {
+            _ = try prepared.executor.apply(
+                skillID: prepared.skillID,
+                plan: prepared.plan,
+                expectedOldBindings: try prepared.executor.bindingStore.load(
+                    skillID: prepared.skillID
+                ),
+                approvedCopySource: prepared.ssotEvidence,
+                approvedHistoricalMigration: prepared.approval,
+                operationID: prepared.operationID,
+                nowMilliseconds: 42
+            )
+        }
+        try fixture.workspace.execute(
+            "UPDATE local_skill_origins SET confirmed_at_ms = confirmed_at_ms + 1"
+        )
+
+        let reopened = try await fixture.distributionExecutor()
+        try reopened.executor.recoverAll()
+
+        #expect(try reopened.operationStore.repairRequiredOperations().count == 1)
+        #expect(try fixture.workspace.integer("SELECT count(*) FROM local_skill_origins") == 1)
+    }
+
+    @Test("validator binds historical approval evidence and preserves old replace journals")
+    func historicalApprovalValidatorRejectsForgedEvidence() async throws {
+        let legacyFixture = try await HistoricalMigrationFixture(content: "# Legacy")
+        let legacy = try await legacyFixture.prepareExecutorMigration()
+        let legacyOperation = try legacy.executor.apply(
+            skillID: legacy.skillID,
+            plan: legacy.plan,
+            expectedOldBindings: [],
+            approvedCopySource: legacy.ssotEvidence,
+            approvedHistoricalMigration: legacy.approval,
+            operationID: legacy.operationID,
+            nowMilliseconds: 42
+        )
+        let legacyPreflight = try historicalApprovalMutation(
+            legacyOperation.preflightPayload
+        ) { backup, action in
+            for key in [
+                "skillID", "sourceScopeKey", "sourceLocator", "approvalOperationID",
+                "sourceRootIdentity", "sourceEntryIdentity", "sourceContent",
+                "sourcePhysicalTree", "targetLocator", "sourceRootLocator",
+            ] {
+                backup.removeValue(forKey: key)
+            }
+            action.removeValue(forKey: "localOriginCleanup")
+        }
+        try validateHistoricalPayloads(
+            legacyOperation,
+            preflightData: legacyPreflight
+        )
+
+        let fixture = try await HistoricalMigrationFixture(
+            content: "# Bound",
+            sourceScope: .agent(
+                adapterCode: SkillPlatform.codex.storageKey,
+                pathVariant: SkillPlatform.codex.dedicatedDistributionRelativePath
+            )
+        )
+        let prepared = try await fixture.prepareExecutorMigration(existingBinding: true)
+        let oldBindings = try prepared.executor.bindingStore.load(skillID: prepared.skillID)
+        let operation = try prepared.executor.apply(
+            skillID: prepared.skillID,
+            plan: prepared.plan,
+            expectedOldBindings: oldBindings,
+            approvedCopySource: prepared.ssotEvidence,
+            approvedHistoricalMigration: prepared.approval,
+            operationID: prepared.operationID,
+            nowMilliseconds: 42
+        )
+        let legacyUnbound = try historicalApprovalMutation(
+            operation.preflightPayload
+        ) { backup, action in
+            for key in [
+                "skillID", "sourceScopeKey", "sourceLocator", "approvalOperationID",
+                "sourceRootIdentity", "sourceEntryIdentity", "sourceContent",
+                "sourcePhysicalTree", "targetLocator", "sourceRootLocator",
+            ] {
+                backup.removeValue(forKey: key)
+            }
+            action.removeValue(forKey: "localOriginCleanup")
+        }
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            try validateHistoricalPayloads(operation, preflightData: legacyUnbound)
+        }
+
+        let mismatchedIdentity = try historicalApprovalMutation(
+            operation.preflightPayload
+        ) { backup, _ in
+            backup["sourceEntryIdentity"] = Data(
+                repeating: 0,
+                count: ManagedItemIdentityCodec.encodedByteCount
+            ).base64EncodedString()
+        }
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            try validateHistoricalPayloads(operation, preflightData: mismatchedIdentity)
+        }
+
+        let arbitraryRoot = try historicalApprovalMutation(
+            operation.preflightPayload
+        ) { backup, _ in
+            backup["sourceRootLocator"] = "/tmp/victim"
+        }
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            try validateHistoricalPayloads(operation, preflightData: arbitraryRoot)
+        }
+    }
+
     @Test("SSOT replacement after backup fails before distribution mutation")
     func rejectsSSOTReplacementAfterBackup() async throws {
         let replacement = HistoricalSSOTReplacement()
@@ -126,6 +294,52 @@ struct HistoricalSkillMigrationRecoveryTests {
                 == Data("# Existing".utf8)
         )
     }
+}
+
+private func validateHistoricalPayloads(
+    _ operation: DistributionOperationRecord,
+    preflightData: Data
+) throws {
+    try DistributionOperationPayloadV2Validator.validateActionPayloads(
+        operationID: operation.operationID,
+        skillID: operation.skillID,
+        oldBindings: try DistributionOperationPayloadCodec.decode(
+            [DistributionBindingWireV2].self,
+            from: operation.oldBindings
+        ),
+        newBindings: try DistributionOperationPayloadCodec.decode(
+            [DistributionBindingWireV2].self,
+            from: operation.newBindings
+        ),
+        planData: operation.planPayload,
+        preflightData: preflightData,
+        runtimeData: operation.runtimePayload,
+        phase: operation.phase,
+        outcome: operation.outcome,
+        forwardCursor: operation.forwardCursor,
+        rollbackCursor: operation.rollbackCursor,
+        cleanupCursor: operation.cleanupCursor
+    )
+}
+
+private func historicalApprovalMutation(
+    _ data: Data,
+    _ mutate: (inout [String: Any], inout [String: Any]) -> Void
+) throws -> Data {
+    guard var root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          var actions = root["actions"] as? [[String: Any]],
+          var action = actions.first,
+          var backup = action["historicalMigrationBackup"] as? [String: Any] else {
+        throw DistributionOperationStoreError.invalidRecord
+    }
+    mutate(&backup, &action)
+    action["historicalMigrationBackup"] = backup
+    actions[0] = action
+    root["actions"] = actions
+    return try JSONSerialization.data(
+        withJSONObject: root,
+        options: [.sortedKeys, .withoutEscapingSlashes]
+    )
 }
 
 private final class HistoricalSSOTReplacement: @unchecked Sendable {

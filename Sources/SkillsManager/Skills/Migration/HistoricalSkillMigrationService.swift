@@ -155,18 +155,22 @@ actor HistoricalSkillMigrationService {
                 createdAtMilliseconds: createdAt
             )
             states[token] = .pending(pending)
-            guard let entry = DistributionTargetCatalog.current.entry(
-                for: scope,
-                slug: slug
-            ) else {
+            guard let sourceEntry = try await writer.historicalMigrationSourceEntry(source),
+                  let targetIntent = plan.bindingReplacement.first,
+                  let targetEntry = DistributionTargetCatalog.current(
+                      homeURL: homeURL
+                  ).entry(
+                      for: targetIntent.scope,
+                      slug: targetIntent.distributionSlug
+                  ) else {
                 throw HistoricalSkillMigrationError.invalidSelection
             }
             return HistoricalSkillMigrationPreview(
                 token: token,
                 skillID: skillID,
                 sourceScope: scope,
-                sourceLocator: entry.canonicalLocator,
-                targetLocator: entry.canonicalLocator,
+                sourceLocator: sourceEntry.canonicalLocator,
+                targetLocator: targetEntry.canonicalLocator,
                 backupID: pending.backupID,
                 operationID: pending.operationID,
                 ssotAbsoluteTarget: ssotExpectation.absoluteTarget,

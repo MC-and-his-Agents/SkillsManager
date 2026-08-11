@@ -268,6 +268,9 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             throw DistributionOperationStoreError.invalidRecord
         }
         if let backup = action.historicalMigrationBackup {
+            let requiresExtendedApproval = (actionKind == .removeCopy && oldBinding == nil)
+                || (actionKind == .replaceCopyWithSymlink
+                    && oldBinding?.syncMode == DistributionSyncMode.symlink.rawValue)
             guard actionKind == .replaceCopyWithSymlink
                     || actionKind == .removeCopy,
                   oldBinding == nil
@@ -282,6 +285,36 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                   backup.locator.split(separator: "/").count == 2,
                   (try? ManagedItemIdentityCodec.decode(backup.directoryIdentity)) != nil,
                   backup.manifestDigest.count == 32 else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            if requiresExtendedApproval, action.localOriginCleanup == nil {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            try validateHistoricalApproval(
+                backup,
+                action: action,
+                planAction: planAction,
+                skillID: skillID,
+                operationID: operationID,
+                requiresExtendedApproval: requiresExtendedApproval
+            )
+        } else if action.localOriginCleanup != nil {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        if let cleanup = action.localOriginCleanup {
+            let origin = try cleanup.origin()
+            guard origin.skillID == skillID,
+                  origin.normalizedLocator == action.slug,
+                  origin.collisionKey == planSlug.collisionKey,
+                  action.historicalMigrationBackup != nil,
+                  actionKind == .removeCopy
+                    || actionKind == .replaceCopyWithSymlink,
+                  let oldCopy = action.oldCopy,
+                  origin.fingerprint == (try oldCopy.evidence()).contentFingerprint else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            let originScope = try originDistributionScope(origin.scope)
+            guard originScope == scope else {
                 throw DistributionOperationStoreError.invalidRecord
             }
         }
@@ -341,6 +374,87 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             false
         }
         guard valid else { throw DistributionOperationStoreError.invalidRecord }
+    }
+
+    private static func validateHistoricalApproval(
+        _ backup: DistributionHistoricalMigrationBackupWireV2,
+        action: DistributionOperationPreflightActionV2,
+        planAction: DistributionPlanActionWire,
+        skillID: SkillID,
+        operationID: SSOTOperationID,
+        requiresExtendedApproval: Bool
+    ) throws {
+        // Journals written before the extended approval fields remain valid;
+        // the executor revalidates their backup manifest before mutation.
+        let fieldCount = [
+            backup.skillID != nil,
+            backup.sourceScopeKey != nil,
+            backup.sourceLocator != nil,
+            backup.approvalOperationID != nil,
+            backup.sourceRootIdentity != nil,
+            backup.sourceEntryIdentity != nil,
+            backup.sourceContent != nil,
+            backup.sourcePhysicalTree != nil,
+            backup.targetLocator != nil,
+            backup.sourceRootLocator != nil,
+        ].count(where: { $0 })
+        guard fieldCount == 0 || fieldCount == 10,
+              !requiresExtendedApproval || fieldCount == 10 else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        guard fieldCount == 10,
+              let recordedSkillID = backup.skillID,
+              let sourceScopeKey = backup.sourceScopeKey,
+              let sourceLocator = backup.sourceLocator,
+              let approvalOperationID = backup.approvalOperationID,
+              let sourceRootIdentity = backup.sourceRootIdentity,
+              let sourceEntryIdentity = backup.sourceEntryIdentity,
+              let sourceContent = backup.sourceContent,
+              let sourcePhysicalTree = backup.sourcePhysicalTree,
+              let targetLocator = backup.targetLocator,
+              let sourceRootLocator = backup.sourceRootLocator else {
+            return
+        }
+        guard recordedSkillID == skillID.directoryName,
+              sourceScopeKey == action.targetScopeKey,
+              sourceLocator == action.slug,
+              targetLocator == planAction.targetLocator,
+              sourceRootLocator == String(
+                  planAction.targetLocator.dropLast("/\(action.slug)".count)
+              ),
+              try SSOTOperationID(bytes: approvalOperationID) == operationID,
+              let oldCopy = action.oldCopy,
+              sourceRootIdentity == oldCopy.rootIdentity,
+              sourceEntryIdentity == oldCopy.entryIdentity,
+              sourceContent == oldCopy.content,
+              sourcePhysicalTree == oldCopy.physicalTree else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    private static func originDistributionScope(
+        _ scope: SkillDiscoveryScope
+    ) throws -> DistributionBindingScope {
+        switch scope.kind {
+        case .global:
+            guard scope.adapterCode == nil,
+                  scope.pathVariant == nil,
+                  scope.customPathID == nil else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            return .global
+        case .agent:
+            guard let adapter = scope.adapterCode,
+                  scope.customPathID == nil,
+                  let platform = SkillPlatform.allCases.first(where: {
+                      $0.storageKey == adapter
+                  }) else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            return .agent(platform)
+        case .custom:
+            throw DistributionOperationStoreError.invalidRecord
+        }
     }
 
     static func validateRuntimeAction(

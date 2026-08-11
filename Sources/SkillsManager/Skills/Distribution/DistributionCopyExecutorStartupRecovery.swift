@@ -7,14 +7,25 @@ nonisolated extension DistributionCopyExecutor {
             do {
                 try recover(operation)
             } catch {
-                try operationStore.markNeedsRepair(
-                    operationID: operation.operationID,
-                    detail: error.localizedDescription,
-                    updatedAtMilliseconds: max(
-                        operation.updatedAtMilliseconds,
-                        nowMilliseconds()
+                do {
+                    try operationStore.markNeedsRepair(
+                        operationID: operation.operationID,
+                        detail: error.localizedDescription,
+                        updatedAtMilliseconds: max(
+                            operation.updatedAtMilliseconds,
+                            nowMilliseconds()
+                        )
                     )
-                )
+                } catch DistributionOperationStoreError.conflict {
+                    // A committed cleanup may mark needsRepair before the
+                    // recovery boundary reports its typed failure. Treat the
+                    // second mark as idempotent only when the terminal repair
+                    // outcome is already durable.
+                    guard try operationStore.load(operation.operationID).outcome
+                        == .needsRepair else {
+                        throw error
+                    }
+                }
             }
         }
     }

@@ -10,6 +10,7 @@ nonisolated final class DistributionCopyExecutor {
     let bindingStore: DistributionBindingStore
     let configurationStore: DistributionConfigurationStore
     let linkOwnershipStore: DistributionLinkOwnershipStore
+    let localOriginStore: SSOTJournalStore
     let operationStore: DistributionOperationStore
     let backupStore: SkillBackupStore
     let fileSystem: DistributionSymlinkFileSystem
@@ -29,6 +30,7 @@ nonisolated final class DistributionCopyExecutor {
         bindingStore = DistributionBindingStore(connection: connection)
         configurationStore = DistributionConfigurationStore(connection: connection)
         linkOwnershipStore = DistributionLinkOwnershipStore(connection: connection)
+        localOriginStore = try SSOTJournalStore(connection: connection)
         operationStore = try DistributionOperationStore(connection: connection)
         backupStore = try SkillBackupStore(connection: connection)
         self.fileSystem = fileSystem

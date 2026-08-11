@@ -245,12 +245,170 @@ nonisolated struct DistributionHistoricalMigrationBackupWireV2:
     let locator: String
     let directoryIdentity: Data
     let manifestDigest: Data
+    // These optional fields were added after the first V2 journal format. An
+    // absent value keeps old journals decodable; new historical approvals bind
+    // the backup to the exact source evidence and operation plan.
+    let skillID: String?
+    let sourceScopeKey: String?
+    let sourceLocator: String?
+    let approvalOperationID: Data?
+    let sourceRootIdentity: Data?
+    let sourceEntryIdentity: Data?
+    let sourceContent: DistributionFingerprintWireV2?
+    let sourcePhysicalTree: DistributionTreeDigestWireV2?
+    let targetLocator: String?
+    let sourceRootLocator: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case backupID
+        case directoryIdentity
+        case locator
+        case manifestDigest
+        case skillID
+        case sourceScopeKey
+        case sourceLocator
+        case approvalOperationID
+        case sourceRootIdentity
+        case sourceEntryIdentity
+        case sourceContent
+        case sourcePhysicalTree
+        case targetLocator
+        case sourceRootLocator
+    }
 
     init(_ backup: SkillBackupRecord) throws {
         backupID = backup.backupID.uuid.uuidString.lowercased()
         locator = backup.locator
         directoryIdentity = try ManagedItemIdentityCodec.encode(backup.directoryIdentity)
         manifestDigest = backup.manifestDigest
+        skillID = nil
+        sourceScopeKey = nil
+        sourceLocator = nil
+        approvalOperationID = nil
+        sourceRootIdentity = nil
+        sourceEntryIdentity = nil
+        sourceContent = nil
+        sourcePhysicalTree = nil
+        targetLocator = nil
+        sourceRootLocator = nil
+    }
+
+    init(
+        _ backup: SkillBackupRecord,
+        source: DistributionCopyEvidence,
+        sourceScopeKey: String,
+        sourceLocator: String,
+        operationID: SSOTOperationID,
+        targetLocator: String,
+        sourceRootLocator: String
+    ) throws {
+        backupID = backup.backupID.uuid.uuidString.lowercased()
+        locator = backup.locator
+        directoryIdentity = try ManagedItemIdentityCodec.encode(backup.directoryIdentity)
+        manifestDigest = backup.manifestDigest
+        skillID = backup.originalSkillID.directoryName
+        self.sourceScopeKey = sourceScopeKey
+        self.sourceLocator = sourceLocator
+        approvalOperationID = operationID.bytes
+        sourceRootIdentity = try ManagedItemIdentityCodec.encode(source.rootIdentity)
+        sourceEntryIdentity = try ManagedItemIdentityCodec.encode(source.entryIdentity)
+        sourceContent = DistributionFingerprintWireV2(source.contentFingerprint)
+        sourcePhysicalTree = DistributionTreeDigestWireV2(source.physicalTreeDigest)
+        self.targetLocator = targetLocator
+        self.sourceRootLocator = sourceRootLocator
+    }
+}
+
+nonisolated struct DistributionLocalSkillOriginCleanupWireV2:
+    Codable, Equatable, Sendable
+{
+    let skillID: String
+    let scopeKind: String
+    let adapterCode: String?
+    let pathVariant: String?
+    let customPathID: String?
+    let rawLocator: String
+    let normalizedLocator: String
+    let collisionKey: String
+    let fingerprintAlgorithmVersion: Int
+    let contentFingerprint: Data
+    let confirmedAtMilliseconds: Int64
+
+    private enum CodingKeys: String, CodingKey {
+        case skillID
+        case scopeKind
+        case adapterCode
+        case pathVariant
+        case customPathID
+        case rawLocator
+        case normalizedLocator
+        case collisionKey
+        case fingerprintAlgorithmVersion
+        case contentFingerprint
+        case confirmedAtMilliseconds
+    }
+
+    init(_ origin: LocalSkillOriginRecord) {
+        skillID = origin.skillID.directoryName
+        scopeKind = origin.scope.kind.rawValue
+        adapterCode = origin.scope.adapterCode
+        pathVariant = origin.scope.pathVariant
+        customPathID = origin.scope.customPathID?.uuidString.lowercased()
+        rawLocator = origin.rawLocator
+        normalizedLocator = origin.normalizedLocator
+        collisionKey = origin.collisionKey
+        fingerprintAlgorithmVersion = origin.fingerprint.algorithmVersion
+        contentFingerprint = origin.fingerprint.digest
+        confirmedAtMilliseconds = origin.confirmedAtMilliseconds
+    }
+
+    func origin() throws -> LocalSkillOriginRecord {
+        guard let skillUUID = UUID(uuidString: skillID),
+              skillUUID.uuidString.lowercased() == skillID,
+              let kind = SkillDiscoveryScopeKind(rawValue: scopeKind) else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        let scope: SkillDiscoveryScope
+        switch kind {
+        case .global:
+            guard adapterCode == nil, pathVariant == nil, customPathID == nil else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            scope = .global
+        case .agent:
+            guard let adapterCode, let pathVariant, customPathID == nil else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            scope = .agent(adapterCode: adapterCode, pathVariant: pathVariant)
+        case .custom:
+            guard let adapterCode, let pathVariant,
+                  let customPathID,
+                  let pathID = UUID(uuidString: customPathID),
+                  pathID.uuidString.lowercased() == customPathID else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            scope = .custom(
+                pathID: pathID,
+                adapterCode: adapterCode,
+                pathVariant: pathVariant
+            )
+        }
+        do {
+            return try LocalSkillOriginRecord(
+                skillID: SkillID(skillUUID),
+                scope: scope,
+                rawLocator: rawLocator,
+                normalizedLocator: normalizedLocator,
+                collisionKey: collisionKey,
+                fingerprint: SkillContentFingerprint(
+                    algorithmVersion: fingerprintAlgorithmVersion,
+                    digest: contentFingerprint
+                ),
+                confirmedAtMilliseconds: confirmedAtMilliseconds
+            )
+        } catch {
+            throw DistributionOperationStoreError.invalidRecord
+        }
     }
 }
 
@@ -267,10 +425,12 @@ nonisolated struct DistributionOperationPreflightActionV2:
     let stagingName: String?
     let quarantineName: String?
     let historicalMigrationBackup: DistributionHistoricalMigrationBackupWireV2?
+    let localOriginCleanup: DistributionLocalSkillOriginCleanupWireV2?
 
     enum CodingKeys: String, CodingKey {
         case actionIndex
         case historicalMigrationBackup
+        case localOriginCleanup
         case kind
         case oldCopy
         case oldLink
@@ -291,7 +451,8 @@ nonisolated struct DistributionOperationPreflightActionV2:
         oldLink: DistributionLinkEvidenceWireV2?,
         stagingName: String?,
         quarantineName: String?,
-        historicalMigrationBackup: DistributionHistoricalMigrationBackupWireV2? = nil
+        historicalMigrationBackup: DistributionHistoricalMigrationBackupWireV2? = nil,
+        localOriginCleanup: DistributionLocalSkillOriginCleanupWireV2? = nil
     ) {
         self.actionIndex = actionIndex
         self.kind = kind
@@ -303,6 +464,7 @@ nonisolated struct DistributionOperationPreflightActionV2:
         self.stagingName = stagingName
         self.quarantineName = quarantineName
         self.historicalMigrationBackup = historicalMigrationBackup
+        self.localOriginCleanup = localOriginCleanup
     }
 
     init(from decoder: Decoder) throws {
@@ -326,6 +488,10 @@ nonisolated struct DistributionOperationPreflightActionV2:
             DistributionHistoricalMigrationBackupWireV2.self,
             forKey: .historicalMigrationBackup
         )
+        localOriginCleanup = try container.decodeIfPresent(
+            DistributionLocalSkillOriginCleanupWireV2.self,
+            forKey: .localOriginCleanup
+        )
     }
 
     func encode(to encoder: Encoder) throws {
@@ -343,6 +509,7 @@ nonisolated struct DistributionOperationPreflightActionV2:
             historicalMigrationBackup,
             forKey: .historicalMigrationBackup
         )
+        try container.encodeIfPresent(localOriginCleanup, forKey: .localOriginCleanup)
     }
 }
 
@@ -451,8 +618,23 @@ nonisolated enum DistributionOperationPayloadV2Validator {
             newBindings: newBindings,
             allowsHistoricalUnboundCleanup: preflight.actions.contains {
                 ($0.kind == DistributionFilesystemActionKind.removeCopy.rawValue
-                || $0.kind == DistributionFilesystemActionKind.replaceCopyWithSymlink.rawValue)
-                && $0.historicalMigrationBackup != nil
+                    || $0.kind == DistributionFilesystemActionKind.replaceCopyWithSymlink.rawValue)
+                    && $0.historicalMigrationBackup.map {
+                        [
+                            $0.skillID != nil,
+                            $0.sourceScopeKey != nil,
+                            $0.sourceLocator != nil,
+                            $0.approvalOperationID != nil,
+                            $0.sourceRootIdentity != nil,
+                            $0.sourceEntryIdentity != nil,
+                            $0.sourceContent != nil,
+                            $0.sourcePhysicalTree != nil,
+                            $0.targetLocator != nil,
+                            $0.sourceRootLocator != nil,
+                        ].allSatisfy { $0 }
+                    } == true
+                    && ($0.kind != DistributionFilesystemActionKind.removeCopy.rawValue
+                        || $0.localOriginCleanup != nil)
             }
         )
         let actionKinds = plan.filesystemActions.map(\.action)

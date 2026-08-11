@@ -359,7 +359,18 @@ extension JournaledSSOTWriter {
             source: current.evidence,
             backup: backup,
             metadata: try validatedBackupManifest(backup).migrationMetadata
-                ?? metadata
+                ?? metadata,
+            localOriginCleanup: shouldRemoveOrigin
+                ? domain.payload.localOrigins.first(where: {
+                    $0.scope == request.source.discoveryScope
+                        && $0.rawLocator == request.source.rawLocator
+                        && $0.normalizedLocator == request.source.normalizedLocator
+                        && $0.collisionKey == SkillContentPath.collisionKey(
+                            for: request.source.normalizedLocator
+                        )
+                        && $0.fingerprint == request.source.fingerprint
+                })
+                : nil
         )
         let operation = try applyOrReadHistoricalMigration(
             request: request,
@@ -464,16 +475,24 @@ extension JournaledSSOTWriter {
         skillID: SkillID,
         source: HistoricalSkillMigrationSource
     ) throws {
-        let origin = try LocalSkillOriginRecord(
-            skillID: skillID,
-            scope: source.discoveryScope,
-            rawLocator: source.rawLocator,
-            normalizedLocator: source.normalizedLocator,
-            collisionKey: SkillContentPath.collisionKey(for: source.normalizedLocator),
-            fingerprint: source.fingerprint,
-            confirmedAtMilliseconds: 0
-        )
+        guard let origin = try journal.localOrigins().first(where: {
+            $0.skillID == skillID
+                && $0.scope == source.discoveryScope
+                && $0.rawLocator == source.rawLocator
+                && $0.normalizedLocator == source.normalizedLocator
+                && $0.collisionKey == SkillContentPath.collisionKey(
+                    for: source.normalizedLocator
+                )
+                && $0.fingerprint == source.fingerprint
+        }) else { return }
         try journal.removeLocalOrigin(origin)
+    }
+
+    func historicalMigrationSourceEntry(
+        _ source: HistoricalSkillMigrationSource
+    ) throws -> DistributionTargetEntry? {
+        try requireAuthority()
+        return try historicalMigrationEntry(source)
     }
 
     private func historicalMigrationEntry(

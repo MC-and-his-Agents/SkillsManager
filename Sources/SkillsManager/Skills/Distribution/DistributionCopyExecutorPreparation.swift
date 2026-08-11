@@ -325,8 +325,21 @@ nonisolated extension DistributionCopyExecutor {
                 : nil,
             historicalMigrationBackup: try isHistoricalMigration
                 ? approvedHistoricalMigration.map {
-                    try DistributionHistoricalMigrationBackupWireV2($0.backup)
-                } : nil
+                    try DistributionHistoricalMigrationBackupWireV2(
+                        $0.backup,
+                        source: $0.source,
+                        sourceScopeKey: $0.metadata.sourceScope.targetScopeKey,
+                        sourceLocator: $0.metadata.rawLocator,
+                        operationID: operationID,
+                        targetLocator: action.entry.canonicalLocator,
+                        sourceRootLocator: action.entry.target.rootLocator
+                    )
+                } : nil,
+            localOriginCleanup: isHistoricalMigration
+                ? approvedHistoricalMigration?.localOriginCleanup.map(
+                    DistributionLocalSkillOriginCleanupWireV2.init
+                )
+                : nil
         )
     }
 

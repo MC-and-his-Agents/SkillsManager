@@ -200,6 +200,99 @@ struct SkillConsistencyAuditTests {
         )
     }
 
+    @Test("unknown occupancy keeps every known sibling for review")
+    func knownAndMissingOccupancyIsUnknown() throws {
+        let workspace = try WriterWorkspace()
+        let verified = try ManagedRootReference.capture(at: workspace.root).verifiedRoot()
+        let root = SkillDiscoveryRoot(scope: .global, url: workspace.root)
+        let observedRoot = SkillDiscoveryObservedRoot(root: root, identity: verified.identity)
+        let identity = ManagedItemIdentity(
+            persistedComponents: .init(
+                device: 1,
+                inode: 2,
+                fileType: UInt32(S_IFDIR),
+                generation: 0
+            )
+        )
+        var metadata = stat()
+        metadata.st_mode = mode_t(S_IFDIR)
+        let revision = SkillDiscoveryFileRevision(metadata)
+        let fingerprint = try SkillContentFingerprint(
+            currentDigest: Data(repeating: 7, count: 32)
+        )
+        let skillID = SkillID()
+        let known = SkillDiscoveryObservation(
+            roots: [root],
+            rootIdentity: identity,
+            rawRelativeLocator: "demo",
+            relativeLocator: "demo",
+            relativeLocatorKey: "demo",
+            candidateIdentity: identity,
+            symbolicLinkIdentity: nil,
+            locationRevision: SkillDiscoveryLocationRevision(
+                root: revision,
+                container: nil,
+                candidate: revision
+            ),
+            fingerprint: fingerprint,
+            providerAliases: [],
+            status: .claimable,
+            reason: nil,
+            matchedSkillID: skillID,
+            matchedSourceKey: nil
+        )
+        let missing = SkillDiscoveryObservation(
+            roots: [root],
+            rootIdentity: identity,
+            rawRelativeLocator: "demo",
+            relativeLocator: "demo",
+            relativeLocatorKey: "demo",
+            candidateIdentity: nil,
+            symbolicLinkIdentity: nil,
+            locationRevision: nil,
+            fingerprint: nil,
+            providerAliases: [],
+            status: .damaged,
+            reason: .candidateReadFailed,
+            matchedSkillID: nil,
+            matchedSourceKey: nil
+        )
+        let discovery = try SkillConsistencyAuditWire.discovery(
+            SkillDiscoveryResult(
+                observedRoots: [observedRoot],
+                observations: [known, missing],
+                rootDiagnostics: []
+            ),
+            homeURL: workspace.workspace,
+            bindingsBySkillID: [:],
+            reconcileBySkillID: [:]
+        )
+        let manifest = SkillConsistencyAuditManifest(
+            schema: "skills-manager-consistency-audit/v1",
+            coverage: .complete,
+            health: [],
+            root: SkillConsistencyAuditManagedRoot(
+                registeredLocator: workspace.root.path,
+                canonicalLocator: workspace.root.path,
+                identity: try ManagedItemIdentityCodec.encode(verified.identity)
+            ),
+            managedSkills: [],
+            distributions: [],
+            discovery: discovery
+        )
+        let prepared = SkillConsistencyAuditPrepared(
+            manifest: manifest,
+            canonicalBytes: try SkillConsistencyAuditManifestCodec.encode(manifest),
+            discoveryObservations: [known, missing]
+        )
+
+        let occupancy = try #require(discovery.occupancies.first)
+        #expect(occupancy.relation == .unknown)
+        let findings = try SkillConsistencyPresentation.historicalFindings(prepared)
+        #expect(findings.count == 2)
+        #expect(findings.allSatisfy { $0.actions == [.keepForNow] })
+    }
+
     @Test("marks an observed unsupported root as incomplete")
     func incompleteCoverage() async throws {
         let workspace = try WriterWorkspace(distributionEnabled: true)

@@ -110,7 +110,7 @@ nonisolated extension SSOTJournalStore {
     func removeLocalOrigin(_ expected: LocalSkillOriginRecord) throws {
         try transaction {
             let stored = try localOriginsByPosition()[expected.position]
-            guard stored == nil || sameLocalOriginEvidence(stored!, expected) else {
+            guard stored == nil || sameLocalOriginCleanupEvidence(stored!, expected) else {
                 throw LocalSkillOriginStoreError.conflict
             }
             guard stored != nil else { return }
@@ -121,7 +121,7 @@ nonisolated extension SSOTJournalStore {
                   AND path_variant IS ? AND custom_path_id IS ?
                   AND raw_locator = ? AND normalized_locator = ?
                   AND collision_key = ? AND fingerprint_algorithm_version = ?
-                  AND content_fingerprint = ?
+                  AND content_fingerprint = ? AND confirmed_at_ms = ?
                 """
             )
             try statement.bind(expected.skillID.bytes, at: 1)
@@ -138,6 +138,7 @@ nonisolated extension SSOTJournalStore {
             try statement.bind(expected.collisionKey, at: 8)
             try statement.bind(Int64(expected.fingerprint.algorithmVersion), at: 9)
             try statement.bind(expected.fingerprint.digest, at: 10)
+            try statement.bind(expected.confirmedAtMilliseconds, at: 11)
             try finishMutation(statement)
         }
     }
@@ -265,4 +266,12 @@ private nonisolated func sameLocalOriginPositionEvidence(
         && lhs.normalizedLocator == rhs.normalizedLocator
         && lhs.collisionKey == rhs.collisionKey
         && lhs.fingerprint == rhs.fingerprint
+}
+
+private nonisolated func sameLocalOriginCleanupEvidence(
+    _ lhs: LocalSkillOriginRecord,
+    _ rhs: LocalSkillOriginRecord
+) -> Bool {
+    sameLocalOriginEvidence(lhs, rhs)
+        && lhs.confirmedAtMilliseconds == rhs.confirmedAtMilliseconds
 }

@@ -6,7 +6,15 @@ nonisolated extension DistributionCopyExecutor {
         action: DistributionFilesystemAction,
         operationID: SSOTOperationID
     ) throws {
-        let wire = try DistributionHistoricalMigrationBackupWireV2(approval.backup)
+        let wire = try DistributionHistoricalMigrationBackupWireV2(
+            approval.backup,
+            source: approval.source,
+            sourceScopeKey: approval.metadata.sourceScope.targetScopeKey,
+            sourceLocator: approval.metadata.rawLocator,
+            operationID: operationID,
+            targetLocator: action.entry.canonicalLocator,
+            sourceRootLocator: action.entry.target.rootLocator
+        )
         try requireHistoricalMigrationBackup(
             action: action,
             backupWire: wire,
@@ -19,6 +27,19 @@ nonisolated extension DistributionCopyExecutor {
               approval.metadata.rootIdentity == approval.source.rootIdentity,
               approval.metadata.candidateIdentity == approval.source.entryIdentity,
               approval.metadata.fingerprint == approval.source.contentFingerprint else {
+            throw DistributionSymlinkExecutorError.conflict
+        }
+        let metadataOperationMatches: Bool
+        if approval.metadata.operationID == operationID {
+            metadataOperationMatches = true
+        } else {
+            metadataOperationMatches = try historicalMigrationOperationMatches(
+                approval.metadata.operationID,
+                current: operationID,
+                skillID: approval.backup.originalSkillID
+            )
+        }
+        guard metadataOperationMatches else {
             throw DistributionSymlinkExecutorError.conflict
         }
     }
@@ -82,6 +103,13 @@ nonisolated extension DistributionCopyExecutor {
               ) else {
             throw HistoricalSkillMigrationError.backupUnavailable
         }
+        try validateHistoricalApprovalWire(
+            backupWire,
+            action: action,
+            source: source,
+            operationID: operationID,
+            skillID: backup.originalSkillID
+        )
         let validated = try backupFileSystem.validate(
             locator: backup.locator,
             expectedIdentity: backup.directoryIdentity,
@@ -104,6 +132,58 @@ nonisolated extension DistributionCopyExecutor {
               metadata.rootIdentity == source.rootIdentity,
               metadata.candidateIdentity == source.entryIdentity,
               metadata.fingerprint == source.contentFingerprint else {
+            throw HistoricalSkillMigrationError.backupUnavailable
+        }
+    }
+
+    private func validateHistoricalApprovalWire(
+        _ wire: DistributionHistoricalMigrationBackupWireV2,
+        action: DistributionFilesystemAction,
+        source: DistributionCopyEvidence,
+        operationID: SSOTOperationID,
+        skillID: SkillID
+    ) throws {
+        let fieldCount = [
+            wire.skillID != nil,
+            wire.sourceScopeKey != nil,
+            wire.sourceLocator != nil,
+            wire.approvalOperationID != nil,
+            wire.sourceRootIdentity != nil,
+            wire.sourceEntryIdentity != nil,
+            wire.sourceContent != nil,
+            wire.sourcePhysicalTree != nil,
+            wire.targetLocator != nil,
+            wire.sourceRootLocator != nil,
+        ].count(where: { $0 })
+        guard fieldCount == 0 || fieldCount == 10 else {
+            throw HistoricalSkillMigrationError.backupUnavailable
+        }
+        guard fieldCount == 10,
+              let recordedSkillID = wire.skillID,
+              let sourceScopeKey = wire.sourceScopeKey,
+              let sourceLocator = wire.sourceLocator,
+              let approvalOperationID = wire.approvalOperationID,
+              let sourceRootIdentity = wire.sourceRootIdentity,
+              let sourceEntryIdentity = wire.sourceEntryIdentity,
+              let sourceContent = wire.sourceContent,
+              let sourcePhysicalTree = wire.sourcePhysicalTree,
+              let targetLocator = wire.targetLocator,
+              let sourceRootLocator = wire.sourceRootLocator else {
+            return
+        }
+        guard recordedSkillID == skillID.directoryName,
+              sourceScopeKey == action.entry.target.scope.targetScopeKey,
+              sourceLocator == action.entry.distributionSlug.value,
+              targetLocator == action.entry.canonicalLocator,
+              sourceRootLocator == action.entry.target.rootLocator,
+              approvalOperationID == operationID.bytes,
+              sourceRootIdentity
+                == (try ManagedItemIdentityCodec.encode(source.rootIdentity)),
+              sourceEntryIdentity
+                == (try ManagedItemIdentityCodec.encode(source.entryIdentity)),
+              sourceContent == DistributionFingerprintWireV2(source.contentFingerprint),
+              sourcePhysicalTree
+                == DistributionTreeDigestWireV2(source.physicalTreeDigest) else {
             throw HistoricalSkillMigrationError.backupUnavailable
         }
     }
