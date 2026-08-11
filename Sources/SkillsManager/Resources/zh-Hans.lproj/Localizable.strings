@@ -82,6 +82,8 @@
 	<string>%1$lld 个目标%2$@</string>
 	<key>%lld valid · %lld observed</key>
 	<string>%1$lld 个有效 · 已观察 %2$lld</string>
+	<key>%lld valid · %lld observed candidate(s)</key>
+	<string>%1$lld 个有效 · 已观察 %2$lld 个候选项</string>
 	<key>+%lld verified alias locations</key>
 	<string>+%lld 个已验证别名位置</string>
 	<key>0 of %lld complete.</key>
@@ -124,6 +126,10 @@
 	<string>操作</string>
 	<key>Active filters: %@</key>
 	<string>当前筛选：%@</string>
+	<key>Actual scan roots</key>
+	<string>实际扫描根目录</string>
+	<key>Adapter</key>
+	<string>适配器</string>
 	<key>Add</key>
 	<string>添加</string>
 	<key>Add %@ to the managed library or safely update it.</key>
@@ -316,6 +322,10 @@
 	<string>选择一个 skills.sh 结果。</string>
 	<key>Choose an action</key>
 	<string>选择操作</string>
+	<key>Choose an adapter</key>
+	<string>选择适配器</string>
+	<key>Choose an adapter for this direct Skill collection root.</key>
+	<string>请为此直接 Skill 集合根目录选择适配器。</string>
 	<key>Choose how to handle every modified Copy before updating.</key>
 	<string>更新前请选择如何处理每个已修改的副本。</string>
 	<key>Choose how to handle every modified Copy.</key>
@@ -464,6 +474,10 @@
 	<string>删除未完成。活动 Skill 已恢复到之前的状态。</string>
 	<key>Deletion operations</key>
 	<string>删除操作</string>
+	<key>Direct Skill collection root</key>
+	<string>直接 Skill 集合根目录</string>
+	<key>Direct collection · %@</key>
+	<string>直接集合 · %@</string>
 	<key>Disable missing target</key>
 	<string>停用缺失目标</string>
 	<key>Disabled</key>
@@ -864,6 +878,8 @@
 	<string>没有匹配的发现</string>
 	<key>No more unique results.</key>
 	<string>没有更多唯一结果。</string>
+	<key>No scan roots</key>
+	<string>没有扫描根目录</string>
 	<key>No skills.sh results.</key>
 	<string>没有 skills.sh 结果。</string>
 	<key>No source metadata</key>
@@ -874,6 +890,8 @@
 	<string>未开始更新此 Skill。</string>
 	<key>No usable discovery result</key>
 	<string>没有可用的发现结果</string>
+	<key>No valid Skill candidates found. Check the actual scan roots and reported diagnostics.</key>
+	<string>未找到有效 Skill 候选项。请检查实际扫描根目录和报告的诊断信息。</string>
 	<key>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</key>
 	<string>未找到有效 Skill。请检查报告的扫描问题，并确保每个 Skill 都有可读取的 SKILL.md。</string>
 	<key>None will be created</key>
@@ -940,6 +958,8 @@
 	<string>孤立托管目录</string>
 	<key>Patch</key>
 	<string>补丁版本</string>
+	<key>Path type</key>
+	<string>路径类型</string>
 	<key>Permission denied</key>
 	<string>权限被拒绝</string>
 	<key>Permission denied while applying the repair.</key>
@@ -986,6 +1006,8 @@
 	<string>在向已管理库写入任何内容前预览更改。</string>
 	<key>Previews removal of managed distribution targets. The managed Skill is retained.</key>
 	<string>预览删除已管理分发目标。已管理的 Skill 将保留。</string>
+	<key>Project root</key>
+	<string>项目根目录</string>
 	<key>Provider alias</key>
 	<string>提供商别名</string>
 	<key>Publish Skill</key>
@@ -1250,6 +1272,8 @@
 	<string>选择发现的 Skill</string>
 	<key>Select a project folder</key>
 	<string>选择项目文件夹</string>
+	<key>Select a project folder or a direct Skill collection root. Project roots use known platform subpaths; collection roots scan direct Skill children.</key>
+	<string>选择项目文件夹或直接 Skill 集合根目录。项目根目录会扫描已知平台子路径；集合根目录会扫描其直接 Skill 子项。</string>
 	<key>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</key>
 	<string>选择项目文件夹。系统将从平台目录自动发现 Skill（例如 .claude/skills、.codex/skills、.codex/skills/public）。</string>
 	<key>Select a skill</key>
@@ -1304,6 +1328,8 @@
 	<string>Skills Manager 没有导入此 Skill 的权限。</string>
 	<key>Skills Manager will %@</key>
 	<string>Skills Manager 将%@</string>
+	<key>Skills stay in place; this path is registered for read-only discovery.</key>
+	<string>Skill 将保留在原位置；此路径仅注册为只读发现来源。</string>
 	<key>Skipped</key>
 	<string>已跳过</string>
 	<key>Skipped: %@</key>
@@ -1586,6 +1612,8 @@
 	<string>所选 Skill 在验证后发生更改。请重新选择。</string>
 	<key>The selected Skill is no longer valid.</key>
 	<string>所选 Skill 已不再有效。</string>
+	<key>The selected custom path mode is invalid.</key>
+	<string>所选自定义路径模式无效。</string>
 	<key>The selected directory does not exist.</key>
 	<string>所选目录不存在。</string>
 	<key>The selected item contains more than one Skill folder.</key>
@@ -1720,6 +1748,8 @@
 	<string>此修复当前不可用。</string>
 	<key>This skills.sh result is already linked to a different managed source.</key>
 	<string>此 skills.sh 结果已链接到其他托管来源。</string>
+	<key>This standard path matches more than one adapter; choose one explicitly.</key>
+	<string>此标准路径匹配多个适配器；请选择一个。</string>
 	<key>This target could not be inspected.</key>
 	<string>无法检查此目标。</string>
 	<key>This will remove "%@" from the sidebar. The skills will not be deleted from disk.</key>

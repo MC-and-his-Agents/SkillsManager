@@ -92,9 +92,12 @@ struct CustomPathSectionHeader: View {
     private var modeLabel: String {
         switch customPath.mode {
         case .project:
-            return "Project root"
+            return String(localized: "Project root", bundle: SkillsManagerLocalizationResources.bundle)
         case .collection(let adapter):
-            return "Direct collection · \(adapter.rawValue)"
+            return String(localized: LocalizedStringResource(
+                "Direct collection · \(adapter.rawValue)",
+                bundle: SkillsManagerLocalizationResources.bundle
+            ))
         }
     }
 

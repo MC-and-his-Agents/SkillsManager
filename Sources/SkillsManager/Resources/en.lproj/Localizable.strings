@@ -82,6 +82,8 @@
 	<string>%1$lld target%2$@</string>
 	<key>%lld valid · %lld observed</key>
 	<string>%1$lld valid · %2$lld observed</string>
+	<key>%lld valid · %lld observed candidate(s)</key>
+	<string>%1$lld valid · %2$lld observed candidate(s)</string>
 	<key>+%lld verified alias locations</key>
 	<string>+%lld verified alias locations</string>
 	<key>0 of %lld complete.</key>
@@ -124,6 +126,10 @@
 	<string>Actions</string>
 	<key>Active filters: %@</key>
 	<string>Active filters: %@</string>
+	<key>Actual scan roots</key>
+	<string>Actual scan roots</string>
+	<key>Adapter</key>
+	<string>Adapter</string>
 	<key>Add</key>
 	<string>Add</string>
 	<key>Add %@ to the managed library or safely update it.</key>
@@ -316,6 +322,10 @@
 	<string>Choose a skills.sh result.</string>
 	<key>Choose an action</key>
 	<string>Choose an action</string>
+	<key>Choose an adapter</key>
+	<string>Choose an adapter</string>
+	<key>Choose an adapter for this direct Skill collection root.</key>
+	<string>Choose an adapter for this direct Skill collection root.</string>
 	<key>Choose how to handle every modified Copy before updating.</key>
 	<string>Choose how to handle every modified Copy before updating.</string>
 	<key>Choose how to handle every modified Copy.</key>
@@ -464,6 +474,10 @@
 	<string>Deletion did not complete. The active Skill was restored to its prior state.</string>
 	<key>Deletion operations</key>
 	<string>Deletion operations</string>
+	<key>Direct Skill collection root</key>
+	<string>Direct Skill collection root</string>
+	<key>Direct collection · %@</key>
+	<string>Direct collection · %@</string>
 	<key>Disable missing target</key>
 	<string>Disable missing target</string>
 	<key>Disabled</key>
@@ -864,6 +878,8 @@
 	<string>No matching findings</string>
 	<key>No more unique results.</key>
 	<string>No more unique results.</string>
+	<key>No scan roots</key>
+	<string>No scan roots</string>
 	<key>No skills.sh results.</key>
 	<string>No skills.sh results.</string>
 	<key>No source metadata</key>
@@ -874,6 +890,8 @@
 	<string>No update was started for this Skill.</string>
 	<key>No usable discovery result</key>
 	<string>No usable discovery result</string>
+	<key>No valid Skill candidates found. Check the actual scan roots and reported diagnostics.</key>
+	<string>No valid Skill candidates found. Check the actual scan roots and reported diagnostics.</string>
 	<key>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</key>
 	<string>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</string>
 	<key>None will be created</key>
@@ -940,6 +958,8 @@
 	<string>Orphan managed directory</string>
 	<key>Patch</key>
 	<string>Patch</string>
+	<key>Path type</key>
+	<string>Path type</string>
 	<key>Permission denied</key>
 	<string>Permission denied</string>
 	<key>Permission denied while applying the repair.</key>
@@ -986,6 +1006,8 @@
 	<string>Preview the change before anything is written to the managed library.</string>
 	<key>Previews removal of managed distribution targets. The managed Skill is retained.</key>
 	<string>Previews removal of managed distribution targets. The managed Skill is retained.</string>
+	<key>Project root</key>
+	<string>Project root</string>
 	<key>Provider alias</key>
 	<string>Provider alias</string>
 	<key>Publish Skill</key>
@@ -1250,6 +1272,8 @@
 	<string>Select a discovered Skill</string>
 	<key>Select a project folder</key>
 	<string>Select a project folder</string>
+	<key>Select a project folder or a direct Skill collection root. Project roots use known platform subpaths; collection roots scan direct Skill children.</key>
+	<string>Select a project folder or a direct Skill collection root. Project roots use known platform subpaths; collection roots scan direct Skill children.</string>
 	<key>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</key>
 	<string>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</string>
 	<key>Select a skill</key>
@@ -1304,6 +1328,8 @@
 	<string>Skills Manager does not have permission to import this Skill.</string>
 	<key>Skills Manager will %@</key>
 	<string>Skills Manager will %@</string>
+	<key>Skills stay in place; this path is registered for read-only discovery.</key>
+	<string>Skills stay in place; this path is registered for read-only discovery.</string>
 	<key>Skipped</key>
 	<string>Skipped</string>
 	<key>Skipped: %@</key>
@@ -1586,6 +1612,8 @@
 	<string>The selected Skill changed after validation. Choose it again.</string>
 	<key>The selected Skill is no longer valid.</key>
 	<string>The selected Skill is no longer valid.</string>
+	<key>The selected custom path mode is invalid.</key>
+	<string>The selected custom path mode is invalid.</string>
 	<key>The selected directory does not exist.</key>
 	<string>The selected directory does not exist.</string>
 	<key>The selected item contains more than one Skill folder.</key>
@@ -1720,6 +1748,8 @@
 	<string>This repair is not currently available.</string>
 	<key>This skills.sh result is already linked to a different managed source.</key>
 	<string>This skills.sh result is already linked to a different managed source.</string>
+	<key>This standard path matches more than one adapter; choose one explicitly.</key>
+	<string>This standard path matches more than one adapter; choose one explicitly.</string>
 	<key>This target could not be inspected.</key>
 	<string>This target could not be inspected.</string>
 	<key>This will remove "%@" from the sidebar. The skills will not be deleted from disk.</key>

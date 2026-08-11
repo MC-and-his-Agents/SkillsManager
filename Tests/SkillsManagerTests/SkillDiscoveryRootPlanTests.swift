@@ -79,4 +79,16 @@ struct SkillDiscoveryRootPlanTests {
             ) == [.claude, .opencode]
         )
     }
+
+    @Test("validation requests invalidate repeated scans for the same input")
+    func validationRequestsAreUnique() {
+        let url = URL(fileURLWithPath: "/tmp/.codex/skills", isDirectory: true)
+        let first = AddCustomPathValidationRequest(url: url, mode: .collection(adapter: .codex))
+        let second = AddCustomPathValidationRequest(url: url, mode: .collection(adapter: .codex))
+
+        #expect(first.url == second.url)
+        #expect(first.mode == second.mode)
+        #expect(first.id != second.id)
+        #expect(first != second)
+    }
 }
