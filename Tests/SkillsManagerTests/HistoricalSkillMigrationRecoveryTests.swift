@@ -253,6 +253,55 @@ struct HistoricalSkillMigrationRecoveryTests {
         #expect(throws: DistributionOperationStoreError.invalidRecord) {
             try validateHistoricalPayloads(operation, preflightData: arbitraryRoot)
         }
+
+        let forgedRoot = "/tmp/victim"
+        let forgedPlan = try historicalPlanMutation(operation.planPayload) { action in
+            action["target_locator"] = "\(forgedRoot)/demo"
+        }
+        let forgedApproval = try historicalApprovalMutation(
+            operation.preflightPayload
+        ) { backup, _ in
+            backup["targetLocator"] = "\(forgedRoot)/demo"
+            backup["sourceRootLocator"] = forgedRoot
+        }
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            try validateHistoricalPayloads(
+                operation,
+                planData: forgedPlan,
+                preflightData: forgedApproval
+            )
+        }
+
+        let wrongPathVariant = try historicalCleanupMutation(
+            operation.preflightPayload
+        ) { cleanup in
+            cleanup["pathVariant"] = SkillPlatform.codex
+                .discoveryCompatibilityRelativePaths[0]
+        }
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            try validateHistoricalPayloads(
+                operation,
+                preflightData: wrongPathVariant
+            )
+        }
+
+        let mixedPlan = try historicalPlanAppendingAction(
+            operation.planPayload,
+            scope: .agent(.claude),
+            action: .createSymlink
+        )
+        let mixedPreflight = try historicalPreflightAppendingAction(
+            operation.preflightPayload,
+            scope: .agent(.claude),
+            action: .createSymlink
+        )
+        #expect(throws: DistributionOperationStoreError.invalidRecord) {
+            try validateHistoricalPayloads(
+                operation,
+                planData: mixedPlan,
+                preflightData: mixedPreflight
+            )
+        }
     }
 
     @Test("SSOT replacement after backup fails before distribution mutation")
@@ -298,6 +347,7 @@ struct HistoricalSkillMigrationRecoveryTests {
 
 private func validateHistoricalPayloads(
     _ operation: DistributionOperationRecord,
+    planData: Data? = nil,
     preflightData: Data
 ) throws {
     try DistributionOperationPayloadV2Validator.validateActionPayloads(
@@ -311,7 +361,7 @@ private func validateHistoricalPayloads(
             [DistributionBindingWireV2].self,
             from: operation.newBindings
         ),
-        planData: operation.planPayload,
+        planData: planData ?? operation.planPayload,
         preflightData: preflightData,
         runtimeData: operation.runtimePayload,
         phase: operation.phase,
@@ -319,6 +369,93 @@ private func validateHistoricalPayloads(
         forwardCursor: operation.forwardCursor,
         rollbackCursor: operation.rollbackCursor,
         cleanupCursor: operation.cleanupCursor
+    )
+}
+
+private func historicalPlanMutation(
+    _ data: Data,
+    _ mutate: (inout [String: Any]) -> Void
+) throws -> Data {
+    guard var root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          var actions = root["filesystem_actions"] as? [[String: Any]],
+          var action = actions.first else {
+        throw DistributionOperationStoreError.invalidRecord
+    }
+    mutate(&action)
+    actions[0] = action
+    root["filesystem_actions"] = actions
+    return try JSONSerialization.data(
+        withJSONObject: root,
+        options: [.sortedKeys, .withoutEscapingSlashes]
+    )
+}
+
+private func historicalCleanupMutation(
+    _ data: Data,
+    _ mutate: (inout [String: Any]) -> Void
+) throws -> Data {
+    guard var root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          var actions = root["actions"] as? [[String: Any]],
+          var action = actions.first,
+          var cleanup = action["localOriginCleanup"] as? [String: Any] else {
+        throw DistributionOperationStoreError.invalidRecord
+    }
+    mutate(&cleanup)
+    action["localOriginCleanup"] = cleanup
+    actions[0] = action
+    root["actions"] = actions
+    return try JSONSerialization.data(
+        withJSONObject: root,
+        options: [.sortedKeys, .withoutEscapingSlashes]
+    )
+}
+
+private func historicalPlanAppendingAction(
+    _ data: Data,
+    scope: DistributionBindingScope,
+    action: DistributionFilesystemActionKind
+) throws -> Data {
+    guard var root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          var actions = root["filesystem_actions"] as? [[String: Any]],
+          let target = DistributionTargetCatalog.current.entry(
+              for: scope,
+              slug: try DefaultDistributionSlug(validating: "demo")
+          ),
+          let ssotLocator = actions[0]["ssot_locator"] as? String else {
+        throw DistributionOperationStoreError.invalidRecord
+    }
+    actions.append([
+        "action": action.rawValue,
+        "target_scope_key": scope.targetScopeKey,
+        "target_locator": target.canonicalLocator,
+        "ssot_locator": ssotLocator,
+    ])
+    root["filesystem_actions"] = actions
+    return try JSONSerialization.data(
+        withJSONObject: root,
+        options: [.sortedKeys, .withoutEscapingSlashes]
+    )
+}
+
+private func historicalPreflightAppendingAction(
+    _ data: Data,
+    scope: DistributionBindingScope,
+    action: DistributionFilesystemActionKind
+) throws -> Data {
+    guard var root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          var actions = root["actions"] as? [[String: Any]] else {
+        throw DistributionOperationStoreError.invalidRecord
+    }
+    actions.append([
+        "actionIndex": actions.count,
+        "kind": action.rawValue,
+        "targetScopeKey": scope.targetScopeKey,
+        "slug": "demo",
+    ])
+    root["actions"] = actions
+    return try JSONSerialization.data(
+        withJSONObject: root,
+        options: [.sortedKeys, .withoutEscapingSlashes]
     )
 }
 

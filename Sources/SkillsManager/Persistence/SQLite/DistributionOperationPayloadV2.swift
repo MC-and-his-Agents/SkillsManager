@@ -611,31 +611,18 @@ nonisolated enum DistributionOperationPayloadV2Validator {
             DistributionOperationPreflightV2.self,
             from: preflightData
         )
+        let allowsHistoricalUnboundCleanup = preflight.actions.contains {
+            ($0.kind == DistributionFilesystemActionKind.removeCopy.rawValue
+                || $0.kind == DistributionFilesystemActionKind.replaceCopyWithSymlink.rawValue)
+                && completeHistoricalApproval($0.historicalMigrationBackup)
+                && $0.localOriginCleanup != nil
+        }
         let plan = try validatePlanV2(
             planData,
             skillID: skillID,
             oldBindings: oldBindings,
             newBindings: newBindings,
-            allowsHistoricalUnboundCleanup: preflight.actions.contains {
-                ($0.kind == DistributionFilesystemActionKind.removeCopy.rawValue
-                    || $0.kind == DistributionFilesystemActionKind.replaceCopyWithSymlink.rawValue)
-                    && $0.historicalMigrationBackup.map {
-                        [
-                            $0.skillID != nil,
-                            $0.sourceScopeKey != nil,
-                            $0.sourceLocator != nil,
-                            $0.approvalOperationID != nil,
-                            $0.sourceRootIdentity != nil,
-                            $0.sourceEntryIdentity != nil,
-                            $0.sourceContent != nil,
-                            $0.sourcePhysicalTree != nil,
-                            $0.targetLocator != nil,
-                            $0.sourceRootLocator != nil,
-                        ].allSatisfy { $0 }
-                    } == true
-                    && ($0.kind != DistributionFilesystemActionKind.removeCopy.rawValue
-                        || $0.localOriginCleanup != nil)
-            }
+            allowsHistoricalUnboundCleanup: allowsHistoricalUnboundCleanup
         )
         let actionKinds = plan.filesystemActions.map(\.action)
         guard try DistributionOperationPayloadCodec.encode(preflight) == preflightData,
@@ -655,6 +642,20 @@ nonisolated enum DistributionOperationPayloadV2Validator {
                       && $0.element.kind == actionKinds[$0.offset]
               }) else {
             throw DistributionOperationStoreError.invalidRecord
+        }
+        if allowsHistoricalUnboundCleanup {
+            guard plan.filesystemActions.count == 1,
+                  preflight.actions.count == 1,
+                  let planAction = plan.filesystemActions.first,
+                  let preflightAction = preflight.actions.first,
+                  preflightAction.actionIndex == 0,
+                  preflightAction.kind == planAction.action,
+                  preflightAction.targetScopeKey == planAction.targetScopeKey,
+                  let actionScope = scopeV2(planAction.targetScopeKey),
+                  preflightAction.slug
+                      == slugV2(planAction.targetLocator, scope: actionScope)?.value else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
         }
         for (index, action) in preflight.actions.enumerated() {
             try validatePreflightAction(

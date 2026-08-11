@@ -30,11 +30,11 @@ nonisolated extension DistributionOperationPayloadV2Validator {
               Set(replacement) == Set(new),
               plan.bindingsChanged == (Set(old) != Set(new)),
               !allowsHistoricalUnboundCleanup
-                || plan.filesystemActions.first?.action
-                    != DistributionFilesystemActionKind.removeCopy.rawValue
-                || (plan.bindingsChanged == false
-                    && Set(old) == Set(new)
-                    && plan.filesystemActions.count == 1),
+                || (plan.filesystemActions.count == 1
+                    && (plan.filesystemActions[0].action
+                        == DistributionFilesystemActionKind.removeCopy.rawValue
+                        || plan.filesystemActions[0].action
+                            == DistributionFilesystemActionKind.replaceCopyWithSymlink.rawValue)),
               !plan.filesystemActions.isEmpty
                 || plan.bindingsChanged
                 || plan.configurationChanged == true else {
@@ -137,6 +137,9 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         guard Set(actions.map(\.targetScopeKey)).count <= 5 else {
             throw DistributionOperationStoreError.invalidRecord
         }
+        guard !allowsHistoricalUnboundCleanup || actions.count == 1 else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
         let oldByKey = Dictionary(uniqueKeysWithValues: old.map {
             (bindingKeyV2(scope: $0.scope, slug: $0.distributionSlug), $0)
         })
@@ -184,7 +187,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         }
     }
 
-    private static func scopeV2(
+    static func scopeV2(
         _ key: String
     ) -> DistributionBindingScope? {
         if key == "global" { return .global }
@@ -193,7 +196,7 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         }.map(DistributionBindingScope.agent)
     }
 
-    private static func slugV2(
+    static func slugV2(
         _ locator: String,
         scope: DistributionBindingScope
     ) -> DefaultDistributionSlug? {
@@ -314,9 +317,16 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                 throw DistributionOperationStoreError.invalidRecord
             }
             let originScope = try originDistributionScope(origin.scope)
-            guard originScope == scope else {
+            guard originScope == scope,
+                  let backup = action.historicalMigrationBackup,
+                  let sourceRootLocator = backup.sourceRootLocator else {
                 throw DistributionOperationStoreError.invalidRecord
             }
+            try validateHistoricalSourceScope(
+                origin.scope,
+                sourceRootLocator: sourceRootLocator,
+                expectedScope: scope
+            )
         }
         guard action.oldCopy == nil
                 || action.rootIdentity == action.oldCopy?.rootIdentity,
@@ -455,6 +465,81 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         case .custom:
             throw DistributionOperationStoreError.invalidRecord
         }
+    }
+
+    static func completeHistoricalApproval(
+        _ backup: DistributionHistoricalMigrationBackupWireV2?
+    ) -> Bool {
+        guard let backup else { return false }
+        return [
+            backup.skillID != nil,
+            backup.sourceScopeKey != nil,
+            backup.sourceLocator != nil,
+            backup.approvalOperationID != nil,
+            backup.sourceRootIdentity != nil,
+            backup.sourceEntryIdentity != nil,
+            backup.sourceContent != nil,
+            backup.sourcePhysicalTree != nil,
+            backup.targetLocator != nil,
+            backup.sourceRootLocator != nil,
+        ].allSatisfy { $0 }
+    }
+
+    private static func validateHistoricalSourceScope(
+        _ scope: SkillDiscoveryScope,
+        sourceRootLocator: String,
+        expectedScope: DistributionBindingScope
+    ) throws {
+        guard sourceRootLocator == sourceRootLocator.precomposedStringWithCanonicalMapping,
+              sourceRootLocator.hasPrefix("/"),
+              URL(fileURLWithPath: sourceRootLocator, isDirectory: true)
+                .standardizedFileURL.path == sourceRootLocator else {
+            throw DistributionOperationStoreError.invalidRecord
+        }
+        switch scope.kind {
+        case .global:
+            guard expectedScope == .global,
+                  scope.adapterCode == nil,
+                  scope.pathVariant == nil,
+                  scope.customPathID == nil,
+                  hasPathSuffix(sourceRootLocator, ".agents/skills") else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case .agent:
+            guard case .agent(let platform) = expectedScope,
+                  scope.adapterCode == platform.storageKey,
+                  scope.customPathID == nil,
+                  let pathVariant = scope.pathVariant,
+                  !pathVariant.isEmpty else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+            if pathVariant.hasPrefix("/") {
+                guard URL(fileURLWithPath: pathVariant, isDirectory: true)
+                    .standardizedFileURL.path == pathVariant,
+                      sourceRootLocator == pathVariant else {
+                    throw DistributionOperationStoreError.invalidRecord
+                }
+                return
+            }
+            let knownVariants = [platform.dedicatedDistributionRelativePath]
+                + platform.discoveryCompatibilityRelativePaths
+            guard knownVariants.contains(pathVariant),
+                  hasPathSuffix(sourceRootLocator, pathVariant) else {
+                throw DistributionOperationStoreError.invalidRecord
+            }
+        case .custom:
+            throw DistributionOperationStoreError.invalidRecord
+        }
+    }
+
+    private static func hasPathSuffix(_ path: String, _ relative: String) -> Bool {
+        let pathComponents = URL(fileURLWithPath: path, isDirectory: true)
+            .standardizedFileURL.pathComponents
+        let suffixComponents = relative.split(separator: "/").map(String.init)
+        guard !suffixComponents.isEmpty, pathComponents.count >= suffixComponents.count else {
+            return false
+        }
+        return Array(pathComponents.suffix(suffixComponents.count)) == suffixComponents
     }
 
     static func validateRuntimeAction(

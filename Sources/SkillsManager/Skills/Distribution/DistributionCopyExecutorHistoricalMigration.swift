@@ -10,7 +10,7 @@ nonisolated extension DistributionCopyExecutor {
             approval.backup,
             source: approval.source,
             sourceScopeKey: approval.metadata.sourceScope.targetScopeKey,
-            sourceLocator: approval.metadata.rawLocator,
+            sourceLocator: approval.metadata.normalizedLocator,
             operationID: operationID,
             targetLocator: action.entry.canonicalLocator,
             sourceRootLocator: action.entry.target.rootLocator

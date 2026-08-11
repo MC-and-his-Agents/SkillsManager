@@ -329,7 +329,7 @@ nonisolated extension DistributionCopyExecutor {
                         $0.backup,
                         source: $0.source,
                         sourceScopeKey: $0.metadata.sourceScope.targetScopeKey,
-                        sourceLocator: $0.metadata.rawLocator,
+                        sourceLocator: $0.metadata.normalizedLocator,
                         operationID: operationID,
                         targetLocator: action.entry.canonicalLocator,
                         sourceRootLocator: action.entry.target.rootLocator
