@@ -14,8 +14,8 @@ struct CustomRepositorySheet: View {
             addForm
             Divider()
             repositoryList
-            if let problem = model.operationProblem {
-                Label(problem.message, systemImage: "exclamationmark.triangle")
+            if let message = model.runtimeBlockMessage ?? model.operationProblem?.message {
+                Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
                     .accessibilityElement(children: .combine)
             }

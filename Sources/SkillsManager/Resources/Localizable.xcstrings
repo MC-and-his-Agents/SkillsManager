@@ -460,6 +460,8 @@
         }
       }
     },
+    "Library diagnostics": {"extractionState":"manual","localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"托管库诊断"}},"en":{"stringUnit":{"state":"translated","value":"Library diagnostics"}}}},
+    "View diagnostics…": {"extractionState":"manual","localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"查看诊断…"}},"en":{"stringUnit":{"state":"translated","value":"View diagnostics…"}}}},
     "A deletion operation is still in progress.": {
       "extractionState": "manual",
       "localizations": {

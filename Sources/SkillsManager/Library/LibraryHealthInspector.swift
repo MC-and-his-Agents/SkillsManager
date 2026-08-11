@@ -86,7 +86,13 @@ nonisolated enum LibraryHealthInspector {
             }
         }
 
-        for name in names where skillsByName[name] == nil && !excluded.contains(name) {
+        for name in names
+        where skillsByName[name] == nil
+            && !excluded.contains(name)
+            && !LibraryRootBootstrap.isHarmlessMetadataEntry(
+                named: name,
+                descriptor: rootDescriptor
+            ) {
             let code: LibraryDiagnosticCode
             if isLowercaseUUID(name), isDirectory(name, rootDescriptor: rootDescriptor) {
                 code = .orphanSSOTDirectory

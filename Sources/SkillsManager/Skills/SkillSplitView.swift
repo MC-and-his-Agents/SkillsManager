@@ -23,6 +23,7 @@ struct SkillSplitView: View {
     @State private var showingConsistency = false
     @State private var showingDiscoveryBatch = false
     @State private var showingRepositories = false
+    @State private var showingLibraryDiagnostics = false
     @State private var downloadErrorMessage: String?
     @State private var isDownloadingRemote = false
     @State private var didDownloadRemote = false
@@ -195,6 +196,40 @@ struct SkillSplitView: View {
         .onChange(of: store.skills) { _, _ in
             updateBadgeStore.invalidateAll()
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if libraryRuntime.readiness == .blocked {
+                runtimeDiagnosticBanner
+            }
+        }
+        .sheet(isPresented: $showingLibraryDiagnostics) {
+            LibraryRuntimeDiagnosticsView()
+                .environment(libraryRuntime)
+        }
+    }
+
+    private var runtimeDiagnosticBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "lock.trianglebadge.exclamationmark")
+                .foregroundStyle(.red)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("A blocking library diagnostic prevents changes.", bundle: SkillsManagerLocalizationResources.bundle)
+                    .font(.headline)
+                Text(verbatim: libraryRuntime.blockingMessage)
+                    .font(.callout)
+            }
+            Spacer(minLength: 8)
+            Button {
+                showingLibraryDiagnostics = true
+            } label: {
+                Text("View diagnostics…", bundle: SkillsManagerLocalizationResources.bundle)
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.red.opacity(0.08))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("library.runtime-diagnostic")
     }
 
     @ViewBuilder

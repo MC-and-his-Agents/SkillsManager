@@ -81,6 +81,10 @@ nonisolated struct LibraryRuntimeDiagnostic: Equatable, Sendable {
     let recommendedActionCode: String
     let blocking: Bool
 
+    var id: String {
+        "\(code.rawValue)\0\(subjectKind.rawValue)\0\(subjectID)"
+    }
+
     static func make(
         _ code: LibraryDiagnosticCode,
         subjectKind: LibraryDiagnosticSubjectKind,
@@ -139,9 +143,7 @@ nonisolated struct LibraryRuntimeDiagnostic: Equatable, Sendable {
     static func normalized(_ diagnostics: [Self]) -> [Self] {
         var unique: [String: Self] = [:]
         for diagnostic in diagnostics {
-            unique[
-                "\(diagnostic.code.rawValue)\0\(diagnostic.subjectKind.rawValue)\0\(diagnostic.subjectID)"
-            ] = diagnostic
+            unique[diagnostic.id] = diagnostic
         }
         return unique.values.sorted {
             if $0.severity.rank != $1.severity.rank {
@@ -217,9 +219,21 @@ nonisolated struct LibraryStartupResult: Sendable {
     private(set) var diagnostics: [LibraryRuntimeDiagnostic] = []
     private(set) var outcome: LibraryStartupOutcome?
 
+    var blockingDiagnostic: LibraryRuntimeDiagnostic? {
+        diagnostics.first(where: \.blocking)
+    }
+
     var blockingMessage: String {
-        diagnostics.first(where: \.blocking)?.userFacingMessage
+        blockingDiagnostic?.userFacingMessage
             ?? "The managed library is not ready. Retry after startup completes."
+    }
+
+    var blockingObservation: String {
+        [
+            readiness.rawValue,
+            blockingDiagnostic?.id ?? "",
+            blockingMessage,
+        ].joined(separator: "\u{0}")
     }
 
     func apply(_ result: LibraryStartupResult) {

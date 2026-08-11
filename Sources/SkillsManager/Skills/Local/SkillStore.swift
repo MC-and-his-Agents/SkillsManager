@@ -72,11 +72,21 @@ import Observation
         self.persistence = persistence
     }
 
+    func blockRuntime(message: String) {
+        persistence = nil
+        skills = []
+        listState = .failed(message)
+        detailState = .idle
+        referenceState = .idle
+    }
+
     func addCustomPath(_ url: URL) async throws {
+        guard persistence != nil else { throw LibraryPersistenceError.runtimeNotReady }
         try await customPathStore.addPath(url)
     }
 
     func removeCustomPath(_ path: CustomSkillPath) async throws {
+        guard persistence != nil else { throw LibraryPersistenceError.runtimeNotReady }
         try await customPathStore.removePath(path)
     }
 

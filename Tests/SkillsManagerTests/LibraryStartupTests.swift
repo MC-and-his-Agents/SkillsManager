@@ -131,4 +131,86 @@ struct LibraryStartupTests {
             atPath: management.appendingPathComponent("manager.sqlite").path
         ))
     }
+
+    @Test("management root tolerates only a regular Finder metadata file")
+    func managementRootMetadataPolicy() async throws {
+        let fixture = try LibraryRuntimeTestHome()
+        defer { fixture.remove() }
+        let management = fixture.home.appendingPathComponent(".SkillsManager", isDirectory: true)
+        try FileManager.default.createDirectory(at: management, withIntermediateDirectories: false)
+        #expect(Darwin.chmod(management.path, 0o700) == 0)
+        try Data().write(to: management.appendingPathComponent(".DS_Store"))
+        #expect(Darwin.chmod(management.appendingPathComponent(".DS_Store").path, 0o600) == 0)
+
+        var allowed = await LibraryStartupCoordinator(homeURL: fixture.home).start()
+        #expect(allowed.readiness == .ready)
+        #expect(allowed.diagnostics.isEmpty)
+
+        allowed = LibraryStartupResult(
+            phase: allowed.phase,
+            readiness: allowed.readiness,
+            diagnostics: allowed.diagnostics,
+            outcome: allowed.outcome,
+            session: nil
+        )
+        try Data().write(to: management.appendingPathComponent(".hidden"))
+        let blockedRestart = await LibraryStartupCoordinator(homeURL: fixture.home).start()
+        #expect(blockedRestart.readiness == .blocked)
+        #expect(blockedRestart.diagnostics.map(\.code) == [.unknownSSOTEntry])
+
+        let blockedFixture = try LibraryRuntimeTestHome()
+        defer { blockedFixture.remove() }
+        let blockedManagement = blockedFixture.home.appendingPathComponent(
+            ".SkillsManager",
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(
+            at: blockedManagement,
+            withIntermediateDirectories: false
+        )
+        #expect(Darwin.chmod(blockedManagement.path, 0o700) == 0)
+        try Data().write(to: blockedManagement.appendingPathComponent(".hidden"))
+
+        let blocked = await LibraryStartupCoordinator(homeURL: blockedFixture.home).start()
+        #expect(blocked.readiness == .blocked)
+        #expect(blocked.diagnostics.map(\.code) == [.unknownSSOTEntry])
+    }
+
+    @Test("SSOT root tolerates regular metadata but rejects metadata of another type")
+    func ssotMetadataPolicy() async throws {
+        let fixture = try LibraryRuntimeTestHome()
+        defer { fixture.remove() }
+        var first = await LibraryStartupCoordinator(homeURL: fixture.home).start()
+        #expect(first.readiness == .ready)
+        first = LibraryStartupResult(
+            phase: first.phase,
+            readiness: first.readiness,
+            diagnostics: first.diagnostics,
+            outcome: first.outcome,
+            session: nil
+        )
+        let ssot = fixture.home.appendingPathComponent(".SkillsManager/skills", isDirectory: true)
+        try Data().write(to: ssot.appendingPathComponent(".DS_Store"))
+
+        var allowed = await LibraryStartupCoordinator(homeURL: fixture.home).start()
+        #expect(allowed.readiness == .ready)
+        #expect(allowed.diagnostics.isEmpty)
+
+        allowed = LibraryStartupResult(
+            phase: allowed.phase,
+            readiness: allowed.readiness,
+            diagnostics: allowed.diagnostics,
+            outcome: allowed.outcome,
+            session: nil
+        )
+
+        try FileManager.default.removeItem(at: ssot.appendingPathComponent(".DS_Store"))
+        try FileManager.default.createSymbolicLink(
+            at: ssot.appendingPathComponent(".DS_Store"),
+            withDestinationURL: fixture.home
+        )
+        let blocked = await LibraryStartupCoordinator(homeURL: fixture.home).start()
+        #expect(blocked.readiness == .blocked)
+        #expect(blocked.diagnostics.map(\.code) == [.unknownSSOTEntry])
+    }
 }

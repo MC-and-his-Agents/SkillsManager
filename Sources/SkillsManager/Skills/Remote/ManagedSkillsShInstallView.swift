@@ -14,6 +14,7 @@ struct ManagedSkillsShInstallView: View {
 
 struct ManagedCustomRepositoryInstallView: View {
     @Environment(SkillStore.self) private var store
+    @Environment(LibraryRuntimeState.self) private var libraryRuntime
     @Environment(\.skillsManagerGitHubClient) private var githubClient
 
     let candidate: CustomRepositoryCandidate
@@ -34,8 +35,8 @@ struct ManagedCustomRepositoryInstallView: View {
                 String(localized: "Installation unavailable", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "exclamationmark.triangle",
                 description: Text(
-                    candidate.installProblem
-                        ?? String(localized: "The managed library is unavailable.", bundle: SkillsManagerLocalizationResources.bundle)
+                        candidate.installProblem
+                        ?? libraryRuntime.blockingMessage
                 )
             )
             .frame(minWidth: 520, minHeight: 320)
@@ -183,11 +184,17 @@ private struct ManagedGitHubInstallView: View {
                 .environment(model)
         }
         .task {
-            model.activate(writer: store.persistence)
+            model.activate(
+                writer: store.persistence,
+                unavailableMessage: libraryRuntime.blockingMessage
+            )
         }
-        .onChange(of: libraryRuntime.readiness) { _, _ in
+        .onChange(of: libraryRuntime.blockingObservation) { _, _ in
             if !isWorking {
-                model.activate(writer: store.persistence)
+                model.activate(
+                    writer: store.persistence,
+                    unavailableMessage: libraryRuntime.blockingMessage
+                )
             }
         }
         .onDisappear {
