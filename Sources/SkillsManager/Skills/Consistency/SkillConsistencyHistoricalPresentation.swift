@@ -32,7 +32,13 @@ nonisolated extension SkillConsistencyPresentation {
         return try candidates.enumerated().map { index, candidate in
             let wire = try SkillConsistencyAuditWire.discoveryObservation(candidate.1)
             let matches = manifestCandidates.filter { $0 == wire }
-            let disposition = historicalCandidateDisposition(candidate.1)
+            let occupancyRelation = prepared.manifest.discovery.occupancies.first {
+                $0.relativeLocatorKey == candidate.1.relativeLocatorKey
+            }?.relation
+            let disposition = historicalCandidateDisposition(
+                candidate.1,
+                occupancyRelation: occupancyRelation
+            )
             let executable = candidate.3
                 && matches.count == 1
                 && rawCounts[candidate.0] == 1
@@ -94,8 +100,27 @@ nonisolated extension SkillConsistencyPresentation {
     }
 
     private static func historicalCandidateDisposition(
-        _ observation: SkillDiscoveryObservation
+        _ observation: SkillDiscoveryObservation,
+        occupancyRelation: SkillConsistencyAuditOccupancyRelation? = nil
     ) -> HistoricalCandidateDisposition {
+        if let occupancyRelation,
+           occupancyRelation != .sameFingerprint,
+           occupancyRelation != .managed {
+            let detail: String
+            switch occupancyRelation {
+            case .differentFingerprint:
+                detail = "Another root has the same locator with different content; no automatic convergence is allowed."
+            case .nameOnly:
+                detail = "Only the locator matches across roots; content evidence is required before any migration."
+            case .ambiguous:
+                detail = "Multiple Skill identities occupy this locator; keep the entries or import an independent Skill."
+            case .unknown:
+                detail = "Cross-root occupancy evidence is incomplete; no automatic convergence is allowed."
+            case .managed, .sameFingerprint:
+                detail = "Cross-root occupancy requires review."
+            }
+            return .review(detail: detail, severity: .blocking)
+        }
         if observation.symbolicLinkIdentity != nil {
             if observation.reason == .localAssociationDrift {
                 return .review(
@@ -171,8 +196,23 @@ nonisolated extension SkillConsistencyPresentation {
         _ observation: SkillConsistencyAuditDiscoveryObservation,
         manifest: SkillConsistencyAuditManifest
     ) -> Bool {
-        manifest.managedSkills.lazy.flatMap(\.bindings).contains { binding in
-            observation.relativeLocatorKey == binding.slugKey
+        guard let attribution = observation.managedDistributionTarget else {
+            // Older manifests did not persist attribution. A symlink at a
+            // bound canonical target is still a distribution finding, while a
+            // plain directory must remain visible for convergence review.
+            guard observation.symbolicLinkIdentity != nil else { return false }
+            return manifest.managedSkills.lazy.flatMap(\.bindings).contains { binding in
+                observation.relativeLocatorKey == binding.slugKey
+                    && observation.roots.contains {
+                        isDistributionRoot($0, for: binding)
+                    }
+            }
+        }
+        return manifest.managedSkills.lazy.flatMap(\.bindings).contains { binding in
+            attribution.skillID == binding.skillID
+                && attribution.scopeKey == binding.scopeKey
+                && attribution.slug == binding.slug
+                && observation.relativeLocatorKey == binding.slugKey
                 && observation.roots.contains {
                     isDistributionRoot($0, for: binding)
                 }

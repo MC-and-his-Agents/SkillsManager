@@ -92,7 +92,6 @@ nonisolated extension DistributionCopyExecutor {
         guard manifest.backupID == backup.backupID,
               manifest.originalSkillID == backup.originalSkillID,
               manifest.contentFingerprint == backup.contentFingerprint,
-              manifest.distributionSelection.bindingIntents.isEmpty,
               let metadata = manifest.migrationMetadata,
               try historicalMigrationOperationMatches(
                 metadata.operationID,

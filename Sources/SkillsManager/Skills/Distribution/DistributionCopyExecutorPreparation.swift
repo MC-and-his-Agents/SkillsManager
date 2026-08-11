@@ -252,9 +252,8 @@ nonisolated extension DistributionCopyExecutor {
         let oldLink = oldLinks.first {
             $0.targetScopeKey == action.entry.target.scope.targetScopeKey
         }
-        let isHistoricalMigration = old == nil
-            && action.kind == .replaceCopyWithSymlink
-            && approvedHistoricalMigration != nil
+        let isHistoricalMigration = approvedHistoricalMigration != nil
+            && (action.kind == .replaceCopyWithSymlink || action.kind == .removeCopy)
         let observation = try old.map {
             try observeCurrent(
                 action.entry,
@@ -280,7 +279,9 @@ nonisolated extension DistributionCopyExecutor {
                 approvedCopyDrift: approvedCopyDrift
             )
         }
-        let root = try fileSystem.existingRoot(for: action.entry.target.scope)
+        let root = try isHistoricalMigration
+            ? fileSystem.existingRoot(for: action.entry)
+            : fileSystem.existingRoot(for: action.entry.target.scope)
         if let approvedHistoricalMigration, isHistoricalMigration {
             guard root == approvedHistoricalMigration.source.rootIdentity else {
                 throw DistributionSymlinkExecutorError.conflict

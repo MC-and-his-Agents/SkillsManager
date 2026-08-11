@@ -78,15 +78,26 @@ actor HistoricalSkillMigrationService {
                   observation.rawRelativeLocator == observation.relativeLocator else {
                 throw HistoricalSkillMigrationError.unsupportedCandidate
             }
+            if importAction != .importNew,
+               !audit.manifest.discovery.occupancies.isEmpty {
+                guard audit.manifest.discovery.occupancies.contains(where: {
+                    $0.relativeLocatorKey == observation.relativeLocatorKey
+                        && $0.relation == .sameFingerprint
+                }) else {
+                    throw HistoricalSkillMigrationError.unsupportedCandidate
+                }
+            }
             let scope = try distributionScope(for: root)
             let slug = try DefaultDistributionSlug(
                 validating: observation.relativeLocator
             )
             try requireCanonicalRoot(root, scope: scope)
-            guard audit.manifest.managedSkills.flatMap(\.bindings).allSatisfy({
-                $0.scopeKey != scope.targetScopeKey
-                    || $0.slugKey != slug.collisionKey
-            }) else {
+            let occupiedByOtherSkill = audit.manifest.managedSkills.flatMap(\.bindings).contains {
+                $0.scopeKey == scope.targetScopeKey
+                    && $0.slugKey == slug.collisionKey
+                    && $0.skillID != observation.matchedSkillID?.directoryName
+            }
+            guard !occupiedByOtherSkill else {
                 throw HistoricalSkillMigrationError.targetOccupied
             }
             let importPreview = try await prepareImport(
@@ -117,7 +128,8 @@ actor HistoricalSkillMigrationService {
             let plan = try await writer.historicalMigrationPlan(
                 skillID: skillID,
                 scope: scope,
-                slug: slug
+                slug: slug,
+                source: source
             )
             let canonicalPlan = try plan.canonicalJSONData()
             let existing = observation.matchedSkillID == nil ? nil
@@ -328,20 +340,46 @@ actor HistoricalSkillMigrationService {
         guard let target = targetCatalog.target(for: scope), target.isAvailable else {
             throw HistoricalSkillMigrationError.unsupportedCandidate
         }
-        let expected: String
+        let expectedURL: URL
         if let resolved = target.resolvedRootURL {
-            expected = resolved.standardizedFileURL.path
+            expectedURL = resolved.standardizedFileURL
         } else if target.rootLocator.hasPrefix("~/") {
-            expected = homeURL.appendingPathComponent(
+            expectedURL = homeURL.appendingPathComponent(
                 String(target.rootLocator.dropFirst(2)),
                 isDirectory: true
-            ).standardizedFileURL.path
+            ).standardizedFileURL
         } else {
-            expected = URL(fileURLWithPath: target.rootLocator, isDirectory: true)
-                .standardizedFileURL.path
+            expectedURL = URL(fileURLWithPath: target.rootLocator, isDirectory: true)
+                .standardizedFileURL
         }
-        guard root.url.standardizedFileURL.path == expected else {
-            throw HistoricalSkillMigrationError.unsupportedCandidate
+        guard root.url.standardizedFileURL == expectedURL else {
+            guard case .agent(let platform) = scope,
+                  let pathVariant = root.scope.pathVariant else {
+                throw HistoricalSkillMigrationError.unsupportedCandidate
+            }
+            let pathVariantURL = URL(fileURLWithPath: pathVariant, isDirectory: true)
+                .standardizedFileURL
+            let nestedPrefix = platform.dedicatedDistributionRelativePath + "/"
+            let compatibilityURL = platform.discoveryCompatibilityRelativePaths
+                .compactMap { relativePath -> URL? in
+                    let candidate: URL
+                    if relativePath.hasPrefix(nestedPrefix) {
+                        candidate = expectedURL.appendingPathComponent(
+                            String(relativePath.dropFirst(nestedPrefix.count)),
+                            isDirectory: true
+                        )
+                    } else {
+                        candidate = homeURL.appendingPathComponent(relativePath, isDirectory: true)
+                    }
+                    let variantMatches = pathVariant == relativePath
+                        || pathVariantURL == candidate.standardizedFileURL
+                    return variantMatches ? candidate.standardizedFileURL : nil
+                }
+                .first
+            guard compatibilityURL == root.url.standardizedFileURL else {
+                throw HistoricalSkillMigrationError.unsupportedCandidate
+            }
+            return
         }
     }
 

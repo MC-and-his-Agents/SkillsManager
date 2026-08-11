@@ -5,7 +5,8 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         _ data: Data,
         skillID: SkillID,
         oldBindings: [DistributionBindingWireV2],
-        newBindings: [DistributionBindingWireV2]
+        newBindings: [DistributionBindingWireV2],
+        allowsHistoricalUnboundCleanup: Bool = false
     ) throws -> DistributionPlanWire {
         let plan = try decodePlanV2(data)
         guard let expectedConfigured = plan.expectedOldConfigured,
@@ -28,6 +29,12 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         guard plan.bindingReplacement.count == new.count,
               Set(replacement) == Set(new),
               plan.bindingsChanged == (Set(old) != Set(new)),
+              !allowsHistoricalUnboundCleanup
+                || plan.filesystemActions.first?.action
+                    != DistributionFilesystemActionKind.removeCopy.rawValue
+                || (plan.bindingsChanged == false
+                    && Set(old) == Set(new)
+                    && plan.filesystemActions.count == 1),
               !plan.filesystemActions.isEmpty
                 || plan.bindingsChanged
                 || plan.configurationChanged == true else {
@@ -37,7 +44,8 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             plan.filesystemActions,
             skillID: skillID,
             old: old,
-            new: new
+            new: new,
+            allowsHistoricalUnboundCleanup: allowsHistoricalUnboundCleanup
         )
         return plan
     }
@@ -105,7 +113,8 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         _ actions: [DistributionPlanActionWire],
         skillID: SkillID,
         old: [DistributionBindingIntent],
-        new: [DistributionBindingIntent]
+        new: [DistributionBindingIntent],
+        allowsHistoricalUnboundCleanup: Bool = false
     ) throws {
         var actionKinds: [String: DistributionFilesystemActionKind] = [:]
         for action in actions {
@@ -135,7 +144,13 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             (bindingKeyV2(scope: $0.scope, slug: $0.distributionSlug), $0)
         })
         let bindingKeys = Set(oldByKey.keys).union(newByKey.keys)
-        guard Set(actionKinds.keys).isSubset(of: bindingKeys) else {
+        let unboundHistoricalCleanup = actionKinds.filter { key, kind in
+            !bindingKeys.contains(key) && kind == .removeCopy
+        }
+        guard Set(actionKinds.keys).subtracting(bindingKeys).isEmpty
+                || (allowsHistoricalUnboundCleanup
+                    && unboundHistoricalCleanup.count == 1
+                    && Set(actionKinds.keys).subtracting(bindingKeys).count == 1) else {
             throw DistributionOperationStoreError.invalidRecord
         }
         for key in bindingKeys {
@@ -157,7 +172,10 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                 actionKinds[key] == .refreshCopy
                     || actionKinds[key] == .discardCopyDrift
                     ? actionKinds[key] : nil
-            case (.symlink, .symlink): nil
+            case (.symlink, .symlink):
+                allowsHistoricalUnboundCleanup
+                    && actionKinds[key] == .replaceCopyWithSymlink
+                    ? .replaceCopyWithSymlink : nil
             case (nil, nil): nil
             }
             guard actionKinds[key] == expected else {
@@ -222,8 +240,13 @@ nonisolated extension DistributionOperationPayloadV2Validator {
         let actionKind = DistributionFilesystemActionKind(rawValue: action.kind)
         let isHistoricalMigration = action.historicalMigrationBackup != nil
         let oldCopyMatches = if isHistoricalMigration,
-                                actionKind == .replaceCopyWithSymlink,
+                                (actionKind == .replaceCopyWithSymlink
+                                    || actionKind == .removeCopy),
                                 oldBinding == nil {
+            action.oldCopy != nil
+        } else if isHistoricalMigration,
+                  actionKind == .replaceCopyWithSymlink,
+                  oldBinding?.syncMode == DistributionSyncMode.symlink.rawValue {
             action.oldCopy != nil
         } else if let evidence = action.oldCopy,
                                 let baseline = oldBinding?.copyBaseline {
@@ -245,10 +268,14 @@ nonisolated extension DistributionOperationPayloadV2Validator {
             throw DistributionOperationStoreError.invalidRecord
         }
         if let backup = action.historicalMigrationBackup {
-            guard actionKind == .replaceCopyWithSymlink,
-                  oldBinding == nil,
+            guard actionKind == .replaceCopyWithSymlink
+                    || actionKind == .removeCopy,
+                  oldBinding == nil
+                    || (actionKind == .replaceCopyWithSymlink
+                        && oldBinding?.syncMode == DistributionSyncMode.symlink.rawValue),
                   action.oldCopy != nil,
-                  action.oldLink == nil,
+                  actionKind == .removeCopy ? action.oldLink == nil
+                      : (oldBinding == nil ? action.oldLink == nil : action.oldLink != nil),
                   UUID(uuidString: backup.backupID)?.uuidString.lowercased()
                     == backup.backupID,
                   !backup.locator.hasPrefix("/"),
@@ -301,10 +328,15 @@ nonisolated extension DistributionOperationPayloadV2Validator {
                 && action.stagingName == copyStage
                 && action.quarantineName == linkQuarantine
         case .replaceCopyWithSymlink:
-            action.oldCopy != nil && action.oldLink == nil
+            action.oldCopy != nil
                 && action.stagingName == nil
                 && action.quarantineName == copyQuarantine
-                && (oldBinding != nil || action.historicalMigrationBackup != nil)
+                && (isHistoricalMigration
+                    ? (oldBinding == nil
+                        ? action.oldLink == nil
+                        : oldBinding?.syncMode == DistributionSyncMode.symlink.rawValue
+                            && action.oldLink != nil)
+                    : oldBinding != nil && action.oldLink == nil)
         case nil:
             false
         }

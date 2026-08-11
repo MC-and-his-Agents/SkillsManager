@@ -440,17 +440,22 @@ nonisolated enum DistributionOperationPayloadV2Validator {
         rollbackCursor: Int64,
         cleanupCursor: Int64
     ) throws {
-        let plan = try validatePlanV2(
-            planData,
-            skillID: skillID,
-            oldBindings: oldBindings,
-            newBindings: newBindings
-        )
-        let actionKinds = plan.filesystemActions.map(\.action)
         let preflight = try DistributionOperationPayloadCodec.decode(
             DistributionOperationPreflightV2.self,
             from: preflightData
         )
+        let plan = try validatePlanV2(
+            planData,
+            skillID: skillID,
+            oldBindings: oldBindings,
+            newBindings: newBindings,
+            allowsHistoricalUnboundCleanup: preflight.actions.contains {
+                ($0.kind == DistributionFilesystemActionKind.removeCopy.rawValue
+                || $0.kind == DistributionFilesystemActionKind.replaceCopyWithSymlink.rawValue)
+                && $0.historicalMigrationBackup != nil
+            }
+        )
+        let actionKinds = plan.filesystemActions.map(\.action)
         guard try DistributionOperationPayloadCodec.encode(preflight) == preflightData,
               preflight.wireVersion == 2,
               preflight.skillID == skillID.directoryName,
