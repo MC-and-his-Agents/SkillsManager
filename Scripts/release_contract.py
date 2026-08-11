@@ -168,6 +168,20 @@ def validate_ci_reuse(
     ):
         raise ContractError("CI reuse run metadata is malformed.")
 
+    build_job, test_job = validate_real_ci_jobs(jobs)
+    return {
+        "proof_sha": proof_sha,
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+        "run_url": run_url,
+        "build_job_url": f"{run_url}/job/{build_job['id']}",
+        "test_job_url": f"{run_url}/job/{test_job['id']}",
+    }
+
+
+def validate_real_ci_jobs(
+    jobs: list[dict[str, object]],
+) -> tuple[dict[str, object], dict[str, object]]:
     build_jobs = [job for job in jobs if isinstance(job, dict) and job.get("name") == "build"]
     if len(build_jobs) != 1 or build_jobs[0].get("conclusion") != "success":
         raise ContractError("CI reuse requires one successful build job.")
@@ -179,7 +193,11 @@ def validate_ci_reuse(
         for step in build_steps
         if isinstance(step, dict)
     }
-    if build_results.get("Build") != "success" or build_results.get("Skip Swift build") != "skipped":
+    if (
+        build_results.get("Build") != "success"
+        or build_results.get("Skip Swift build") != "skipped"
+        or build_results.get("Reuse verified product build") not in {None, "skipped"}
+    ):
         raise ContractError("CI reuse requires the real Build step and rejects skipped builds.")
 
     test_jobs = [job for job in jobs if isinstance(job, dict) and job.get("name") == "test"]
@@ -191,18 +209,136 @@ def validate_ci_reuse(
     step_results = {
         step.get("name"): step.get("conclusion") for step in steps if isinstance(step, dict)
     }
-    if step_results.get("Test") != "success" or step_results.get("Skip Swift tests") != "skipped":
+    if (
+        step_results.get("Test") != "success"
+        or step_results.get("Skip Swift tests") != "skipped"
+        or step_results.get("Reuse verified product tests") not in {None, "skipped"}
+    ):
         raise ContractError("CI reuse requires the real Test step and rejects skipped tests.")
+    build_job_id = build_jobs[0].get("id")
     test_job_id = test_jobs[0].get("id")
-    if not isinstance(test_job_id, int) or test_job_id < 1:
-        raise ContractError("CI reuse test job metadata is malformed.")
+    if (
+        not isinstance(build_job_id, int)
+        or build_job_id < 1
+        or not isinstance(test_job_id, int)
+        or test_job_id < 1
+    ):
+        raise ContractError("CI reuse job metadata is malformed.")
+    return build_jobs[0], test_jobs[0]
+
+
+def validate_pr_ci_reuse(
+    repository: str,
+    current_sha: str,
+    current_parent: str,
+    current_tree: str,
+    plan_sha: str,
+    pull: dict[str, object],
+    run: dict[str, object],
+    jobs: list[dict[str, object]],
+    evidence: dict[str, object],
+) -> dict[str, object]:
+    commit_values = (current_sha, current_parent, current_tree)
+    if any(re.fullmatch(r"[0-9a-f]{40}", value) is None for value in commit_values):
+        raise ContractError("PR CI reuse requires full lowercase commit and tree SHAs.")
+    if re.fullmatch(r"[0-9a-f]{64}", plan_sha) is None:
+        raise ContractError("PR CI reuse requires a SHA-256 validation plan digest.")
+
+    pr_number, base_sha, head_sha = merged_pull_identity(current_sha, current_parent, pull)
+    run_id, run_attempt, run_url = successful_pr_run_identity(head_sha, run)
+    expected_evidence = {
+        "schema": 1,
+        "event": "pull_request",
+        "repository": repository,
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+        "pr_number": pr_number,
+        "pr_base_sha": base_sha,
+        "pr_head_sha": head_sha,
+        "product_tree": current_tree,
+        "plan_sha": plan_sha,
+    }
+    if evidence != expected_evidence:
+        raise ContractError("PR CI reuse evidence is stale or does not match the merged product tree.")
+
+    validate_evidence_job(jobs)
+    build_job, test_job = validate_real_ci_jobs(jobs)
     return {
-        "proof_sha": proof_sha,
+        "proof_sha": head_sha,
+        "proof_base_sha": base_sha,
+        "proof_tree": current_tree,
+        "proof_plan_sha": plan_sha,
+        "pr_number": pr_number,
         "run_id": run_id,
         "run_attempt": run_attempt,
         "run_url": run_url,
-        "test_job_url": f"{run_url}/job/{test_job_id}",
+        "build_job_url": f"{run_url}/job/{build_job['id']}",
+        "test_job_url": f"{run_url}/job/{test_job['id']}",
     }
+
+
+def merged_pull_identity(
+    current_sha: str, current_parent: str, pull: dict[str, object]
+) -> tuple[int, str, str]:
+    base = pull.get("base")
+    head = pull.get("head")
+    if not isinstance(base, dict) or not isinstance(head, dict):
+        raise ContractError("PR CI reuse pull metadata is malformed.")
+    pr_number = pull.get("number")
+    base_sha = base.get("sha")
+    head_sha = head.get("sha")
+    if (
+        not isinstance(pr_number, int)
+        or pr_number < 1
+        or base.get("ref") != "main"
+        or base_sha != current_parent
+        or not isinstance(head_sha, str)
+        or pull.get("merge_commit_sha") != current_sha
+        or not isinstance(pull.get("merged_at"), str)
+    ):
+        raise ContractError("PR CI reuse requires the exact merged PR and protected-main base.")
+    return pr_number, base_sha, head_sha
+
+
+def successful_pr_run_identity(
+    head_sha: str, run: dict[str, object]
+) -> tuple[int, int, str]:
+    run_id = run.get("id")
+    run_attempt = run.get("run_attempt")
+    run_url = run.get("html_url")
+    if (
+        run.get("event") != "pull_request"
+        or run.get("head_sha") != head_sha
+        or run.get("status") != "completed"
+        or run.get("conclusion") != "success"
+        or not isinstance(run_id, int)
+        or run_id < 1
+        or not isinstance(run_attempt, int)
+        or run_attempt < 1
+        or not isinstance(run_url, str)
+        or not run_url.startswith("https://github.com/")
+    ):
+        raise ContractError("PR CI reuse requires a successful exact-head pull_request run.")
+    return run_id, run_attempt, run_url
+
+
+def validate_evidence_job(jobs: list[dict[str, object]]) -> None:
+    changes_jobs = [job for job in jobs if isinstance(job, dict) and job.get("name") == "changes"]
+    if len(changes_jobs) != 1 or changes_jobs[0].get("conclusion") != "success":
+        raise ContractError("PR CI reuse requires one successful changes job.")
+    changes_steps = changes_jobs[0].get("steps")
+    if not isinstance(changes_steps, list):
+        raise ContractError("PR CI reuse changes steps are missing.")
+    changes_results = {
+        step.get("name"): step.get("conclusion")
+        for step in changes_steps
+        if isinstance(step, dict)
+    }
+    if (
+        changes_results.get("Archive PR validation evidence") != "success"
+        or changes_results.get("Upload PR validation evidence") != "success"
+    ):
+        raise ContractError("PR CI reuse requires the exact archived validation evidence.")
 
 
 def dispatch_action(marker: str, runs: list[dict[str, object]]) -> str:
@@ -242,7 +378,7 @@ def validate_existing_release(
         raise ContractError("Existing Release assets are partial or conflicting.")
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -268,6 +404,17 @@ def main() -> None:
     reuse.add_argument("--run", required=True)
     reuse.add_argument("--jobs", required=True)
 
+    pr_reuse = subparsers.add_parser("pr-ci-reuse")
+    pr_reuse.add_argument("--repository", required=True)
+    pr_reuse.add_argument("--current-sha", required=True)
+    pr_reuse.add_argument("--current-parent", required=True)
+    pr_reuse.add_argument("--current-tree", required=True)
+    pr_reuse.add_argument("--plan-sha", required=True)
+    pr_reuse.add_argument("--pull", required=True)
+    pr_reuse.add_argument("--run", required=True)
+    pr_reuse.add_argument("--jobs", required=True)
+    pr_reuse.add_argument("--evidence", required=True)
+
     dispatch = subparsers.add_parser("dispatch")
     dispatch.add_argument("--marker", default="")
     dispatch.add_argument("--runs", required=True)
@@ -277,34 +424,57 @@ def main() -> None:
     existing.add_argument("--tag", required=True)
     existing.add_argument("--notes", required=True)
     existing.add_argument("--asset", action="append", required=True)
+    return parser
 
-    args = parser.parse_args()
+
+def run_command(args: argparse.Namespace) -> dict[str, object]:
+    if args.command == "impact":
+        return parse_impact(read_text(args.body))
+    if args.command == "version":
+        parsed = parse_version_env(args.file)
+        return {"version": parsed.marketing_text, "build": parsed.build}
+    if args.command == "stable-release":
+        return select_stable_release(json.loads(read_text(args.releases)))
+    if args.command == "plan":
+        return validate_release_plan(args)
+    if args.command == "ci-reuse":
+        run = json.loads(read_text(args.run))
+        jobs = json.loads(read_text(args.jobs))
+        if not isinstance(run, dict) or not isinstance(jobs, list):
+            raise ContractError("CI reuse metadata has an invalid shape.")
+        return validate_ci_reuse(args.proof_sha, run, jobs)
+    if args.command == "pr-ci-reuse":
+        pull = json.loads(read_text(args.pull))
+        run = json.loads(read_text(args.run))
+        jobs = json.loads(read_text(args.jobs))
+        evidence = json.loads(read_text(args.evidence))
+        if not all(isinstance(value, dict) for value in (pull, run, evidence)) or not isinstance(
+            jobs, list
+        ):
+            raise ContractError("PR CI reuse metadata has an invalid shape.")
+        return validate_pr_ci_reuse(
+            args.repository,
+            args.current_sha,
+            args.current_parent,
+            args.current_tree,
+            args.plan_sha,
+            pull,
+            run,
+            jobs,
+            evidence,
+        )
+    if args.command == "dispatch":
+        return {"action": dispatch_action(args.marker, json.loads(read_text(args.runs)))}
+    validate_existing_release(
+        json.loads(read_text(args.metadata)), args.tag, read_text(args.notes), args.asset
+    )
+    return {"valid": True}
+
+
+def main() -> None:
+    parser = build_parser()
     try:
-        if args.command == "impact":
-            result = parse_impact(read_text(args.body))
-        elif args.command == "version":
-            parsed = parse_version_env(args.file)
-            result = {"version": parsed.marketing_text, "build": parsed.build}
-        elif args.command == "stable-release":
-            result = select_stable_release(json.loads(read_text(args.releases)))
-        elif args.command == "plan":
-            result = validate_release_plan(args)
-        elif args.command == "ci-reuse":
-            run = json.loads(read_text(args.run))
-            jobs = json.loads(read_text(args.jobs))
-            if not isinstance(run, dict) or not isinstance(jobs, list):
-                raise ContractError("CI reuse metadata has an invalid shape.")
-            result = validate_ci_reuse(args.proof_sha, run, jobs)
-        elif args.command == "dispatch":
-            result = {"action": dispatch_action(args.marker, json.loads(read_text(args.runs)))}
-        else:
-            validate_existing_release(
-                json.loads(read_text(args.metadata)),
-                args.tag,
-                read_text(args.notes),
-                args.asset,
-            )
-            result = {"valid": True}
+        result = run_command(parser.parse_args())
     except (ContractError, json.JSONDecodeError) as error:
         parser.error(str(error))
     print(json.dumps(result, separators=(",", ":"), sort_keys=True))

@@ -60,6 +60,7 @@ class CIValidationPlanTests(unittest.TestCase):
         for path, module in (
             ("Sources/SkillsManager/Skills/Shared/SkillResultCenter.swift", "shared-product-state"),
             ("Scripts/run_ui_tests.sh", "ci-validation"),
+            (".github/workflows/full-regression.yml", "ci-validation"),
         ):
             with self.subTest(path=path):
                 self.assert_plan(

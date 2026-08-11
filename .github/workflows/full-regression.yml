@@ -1,0 +1,31 @@
+name: Full Regression
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-regression-main
+  cancel-in-progress: false
+
+jobs:
+  full-regression:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run full regression
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+        run: |
+          set -euo pipefail
+          echo "ci-full-regression head=$GITHUB_SHA product_tree=$(git rev-parse "$GITHUB_SHA^{tree}")"
+          xcodebuild -version
+          swift --version
+          swift build
+          swift test --no-parallel
+          ./Scripts/run_ui_tests.sh
