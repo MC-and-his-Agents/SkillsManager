@@ -1,3 +1,4 @@
+import copy
 import importlib.util
 import sys
 import tempfile
@@ -12,6 +13,47 @@ contract = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules[SPEC.name] = contract
 SPEC.loader.exec_module(contract)
+
+
+def real_ci_jobs(*, evidence: bool = False):
+    jobs = []
+    if evidence:
+        jobs.append(
+            {
+                "id": 454,
+                "name": "changes",
+                "conclusion": "success",
+                "steps": [
+                    {"name": "Archive PR validation evidence", "conclusion": "success"},
+                    {"name": "Upload PR validation evidence", "conclusion": "success"},
+                ],
+            }
+        )
+    jobs.extend(
+        [
+            {
+                "id": 455,
+                "name": "build",
+                "conclusion": "success",
+                "steps": [
+                    {"name": "Build", "conclusion": "success"},
+                    {"name": "Skip Swift build", "conclusion": "skipped"},
+                    {"name": "Reuse verified product build", "conclusion": "skipped"},
+                ],
+            },
+            {
+                "id": 456,
+                "name": "test",
+                "conclusion": "success",
+                "steps": [
+                    {"name": "Test", "conclusion": "success"},
+                    {"name": "Skip Swift tests", "conclusion": "skipped"},
+                    {"name": "Reuse verified product tests", "conclusion": "skipped"},
+                ],
+            },
+        ]
+    )
+    return jobs
 
 
 class ReleaseContractTests(unittest.TestCase):
@@ -119,26 +161,7 @@ class ReleaseContractTests(unittest.TestCase):
             "status": "completed",
             "conclusion": "success",
         }
-        jobs = [
-            {
-                "id": 455,
-                "name": "build",
-                "conclusion": "success",
-                "steps": [
-                    {"name": "Build", "conclusion": "success"},
-                    {"name": "Skip Swift build", "conclusion": "skipped"},
-                ],
-            },
-            {
-                "id": 456,
-                "name": "test",
-                "conclusion": "success",
-                "steps": [
-                    {"name": "Test", "conclusion": "success"},
-                    {"name": "Skip Swift tests", "conclusion": "skipped"},
-                ],
-            }
-        ]
+        jobs = real_ci_jobs()
         proof = contract.validate_ci_reuse(sha, run, jobs)
         self.assertEqual(proof["run_attempt"], 2)
         self.assertEqual(proof["test_job_url"], f"{run['html_url']}/job/456")
@@ -165,6 +188,76 @@ class ReleaseContractTests(unittest.TestCase):
         for bad_run, bad_jobs in invalid:
             with self.assertRaises(contract.ContractError):
                 contract.validate_ci_reuse(sha, bad_run, bad_jobs)
+
+    def test_pr_ci_reuse_binds_tree_plan_and_real_steps(self):
+        current_sha = "a" * 40
+        parent_sha = "b" * 40
+        tree_sha = "c" * 40
+        head_sha = "d" * 40
+        plan_sha = "e" * 64
+        run = {
+            "id": 123,
+            "run_attempt": 2,
+            "html_url": "https://github.com/example/repo/actions/runs/123",
+            "event": "pull_request",
+            "head_sha": head_sha,
+            "status": "completed",
+            "conclusion": "success",
+        }
+        pull = {
+            "number": 210,
+            "merged_at": "2026-08-11T00:00:00Z",
+            "merge_commit_sha": current_sha,
+            "base": {"ref": "main", "sha": parent_sha},
+            "head": {"sha": head_sha},
+        }
+        evidence = {
+            "schema": 1,
+            "event": "pull_request",
+            "repository": "example/repo",
+            "run_id": 123,
+            "run_attempt": 2,
+            "pr_number": 210,
+            "pr_base_sha": parent_sha,
+            "pr_head_sha": head_sha,
+            "product_tree": tree_sha,
+            "plan_sha": plan_sha,
+        }
+        values = [
+            "example/repo",
+            current_sha,
+            parent_sha,
+            tree_sha,
+            plan_sha,
+            pull,
+            run,
+            real_ci_jobs(evidence=True),
+            evidence,
+        ]
+        proof = contract.validate_pr_ci_reuse(*values)
+        self.assertEqual(proof["pr_number"], 210)
+        self.assertEqual(proof["proof_tree"], tree_sha)
+        self.assertEqual(proof["build_job_url"], f"{run['html_url']}/job/455")
+
+        invalid = []
+        for index, replacement in ((2, "f" * 40), (3, "f" * 40), (4, "f" * 64)):
+            candidate = copy.deepcopy(values)
+            candidate[index] = replacement
+            invalid.append(candidate)
+        for index, replacement in ((6, {}), (8, {})):
+            candidate = copy.deepcopy(values)
+            candidate[index] = replacement
+            invalid.append(candidate)
+        failed_jobs = copy.deepcopy(values)
+        failed_jobs[7][1]["conclusion"] = "failure"
+        invalid.append(failed_jobs)
+        reused_jobs = copy.deepcopy(values)
+        reused_jobs[7][2]["steps"][0]["conclusion"] = "skipped"
+        reused_jobs[7][2]["steps"][2]["conclusion"] = "success"
+        invalid.append(reused_jobs)
+        for candidate in invalid:
+            with self.assertRaises(contract.ContractError):
+                contract.validate_pr_ci_reuse(*candidate)
 
     def test_existing_release_must_be_complete_and_byte_comparison_ready(self):
         metadata = {

@@ -16,13 +16,18 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      swift: ${{ steps.proof.outputs.reuse == 'true' && 'false' || steps.scope.outputs.swift }}
+      swift: ${{ steps.reuse.outputs.reuse == 'true' && 'false' || steps.scope.outputs.swift }}
       ui_scope: ${{ steps.scope.outputs.ui_scope }}
       ui_groups: ${{ steps.scope.outputs.ui_groups }}
-      reuse: ${{ steps.proof.outputs.reuse || 'false' }}
-      proof_sha: ${{ steps.proof.outputs.proof_sha }}
-      proof_url: ${{ steps.proof.outputs.proof_url }}
-      proof_test_job_url: ${{ steps.proof.outputs.proof_test_job_url }}
+      reuse: ${{ steps.reuse.outputs.reuse || 'false' }}
+      proof_source: ${{ steps.reuse.outputs.proof_source }}
+      proof_sha: ${{ steps.reuse.outputs.proof_sha }}
+      proof_base_sha: ${{ steps.reuse.outputs.proof_base_sha }}
+      proof_tree: ${{ steps.reuse.outputs.proof_tree }}
+      proof_plan_sha: ${{ steps.reuse.outputs.proof_plan_sha }}
+      proof_url: ${{ steps.reuse.outputs.proof_url }}
+      proof_build_job_url: ${{ steps.reuse.outputs.proof_build_job_url }}
+      proof_test_job_url: ${{ steps.reuse.outputs.proof_test_job_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,6 +52,7 @@ jobs:
           echo "swift=$(jq -r '.swift' <<<"$scope")" >> "$GITHUB_OUTPUT"
           echo "ui_scope=$(jq -r '.ui_scope' <<<"$scope")" >> "$GITHUB_OUTPUT"
           echo "ui_groups=$(jq -r '.ui_groups' <<<"$scope")" >> "$GITHUB_OUTPUT"
+          printf '%s' "$scope" | sha256sum | awk '{print "plan_sha=" $1}' >> "$GITHUB_OUTPUT"
 
       - name: Validate CI planning contracts
         run: |
@@ -55,6 +61,40 @@ jobs:
             Scripts/tests/test_release_contract.py
           /bin/bash -n Scripts/*.sh Scripts/tests/*.sh
           /bin/bash Scripts/tests/test_ui_test_selection.sh
+
+      - name: Archive PR validation evidence
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN_SHA: ${{ steps.scope.outputs.plan_sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          product_tree=$(git rev-parse "$GITHUB_SHA^{tree}")
+          jq -n \
+            --argjson schema 1 \
+            --arg event pull_request \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --argjson run_id "$GITHUB_RUN_ID" \
+            --argjson run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --argjson pr_number "$PR_NUMBER" \
+            --arg pr_base_sha "$PR_BASE_SHA" \
+            --arg pr_head_sha "$PR_HEAD_SHA" \
+            --arg product_tree "$product_tree" \
+            --arg plan_sha "$PLAN_SHA" \
+            '{schema:$schema,event:$event,repository:$repository,run_id:$run_id,
+              run_attempt:$run_attempt,pr_number:$pr_number,pr_base_sha:$pr_base_sha,
+              pr_head_sha:$pr_head_sha,product_tree:$product_tree,plan_sha:$plan_sha}' \
+            > "$RUNNER_TEMP/ci-proof.json"
+
+      - name: Upload PR validation evidence
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ci-proof.json
+          retention-days: 7
 
       - name: Validate release contract
         if: steps.scope.outputs.release_only == 'true'
@@ -114,9 +154,71 @@ jobs:
             --issue-body "$RUNNER_TEMP/release-issue.md" \
             --release-notes RELEASE_NOTES.md
 
+      - name: Verify reusable PR CI
+        id: pr_proof
+        if: github.event_name == 'push' || steps.scope.outputs.release_only == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLAN_SHA: ${{ steps.scope.outputs.plan_sha }}
+          RELEASE_ONLY: ${{ steps.scope.outputs.release_only }}
+          TARGET_MAIN_SHA: ${{ steps.scope.outputs.release_only == 'true' && steps.scope.outputs.base_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          target_plan_sha=$PLAN_SHA
+          if [[ "$RELEASE_ONLY" == "true" ]]; then
+            git diff --name-only "$TARGET_MAIN_SHA^1" "$TARGET_MAIN_SHA" \
+              > "$RUNNER_TEMP/proof-changed-paths.txt"
+            target_plan=$(python3 Scripts/ci_validation_plan.py \
+              --changed-paths "$RUNNER_TEMP/proof-changed-paths.txt")
+            target_plan_sha=$(printf '%s' "$target_plan" | sha256sum | awk '{print $1}')
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/commits/$TARGET_MAIN_SHA/pulls" \
+            > "$RUNNER_TEMP/pulls.json"
+          jq -e --arg sha "$TARGET_MAIN_SHA" \
+            '[.[] | select(.merge_commit_sha == $sha and .merged_at != null and
+              .base.ref == "main")] | if length == 1 then .[0] else empty end' \
+            "$RUNNER_TEMP/pulls.json" > "$RUNNER_TEMP/pull.json"
+          pr_number=$(jq -er '.number' "$RUNNER_TEMP/pull.json")
+          head_sha=$(jq -er '.head.sha' "$RUNNER_TEMP/pull.json")
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=pull_request&status=success&head_sha=$head_sha&per_page=100" \
+            > "$RUNNER_TEMP/runs.json"
+          jq --arg head "$head_sha" \
+            '[.workflow_runs[] | select(.head_sha == $head)] | sort_by(.id) | last // empty' \
+            "$RUNNER_TEMP/runs.json" > "$RUNNER_TEMP/proof-run.json"
+          run_id=$(jq -er '.id' "$RUNNER_TEMP/proof-run.json")
+          run_attempt=$(jq -er '.run_attempt' "$RUNNER_TEMP/proof-run.json")
+          gh run download "$run_id" \
+            --name "ci-proof-$run_id-$run_attempt" \
+            --dir "$RUNNER_TEMP/proof"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/attempts/$run_attempt/jobs?per_page=100" \
+            --jq '.jobs' > "$RUNNER_TEMP/proof-jobs.json"
+          current_parent=$(git rev-parse "$TARGET_MAIN_SHA^1")
+          current_tree=$(git rev-parse "$TARGET_MAIN_SHA^{tree}")
+          proof=$(python3 Scripts/release_contract.py pr-ci-reuse \
+            --repository "$GITHUB_REPOSITORY" \
+            --current-sha "$TARGET_MAIN_SHA" \
+            --current-parent "$current_parent" \
+            --current-tree "$current_tree" \
+            --plan-sha "$target_plan_sha" \
+            --pull "$RUNNER_TEMP/pull.json" \
+            --run "$RUNNER_TEMP/proof-run.json" \
+            --jobs "$RUNNER_TEMP/proof-jobs.json" \
+            --evidence "$RUNNER_TEMP/proof/ci-proof.json")
+          echo "ci-pr-reuse-proof=$proof"
+          echo "reuse=true" >> "$GITHUB_OUTPUT"
+          echo "proof_source=pr" >> "$GITHUB_OUTPUT"
+          echo "proof_sha=$(jq -r '.proof_sha' <<<"$proof")" >> "$GITHUB_OUTPUT"
+          echo "proof_base_sha=$(jq -r '.proof_base_sha' <<<"$proof")" >> "$GITHUB_OUTPUT"
+          echo "proof_tree=$(jq -r '.proof_tree' <<<"$proof")" >> "$GITHUB_OUTPUT"
+          echo "proof_plan_sha=$(jq -r '.proof_plan_sha' <<<"$proof")" >> "$GITHUB_OUTPUT"
+          echo "proof_url=$(jq -r '.run_url' <<<"$proof")" >> "$GITHUB_OUTPUT"
+          echo "proof_build_job_url=$(jq -r '.build_job_url' <<<"$proof")" >> "$GITHUB_OUTPUT"
+          echo "proof_test_job_url=$(jq -r '.test_job_url' <<<"$proof")" >> "$GITHUB_OUTPUT"
+
       - name: Verify reusable main CI
-        id: proof
-        if: steps.scope.outputs.release_only == 'true'
+        id: main_proof
+        if: steps.scope.outputs.release_only == 'true' && steps.pr_proof.outcome != 'success'
         continue-on-error: true
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -146,13 +248,33 @@ jobs:
             --run "$RUNNER_TEMP/proof-run.json" \
             --jobs "$RUNNER_TEMP/proof-jobs.json")
           echo "reuse=true" >> "$GITHUB_OUTPUT"
+          echo "proof_source=main" >> "$GITHUB_OUTPUT"
           echo "proof_sha=$PROOF_SHA" >> "$GITHUB_OUTPUT"
           echo "proof_url=$(jq -r '.run_url' <<<"$proof")" >> "$GITHUB_OUTPUT"
+          echo "proof_build_job_url=$(jq -r '.build_job_url' <<<"$proof")" >> "$GITHUB_OUTPUT"
           echo "proof_test_job_url=$(jq -r '.test_job_url' <<<"$proof")" >> "$GITHUB_OUTPUT"
 
-      - name: Fall back to the full macOS gate
-        if: steps.scope.outputs.release_only == 'true' && steps.proof.outcome != 'success'
-        run: echo "Verified CI evidence is unavailable; running the full macOS gate."
+      - name: Resolve reusable CI evidence
+        id: reuse
+        if: always()
+        run: |
+          set -euo pipefail
+          reuse=${{ steps.pr_proof.outputs.reuse == 'true' && 'true' || steps.main_proof.outputs.reuse == 'true' && 'true' || 'false' }}
+          echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
+          if [[ "$reuse" == "true" ]]; then
+            echo "proof_source=${{ steps.pr_proof.outputs.reuse == 'true' && steps.pr_proof.outputs.proof_source || steps.main_proof.outputs.proof_source }}" >> "$GITHUB_OUTPUT"
+            echo "proof_sha=${{ steps.pr_proof.outputs.reuse == 'true' && steps.pr_proof.outputs.proof_sha || steps.main_proof.outputs.proof_sha }}" >> "$GITHUB_OUTPUT"
+            echo "proof_base_sha=${{ steps.pr_proof.outputs.proof_base_sha }}" >> "$GITHUB_OUTPUT"
+            echo "proof_tree=${{ steps.pr_proof.outputs.proof_tree }}" >> "$GITHUB_OUTPUT"
+            echo "proof_plan_sha=${{ steps.pr_proof.outputs.proof_plan_sha }}" >> "$GITHUB_OUTPUT"
+            echo "proof_url=${{ steps.pr_proof.outputs.reuse == 'true' && steps.pr_proof.outputs.proof_url || steps.main_proof.outputs.proof_url }}" >> "$GITHUB_OUTPUT"
+            echo "proof_build_job_url=${{ steps.pr_proof.outputs.reuse == 'true' && steps.pr_proof.outputs.proof_build_job_url || steps.main_proof.outputs.proof_build_job_url }}" >> "$GITHUB_OUTPUT"
+            echo "proof_test_job_url=${{ steps.pr_proof.outputs.reuse == 'true' && steps.pr_proof.outputs.proof_test_job_url || steps.main_proof.outputs.proof_test_job_url }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Execute the current validation plan
+        if: steps.reuse.outputs.reuse != 'true' && (github.event_name == 'push' || steps.scope.outputs.release_only == 'true')
+        run: echo "Reusable CI evidence is unavailable; executing the current risk-based plan."
 
   build:
     needs: changes
@@ -174,9 +296,17 @@ jobs:
       - name: Reuse verified product build
         if: needs.changes.outputs.reuse == 'true'
         env:
+          PROOF_SOURCE: ${{ needs.changes.outputs.proof_source }}
           PROOF_SHA: ${{ needs.changes.outputs.proof_sha }}
+          PROOF_BASE_SHA: ${{ needs.changes.outputs.proof_base_sha }}
+          PROOF_TREE: ${{ needs.changes.outputs.proof_tree }}
+          PROOF_PLAN_SHA: ${{ needs.changes.outputs.proof_plan_sha }}
           PROOF_URL: ${{ needs.changes.outputs.proof_url }}
-        run: echo "Release-only commit reuses the successful product build from $PROOF_SHA ($PROOF_URL)."
+          PROOF_BUILD_JOB_URL: ${{ needs.changes.outputs.proof_build_job_url }}
+        run: |
+          echo "CI evidence source=$PROOF_SOURCE head=$PROOF_SHA base=${PROOF_BASE_SHA:-n/a} tree=${PROOF_TREE:-n/a} plan=${PROOF_PLAN_SHA:-n/a}"
+          echo "Run: $PROOF_URL"
+          echo "Successful real Build step: $PROOF_BUILD_JOB_URL"
 
   test:
     needs: changes
@@ -207,10 +337,14 @@ jobs:
       - name: Reuse verified product tests
         if: needs.changes.outputs.reuse == 'true'
         env:
+          PROOF_SOURCE: ${{ needs.changes.outputs.proof_source }}
           PROOF_SHA: ${{ needs.changes.outputs.proof_sha }}
+          PROOF_BASE_SHA: ${{ needs.changes.outputs.proof_base_sha }}
+          PROOF_TREE: ${{ needs.changes.outputs.proof_tree }}
+          PROOF_PLAN_SHA: ${{ needs.changes.outputs.proof_plan_sha }}
           PROOF_URL: ${{ needs.changes.outputs.proof_url }}
           PROOF_TEST_JOB_URL: ${{ needs.changes.outputs.proof_test_job_url }}
         run: |
-          echo "Release-only commit reuses full product tests from $PROOF_SHA."
+          echo "CI evidence source=$PROOF_SOURCE head=$PROOF_SHA base=${PROOF_BASE_SHA:-n/a} tree=${PROOF_TREE:-n/a} plan=${PROOF_PLAN_SHA:-n/a}"
           echo "Run: $PROOF_URL"
           echo "Successful real Test step: $PROOF_TEST_JOB_URL"

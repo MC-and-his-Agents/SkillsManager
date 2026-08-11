@@ -62,6 +62,7 @@ UI_COMPONENT_SUFFIXES = (
 
 FULL_CI_PATHS = {
     ".github/workflows/ci.yml",
+    ".github/workflows/full-regression.yml",
     "Scripts/ci_validation_plan.py",
     "Scripts/release_contract.py",
     "Scripts/run_ui_tests.sh",
