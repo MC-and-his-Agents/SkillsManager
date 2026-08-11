@@ -123,10 +123,19 @@ struct SkillsManagerApp: App {
                     Text("Check for Updates…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut("u", modifiers: [.command, .option])
+                Button {
+                    openWindow(id: "harness-roots")
+                } label: {
+                    Text("Harness Skill Roots…")
+                }
             }
         }
         Window("About Skills Manager", id: "about") {
             AboutView()
+        }
+        .windowResizability(.contentSize)
+        Window("Harness Skill Roots", id: "harness-roots") {
+            HarnessSkillRootSettingsView()
         }
         .windowResizability(.contentSize)
     }

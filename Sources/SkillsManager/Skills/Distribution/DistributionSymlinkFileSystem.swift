@@ -91,13 +91,19 @@ nonisolated enum DistributionSymlinkFileSystemError: LocalizedError, Equatable {
 /// Descriptor-backed file operations. Journal decisions belong to the executor.
 nonisolated final class DistributionSymlinkFileSystem {
     private let homeURL: URL
+    private let suppliedCatalog: DistributionTargetCatalog?
     let hooks: DistributionFilesystemTestHooks
 
-    init(homeURL: URL, hooks: DistributionFilesystemTestHooks = .init()) throws {
+    init(
+        homeURL: URL,
+        catalog: DistributionTargetCatalog? = nil,
+        hooks: DistributionFilesystemTestHooks = .init()
+    ) throws {
         guard homeURL.isFileURL, homeURL.path.hasPrefix("/"), homeURL.path != "/" else {
             throw DistributionSymlinkFileSystemError.invalidTarget
         }
         self.homeURL = homeURL.standardizedFileURL
+        self.suppliedCatalog = catalog
         self.hooks = hooks
         let home = try openHome()
         Darwin.close(home)
@@ -125,6 +131,15 @@ nonisolated final class DistributionSymlinkFileSystem {
     /// The path is resolved from the validated home held by this file system; callers must
     /// capture it before applying a plan and may use it for containment checks.
     func absoluteTargetURL(for entry: DistributionTargetEntry) throws -> URL {
+        if let root = entry.target.resolvedRootURL {
+            guard entry.target.isAvailable else {
+                throw DistributionSymlinkFileSystemError.unavailable
+            }
+            return root.appendingPathComponent(
+                entry.distributionSlug.value,
+                isDirectory: true
+            ).standardizedFileURL
+        }
         let path = try components(for: entry.target.scope).reduce(homeURL) {
             $0.appendingPathComponent($1, isDirectory: true)
         }
@@ -405,6 +420,10 @@ nonisolated final class DistributionSymlinkFileSystem {
     func classifyUnavailableRoot(
         _ components: [String]
     ) throws -> RootAvailability {
+        if let root = configuredRoot(for: components) {
+            guard root.target.isAvailable else { return .unavailable }
+            return classifyAbsoluteRoot(root.url)
+        }
         var current = try openHome()
         defer { Darwin.close(current) }
         for component in components {
@@ -432,6 +451,12 @@ nonisolated final class DistributionSymlinkFileSystem {
         components: [String],
         createMissing: Bool
     ) throws -> DirectoryHandle {
+        if let configured = configuredRoot(for: components) {
+            guard configured.target.isAvailable else {
+                throw DistributionSymlinkFileSystemError.unavailable
+            }
+            return try openAbsoluteRoot(configured.url)
+        }
         var current = try openHome()
         do {
             for component in components {
@@ -486,6 +511,14 @@ nonisolated final class DistributionSymlinkFileSystem {
     }
 
     func verifyRoot(_ handle: DirectoryHandle, components: [String]) throws {
+        if let configured = configuredRoot(for: components), configured.target.isConfigured {
+            let reopened = try openAbsoluteRoot(configured.url)
+            defer { Darwin.close(reopened.descriptor) }
+            guard reopened.identity == handle.identity else {
+                throw DistributionSymlinkFileSystemError.entryChanged
+            }
+            return
+        }
         let reopened = try openDirectory(components: components, createMissing: false)
         defer { Darwin.close(reopened.descriptor) }
         guard reopened.identity == handle.identity else {
@@ -540,6 +573,84 @@ nonisolated final class DistributionSymlinkFileSystem {
             throw DistributionSymlinkFileSystemError.invalidTarget
         }
         return components
+    }
+
+    private struct ConfiguredRoot {
+        let target: DistributionTarget
+        let url: URL
+    }
+
+    private var activeCatalog: DistributionTargetCatalog {
+        suppliedCatalog ?? DistributionTargetCatalog.current(homeURL: homeURL)
+    }
+
+    private func configuredRoot(for components: [String]) -> ConfiguredRoot? {
+        let scope: DistributionBindingScope?
+        if components == [".agents", "skills"] {
+            scope = .global
+        } else {
+            scope = SkillPlatform.allCases.first { platform in
+                platform.dedicatedDistributionRelativePath
+                    .split(separator: "/")
+                    .map(String.init) == components
+            }.map(DistributionBindingScope.agent)
+        }
+        guard let scope,
+              let target = activeCatalog.target(for: scope),
+              target.isConfigured,
+              let url = target.resolvedRootURL else {
+            return nil
+        }
+        return ConfiguredRoot(target: target, url: url)
+    }
+
+    private func classifyAbsoluteRoot(_ url: URL) -> RootAvailability {
+        var metadata = stat()
+        guard Darwin.lstat(url.path, &metadata) == 0 else {
+            return errno == ENOENT || errno == ENOTDIR ? .missing : .unavailable
+        }
+        guard metadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFDIR),
+              metadata.st_uid == Darwin.geteuid() else {
+            return .unavailable
+        }
+        return .unavailable
+    }
+
+    private func openAbsoluteRoot(_ url: URL) throws -> DirectoryHandle {
+        let parentURL = url.deletingLastPathComponent()
+        let parent = Darwin.open(
+            parentURL.path,
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
+        guard parent >= 0 else { throw posix("open distribution root parent") }
+        defer { Darwin.close(parent) }
+        let descriptor = Darwin.openat(
+            parent,
+            url.lastPathComponent,
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
+        guard descriptor >= 0 else {
+            throw DistributionSymlinkFileSystemError.unavailable
+        }
+        var held = stat()
+        var named = stat()
+        guard Darwin.fstat(descriptor, &held) == 0,
+              Darwin.fstatat(
+                  parent,
+                  url.lastPathComponent,
+                  &named,
+                  AT_SYMLINK_NOFOLLOW
+              ) == 0,
+              held.st_mode & mode_t(S_IFMT) == mode_t(S_IFDIR),
+              held.st_uid == Darwin.geteuid(),
+              ManagedItemIdentity(held) == ManagedItemIdentity(named) else {
+            Darwin.close(descriptor)
+            throw DistributionSymlinkFileSystemError.unavailable
+        }
+        return DirectoryHandle(
+            descriptor: descriptor,
+            identity: ManagedItemIdentity(held)
+        )
     }
 
     func requireUniqueName(_ name: String, in descriptor: Int32) throws {

@@ -66,6 +66,17 @@ nonisolated struct SkillDiscoveryScope: Hashable, Sendable {
 nonisolated struct SkillDiscoveryRoot: Hashable, Sendable {
     let scope: SkillDiscoveryScope
     let url: URL
+    let diagnostic: SkillDiscoveryReason?
+
+    init(
+        scope: SkillDiscoveryScope,
+        url: URL,
+        diagnostic: SkillDiscoveryReason? = nil
+    ) {
+        self.scope = scope
+        self.url = url
+        self.diagnostic = diagnostic
+    }
 }
 
 nonisolated enum SkillDiscoveryStatus: String, Hashable, Sendable {
@@ -235,16 +246,57 @@ nonisolated struct SkillDiscoveryResult: Sendable {
 }
 
 nonisolated struct SkillDiscoveryRootPlan {
-    static func make(homeURL: URL, customPaths: [CustomSkillPath]) -> [SkillDiscoveryRoot] {
+    static func make(
+        homeURL: URL,
+        customPaths: [CustomSkillPath],
+        catalog: DistributionTargetCatalog? = nil
+    ) -> [SkillDiscoveryRoot] {
+        let catalog = catalog ?? DistributionTargetCatalog.current(homeURL: homeURL)
         var roots = [
             SkillDiscoveryRoot(
                 scope: .global,
-                url: homeURL.appendingPathComponent(".agents/skills", isDirectory: true)
+                url: catalog.globalTarget.resolvedRootURL
+                    ?? homeURL.appendingPathComponent(".agents/skills", isDirectory: true)
             ),
         ]
-        roots.append(contentsOf: platformRoots(in: homeURL, scope: { platform, relativePath in
-            .agent(adapterCode: platform.storageKey, pathVariant: relativePath)
-        }))
+        for platform in SkillPlatform.allCases {
+            guard let target = catalog.target(for: .agent(platform)) else { continue }
+            let primaryURL = target.resolvedRootURL
+                ?? homeURL.appendingPathComponent(platform.relativePath, isDirectory: true)
+            roots.append(SkillDiscoveryRoot(
+                scope: .agent(
+                    adapterCode: platform.storageKey,
+                    pathVariant: target.rootLocator.hasPrefix("~")
+                        ? platform.relativePath
+                        : target.rootLocator
+                ),
+                url: primaryURL.standardizedFileURL,
+                diagnostic: target.resolutionStatus.flatMap(Self.rootDiagnostic)
+            ))
+            for compatibility in platform.discoveryCompatibilityRelativePaths {
+                let isNestedCompatibility = compatibility.hasPrefix(
+                    platform.dedicatedDistributionRelativePath + "/"
+                )
+                let suffix = isNestedCompatibility
+                    ? String(compatibility.dropFirst(
+                        platform.dedicatedDistributionRelativePath.count + 1
+                    ))
+                    : ""
+                let compatibilityURL = isNestedCompatibility
+                    ? primaryURL.appendingPathComponent(suffix, isDirectory: true)
+                    : homeURL.appendingPathComponent(compatibility, isDirectory: true)
+                roots.append(SkillDiscoveryRoot(
+                    scope: .agent(
+                        adapterCode: platform.storageKey,
+                        pathVariant: target.rootLocator.hasPrefix("~") || !isNestedCompatibility
+                            ? compatibility
+                            : "\(target.rootLocator)/\(suffix)"
+                    ),
+                    url: compatibilityURL.standardizedFileURL,
+                    diagnostic: target.resolutionStatus.flatMap(Self.rootDiagnostic)
+                ))
+            }
+        }
         for customPath in customPaths {
             roots.append(contentsOf: platformRoots(in: customPath.url) { platform, relativePath in
                 .custom(
@@ -254,7 +306,11 @@ nonisolated struct SkillDiscoveryRootPlan {
                 )
             })
         }
-        return roots
+        var seen: Set<String> = []
+        return roots.filter { root in
+            let key = root.url.standardizedFileURL.path
+            return seen.insert(key).inserted
+        }
     }
 
     private static func platformRoots(
@@ -268,6 +324,18 @@ nonisolated struct SkillDiscoveryRootPlan {
                     url: baseURL.appendingPathComponent(relativePath, isDirectory: true)
                 )
             }
+        }
+    }
+
+    private static func rootDiagnostic(
+        _ status: HarnessSkillRootResolutionStatus
+    ) -> SkillDiscoveryReason? {
+        switch status {
+        case .changed: .rootChanged
+        case .permissionDenied: .rootPermissionDenied
+        case .unsupported: .rootUnsupportedType
+        case .unavailable, .environmentUnavailable, .conflict: .rootReadFailed
+        case .default, .configured, .environmentHint: nil
         }
     }
 }
