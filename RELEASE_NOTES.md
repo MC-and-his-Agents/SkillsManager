@@ -1,3 +1,31 @@
+# Skills Manager 0.5.0
+
+中文
+
+- 新增原生简体中文与英文界面：首次启动默认简体中文，可在 macOS“应用语言”中切换英文；核心流程、错误状态、辅助功能与权限说明均使用应用内资源并支持系统回退。
+- 更新徽章改为仅在可见的已管理 Skill 行按需检查，避免列表刷新触发批量网络请求，并阻止旧请求覆盖当前结果。
+- 安装、更新、删除与分发结果使用带唯一操作身份的详情页结果条；支持手动关闭与自动消退，旧计时器不会隐藏新结果，ClawHub、skills.sh 与 GitHub 仓库安装结果均可见。
+- 本地构建与启动默认强制 ad-hoc 签名并清理继承的签名环境，不再访问钥匙串或反复请求密码；Developer ID 仅用于显式选择的正式签名流程。
+
+已知限制
+
+- skills.sh 使用未文档化公共接口，可能临时或永久不可用；失败不会影响本地、ClawHub 或已管理 Skill。
+- 行内更新徽章仅覆盖 ClawHub 来源；仓库与 skills.sh 来源的更新检测不在本版本。
+- 本版本不通过 Mac App Store 分发。
+
+English
+
+- Added native Simplified Chinese and English interfaces: first launch defaults to Simplified Chinese, while English is selectable through macOS App Language. Core journeys, errors, accessibility copy, permission descriptions, and system fallback are localized from app resources.
+- Update badges now check only visible managed-skill rows on demand, avoiding bulk network requests during list refresh and rejecting stale responses.
+- Install, update, delete, and distribution results use a detail-pane banner with unique operation identity, manual close, and safe auto-dismiss. ClawHub, skills.sh, and GitHub repository install results are all surfaced without an old timer hiding a newer result.
+- Local build-and-run now forces ad-hoc signing and scrubs inherited signing settings, avoiding keychain access and repeated password prompts. Developer ID remains limited to explicitly selected release signing.
+
+Known limitations
+
+- skills.sh uses an undocumented public endpoint that may become temporarily or permanently unavailable; failures do not affect local, ClawHub, or managed skills.
+- In-row update badges cover ClawHub sources only; repository and skills.sh update detection is not part of this version.
+- This release is not distributed through the Mac App Store.
+
 # Skills Manager 0.4.0
 
 中文
