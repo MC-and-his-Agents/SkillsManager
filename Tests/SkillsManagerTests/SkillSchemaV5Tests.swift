@@ -22,8 +22,8 @@ struct SkillSchemaV5Tests {
         #expect(try rolledBack.userTableNames() == SkillSchemaV4.tableNames)
 
         let migrated = try SkillSchemaMigrator.open(at: location.database)
-        #expect(try migrated.querySingleInt("PRAGMA user_version") == 15)
-        #expect(try migrated.userTableNames() == SkillSchemaV15.tableNames)
+        #expect(try migrated.querySingleInt("PRAGMA user_version") == 16)
+        #expect(try migrated.userTableNames() == SkillSchemaV16.tableNames)
     }
 
     @Test("enforces scope shapes, Skill FK, and position uniqueness")
@@ -138,6 +138,7 @@ private func schemaV5DatabaseLocation() throws -> (root: URL, database: URL) {
 private func downgradeToV4(_ connection: SQLiteConnection) throws {
     try connection.execute("BEGIN IMMEDIATE")
     do {
+        try restoreV3CustomPathsForLegacyFixture(connection)
         try removeV6ObjectsForLegacyFixture(connection)
         try connection.execute("DROP TABLE local_skill_origins")
         try connection.execute(

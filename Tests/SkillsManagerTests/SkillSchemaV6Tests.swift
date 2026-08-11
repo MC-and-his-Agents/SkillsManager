@@ -13,11 +13,11 @@ struct SkillSchemaV6Tests {
             try createV6MigrationFixture(version: version, at: location.database)
 
             let migrated = try SkillSchemaMigrator.open(at: location.database)
-            #expect(try migrated.querySingleInt("PRAGMA user_version") == 15)
+            #expect(try migrated.querySingleInt("PRAGMA user_version") == 16)
             #expect(try migrated.querySingleInt(
                 "SELECT schema_version FROM schema_metadata WHERE singleton = 1"
-            ) == 15)
-            #expect(try migrated.userTableNames() == SkillSchemaV15.tableNames)
+            ) == 16)
+            #expect(try migrated.userTableNames() == SkillSchemaV16.tableNames)
         }
     }
 
@@ -63,8 +63,8 @@ struct SkillSchemaV6Tests {
             accessMode: .readOnly
         )
         #expect(reader.accessMode == .readOnly)
-        #expect(try reader.querySingleInt("PRAGMA user_version") == 15)
-        #expect(try reader.userTableNames() == SkillSchemaV15.tableNames)
+        #expect(try reader.querySingleInt("PRAGMA user_version") == 16)
+        #expect(try reader.userTableNames() == SkillSchemaV16.tableNames)
     }
 
     @Test("distribution binding constraints fail closed")
@@ -280,4 +280,13 @@ func removeV6ObjectsForLegacyFixture(_ connection: SQLiteConnection) throws {
     try connection.execute("DROP TABLE distribution_bindings")
     try connection.execute("DROP TABLE copy_fork_operations")
     try connection.execute("DROP TABLE skill_fork_lineage")
+}
+
+func restoreV3CustomPathsForLegacyFixture(_ connection: SQLiteConnection) throws {
+    try connection.execute("DROP TRIGGER custom_paths_id_immutable")
+    try connection.execute("DROP TABLE custom_paths")
+    try connection.execute(SkillSchemaV3.statements[0])
+    try connection.execute(
+        SkillSchemaV3.statements.first { $0.contains("CREATE TRIGGER custom_paths_id_immutable") }!
+    )
 }

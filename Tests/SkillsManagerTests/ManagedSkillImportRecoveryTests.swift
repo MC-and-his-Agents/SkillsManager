@@ -140,7 +140,7 @@ struct ManagedSkillImportRecoveryTests {
         _ = recovered
         #expect(
             try workspace.integer("PRAGMA user_version")
-                == Int64(SkillSchemaV15.version)
+                == Int64(SkillSchemaV16.version)
         )
         #expect(try workspace.integer("SELECT count(*) FROM skills") == 1)
         #expect(try workspace.integer("SELECT count(*) FROM local_skill_origins") == 0)
@@ -200,6 +200,7 @@ struct ManagedSkillImportRecoveryTests {
         let connection = try SQLiteConnection(url: database)
         try connection.execute("BEGIN IMMEDIATE")
         do {
+            try restoreV3CustomPathsForLegacyFixture(connection)
             try removeV6ObjectsForLegacyFixture(connection)
             try connection.execute("DROP TABLE local_skill_origins")
             try connection.execute(

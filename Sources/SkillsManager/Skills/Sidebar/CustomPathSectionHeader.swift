@@ -17,6 +17,9 @@ struct CustomPathSectionHeader: View {
                     Text(verbatim: customPath.url.path)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    Text(verbatim: modeLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -83,6 +86,15 @@ struct CustomPathSectionHeader: View {
                     ? libraryRuntime.blockingMessage
                     : error.localizedDescription
             }
+        }
+    }
+
+    private var modeLabel: String {
+        switch customPath.mode {
+        case .project:
+            return "Project root"
+        case .collection(let adapter):
+            return "Direct collection · \(adapter.rawValue)"
         }
     }
 

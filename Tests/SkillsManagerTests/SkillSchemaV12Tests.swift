@@ -34,7 +34,7 @@ struct SkillSchemaV12Tests {
             #expect(try operationStore.load(operation.operationID) == operation)
 
             try SkillSchemaMigrator.migrateIfNeeded(connection)
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 15)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 16)
             let binding = try #require(
                 DistributionBindingStore(connection: connection).load(skillID: skillID).first
             )

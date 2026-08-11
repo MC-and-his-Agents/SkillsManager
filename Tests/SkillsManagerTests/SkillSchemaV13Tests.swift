@@ -27,7 +27,7 @@ struct SkillSchemaV13Tests {
             ).contains("copy_provenance_kind") == false)
 
             try SkillSchemaMigrator.migrateIfNeeded(connection)
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 15)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 16)
             #expect(try connection.querySingleText(
                 "SELECT copy_provenance_kind FROM distribution_bindings"
             ) == "distribution")

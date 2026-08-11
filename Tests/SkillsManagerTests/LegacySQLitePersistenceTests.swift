@@ -21,17 +21,40 @@ struct LegacySQLitePersistenceTests {
         let fixture = try LegacyMigrationTestFixture(customPaths: legacyCustomPathsFixture)
         let connection = try admittedConnection(fixture)
         let persistence = try SQLiteCustomPathPersistence(connection: connection)
-        #expect(try persistence.loadAll().count == 1)
+        let existing = try #require(try persistence.loadAll().first)
+        #expect(existing.mode == .project)
 
-        let added = CustomSkillPath(url: URL(fileURLWithPath: "/tmp/another", isDirectory: true))
+        let added = CustomSkillPath(
+            url: URL(fileURLWithPath: "/tmp/another", isDirectory: true),
+            mode: .collection(adapter: .codex)
+        )
         try persistence.insert(added)
         #expect(try persistence.loadAll().count == 2)
+        #expect(try persistence.loadAll().last?.mode == .collection(adapter: .codex))
         try persistence.remove(id: added.id)
         #expect(try persistence.loadAll().count == 1)
         #expect(try String(
             contentsOf: fixture.legacyRoot.appendingPathComponent("custom-paths.json"),
             encoding: .utf8
         ) == legacyCustomPathsFixture)
+    }
+
+    @Test("custom path Codable round trips explicit mode and keeps old project shape")
+    func customPathCodableRoundTrip() throws {
+        let project = CustomSkillPath(url: URL(fileURLWithPath: "/tmp/project", isDirectory: true))
+        let projectData = try JSONEncoder().encode(project)
+        #expect(!String(decoding: projectData, as: UTF8.self).contains("mode"))
+        #expect(try JSONDecoder().decode(CustomSkillPath.self, from: projectData).mode == .project)
+
+        let collection = CustomSkillPath(
+            url: URL(fileURLWithPath: "/tmp/.codex/skills", isDirectory: true),
+            mode: .collection(adapter: .codex)
+        )
+        let decoded = try JSONDecoder().decode(
+            CustomSkillPath.self,
+            from: JSONEncoder().encode(collection)
+        )
+        #expect(decoded.mode == .collection(adapter: .codex))
     }
 
     @MainActor

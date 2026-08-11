@@ -15,12 +15,12 @@ struct SkillSchemaV9CompatibilityTests {
             let before = try historicalFacts(at: databaseURL)
             let connection = try SkillSchemaMigrator.open(at: databaseURL)
 
-            #expect(try connection.querySingleInt("PRAGMA user_version") == 15)
+            #expect(try connection.querySingleInt("PRAGMA user_version") == 16)
             #expect(try connection.querySingleInt(
                 "SELECT schema_version FROM schema_metadata"
-            ) == 15)
+            ) == 16)
             #expect(try historicalFacts(connection) == before)
-            try SkillSchemaMigrator.validateV15(connection)
+            try SkillSchemaMigrator.validateV16(connection)
         }
     }
 

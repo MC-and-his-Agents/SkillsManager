@@ -152,8 +152,9 @@ nonisolated enum LegacyStateMigrationExecutor {
         let statement = try connection.prepare(
             """
             INSERT INTO custom_paths(
-              custom_path_id, absolute_url, normalized_url_key, display_name, added_at_ms
-            ) VALUES (?, ?, ?, ?, ?)
+              custom_path_id, absolute_url, normalized_url_key, display_name, added_at_ms,
+              root_mode, adapter_code
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """
         )
         for record in records {
@@ -162,6 +163,12 @@ nonisolated enum LegacyStateMigrationExecutor {
             try statement.bind(record.normalizedURLKey, at: 3)
             try statement.bind(record.displayName, at: 4)
             try statement.bind(record.addedAtMilliseconds, at: 5)
+            try statement.bind(record.mode.storageKey, at: 6)
+            if let adapter = record.mode.adapter {
+                try statement.bind(adapter.storageKey, at: 7)
+            } else {
+                try statement.bindNull(at: 7)
+            }
             guard try !statement.step() else { throw LegacyMigrationFailure(.databaseFailure) }
             try statement.reset()
         }
