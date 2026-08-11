@@ -121,6 +121,10 @@ fi
 if [[ "${1:-}" == test-without-building ]]; then
   if [[ "$*" == *"-only-testing:"* ]]; then
     : > "$FIXTURE_DIR/filter-present"
+    for argument in "$@"; do
+      [[ "$argument" == -only-testing:* ]] \
+        && printf "%s\\n" "${argument#-only-testing:}" >> "$FIXTURE_DIR/filters"
+    done
   else
     : > "$FIXTURE_DIR/filter-absent"
   fi
@@ -236,13 +240,13 @@ exit 0'
 
 run_case() {
   local mode="$1" expected_status="$2" hosted="${3:-false}"
+  local groups="${4:-}" tests="${5:-}"
   local case_dir="$TEST_DIR/$mode-$hosted" home_dir="$TEST_DIR/home-$mode-$hosted" tmp_dir="$TEST_DIR/tmp-$mode-$hosted"
   local output status
   mkdir -p "$case_dir" "$home_dir" "$tmp_dir"
   make_stubs "$case_dir/stubs"
   set +e
   env \
-    -u UI_TEST_ONLY_TESTING \
     HOME="$home_dir" \
     TMPDIR="$tmp_dir" \
     PATH="$case_dir/stubs:$PATH" \
@@ -260,6 +264,8 @@ run_case() {
     SIGNING_MODE=developer-id \
     GITHUB_ACTIONS="$hosted" \
     GITHUB_RUN_ID=195fixture \
+    UI_TEST_GROUPS="$groups" \
+    UI_TEST_ONLY_TESTING="$tests" \
     "$ROOT/Scripts/run_ui_tests.sh" >"$case_dir/output" 2>&1
   status=$?
   set -e
@@ -307,6 +313,13 @@ assert_local_artifacts "$assertion_dir" test-failure not-run
 [[ -e "$assertion_dir/filter-absent" ]] || fail "empty filter did not reach xcodebuild without a filter"
 [[ ! -e "$assertion_dir/filter-present" ]] || fail "unexpected test filter was passed"
 assert_signing_scrubbed "$assertion_dir"
+
+group_dir=$(run_case assertion 1 false core-smoke)
+grep -Fq 'ui-test-selection mode=groups groups=core-smoke selected_test_total=5' \
+  "$group_dir/output" || fail "group selection summary missing"
+[[ "$(wc -l < "$group_dir/filters" | tr -d ' ')" == 5 ]] || fail "group filter count mismatch"
+grep -Fxq 'SkillsManagerUITests/SkillsManagerUITests/testSM168UI01Baseline' \
+  "$group_dir/filters" || fail "group filter did not reach xcodebuild"
 
 hosted_assertion_dir=$(run_case assertion 1 true)
 grep -Fq 'category=test-failure' "$hosted_assertion_dir/output" || fail "hosted assertion failure was not classified"

@@ -11,10 +11,8 @@ LSREGISTER="${LSREGISTER:-/System/Library/Frameworks/CoreServices.framework/Fram
 HOSTED_CI=0
 [[ "${GITHUB_ACTIONS:-}" == "true" ]] && HOSTED_CI=1
 GITHUB_RUN_ID_VALUE="${GITHUB_RUN_ID:-unknown}"
-TEST_FILTER_ARG=""
-if [[ -n "${UI_TEST_ONLY_TESTING:-}" ]]; then
-  TEST_FILTER_ARG="-only-testing:${UI_TEST_ONLY_TESTING}"
-fi
+source "$ROOT_DIR/Scripts/ui_test_selection.sh"
+ui_test_select
 MAX_FAILED_IDENTIFIERS=20
 MAX_FAILED_IDENTIFIER_LENGTH=200
 
@@ -41,6 +39,9 @@ FINAL_CATEGORY=unclassified
 declare -a ATTEMPT_CATEGORY ATTEMPT_STATUS ATTEMPT_TOTAL
 declare -a ATTEMPT_LOG ATTEMPT_XCRESULT ATTEMPT_SUMMARY
 declare -a ATTEMPT_FAILED_IDENTIFIERS
+
+printf 'ui-test-selection mode=%s groups=%s selected_test_total=%s\n' \
+  "$UI_TEST_SELECTION_MODE" "$UI_TEST_SELECTED_GROUPS" "$UI_TEST_SELECTED_COUNT"
 
 cleanup() {
   local status=$?
@@ -378,20 +379,12 @@ run_attempt() {
   : > "$log"
   : > "$summary_stderr"
   set +e
-  if [[ -n "$TEST_FILTER_ARG" ]]; then
-    DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
-      xcodebuild test-without-building \
-        -xctestrun "$XCTESTRUN" \
-        -destination 'platform=macOS,arch=arm64' \
-        "$TEST_FILTER_ARG" \
-        -resultBundlePath "$result" >"$log" 2>&1
-  else
-    DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
-      xcodebuild test-without-building \
-        -xctestrun "$XCTESTRUN" \
-        -destination 'platform=macOS,arch=arm64' \
-        -resultBundlePath "$result" >"$log" 2>&1
-  fi
+  DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
+    xcodebuild test-without-building \
+      -xctestrun "$XCTESTRUN" \
+      -destination 'platform=macOS,arch=arm64' \
+      "${UI_TEST_ARGUMENTS[@]}" \
+      -resultBundlePath "$result" >"$log" 2>&1
   status=$?
   set -e
 
