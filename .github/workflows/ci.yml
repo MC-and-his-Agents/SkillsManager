@@ -136,8 +136,7 @@ jobs:
           release_issue=$(jq -r '.issue' <<<"$impact")
           gh api "repos/$GITHUB_REPOSITORY/issues/$release_issue" \
             > "$RUNNER_TEMP/release-issue.json"
-          jq -e '(has("pull_request") | not) and \
-            (.labels | map(.name) | index("release") != null)' \
+          jq -e '(has("pull_request") | not) and (.labels | map(.name) | index("release") != null)' \
             "$RUNNER_TEMP/release-issue.json" >/dev/null
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             [[ "$(jq -r '.state' "$RUNNER_TEMP/release-issue.json")" == "open" ]]
