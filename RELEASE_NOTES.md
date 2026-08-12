@@ -1,3 +1,33 @@
+# Skills Manager 0.5.2
+
+中文
+
+- 支持确认并持久化 Codex 等 Harness 的真实 Skill 根目录，包括外置卷与符号链接；环境变量只作为待确认提示，避免将临时环境静默用作写入目标。
+- 添加自定义路径时可明确选择“项目根”或指定 Harness 的“直接 Skill 集合根”，预览并扫描真实绝对路径，不再重复拼接 `.codex/skills` 等后缀。
+- 一致性审计可识别全局与 Harness 专属目录中的重复入口；仅在身份和内容证据一致、用户确认且已有备份时可恢复地收敛，同名、内容分叉、证据缺失或自定义只读根均保持零覆盖并提示决策。
+- 托管目录中的普通 `.DS_Store` 不再阻塞启动；其他未知、符号链接或特殊条目继续 fail closed，并显示具体、可操作且不泄露私有路径的诊断。
+
+已知限制
+
+- Harness 环境变量不会自动成为持久写入目标，首次使用外置根时需要在设置中确认。
+- skills.sh 使用未文档化公共接口，可能临时或永久不可用；失败不会影响本地、ClawHub 或已管理 Skill。
+- 行内更新徽章仅覆盖 ClawHub 来源；仓库与 skills.sh 来源的更新检测不在本版本。
+- 本版本不通过 Mac App Store 分发。
+
+English
+
+- Added confirmation and persistence for the actual Skill roots used by Codex and other harnesses, including external volumes and symlinks. Environment variables remain confirmation-only hints instead of silently becoming write targets.
+- Custom paths can now be added explicitly as project roots or direct Skill collection roots for a selected harness, with previews and scans using the actual absolute path instead of appending `.codex/skills` or similar suffixes twice.
+- Consistency audits now detect duplicate entries across global and harness-specific roots. Convergence is recoverable and allowed only after explicit confirmation, backup, and matching identity/content evidence; name-only matches, content forks, incomplete evidence, and read-only custom roots remain untouched and require a decision.
+- A regular `.DS_Store` no longer blocks managed-library startup. Other unknown, symlink, or special entries continue to fail closed with specific, actionable diagnostics that do not expose private paths.
+
+Known limitations
+
+- Harness environment variables do not automatically become persistent write targets; external roots must be confirmed in Settings before first use.
+- skills.sh uses an undocumented public endpoint that may become temporarily or permanently unavailable; failures do not affect local, ClawHub, or managed skills.
+- In-row update badges cover ClawHub sources only; repository and skills.sh update detection is not part of this version.
+- This release is not distributed through the Mac App Store.
+
 # Skills Manager 0.5.1
 
 中文
