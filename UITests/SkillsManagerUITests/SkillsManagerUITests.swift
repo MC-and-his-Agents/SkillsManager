@@ -497,9 +497,9 @@ final class SkillsManagerUITests: XCTestCase {
         try auditSurface("ui-09-chips", app: app)
 
         // Needs Attention Skill → 徽章与状态反映
-        try selectRow(label: "Fixture Broken", value: "Needs Attention", surface: "ui-09", app: app)
+        try selectRow(label: "Fixture Broken", value: "Needs Repair", surface: "ui-09", app: app)
         let needsAttention = NSPredicate { _, _ in
-            badge.exists && badge.label.contains("Needs Attention")
+            badge.exists && badge.label.contains("Needs Repair")
         }
         let attentionExpectation = XCTNSPredicateExpectation(predicate: needsAttention, object: nil)
         let attentionResult = XCTWaiter().wait(for: [attentionExpectation], timeout: 10)

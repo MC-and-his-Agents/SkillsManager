@@ -14,7 +14,7 @@ struct SkillDetailActionBar: View {
         SkillDetailActionBarContent(
             badge: SkillActionBarBadge(
                 title: skill.managedStatus == .needsRepair
-                    ? "Needs Attention"
+                    ? "Needs Repair"
                     : "Managed",
                 systemImage: skill.managedStatus == .needsRepair
                     ? "exclamationmark.triangle.fill"
@@ -360,8 +360,8 @@ private struct SkillDetailActionBarContent: View {
         switch value {
         case "Managed":
             String(localized: "Managed", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Needs Attention":
-            String(localized: "Needs Attention", bundle: SkillsManagerLocalizationResources.bundle)
+        case "Needs Repair":
+            String(localized: "Needs Repair", bundle: SkillsManagerLocalizationResources.bundle)
         default:
             value
         }
