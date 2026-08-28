@@ -17,69 +17,73 @@ struct SkillListView: View {
     @Binding var selection: UnifiedSkillSelection?
 
     var body: some View {
-        List(selection: $selection) {
+        VStack(spacing: 0) {
             header
+                .padding(.horizontal, 12)
+                .padding(.top, 6)
+                .padding(.bottom, 4)
             SkillFilterBar(filters: $filters)
-                .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 10, trailing: 4))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 10)
 
-            if filters.status != .available {
-                Section {
-                    localContent
-                } header: {
-                    Text("On This Mac", bundle: SkillsManagerLocalizationResources.bundle)
-                }
-            }
-
-            if normalizedQuery.isEmpty {
-                if filters.includesRemote(.clawHub) {
+            List(selection: $selection) {
+                if filters.status != .available {
                     Section {
-                        clawHubLatestContent
+                        localContent
                     } header: {
-                        Text("ClawHub Latest Drops", bundle: SkillsManagerLocalizationResources.bundle)
+                        Text("On This Mac", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                 }
-            } else {
-                if filters.includesRemote(.clawHub) {
-                    Section {
-                        clawHubSearchContent
-                    } header: {
-                        Text("ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
+
+                if normalizedQuery.isEmpty {
+                    if filters.includesRemote(.clawHub) {
+                        Section {
+                            clawHubLatestContent
+                        } header: {
+                            Text("ClawHub Latest Drops", bundle: SkillsManagerLocalizationResources.bundle)
+                        }
+                    }
+                } else {
+                    if filters.includesRemote(.clawHub) {
+                        Section {
+                            clawHubSearchContent
+                        } header: {
+                            Text("ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
+                        }
+                    }
+                    if filters.includesRemote(.skillsSh) {
+                        Section {
+                            skillsShSearchContent
+                        } header: {
+                            Text("skills.sh", bundle: SkillsManagerLocalizationResources.bundle)
+                        }
                     }
                 }
-                if filters.includesRemote(.skillsSh) {
+
+                if filters.includesRemote(.repository) {
                     Section {
-                        skillsShSearchContent
+                        repositoryContent
                     } header: {
-                        Text("skills.sh", bundle: SkillsManagerLocalizationResources.bundle)
+                        Text("Repositories", bundle: SkillsManagerLocalizationResources.bundle)
+                    }
+                }
+
+                if !discoveryModel.rootDiagnostics.isEmpty {
+                    Section {
+                        discoveryDiagnostics
+                    } header: {
+                        Text("Unavailable Locations", bundle: SkillsManagerLocalizationResources.bundle)
+                    }
+                }
+
+                if !hasIncludedSkillChannel {
+                    Section {
+                        emptyRow(String(localized: "No Skills match the current filters.", bundle: SkillsManagerLocalizationResources.bundle))
                     }
                 }
             }
-
-            if filters.includesRemote(.repository) {
-                Section {
-                    repositoryContent
-                } header: {
-                    Text("Repositories", bundle: SkillsManagerLocalizationResources.bundle)
-                }
-            }
-
-            if !discoveryModel.rootDiagnostics.isEmpty {
-                Section {
-                    discoveryDiagnostics
-                } header: {
-                    Text("Unavailable Locations", bundle: SkillsManagerLocalizationResources.bundle)
-                }
-            }
-
-            if !hasIncludedSkillChannel {
-                Section {
-                    emptyRow(String(localized: "No Skills match the current filters.", bundle: SkillsManagerLocalizationResources.bundle))
-                }
-            }
+            .listStyle(.sidebar)
         }
-        .listStyle(.sidebar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -138,20 +142,50 @@ struct SkillListView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Skills", bundle: SkillsManagerLocalizationResources.bundle)
                     .font(.title2.bold())
-                Text(String(
-                    localized: LocalizedStringResource(
-            "\(visibleCount) shown",
-            bundle: SkillsManagerLocalizationResources.bundle
-        )))
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Text(String(
+                        localized: LocalizedStringResource(
+                "\(visibleCount) shown",
+                bundle: SkillsManagerLocalizationResources.bundle
+            )))
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                    if isCountLoading {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .accessibilityLabel(Text(
+                                "Loading remote Skills",
+                                bundle: SkillsManagerLocalizationResources.bundle
+                            ))
+                    }
+                }
             }
             Spacer()
         }
-        .padding(.vertical, 6)
-        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
+    }
+
+    /// 计数解释性加载态：任一被筛选包含的远程通道尚未完成加载时显示，
+    /// 说明 visibleCount 之后可能增加，避免无解释跳变。失败态不算加载中。
+    private var isCountLoading: Bool {
+        if normalizedQuery.isEmpty {
+            if filters.includesRemote(.clawHub) {
+                if case .idle = remoteStore.latestState { return true }
+                if case .loading = remoteStore.latestState { return true }
+            }
+        } else {
+            if filters.includesRemote(.clawHub) {
+                if case .idle = remoteStore.searchState { return true }
+                if case .loading = remoteStore.searchState { return true }
+            }
+            if filters.includesRemote(.skillsSh) {
+                if case .idle = skillsShStore.searchState { return true }
+                if case .loading = skillsShStore.searchState { return true }
+            }
+        }
+        if filters.includesRemote(.repository), customRepositoryModel.isRefreshing {
+            return true
+        }
+        return false
     }
 
     @ViewBuilder
