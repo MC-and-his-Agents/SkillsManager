@@ -4100,19 +4100,19 @@
         }
       }
     },
-    "Full Settings…": {
+    "Full Distribution Settings…": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "完整设置…"
+            "value": "完整分发设置…"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Full Settings…"
+            "value": "Full Distribution Settings…"
           }
         }
       }
