@@ -466,8 +466,6 @@
 	<string>删除</string>
 	<key>Delete from Skills Manager?</key>
 	<string>从 Skills Manager 删除？</string>
-	<key>Delete from Skills Manager…</key>
-	<string>从 Skills Manager 删除…</string>
 	<key>Deleting a managed Skill creates a verified backup here.</key>
 	<string>删除托管 Skill 会在此创建已验证备份。</string>
 	<key>Deletion did not complete. The active Skill was restored to its prior state.</key>

@@ -3250,23 +3250,6 @@
         }
       }
     },
-    "Delete from Skills Manager…": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "从 Skills Manager 删除…"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete from Skills Manager…"
-          }
-        }
-      }
-    },
     "Deleting a managed Skill creates a verified backup here.": {
       "extractionState": "manual",
       "localizations": {

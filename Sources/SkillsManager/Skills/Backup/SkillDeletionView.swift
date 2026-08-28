@@ -129,18 +129,9 @@ struct SkillDeletionView: View {
                 feedback(message, systemImage: "checkmark.circle.fill", color: .green)
             }
 
-            if preview.status == .ready {
-                Button(role: .destructive) {
-                    model.prepareDeletion()
-                } label: {
-                    Text("Delete from Skills Manager…", bundle: SkillsManagerLocalizationResources.bundle)
-                }
-                .disabled(model.isMutating || preview.token == nil)
-                .accessibilityHint(Text(
-                    "Opens a confirmation showing the backup, Agent links, and managed content that will be removed.",
-                    bundle: SkillsManagerLocalizationResources.bundle
-                ))
-            } else if let operation = preview.operation {
+            // 删除入口统一在详情页 ActionBar（Delete，⌘⌫，始终先出确认）。
+            // 此处仅保留中断操作的恢复入口；状态/目标/备份信息照常呈现。
+            if let operation = preview.operation {
                 Button {
                     Task { await model.retryDeletion(operation) }
                 } label: {
