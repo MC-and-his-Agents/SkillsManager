@@ -83,7 +83,6 @@ struct SkillMarkdownView: View {
             }
         }
         .navigationTitle(skill.displayName)
-        .navigationSubtitle(skill.folderPath)
         .toolbar {
             if clawdhubURL != nil {
                 ToolbarItem(placement: .primaryAction) {
