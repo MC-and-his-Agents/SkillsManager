@@ -25,7 +25,6 @@ struct SkillFilterBar: View {
                 agentChips
             }
 
-            focusShortcutButton
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
@@ -37,18 +36,6 @@ struct SkillFilterBar: View {
         .accessibilityIdentifier("skills.filter.bar")
     }
 
-    /// ⇧⌘F 展开并聚焦筛选区；零尺寸按钮仅承载快捷键。
-    private var focusShortcutButton: some View {
-        Button {
-            focusFilters()
-        } label: {
-            EmptyView()
-        }
-        .frame(width: 0, height: 0)
-        .opacity(0)
-        .keyboardShortcut("f", modifiers: [.command, .shift])
-        .accessibilityHidden(true)
-    }
 
     // MARK: - Status
 
@@ -56,40 +43,15 @@ struct SkillFilterBar: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 2) {
                 ForEach(SkillListStatusFilter.allCases) { value in
-                    Button {
-                        filters.status = value
-                    } label: {
-                        Text(verbatim: statusText(value))
-                            .font(.caption.weight(.medium))
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(
-                                    filters.status == value
-                                        ? Color.accentColor.opacity(0.22)
-                                        : Color.clear
-                                )
-                            )
+                    Group {
+                        if value == .all {
+                            // ⇧⌘F 宿主：可见的 All Statuses chip 承载"展开并聚焦筛选区"。
+                            statusSegmentChip(value)
+                                .keyboardShortcut("f", modifiers: [.command, .shift])
+                        } else {
+                            statusSegmentChip(value)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut(statusShortcut(for: value))
-                    .focused($statusFocused)
-                    .accessibilityAddTraits(filters.status == value ? .isSelected : [])
-                    .accessibilityLabel(Text(
-                        String(
-                            localized: LocalizedStringResource(
-            "Status: \(statusText(value))",
-            bundle: SkillsManagerLocalizationResources.bundle
-        ))
-                    ))
-                    .accessibilityValue(
-                        Text(
-                            filters.status == value ? "Selected" : "Not selected",
-                            bundle: SkillsManagerLocalizationResources.bundle
-                        )
-                    )
-                    .accessibilityIdentifier("skills.filter.status.\(statusKey(for: value))")
-                    .tint(filters.status == value ? .accentColor : .secondary)
                 }
             }
             .padding(.horizontal, 2)
@@ -99,13 +61,45 @@ struct SkillFilterBar: View {
         .accessibilityIdentifier("skills.filter.status")
     }
 
-    private func statusShortcut(for value: SkillListStatusFilter) -> KeyEquivalent {
-        switch value {
-        case .all: KeyEquivalent("1")
-        case .managed: KeyEquivalent("2")
-        case .needsImport: KeyEquivalent("3")
-        case .available: KeyEquivalent("4")
+    /// All Statuses chip 的快捷键动作需要展开筛选区，因此该 chip 的点击
+    /// 同时承担展开+落焦（对已展开状态无副作用）。
+    private func statusSegmentChip(_ value: SkillListStatusFilter) -> some View {
+        Button {
+            filters.status = value
+            if value == .all {
+                focusFilters()
+            }
+        } label: {
+            Text(verbatim: statusText(value))
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule().fill(
+                        filters.status == value
+                            ? Color.accentColor.opacity(0.22)
+                            : Color.clear
+                    )
+                )
         }
+        .buttonStyle(.plain)
+        .focused($statusFocused)
+        .accessibilityAddTraits(filters.status == value ? .isSelected : [])
+        .accessibilityLabel(Text(
+            String(
+                localized: LocalizedStringResource(
+        "Status: \(statusText(value))",
+        bundle: SkillsManagerLocalizationResources.bundle
+    ))
+        ))
+        .accessibilityValue(
+            Text(
+                filters.status == value ? "Selected" : "Not selected",
+                bundle: SkillsManagerLocalizationResources.bundle
+            )
+        )
+        .accessibilityIdentifier("skills.filter.status.\(statusKey(for: value))")
+        .tint(filters.status == value ? .accentColor : .secondary)
     }
 
     private func statusKey(for value: SkillListStatusFilter) -> String {
