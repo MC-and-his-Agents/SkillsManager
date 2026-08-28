@@ -1872,6 +1872,14 @@
 	<string>Version %@</string>
 	<key>Version %@ (%lld)</key>
 	<string>Version %@ (%lld)</string>
+	<key>Tags</key>
+	<string>Tags</string>
+	<key>Separate multiple tags with commas.</key>
+	<string>Separate multiple tags with commas.</string>
+	<key>Publish summary</key>
+	<string>Publish summary</string>
+	<key>v%@ · %@ · tags: %@</key>
+	<string>v%@ · %@ · tags: %@</string>
 	<key>Version bump</key>
 	<string>Version bump</string>
 	<key>Wait for the current operation, then refresh.</key>
