@@ -340,6 +340,10 @@
 	<string>已认领；现有绑定已保留</string>
 	<key>Claude</key>
 	<string>Claude</string>
+	<key>%lld downloads</key>
+	<string>下载 %lld 次</string>
+	<key>%lld stars</key>
+	<string>%lld 星标</string>
 	<key>Claude Code</key>
 	<string>Claude Code</string>
 	<key>ClawHub</key>

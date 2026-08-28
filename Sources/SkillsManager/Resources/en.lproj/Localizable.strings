@@ -340,6 +340,10 @@
 	<string>Claimed; existing bindings preserved</string>
 	<key>Claude</key>
 	<string>Claude</string>
+	<key>%lld downloads</key>
+	<string>%lld downloads</string>
+	<key>%lld stars</key>
+	<string>%lld stars</string>
 	<key>Claude Code</key>
 	<string>Claude Code</string>
 	<key>ClawHub</key>
