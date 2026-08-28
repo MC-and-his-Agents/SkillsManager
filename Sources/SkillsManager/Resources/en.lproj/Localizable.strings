@@ -220,10 +220,10 @@
 	<string>Available</string>
 	<key>Available action</key>
 	<string>Available action</string>
-	<key>Available, Repository, 0 Agents</key>
-	<string>Available, Repository, 0 Agents</string>
-	<key>Available, skills.sh, 0 Agents</key>
-	<string>Available, skills.sh, 0 Agents</string>
+	<key>Available, Repository</key>
+	<string>Available, Repository</string>
+	<key>Available, skills.sh</key>
+	<string>Available, skills.sh</string>
 	<key>Back</key>
 	<string>Back</string>
 	<key>Back up and migrate</key>
@@ -340,6 +340,10 @@
 	<string>Claimed; existing bindings preserved</string>
 	<key>Claude</key>
 	<string>Claude</string>
+	<key>%lld downloads</key>
+	<string>%lld downloads</string>
+	<key>%lld stars</key>
+	<string>%lld stars</string>
 	<key>Claude Code</key>
 	<string>Claude Code</string>
 	<key>ClawHub</key>
@@ -430,6 +434,8 @@
 	<string>Copy decisions were saved, but the parent Skill was not updated.</string>
 	<key>Copy decisions were saved; recheck before updating the parent Skill</key>
 	<string>Copy decisions were saved; recheck before updating the parent Skill</string>
+	<key>Custom Path Options</key>
+	<string>Custom Path Options</string>
 	<key>Copy login command</key>
 	<string>Copy login command</string>
 	<key>Copy target has local changes</key>
@@ -570,8 +576,8 @@
 	<string>Finishing the current Skill before stopping…</string>
 	<key>Fix permissions</key>
 	<string>Fix permissions</string>
-	<key>Full Settings…</key>
-	<string>Full Settings…</string>
+	<key>Full Distribution Settings…</key>
+	<string>Full Distribution Settings…</string>
 	<key>GitHub</key>
 	<string>GitHub</string>
 	<key>GitHub Copilot</key>
@@ -708,8 +714,10 @@
 	<string>Library unavailable</string>
 	<key>Load More</key>
 	<string>Load More</string>
-	<key>Loading </key>
-	<string>Loading </string>
+	<key>Loading %@</key>
+	<string>Loading %@</string>
+	<key>Loading remote Skills</key>
+	<string>Loading remote Skills</string>
 	<key>Loading SKILL.md…</key>
 	<string>Loading SKILL.md…</string>
 	<key>Loading and validating backups…</key>
