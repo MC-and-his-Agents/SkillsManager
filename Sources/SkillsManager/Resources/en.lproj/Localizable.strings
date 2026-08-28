@@ -482,8 +482,6 @@
 	<string>Delete Skill</string>
 	<key>Delete from Skills Manager?</key>
 	<string>Delete from Skills Manager?</string>
-	<key>Delete from Skills Manager…</key>
-	<string>Delete from Skills Manager…</string>
 	<key>Deleting a managed Skill creates a verified backup here.</key>
 	<string>Deleting a managed Skill creates a verified backup here.</string>
 	<key>Deletion did not complete. The active Skill was restored to its prior state.</key>
