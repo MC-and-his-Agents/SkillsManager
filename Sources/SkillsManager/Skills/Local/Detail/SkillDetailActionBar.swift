@@ -297,7 +297,7 @@ private struct SkillDetailActionBarContent: View {
     private var fullSettingsButton: some View {
         Button(action: onFullSettings) {
             Label {
-                Text("Full Settings…", bundle: SkillsManagerLocalizationResources.bundle)
+                Text("Full Distribution Settings…", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "slider.horizontal.3")
             }
