@@ -1363,36 +1363,36 @@
         }
       }
     },
-    "Available, Repository, 0 Agents": {
+    "Available, Repository": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用，仓库，0 个 Agent"
+            "value": "可用，仓库"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Available, Repository, 0 Agents"
+            "value": "Available, Repository"
           }
         }
       }
     },
-    "Available, skills.sh, 0 Agents": {
+    "Available, skills.sh": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用，skills.sh，0 个 Agent"
+            "value": "可用，skills.sh"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Available, skills.sh, 0 Agents"
+            "value": "Available, skills.sh"
           }
         }
       }
