@@ -1882,6 +1882,14 @@
 	<string>版本 %@</string>
 	<key>Version %@ (%lld)</key>
 	<string>版本 %@（%lld）</string>
+	<key>Tags</key>
+	<string>标签</string>
+	<key>Separate multiple tags with commas.</key>
+	<string>多个标签用英文逗号分隔。</string>
+	<key>Publish summary</key>
+	<string>发布摘要</string>
+	<key>v%@ · %@ · tags: %@</key>
+	<string>v%@ · %@ · 标签：%@</string>
 	<key>Version bump</key>
 	<string>版本变更</string>
 	<key>Wait for the current operation, then refresh.</key>
