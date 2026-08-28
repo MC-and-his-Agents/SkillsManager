@@ -137,7 +137,7 @@ struct LocalizationContractTests {
             "%lld of %lld complete.",
             "%lld of %lld complete. %@",
             "Batch update summary: %@",
-            "%lld item(s) need review.",
+            "%lld items need review.",
             "Result: %@",
         ]
         for key in keys {
@@ -223,12 +223,12 @@ struct LocalizationContractTests {
             bundle: bundle
         ))
         let zhConsistency = String(localized: LocalizedStringResource(
-            "\(5) item(s) need review.",
+            "\(5) items need review.",
             locale: zh,
             bundle: bundle
         ))
         let enConsistency = String(localized: LocalizedStringResource(
-            "\(5) item(s) need review.",
+            "\(5) items need review.",
             locale: en,
             bundle: bundle
         ))

@@ -18,5 +18,85 @@
 			<string>%lld Agents</string>
 		</dict>
 	</dict>
+	<key>%lld items need review.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>1 item needs review.</string>
+			<key>other</key>
+			<string>%lld items need review.</string>
+		</dict>
+	</dict>
+	<key>%lld shown</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>1 shown</string>
+			<key>other</key>
+			<string>%lld shown</string>
+		</dict>
+	</dict>
+	<key>%lld skills</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>1 skill</string>
+			<key>other</key>
+			<string>%lld skills</string>
+		</dict>
+	</dict>
+	<key>%lld targets</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>1 target</string>
+			<key>other</key>
+			<string>%lld targets</string>
+		</dict>
+	</dict>
+	<key>+%lld verified alias locations</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>+1 verified alias location</string>
+			<key>other</key>
+			<string>+%lld verified alias locations</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

@@ -387,7 +387,7 @@ struct SkillConsistencyAssistantView: View {
     private func findingsStatusText(count: Int) -> String {
         String(
             localized: LocalizedStringResource(
-            "\(count) item(s) need review.",
+            "\(count) items need review.",
             bundle: SkillsManagerLocalizationResources.bundle
         ))
     }
