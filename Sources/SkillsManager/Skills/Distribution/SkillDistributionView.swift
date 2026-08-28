@@ -252,17 +252,15 @@ struct SkillDistributionView: View {
         }
     }
 
+    /// Agent 选择编辑统一在详情页 ActionBar chips（单一编辑形态）。
+    /// 本区域只读呈现当前 draft 与现状，不再提供第二套 Toggle。
+    @ViewBuilder
     private var agentSelection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Agents", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.headline)
             ForEach(model.agentRows) { row in
-                Toggle(
-                    isOn: Binding(
-                        get: { model.selectedAgents.contains(row.platform) },
-                        set: { model.setAgent(row.platform, selected: $0) }
-                    )
-                ) {
+                HStack(alignment: .top, spacing: 6) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
                             Text(verbatim: platformText(row.platform))
@@ -284,30 +282,7 @@ struct SkillDistributionView: View {
                         }
                     }
                 }
-                .accessibilityLabel(Text(
-                    String(
-                        localized: LocalizedStringResource(
-            "\(platformText(row.platform)) distribution",
-            bundle: SkillsManagerLocalizationResources.bundle
-        ))
-                ))
-                .accessibilityValue(Text(
-                    String(
-                        localized: LocalizedStringResource(
-            row.isSelected
-                            ? "Selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")"
-                            : "Not selected; currently \(row.isCurrentlyEnabled ? "enabled" : "disabled")",
-            bundle: SkillsManagerLocalizationResources.bundle
-        ))
-                ))
-                .accessibilityHint(Text(
-                    String(
-                        localized: LocalizedStringResource(
-            "Target: \(row.locator)",
-            bundle: SkillsManagerLocalizationResources.bundle
-        ))
-                ))
-                .disabled(model.isApplying)
+                .accessibilityElement(children: .combine)
             }
         }
     }
