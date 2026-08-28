@@ -21,13 +21,13 @@ struct CustomRepositoryCandidateRow: View {
                 systemImage: "shippingbox",
                 knownSource: .repository
             )],
-            agentCount: 0,
+            agentCount: nil,
             accessibilityLabel: String(
                 localized: LocalizedStringResource(
             "\(candidate.displayName), Available, Repository, \(candidate.repository.displayName), \(candidate.snapshot.subpath.value.isEmpty ? "root" : candidate.snapshot.subpath.value)",
             bundle: SkillsManagerLocalizationResources.bundle
         )),
-            accessibilityValue: String(localized: "Available, Repository, 0 Agents", bundle: SkillsManagerLocalizationResources.bundle)
+            accessibilityValue: String(localized: "Available, Repository", bundle: SkillsManagerLocalizationResources.bundle)
         ))
         .help(candidate.snapshot.subpath.value.isEmpty ? "/" : candidate.snapshot.subpath.value)
     }
