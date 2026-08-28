@@ -3,7 +3,7 @@ import SwiftUI
 /// Sidebar 内可见筛选区：Status 分段 + Source chips + Agent chips。
 ///
 /// 紧凑三行布局、可折叠；折叠时显示当前激活值摘要。筛选激活时控件高亮。
-/// 快捷键：⇧⌘F 展开并聚焦筛选区，⌘1-4 切换 Status。
+/// 快捷键：⇧⌘F 展开并聚焦筛选区（Status 切换用方向键/点击，不占用数字键）。
 struct SkillFilterBar: View {
     @Binding var filters: SkillListFilters
 
@@ -72,7 +72,6 @@ struct SkillFilterBar: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .keyboardShortcut(statusShortcut(for: value))
                     .focused($statusFocused)
                     .accessibilityAddTraits(filters.status == value ? .isSelected : [])
                     .accessibilityLabel(Text(
@@ -97,15 +96,6 @@ struct SkillFilterBar: View {
         .frame(height: 24)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("skills.filter.status")
-    }
-
-    private func statusShortcut(for value: SkillListStatusFilter) -> KeyEquivalent {
-        switch value {
-        case .all: KeyEquivalent("1")
-        case .managed: KeyEquivalent("2")
-        case .needsImport: KeyEquivalent("3")
-        case .available: KeyEquivalent("4")
-        }
     }
 
     private func statusKey(for value: SkillListStatusFilter) -> String {

@@ -402,10 +402,10 @@ final class SkillsManagerUITests: XCTestCase {
         searchField.typeKey("a", modifierFlags: .command)
         searchField.typeKey(.delete, modifierFlags: [])
 
-        // Status 键盘切换（⌘2 Managed / ⌘1 All）替换原 filter menu 键盘验证
-        app.typeKey("2", modifierFlags: .command)
+        // Status 切换改为点击（⌘1-4 已按 #250 移除，避免数字键劫持）
+        app.buttons[SkillsManagerUILocators.filterStatus("managed")].click()
         try waitForHierarchyText("No local matches", surface: "ui-08", app: app)
-        app.typeKey("1", modifierFlags: .command)
+        app.buttons[SkillsManagerUILocators.filterStatus("all")].click()
         try waitForHierarchyText("No Skills found", surface: "ui-08", app: app)
 
         let addMenu = app.menuButtons[SkillsManagerUILocators.addMenu]
@@ -593,8 +593,8 @@ final class SkillsManagerUITests: XCTestCase {
             app: app
         )
 
-        // ⌘2 / ⌘1 键盘切换 Status
-        app.typeKey("2", modifierFlags: .command)
+        // Status 切换改为点击（⌘1-4 已按 #250 移除）
+        app.buttons[SkillsManagerUILocators.filterStatus("managed")].click()
         try requireElement(
             row(label: "Fixture Managed", value: "Managed", app: app),
             surface: "ui-10",
@@ -604,7 +604,7 @@ final class SkillsManagerUITests: XCTestCase {
             row(label: "Needs Import One", value: "Unmanaged", app: app).exists,
             "⌘2 Managed must hide discovery rows"
         )
-        app.typeKey("1", modifierFlags: .command)
+        app.buttons[SkillsManagerUILocators.filterStatus("all")].click()
         try waitForShownCount(6, surface: "ui-10", app: app)
         try auditSurface("ui-10-final", app: app)
     }
