@@ -296,6 +296,10 @@
 	<string>检查所有托管 Skill 的更新。</string>
 	<key>Check for Updates</key>
 	<string>检查更新</string>
+	<key>Check for App Updates…</key>
+	<string>检查应用更新…</string>
+	<key>Refresh Status</key>
+	<string>刷新状态</string>
 	<key>Check for Updates…</key>
 	<string>检查更新…</string>
 	<key>Check managed Skills, review every conflict, then update selected items.</key>
@@ -1078,8 +1082,6 @@
 	<string>刷新发现或导入 Skill 以开始使用。</string>
 	<key>Refresh distribution</key>
 	<string>刷新分发</string>
-	<key>Refresh managed Skill</key>
-	<string>刷新托管 Skill</string>
 	<key>Refresh managed copy</key>
 	<string>刷新托管 Copy</string>
 	<key>Refresh repository</key>

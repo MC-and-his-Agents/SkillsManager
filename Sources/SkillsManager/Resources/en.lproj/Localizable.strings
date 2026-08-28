@@ -296,6 +296,10 @@
 	<string>Check all managed Skills for updates.</string>
 	<key>Check for Updates</key>
 	<string>Check for Updates</string>
+	<key>Check for App Updates…</key>
+	<string>Check for App Updates…</string>
+	<key>Refresh Status</key>
+	<string>Refresh Status</string>
 	<key>Check for Updates…</key>
 	<string>Check for Updates…</string>
 	<key>Check managed Skills, review every conflict, then update selected items.</key>
@@ -1078,8 +1082,6 @@
 	<string>Refresh discovery or import a Skill to get started.</string>
 	<key>Refresh distribution</key>
 	<string>Refresh distribution</string>
-	<key>Refresh managed Skill</key>
-	<string>Refresh managed Skill</string>
 	<key>Refresh managed copy</key>
 	<string>Refresh managed copy</string>
 	<key>Refresh repository</key>
