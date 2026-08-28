@@ -61,8 +61,8 @@ struct SkillFilterBar: View {
                     } label: {
                         Text(verbatim: statusText(value))
                             .font(.caption.weight(.medium))
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                             .background(
                                 Capsule().fill(
                                     filters.status == value
@@ -94,7 +94,7 @@ struct SkillFilterBar: View {
             }
             .padding(.horizontal, 2)
         }
-        .frame(height: 24)
+        .frame(minHeight: 28)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("skills.filter.status")
     }
@@ -162,7 +162,7 @@ struct SkillFilterBar: View {
             }
             .padding(.horizontal, 2)
         }
-        .frame(height: 22)
+        .frame(minHeight: 28)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("skills.filter.source")
     }
@@ -243,7 +243,7 @@ struct SkillFilterBar: View {
             }
             .padding(.horizontal, 2)
         }
-        .frame(height: 22)
+        .frame(minHeight: 28)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("skills.filter.agent")
     }
@@ -290,8 +290,8 @@ struct SkillFilterBar: View {
                 .font(.caption)
         }
         .foregroundStyle(isSelected ? Color.accentColor : .primary)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
         .background(
             Capsule().fill(
                 isSelected
@@ -299,6 +299,7 @@ struct SkillFilterBar: View {
                     : Color.secondary.opacity(0.14)
             )
         )
+        .contentShape(Capsule())
         .overlay(
             Capsule().strokeBorder(
                 isSelected ? Color.accentColor.opacity(0.45) : Color.clear,
@@ -329,8 +330,25 @@ struct SkillFilterBar: View {
         return String(localized: "Hide filters", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
+    private var activeFilterCount: Int {
+        [filters.status != .all, filters.source != .all, filters.agent != .all]
+            .filter { $0 }.count
+    }
+
     private var summaryLine: some View {
         HStack(spacing: 6) {
+            if filters.isActive {
+                Text(String(
+                    localized: LocalizedStringResource(
+                "\(activeFilterCount) active",
+                bundle: SkillsManagerLocalizationResources.bundle
+            )))
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.22)))
+                    .foregroundStyle(Color.accentColor)
+            }
             Text(verbatim: summaryText)
                 .font(.caption)
                 .foregroundStyle(filters.isActive ? .primary : .secondary)

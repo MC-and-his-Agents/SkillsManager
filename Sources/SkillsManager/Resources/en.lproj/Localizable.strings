@@ -56,6 +56,8 @@
 	<string>%1$@: %2$lld</string>
 	<key>%lld Skills</key>
 	<string>%lld Skills</string>
+	<key>%lld active</key>
+	<string>%lld active</string>
 	<key>%lld candidates available</key>
 	<string>%lld candidates available</string>
 	<key>%lld candidates available · %lld selected</key>
@@ -96,10 +98,6 @@
 	<string>A batch update is already running.</string>
 	<key>A blocking library diagnostic prevents changes.</key>
 	<string>A blocking library diagnostic prevents changes.</string>
-	<key>Library diagnostics</key>
-	<string>Library diagnostics</string>
-	<key>View diagnostics…</key>
-	<string>View diagnostics…</string>
 	<key>A deletion operation is already in progress.</key>
 	<string>A deletion operation is already in progress.</string>
 	<key>A deletion operation is still in progress.</key>
@@ -716,6 +714,8 @@
 	<string>Legacy archive changed</string>
 	<key>Legacy migration blocked</key>
 	<string>Legacy migration blocked</string>
+	<key>Library diagnostics</key>
+	<string>Library diagnostics</string>
 	<key>Library unavailable</key>
 	<string>Library unavailable</string>
 	<key>Load More</key>
@@ -1896,6 +1896,8 @@
 	<string>v%@ · %@ · tags: %@</string>
 	<key>Version bump</key>
 	<string>Version bump</string>
+	<key>View diagnostics…</key>
+	<string>View diagnostics…</string>
 	<key>Wait for the current operation, then refresh.</key>
 	<string>Wait for the current operation, then refresh.</string>
 	<key>Waiting</key>
