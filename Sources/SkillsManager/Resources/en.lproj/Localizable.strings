@@ -220,10 +220,10 @@
 	<string>Available</string>
 	<key>Available action</key>
 	<string>Available action</string>
-	<key>Available, Repository, 0 Agents</key>
-	<string>Available, Repository, 0 Agents</string>
-	<key>Available, skills.sh, 0 Agents</key>
-	<string>Available, skills.sh, 0 Agents</string>
+	<key>Available, Repository</key>
+	<string>Available, Repository</string>
+	<key>Available, skills.sh</key>
+	<string>Available, skills.sh</string>
 	<key>Back</key>
 	<string>Back</string>
 	<key>Back up and migrate</key>
@@ -708,8 +708,8 @@
 	<string>Library unavailable</string>
 	<key>Load More</key>
 	<string>Load More</string>
-	<key>Loading </key>
-	<string>Loading </string>
+	<key>Loading %@</key>
+	<string>Loading %@</string>
 	<key>Loading SKILL.md…</key>
 	<string>Loading SKILL.md…</string>
 	<key>Loading and validating backups…</key>
