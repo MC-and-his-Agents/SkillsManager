@@ -248,6 +248,8 @@
 	<string>备份不可用</string>
 	<key>Based on %@</key>
 	<string>基于 %@</string>
+	<key>A batch import is already running.</key>
+	<string>批量导入已在进行中。</string>
 	<key>Batch Import</key>
 	<string>批量导入</string>
 	<key>Batch Import discovered Skills</key>
