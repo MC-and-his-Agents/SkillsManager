@@ -71,7 +71,7 @@ struct SkillDeletionView: View {
                             .controlSize(.small)
                     } else {
                         Label {
-                            Text("Refresh managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
+                            Text("Refresh Status", bundle: SkillsManagerLocalizationResources.bundle)
                         } icon: {
                             Image(systemName: "arrow.clockwise")
                         }
@@ -79,8 +79,8 @@ struct SkillDeletionView: View {
                     }
                 }
                 .disabled(model.isRefreshingDeletion || model.isMutating)
-                .help(Text("Refresh managed Skill", bundle: SkillsManagerLocalizationResources.bundle))
-                .accessibilityLabel(Text("Refresh managed Skill", bundle: SkillsManagerLocalizationResources.bundle))
+                .help(Text("Refresh Status", bundle: SkillsManagerLocalizationResources.bundle))
+                .accessibilityLabel(Text("Refresh Status", bundle: SkillsManagerLocalizationResources.bundle))
             }
 
             if let content = preview.content {
