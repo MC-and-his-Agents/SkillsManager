@@ -15,7 +15,7 @@ struct LibraryRuntimeDiagnosticsView: View {
                         Image(systemName: diagnostic.blocking
                             ? "lock.trianglebadge.exclamationmark"
                             : "exclamationmark.triangle")
-                            .foregroundStyle(diagnostic.blocking ? .red : .orange)
+                            .foregroundStyle(diagnostic.blocking ? SkillStatusPalette.blocking : SkillStatusPalette.warning)
                     }
                     Text(verbatim: diagnostic.userFacingMessage)
                         .font(.callout)

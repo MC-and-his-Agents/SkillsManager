@@ -41,11 +41,11 @@ struct CustomPathSectionHeader: View {
             if libraryRuntime.readiness == .blocked {
                 Text(verbatim: libraryRuntime.blockingMessage)
                     .font(.caption2)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(SkillStatusPalette.warning)
             } else if let operationErrorMessage {
                 Text(verbatim: operationErrorMessage)
                     .font(.caption2)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(SkillStatusPalette.warning)
             }
         }
         .contextMenu {
