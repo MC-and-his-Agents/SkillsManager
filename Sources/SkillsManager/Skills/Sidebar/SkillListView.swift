@@ -12,6 +12,7 @@ struct SkillListView: View {
     let repositoryCandidates: [CustomRepositoryCandidate]
     let query: String
     @Binding var filters: SkillListFilters
+    @Binding var includeRemoteInSearch: Bool
     let installedSkillPlatforms: InstalledSkillPlatformIndex
     let onInstallRemoteSkill: (RemoteSkill) -> Void
     @Binding var selection: UnifiedSkillSelection?
@@ -43,7 +44,7 @@ struct SkillListView: View {
                             Text("ClawHub Latest Drops", bundle: SkillsManagerLocalizationResources.bundle)
                         }
                     }
-                } else {
+                } else if includeRemoteInSearch {
                     if filters.includesRemote(.clawHub) {
                         Section {
                             clawHubSearchContent
@@ -137,6 +138,21 @@ struct SkillListView: View {
         return localSkills.count + discoveryItems.count + repositoryCandidates.count + remoteCount
     }
 
+    /// 搜索范围控制：向用户明示"搜索会联网查询远程目录"，并允许仅本地。
+    private var searchScopePicker: some View {
+        Picker(
+            selection: $includeRemoteInSearch
+        ) {
+            Text("Local & Remote", bundle: SkillsManagerLocalizationResources.bundle).tag(true)
+            Text("Local Only", bundle: SkillsManagerLocalizationResources.bundle).tag(false)
+        } label: {
+            Text("Search Scope", bundle: SkillsManagerLocalizationResources.bundle)
+        }
+        .pickerStyle(.menu)
+        .controlSize(.small)
+        .accessibilityIdentifier("skills.search-scope")
+    }
+
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
@@ -158,6 +174,7 @@ struct SkillListView: View {
                                 bundle: SkillsManagerLocalizationResources.bundle
                             ))
                     }
+                    searchScopePicker
                 }
             }
             Spacer()

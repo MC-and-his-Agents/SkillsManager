@@ -15,6 +15,8 @@ struct SkillSplitView: View {
 
     @State private var searchText = ""
     @State private var filters = SkillListFilters()
+    /// 搜索范围：关闭后仅在本地（库+发现）内过滤，不发远程请求。
+    @State private var includeRemoteInSearch = true
     @State private var selection: UnifiedSkillSelection?
     @State private var searchTask: Task<Void, Never>?
     @State private var showingImport = false
@@ -117,6 +119,7 @@ struct SkillSplitView: View {
                 repositoryCandidates: filteredRepositoryCandidates,
                 query: query,
                 filters: $filters,
+                includeRemoteInSearch: $includeRemoteInSearch,
                 installedSkillPlatforms: store.installedSkillPlatformIndex,
                 onInstallRemoteSkill: presentRemoteInstallSheet,
                 selection: $selection
@@ -128,7 +131,8 @@ struct SkillSplitView: View {
             SkillSplitLifecycleModifier(
                 selection: $selection,
                 searchText: $searchText,
-                searchTask: $searchTask
+                searchTask: $searchTask,
+                includeRemoteInSearch: includeRemoteInSearch
             )
         )
         .toolbar(id: "main-toolbar") {
