@@ -11,7 +11,7 @@ struct SkillDeletionView: View {
             .padding(.top, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("Skills Manager", bundle: SkillsManagerLocalizationResources.bundle)
+            Text("Delete Skill", bundle: SkillsManagerLocalizationResources.bundle)
         }
         .sheet(item: pendingDeletionBinding) { pending in
             SkillDeletionConfirmationView(pending: pending)
