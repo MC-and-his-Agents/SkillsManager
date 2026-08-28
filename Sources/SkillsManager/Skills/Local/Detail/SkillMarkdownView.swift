@@ -145,29 +145,63 @@ struct SkillMarkdownView: View {
             Text("This managed Skill needs repair before it can be published.", bundle: SkillsManagerLocalizationResources.bundle)
                 .foregroundStyle(.secondary)
         } else if isCheckingCli || isCheckingPublish {
-            Text("Checking ClawHub status…", bundle: SkillsManagerLocalizationResources.bundle)
-                .foregroundStyle(.secondary)
-        } else if !cliStatus.isInstalled {
-            publishInstallContent
-        } else if !cliStatus.isLoggedIn {
-            publishLoginContent
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Checking ClawHub status…", bundle: SkillsManagerLocalizationResources.bundle)
+                    .foregroundStyle(.secondary)
+            }
         } else {
-            publishReadyContent
+            // 前置条件步骤化：安装 Bun → CLI 登录 → 发布；已完成步骤打勾，
+            // 当前步骤给出可执行动作，避免"去终端跑命令"式的裸文案。
+            VStack(alignment: .leading, spacing: 8) {
+                publishStepRow(
+                    index: 1,
+                    title: Text("Install Bun", bundle: SkillsManagerLocalizationResources.bundle),
+                    done: cliStatus.isInstalled,
+                    detail: { publishInstallContent }
+                )
+                publishStepRow(
+                    index: 2,
+                    title: Text("Log in to the ClawHub CLI", bundle: SkillsManagerLocalizationResources.bundle),
+                    done: cliStatus.isLoggedIn,
+                    detail: { publishLoginContent }
+                )
+                if cliStatus.isInstalled && cliStatus.isLoggedIn {
+                    publishStepRow(
+                        index: 3,
+                        title: Text("Publish or update", bundle: SkillsManagerLocalizationResources.bundle),
+                        done: false,
+                        detail: { publishReadyContent }
+                    )
+                }
+            }
         }
     }
 
-    private var publishInstallContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Install Bun to run the ClawHub CLI.", bundle: SkillsManagerLocalizationResources.bundle)
-                .foregroundStyle(.secondary)
-
-            Button {
-                openInstallDocs()
-            } label: {
-                Text("Install Bun", bundle: SkillsManagerLocalizationResources.bundle)
+    private func publishStepRow(
+        index: Int,
+        title: Text,
+        done: Bool,
+        @ViewBuilder detail: () -> some View
+    ) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(done ? Color.green : Color.secondary)
+                .padding(.top, 2)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                title.font(.callout.weight(.medium))
+                if !done {
+                    detail()
+                }
             }
-            .buttonStyle(.bordered)
         }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var publishInstallContent: some View {
+        Text("Install Bun to run the ClawHub CLI.", bundle: SkillsManagerLocalizationResources.bundle)
+            .foregroundStyle(.secondary)
     }
 
     private var publishLoginContent: some View {
@@ -191,6 +225,11 @@ struct SkillMarkdownView: View {
                 .buttonStyle(.bordered)
                 .disabled(isCheckingCli)
             }
+        }
+        .onAppear {
+            // 复制命令后大概率已完成登录：到达该步骤时自动刷新一次状态，
+            // 减少手动 Check again 轮询；失败时仍可手动重试。
+            Task { await refreshPublishState() }
         }
     }
 
