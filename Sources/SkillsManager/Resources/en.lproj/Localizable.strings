@@ -220,10 +220,10 @@
 	<string>Available</string>
 	<key>Available action</key>
 	<string>Available action</string>
-	<key>Available, Repository, 0 Agents</key>
-	<string>Available, Repository, 0 Agents</string>
-	<key>Available, skills.sh, 0 Agents</key>
-	<string>Available, skills.sh, 0 Agents</string>
+	<key>Available, Repository</key>
+	<string>Available, Repository</string>
+	<key>Available, skills.sh</key>
+	<string>Available, skills.sh</string>
 	<key>Back</key>
 	<string>Back</string>
 	<key>Back up and migrate</key>
@@ -296,6 +296,10 @@
 	<string>Check all managed Skills for updates.</string>
 	<key>Check for Updates</key>
 	<string>Check for Updates</string>
+	<key>Check for App Updates…</key>
+	<string>Check for App Updates…</string>
+	<key>Refresh Status</key>
+	<string>Refresh Status</string>
 	<key>Check for Updates…</key>
 	<string>Check for Updates…</string>
 	<key>Check managed Skills, review every conflict, then update selected items.</key>
@@ -340,6 +344,10 @@
 	<string>Claimed; existing bindings preserved</string>
 	<key>Claude</key>
 	<string>Claude</string>
+	<key>%lld downloads</key>
+	<string>%lld downloads</string>
+	<key>%lld stars</key>
+	<string>%lld stars</string>
 	<key>Claude Code</key>
 	<string>Claude Code</string>
 	<key>ClawHub</key>
@@ -430,6 +438,8 @@
 	<string>Copy decisions were saved, but the parent Skill was not updated.</string>
 	<key>Copy decisions were saved; recheck before updating the parent Skill</key>
 	<string>Copy decisions were saved; recheck before updating the parent Skill</string>
+	<key>Custom Path Options</key>
+	<string>Custom Path Options</string>
 	<key>Copy login command</key>
 	<string>Copy login command</string>
 	<key>Copy target has local changes</key>
@@ -464,6 +474,8 @@
 	<string>Default branch</string>
 	<key>Delete</key>
 	<string>Delete</string>
+	<key>Delete Skill</key>
+	<string>Delete Skill</string>
 	<key>Delete from Skills Manager?</key>
 	<string>Delete from Skills Manager?</string>
 	<key>Delete from Skills Manager…</key>
@@ -568,8 +580,8 @@
 	<string>Finishing the current Skill before stopping…</string>
 	<key>Fix permissions</key>
 	<string>Fix permissions</string>
-	<key>Full Settings…</key>
-	<string>Full Settings…</string>
+	<key>Full Distribution Settings…</key>
+	<string>Full Distribution Settings…</string>
 	<key>GitHub</key>
 	<string>GitHub</string>
 	<key>GitHub Copilot</key>
@@ -706,8 +718,10 @@
 	<string>Library unavailable</string>
 	<key>Load More</key>
 	<string>Load More</string>
-	<key>Loading </key>
-	<string>Loading </string>
+	<key>Loading %@</key>
+	<string>Loading %@</string>
+	<key>Loading remote Skills</key>
+	<string>Loading remote Skills</string>
 	<key>Loading SKILL.md…</key>
 	<string>Loading SKILL.md…</string>
 	<key>Loading and validating backups…</key>
@@ -1068,8 +1082,6 @@
 	<string>Refresh discovery or import a Skill to get started.</string>
 	<key>Refresh distribution</key>
 	<string>Refresh distribution</string>
-	<key>Refresh managed Skill</key>
-	<string>Refresh managed Skill</string>
 	<key>Refresh managed copy</key>
 	<string>Refresh managed copy</string>
 	<key>Refresh repository</key>
@@ -1872,6 +1884,14 @@
 	<string>Version %@</string>
 	<key>Version %@ (%lld)</key>
 	<string>Version %@ (%lld)</string>
+	<key>Tags</key>
+	<string>Tags</string>
+	<key>Separate multiple tags with commas.</key>
+	<string>Separate multiple tags with commas.</string>
+	<key>Publish summary</key>
+	<string>Publish summary</string>
+	<key>v%@ · %@ · tags: %@</key>
+	<string>v%@ · %@ · tags: %@</string>
 	<key>Version bump</key>
 	<string>Version bump</string>
 	<key>Wait for the current operation, then refresh.</key>
