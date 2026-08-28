@@ -220,10 +220,10 @@
 	<string>可用</string>
 	<key>Available action</key>
 	<string>可用操作</string>
-	<key>Available, Repository, 0 Agents</key>
-	<string>可用，仓库，0 个 Agent</string>
-	<key>Available, skills.sh, 0 Agents</key>
-	<string>可用，skills.sh，0 个 Agent</string>
+	<key>可用，仓库</key>
+	<string>可用，仓库</string>
+	<key>可用，skills.sh</key>
+	<string>可用，skills.sh</string>
 	<key>Back</key>
 	<string>返回</string>
 	<key>Back up and migrate</key>
