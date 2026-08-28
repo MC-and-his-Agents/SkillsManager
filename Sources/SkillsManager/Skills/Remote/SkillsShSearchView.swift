@@ -50,7 +50,7 @@ struct SkillsShSearchDetailView: View {
                 .navigationSubtitle(String(localized: "skills.sh", bundle: SkillsManagerLocalizationResources.bundle))
             } else {
                 ContentUnavailableView(
-                    String(localized: "Select a skill", bundle: SkillsManagerLocalizationResources.bundle),
+                    String(localized: "Select a Skill", bundle: SkillsManagerLocalizationResources.bundle),
                     systemImage: "magnifyingglass",
                     description: Text("Choose a skills.sh result.", bundle: SkillsManagerLocalizationResources.bundle)
                 )
