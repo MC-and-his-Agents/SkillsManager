@@ -26,9 +26,9 @@ struct RemoteSkillDetailView: View {
             .navigationSubtitle(String(localized: "ClawHub", bundle: SkillsManagerLocalizationResources.bundle))
         } else {
             ContentUnavailableView(
-                String(localized: "Select a skill", bundle: SkillsManagerLocalizationResources.bundle),
+                String(localized: "Select a Skill", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "sparkles",
-                description: Text("Pick a skill from ClawHub.", bundle: SkillsManagerLocalizationResources.bundle)
+                description: Text("Pick a Skill from ClawHub.", bundle: SkillsManagerLocalizationResources.bundle)
             )
         }
     }

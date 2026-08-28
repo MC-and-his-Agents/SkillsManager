@@ -260,12 +260,12 @@ struct SkillSplitView: View {
         case nil:
             ContentUnavailableView {
                 Label {
-                    Text("Select a skill", bundle: SkillsManagerLocalizationResources.bundle)
+                    Text("Select a Skill", bundle: SkillsManagerLocalizationResources.bundle)
                 } icon: {
                     Image(systemName: "sparkles")
                 }
             } description: {
-                Text("Pick a skill from the list.", bundle: SkillsManagerLocalizationResources.bundle)
+                Text("Pick a Skill from the list.", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
     }
@@ -340,17 +340,17 @@ struct SkillSplitView: View {
                 Button {
                     showingImport = true
                 } label: {
-                    Text("Import Skill...", bundle: SkillsManagerLocalizationResources.bundle)
+                    Text("Import Skill…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 Button {
                     showingAddPath = true
                 } label: {
-                    Text("Add Custom Path...", bundle: SkillsManagerLocalizationResources.bundle)
+                    Text("Add Custom Path…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 Button {
                     showingRepositories = true
                 } label: {
-                    Text("GitHub Repository...", bundle: SkillsManagerLocalizationResources.bundle)
+                    Text("GitHub Repository…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
             } label: {
                 Label {

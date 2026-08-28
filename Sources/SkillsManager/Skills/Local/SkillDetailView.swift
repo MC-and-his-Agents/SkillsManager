@@ -7,9 +7,9 @@ struct SkillDetailView: View {
         if let skill = store.selectedSkill {
             content(for: skill)
         } else {
-            ContentUnavailableView(String(localized: "Select a skill", bundle: SkillsManagerLocalizationResources.bundle),
+            ContentUnavailableView(String(localized: "Select a Skill", bundle: SkillsManagerLocalizationResources.bundle),
                                    systemImage: "sparkles",
-                                   description: Text("Pick a skill from the list.", bundle: SkillsManagerLocalizationResources.bundle))
+                                   description: Text("Pick a Skill from the list.", bundle: SkillsManagerLocalizationResources.bundle))
         }
     }
 

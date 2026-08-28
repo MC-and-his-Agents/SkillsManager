@@ -108,7 +108,7 @@ struct AddCustomPathView: View {
         if isValidating {
             HStack {
                 ProgressView()
-                Text("Scanning for skills...", bundle: SkillsManagerLocalizationResources.bundle)
+                Text("Scanning for Skills…", bundle: SkillsManagerLocalizationResources.bundle)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -375,7 +375,7 @@ struct AddCustomPathView: View {
             Button {
                 showingPicker = true
             } label: {
-                Text("Choose Folder...", bundle: SkillsManagerLocalizationResources.bundle)
+                Text("Choose Folder…", bundle: SkillsManagerLocalizationResources.bundle)
             }
 
             Button {

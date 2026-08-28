@@ -105,7 +105,7 @@ final class SkillsManagerUITests: XCTestCase {
         )
         try setFilter("Claude Code", surface: "ui-02", app: app)
         try requireElement(
-            app.staticTexts["Select a skill"],
+            app.staticTexts["Select a Skill"],
             surface: "ui-02",
             app: app
         )
@@ -411,7 +411,7 @@ final class SkillsManagerUITests: XCTestCase {
         let addMenu = app.menuButtons[SkillsManagerUILocators.addMenu]
         try requireElement(addMenu, surface: "ui-08", app: app)
         addMenu.click()
-        let importItem = app.menuItems["Import Skill..."]
+        let importItem = app.menuItems["Import Skill…"]
         try requireElement(importItem, surface: "ui-08", app: app)
         importItem.click()
         try requireElement(app.staticTexts["Import Skill"], surface: "ui-08", app: app)
@@ -422,7 +422,7 @@ final class SkillsManagerUITests: XCTestCase {
         // (the macOS KVC `hasFocus` query throws on some elements, so interaction
         // is the verification).
         addMenu.click()
-        try requireElement(app.menuItems["Import Skill..."], surface: "ui-08", app: app)
+        try requireElement(app.menuItems["Import Skill…"], surface: "ui-08", app: app)
         app.typeKey(.escape, modifierFlags: [])
         try auditSurface("ui-08-final", app: app)
     }
@@ -854,7 +854,7 @@ final class SkillsManagerUITests: XCTestCase {
         let addMenu = app.menuButtons[SkillsManagerUILocators.addMenu]
         try requireElement(addMenu, surface: surface, app: app)
         addMenu.click()
-        let importItem = app.menuItems["Import Skill..."]
+        let importItem = app.menuItems["Import Skill…"]
         try requireElement(importItem, surface: surface, app: app)
         importItem.click()
         try requireElement(app.staticTexts["Import Skill"], surface: surface, app: app)
