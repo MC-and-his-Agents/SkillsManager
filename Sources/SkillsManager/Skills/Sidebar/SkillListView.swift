@@ -141,7 +141,8 @@ struct SkillListView: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Skills", bundle: SkillsManagerLocalizationResources.bundle)
-                    .font(.title2.bold())
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
                 HStack(spacing: 6) {
                     Text(String(
                         localized: LocalizedStringResource(
