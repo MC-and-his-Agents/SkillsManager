@@ -286,7 +286,7 @@ struct AddCustomPathView: View {
                 TagView(localized: platformResource(platform), tint: platform.badgeTint)
                 Text(String(
                     localized: LocalizedStringResource(
-            "\(skills.count) skill(s)",
+            "\(skills.count) skills",
             bundle: SkillsManagerLocalizationResources.bundle
         )))
                     .font(.caption)

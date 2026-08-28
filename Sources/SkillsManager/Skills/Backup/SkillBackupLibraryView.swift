@@ -176,7 +176,7 @@ struct SkillBackupLibraryView: View {
                         Text(
                             String(
                                 localized: LocalizedStringResource(
-            "\(summary.targets.count) target\(summary.targets.count == 1 ? "" : "s")",
+            "\(summary.targets.count) targets",
             bundle: SkillsManagerLocalizationResources.bundle
         ))
                         )

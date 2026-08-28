@@ -18,5 +18,85 @@
 			<string>%lld 个 Agent</string>
 		</dict>
 	</dict>
+	<key>%lld items need review.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>有 %lld 项需要检查。</string>
+			<key>other</key>
+			<string>有 %lld 项需要检查。</string>
+		</dict>
+	</dict>
+	<key>%lld shown</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>显示 %lld 个</string>
+			<key>other</key>
+			<string>显示 %lld 个</string>
+		</dict>
+	</dict>
+	<key>%lld skills</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld 个技能</string>
+			<key>other</key>
+			<string>%lld 个技能</string>
+		</dict>
+	</dict>
+	<key>%lld targets</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld 个目标</string>
+			<key>other</key>
+			<string>%lld 个目标</string>
+		</dict>
+	</dict>
+	<key>+%lld verified alias locations</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@value@</string>
+		<key>value</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>+%lld 个已验证别名位置</string>
+			<key>other</key>
+			<string>+%lld 个已验证别名位置</string>
+		</dict>
+	</dict>
 </dict>
 </plist>
