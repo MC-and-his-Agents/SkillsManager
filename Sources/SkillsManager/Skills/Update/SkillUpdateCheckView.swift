@@ -115,51 +115,12 @@ struct SkillUpdateCheckView: View {
                     .foregroundStyle(.orange)
                     .accessibilityElement(children: .combine)
                 }
-                if snapshot.hasExecutableRemoteUpdate {
-                    Button {
-                        Task { await model.prepareUpdate(snapshot) }
-                    } label: {
-                        if model.isPreparingUpdate {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Label {
-                                Text("Review update", bundle: SkillsManagerLocalizationResources.bundle)
-                            } icon: {
-                                Image(systemName: "arrow.down.circle")
-                            }
-                        }
-                    }
-                    .disabled(model.isPreparingUpdate || model.isUpdating)
-                    .accessibilityLabel(
-                        Text(
-                            model.isPreparingUpdate ? "Preparing update" : "Review Skill update",
-                            bundle: SkillsManagerLocalizationResources.bundle
-                        )
-                    )
-                }
+                // Review/Check 入口统一在详情页 ActionBar（单一入口）。
             } else {
                 Text("This Skill has not been checked yet.", bundle: SkillsManagerLocalizationResources.bundle)
                     .foregroundStyle(.secondary)
             }
 
-            Button {
-                Task { await model.checkCurrent() }
-            } label: {
-                if model.isChecking {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Label {
-                        Text("Check now", bundle: SkillsManagerLocalizationResources.bundle)
-                    } icon: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                }
-            }
-            .disabled(model.isChecking)
-            .accessibilityLabel(Text(
-                model.isChecking ? "Checking for updates" : "Check for updates",
-                bundle: SkillsManagerLocalizationResources.bundle
-            ))
         }
     }
 

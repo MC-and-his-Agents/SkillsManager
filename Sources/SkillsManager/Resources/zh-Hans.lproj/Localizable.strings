@@ -300,12 +300,14 @@
 	<string>检查更新…</string>
 	<key>Check managed Skills, review every conflict, then update selected items.</key>
 	<string>检查已管理的 Skill，审查所有冲突，然后更新选定项目。</string>
-	<key>Check now</key>
-	<string>立即检查</string>
 	<key>Checking</key>
 	<string>正在检查</string>
 	<key>Checking ClawHub status…</key>
 	<string>正在检查 ClawHub 状态…</string>
+	<key>Checking for updates…</key>
+	<string>正在检查更新…</string>
+	<key>Updating…</key>
+	<string>正在更新…</string>
 	<key>Checking Skills…</key>
 	<string>正在检查 Skill…</string>
 	<key>Checking for updates</key>

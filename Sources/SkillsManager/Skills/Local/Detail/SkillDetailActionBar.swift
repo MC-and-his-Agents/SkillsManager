@@ -187,9 +187,25 @@ private struct SkillDetailActionBarContent: View {
         if updateCheckModel.isChecking
             || updateCheckModel.isPreparingUpdate
             || updateCheckModel.isUpdating {
-            ProgressView()
-                .controlSize(.small)
-                .accessibilityLabel(Text("Checking for updates", bundle: SkillsManagerLocalizationResources.bundle))
+            // 检查/执行中保留按钮语义（禁用 + 进度 + 文案），不再退化为裸 ProgressView。
+            Button {
+                // 执行中不可重新触发；取消路径在确认 sheet 内。
+            } label: {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(updateCheckModel.isUpdating
+                        ? "Updating…"
+                        : "Checking for updates…", bundle: SkillsManagerLocalizationResources.bundle)
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(true)
+            .accessibilityIdentifier("skills.detail.update")
+            .accessibilityLabel(Text(
+                updateCheckModel.isUpdating ? "Updating Skill" : "Checking for updates",
+                bundle: SkillsManagerLocalizationResources.bundle
+            ))
         } else if let snapshot = loadedSnapshot, snapshot.hasExecutableRemoteUpdate {
             Button {
                 Task { await updateCheckModel.prepareUpdate(snapshot) }
@@ -218,14 +234,21 @@ private struct SkillDetailActionBarContent: View {
                     Image(systemName: "arrow.clockwise")
                 }
             }
-            .disabled(loadedSnapshot == nil || updateCheckModel.isChecking)
+            .disabled(!hasLoadedSkill || updateCheckModel.isChecking)
             .keyboardShortcut("u", modifiers: [.command, .shift])
             .accessibilityIdentifier("skills.detail.update")
             .accessibilityValue(Text(
-                loadedSnapshot == nil ? "Update check unavailable" : "No update available",
+                hasLoadedSkill ? "No update available" : "Update check unavailable",
                 bundle: SkillsManagerLocalizationResources.bundle
             ))
         }
+    }
+
+    /// ActionBar 是详情页唯一的更新检查入口；只要该 Skill 的更新状态已加载
+    /// （即使从未检查过），即可发起检查。
+    private var hasLoadedSkill: Bool {
+        if case .loaded = updateCheckModel.loadState { return true }
+        return false
     }
 
     private var loadedSnapshot: ManagedSkillUpdateCheckSnapshot? {

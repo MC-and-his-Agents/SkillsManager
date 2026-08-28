@@ -300,12 +300,14 @@
 	<string>Check for Updates…</string>
 	<key>Check managed Skills, review every conflict, then update selected items.</key>
 	<string>Check managed Skills, review every conflict, then update selected items.</string>
-	<key>Check now</key>
-	<string>Check now</string>
 	<key>Checking</key>
 	<string>Checking</string>
 	<key>Checking ClawHub status…</key>
 	<string>Checking ClawHub status…</string>
+	<key>Checking for updates…</key>
+	<string>Checking for updates…</string>
+	<key>Updating…</key>
+	<string>Updating…</string>
 	<key>Checking Skills…</key>
 	<string>Checking Skills…</string>
 	<key>Checking for updates</key>
