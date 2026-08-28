@@ -101,7 +101,7 @@ struct AddCustomPathView: View {
                 Image(systemName: "lock.trianglebadge.exclamationmark")
             }
             .font(.callout)
-            .foregroundStyle(.red)
+            .foregroundStyle(SkillStatusPalette.blocking)
             .accessibilityIdentifier("library.runtime-blocked")
         }
 
@@ -145,7 +145,7 @@ struct AddCustomPathView: View {
 
         if let error = errorMessage {
             Text(verbatim: error)
-                .foregroundStyle(.red)
+                .foregroundStyle(SkillStatusPalette.warning)
                 .font(.caption)
         }
     }
