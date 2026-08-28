@@ -1601,6 +1601,23 @@
         }
       }
     },
+    "A batch import is already running.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批量导入已在进行中。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A batch import is already running."
+          }
+        }
+      }
+    },
     "Batch Import": {
       "extractionState": "manual",
       "localizations": {
@@ -2009,6 +2026,40 @@
         }
       }
     },
+    "Check for App Updates…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查应用更新…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for App Updates…"
+          }
+        }
+      }
+    },
+    "Refresh Status": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新状态"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Status"
+          }
+        }
+      }
+    },
     "Check for Updates…": {
       "extractionState": "manual",
       "localizations": {
@@ -2043,23 +2094,6 @@
         }
       }
     },
-    "Check now": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "立即检查"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check now"
-          }
-        }
-      }
-    },
     "Checking": {
       "extractionState": "manual",
       "localizations": {
@@ -2090,6 +2124,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Checking ClawHub status…"
+          }
+        }
+      }
+    },
+    "Checking for updates…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查更新…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking for updates…"
+          }
+        }
+      }
+    },
+    "Updating…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在更新…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating…"
           }
         }
       }
@@ -2328,6 +2396,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Claude"
+          }
+        }
+      }
+    },
+    "%lld downloads": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载 %lld 次"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld downloads"
+          }
+        }
+      }
+    },
+    "%lld stars": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 星标"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld stars"
           }
         }
       }
@@ -2995,6 +3097,23 @@
         }
       }
     },
+    "Custom Path Options": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义路径选项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom Path Options"
+          }
+        }
+      }
+    },
     "Copy login command": {
       "extractionState": "manual",
       "localizations": {
@@ -3263,23 +3382,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete from Skills Manager?"
-          }
-        }
-      }
-    },
-    "Delete from Skills Manager…": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "从 Skills Manager 删除…"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete from Skills Manager…"
           }
         }
       }
@@ -4066,19 +4168,19 @@
         }
       }
     },
-    "Full Settings…": {
+    "Full Distribution Settings…": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "完整设置…"
+            "value": "完整分发设置…"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Full Settings…"
+            "value": "Full Distribution Settings…"
           }
         }
       }
@@ -5099,6 +5201,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Loading %@"
+          }
+        }
+      }
+    },
+    "Loading remote Skills": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载远程 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading remote Skills"
           }
         }
       }
@@ -7836,23 +7955,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Refresh distribution"
-          }
-        }
-      }
-    },
-    "Refresh managed Skill": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "刷新托管 Skill"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Refresh managed Skill"
           }
         }
       }
@@ -13107,6 +13209,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Version %@ (%lld)"
+          }
+        }
+      }
+    },
+    "Tags": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags"
+          }
+        }
+      }
+    },
+    "Separate multiple tags with commas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "多个标签用英文逗号分隔。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Separate multiple tags with commas."
+          }
+        }
+      }
+    },
+    "Publish summary": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布摘要"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publish summary"
+          }
+        }
+      }
+    },
+    "v%@ · %@ · tags: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "v%@ · %@ · 标签：%@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "v%@ · %@ · tags: %@"
           }
         }
       }

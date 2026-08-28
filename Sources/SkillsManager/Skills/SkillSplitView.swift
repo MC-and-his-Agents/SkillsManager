@@ -284,61 +284,55 @@ struct SkillSplitView: View {
 
     @ToolbarContentBuilder
     private func toolbarContent() -> some CustomizableToolbarContent {
-        if canBatchImport {
-            ToolbarItem(id: "batch-discovery") {
-                Button {
-                    presentBatchImport()
-                } label: {
-                    Label {
-                        Text("Batch Import", bundle: SkillsManagerLocalizationResources.bundle)
-                    } icon: {
-                        Image(systemName: "tray.and.arrow.down")
-                    }
+        // 工具栏项目固定常驻：不可用时置灰并说明原因，不再随 selection
+        // 出现/消失导致布局跳动（一致性审计与备份库是全局能力）。
+        ToolbarItem(id: "batch-discovery") {
+            Button {
+                presentBatchImport()
+            } label: {
+                Label {
+                    Text("Batch Import", bundle: SkillsManagerLocalizationResources.bundle)
+                } icon: {
+                    Image(systemName: "tray.and.arrow.down")
                 }
-                .help(Text("Batch Import discovered Skills", bundle: SkillsManagerLocalizationResources.bundle))
-                .accessibilityLabel(Text("Batch Import discovered Skills", bundle: SkillsManagerLocalizationResources.bundle))
-                .accessibilityValue(Text(String(
-                    localized: LocalizedStringResource(
-            "\(batchCandidateCount) candidates available",
-            bundle: SkillsManagerLocalizationResources.bundle
-        ))))
-                .accessibilityIdentifier("skills.batch-import")
             }
+            .disabled(!canBatchImport)
+            .help(batchImportHelp)
+            .accessibilityLabel(Text("Batch Import discovered Skills", bundle: SkillsManagerLocalizationResources.bundle))
+            .accessibilityValue(Text(verbatim: batchImportHelpValue))
+            .accessibilityIdentifier("skills.batch-import")
         }
 
-        if isLocalSelection || selection == nil {
-            ToolbarItem(id: "consistency") {
-                Button {
-                    showingConsistency = true
-                } label: {
-                    Label {
-                        Text("Consistency Audit", bundle: SkillsManagerLocalizationResources.bundle)
-                    } icon: {
-                        Image(systemName: "checkmark.shield")
-                    }
+        ToolbarItem(id: "consistency") {
+            Button {
+                showingConsistency = true
+            } label: {
+                Label {
+                    Text("Consistency Audit", bundle: SkillsManagerLocalizationResources.bundle)
+                } icon: {
+                    Image(systemName: "checkmark.shield")
                 }
-                .keyboardShortcut("a", modifiers: [.command, .shift])
-                .help(Text("Consistency Audit", bundle: SkillsManagerLocalizationResources.bundle))
-                .accessibilityLabel(Text("Open consistency audit", bundle: SkillsManagerLocalizationResources.bundle))
             }
+            .keyboardShortcut("a", modifiers: [.command, .shift])
+            .disabled(!canOpenConsistency)
+            .help(Text("Consistency Audit", bundle: SkillsManagerLocalizationResources.bundle))
+            .accessibilityLabel(Text("Open consistency audit", bundle: SkillsManagerLocalizationResources.bundle))
         }
 
-        if isLocalSelection {
-            ToolbarItem(id: "backups") {
-                Button {
-                    showingBackups = true
-                    Task { await lifecycleModel.refreshBackupsOnly() }
-                } label: {
-                    Label {
-                        Text("Skill Backups", bundle: SkillsManagerLocalizationResources.bundle)
-                    } icon: {
-                        Image(systemName: "archivebox")
-                    }
+        ToolbarItem(id: "backups") {
+            Button {
+                showingBackups = true
+                Task { await lifecycleModel.refreshBackupsOnly() }
+            } label: {
+                Label {
+                    Text("Skill Backups", bundle: SkillsManagerLocalizationResources.bundle)
+                } icon: {
+                    Image(systemName: "archivebox")
                 }
-                .disabled(lifecycleModel.isMutating)
-                .help(Text("Skill Backups", bundle: SkillsManagerLocalizationResources.bundle))
-                .accessibilityLabel(backupAccessibilityLabel)
             }
+            .disabled(lifecycleModel.isMutating)
+            .help(Text("Skill Backups", bundle: SkillsManagerLocalizationResources.bundle))
+            .accessibilityLabel(backupAccessibilityLabel)
         }
 
         ToolbarItem(id: "add") {
@@ -397,6 +391,35 @@ struct SkillSplitView: View {
         libraryRuntime.readiness == .ready
             && batchCandidateCount > 0
             && !discoveryBatchModel.isExecuting
+    }
+
+    private var canOpenConsistency: Bool {
+        libraryRuntime.readiness != .blocked && !consistencyModel.isExecuting
+    }
+
+    private var batchImportHelpValue: String {
+        if libraryRuntime.readiness != .ready {
+            return libraryRuntime.blockingMessage
+        }
+        if discoveryBatchModel.isExecuting {
+            return String(localized: "A batch import is already running.", bundle: SkillsManagerLocalizationResources.bundle)
+        }
+        return String(
+            localized: LocalizedStringResource(
+                "\(batchCandidateCount) candidates available",
+                bundle: SkillsManagerLocalizationResources.bundle
+            )
+        )
+    }
+
+    private var batchImportHelp: Text {
+        if libraryRuntime.readiness != .ready {
+            return Text(verbatim: libraryRuntime.blockingMessage)
+        }
+        if discoveryBatchModel.isExecuting {
+            return Text("A batch import is already running.", bundle: SkillsManagerLocalizationResources.bundle)
+        }
+        return Text("Batch Import discovered Skills", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
     private func presentBatchImport() {
