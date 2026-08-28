@@ -430,6 +430,8 @@
 	<string>Copy 决定已保存，但父 Skill 未更新。</string>
 	<key>Copy decisions were saved; recheck before updating the parent Skill</key>
 	<string>Copy 决定已保存；更新父 Skill 前请重新检查</string>
+	<key>Custom Path Options</key>
+	<string>自定义路径选项</string>
 	<key>Copy login command</key>
 	<string>复制登录命令</string>
 	<key>Copy target has local changes</key>

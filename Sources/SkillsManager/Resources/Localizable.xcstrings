@@ -2995,6 +2995,23 @@
         }
       }
     },
+    "Custom Path Options": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义路径选项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom Path Options"
+          }
+        }
+      }
+    },
     "Copy login command": {
       "extractionState": "manual",
       "localizations": {
