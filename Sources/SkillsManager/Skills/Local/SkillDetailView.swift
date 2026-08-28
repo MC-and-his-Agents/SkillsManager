@@ -19,8 +19,7 @@ struct SkillDetailView: View {
         case .idle, .loading:
             HStack {
                 ProgressView()
-                Text("Loading ", bundle: SkillsManagerLocalizationResources.bundle)
-                Text(verbatim: skill.name)
+                Text("Loading \(skill.name)", bundle: SkillsManagerLocalizationResources.bundle)
             }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .missing:
