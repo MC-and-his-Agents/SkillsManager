@@ -29,8 +29,8 @@ extension SkillDiscoveryStatus {
         case .managed: .green
         case .claimable: .blue
         case .unmanaged: .accentColor
-        case .conflict: .orange
-        case .permissionDenied, .damaged: .red
+        case .conflict: SkillStatusPalette.warning
+        case .permissionDenied, .damaged: SkillStatusPalette.blocking
         }
     }
 }

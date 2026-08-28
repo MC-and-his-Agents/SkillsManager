@@ -7,37 +7,7 @@ struct SkillUpdateCheckView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
                 stateContent
-                if let problem = model.problem {
-                    Label(
-                        localizedManagedSkillUpdateCheckProblem(problem),
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .foregroundStyle(.orange)
-                    .accessibilityElement(children: .combine)
-                }
-                if let problem = model.updateProblem {
-                    Label(
-                        localizedManagedSkillUpdateExecutionProblem(problem),
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .foregroundStyle(.orange)
-                    .accessibilityElement(children: .combine)
-                }
-                if let result = model.updateResult {
-                    Label {
-                        Text(verbatim: executionStatusText(result))
-                    } icon: {
-                        Image(systemName: result.systemImage)
-                    }
-                        .foregroundStyle(result.requiresAttention ? .orange : .secondary)
-                        .accessibilityLabel(Text(
-                            String(
-                                localized: LocalizedStringResource(
-            "Update result: \(executionStatusText(result))",
-            bundle: SkillsManagerLocalizationResources.bundle
-        ))
-                        ))
-                }
+                // 结果反馈统一由详情页顶部 banner 呈现（SkillDetailFeedbackBanner）。
             }
             .padding(.top, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -115,51 +85,12 @@ struct SkillUpdateCheckView: View {
                     .foregroundStyle(.orange)
                     .accessibilityElement(children: .combine)
                 }
-                if snapshot.hasExecutableRemoteUpdate {
-                    Button {
-                        Task { await model.prepareUpdate(snapshot) }
-                    } label: {
-                        if model.isPreparingUpdate {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Label {
-                                Text("Review update", bundle: SkillsManagerLocalizationResources.bundle)
-                            } icon: {
-                                Image(systemName: "arrow.down.circle")
-                            }
-                        }
-                    }
-                    .disabled(model.isPreparingUpdate || model.isUpdating)
-                    .accessibilityLabel(
-                        Text(
-                            model.isPreparingUpdate ? "Preparing update" : "Review Skill update",
-                            bundle: SkillsManagerLocalizationResources.bundle
-                        )
-                    )
-                }
+                // Review/Check 入口统一在详情页 ActionBar（单一入口）。
             } else {
                 Text("This Skill has not been checked yet.", bundle: SkillsManagerLocalizationResources.bundle)
                     .foregroundStyle(.secondary)
             }
 
-            Button {
-                Task { await model.checkCurrent() }
-            } label: {
-                if model.isChecking {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Label {
-                        Text("Check now", bundle: SkillsManagerLocalizationResources.bundle)
-                    } icon: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                }
-            }
-            .disabled(model.isChecking)
-            .accessibilityLabel(Text(
-                model.isChecking ? "Checking for updates" : "Check for updates",
-                bundle: SkillsManagerLocalizationResources.bundle
-            ))
         }
     }
 

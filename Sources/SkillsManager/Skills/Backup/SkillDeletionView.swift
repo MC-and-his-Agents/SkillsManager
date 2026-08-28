@@ -71,7 +71,7 @@ struct SkillDeletionView: View {
                             .controlSize(.small)
                     } else {
                         Label {
-                            Text("Refresh managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
+                            Text("Refresh Status", bundle: SkillsManagerLocalizationResources.bundle)
                         } icon: {
                             Image(systemName: "arrow.clockwise")
                         }
@@ -79,8 +79,8 @@ struct SkillDeletionView: View {
                     }
                 }
                 .disabled(model.isRefreshingDeletion || model.isMutating)
-                .help(Text("Refresh managed Skill", bundle: SkillsManagerLocalizationResources.bundle))
-                .accessibilityLabel(Text("Refresh managed Skill", bundle: SkillsManagerLocalizationResources.bundle))
+                .help(Text("Refresh Status", bundle: SkillsManagerLocalizationResources.bundle))
+                .accessibilityLabel(Text("Refresh Status", bundle: SkillsManagerLocalizationResources.bundle))
             }
 
             if let content = preview.content {
@@ -118,16 +118,8 @@ struct SkillDeletionView: View {
                 }
             }
 
-            if let problem = model.problem {
-                feedback(
-                    problem.message,
-                    systemImage: "exclamationmark.triangle.fill",
-                    color: .orange
-                )
-            }
-            if let message = model.successMessage {
-                feedback(message, systemImage: "checkmark.circle.fill", color: .green)
-            }
+            // 结果反馈统一由详情页顶部 banner 呈现（SkillDetailFeedbackBanner），
+            // 确认 sheet 内的反馈保留在 sheet 中。
 
             // 删除入口统一在详情页 ActionBar（Delete，⌘⌫，始终先出确认）。
             // 此处仅保留中断操作的恢复入口；状态/目标/备份信息照常呈现。
@@ -174,16 +166,6 @@ struct SkillDeletionView: View {
         }
         .foregroundStyle(.secondary)
         .accessibilityElement(children: .combine)
-    }
-
-    private func feedback(
-        _ message: String,
-        systemImage: String,
-        color: Color
-    ) -> some View {
-        Label(message, systemImage: systemImage)
-            .foregroundStyle(color)
-            .accessibilityElement(children: .combine)
     }
 
     private func deletionStatusText(_ status: SkillDeletionStatus) -> String {
