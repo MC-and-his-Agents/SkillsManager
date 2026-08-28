@@ -478,6 +478,8 @@
 	<string>默认分支</string>
 	<key>Delete</key>
 	<string>删除</string>
+	<key>Delete Skill</key>
+	<string>删除 Skill</string>
 	<key>Delete from Skills Manager?</key>
 	<string>从 Skills Manager 删除？</string>
 	<key>Delete from Skills Manager…</key>
