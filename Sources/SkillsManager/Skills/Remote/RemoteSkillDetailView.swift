@@ -97,20 +97,15 @@ struct RemoteSkillDetailView: View {
     }
 
     private func headerView(for skill: RemoteSkill) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(verbatim: skill.displayName)
-                .font(.largeTitle.bold())
-            if let summary = skill.summary {
-                Text(verbatim: summary)
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
-            HStack(spacing: 6) {
+        SkillDetailPageHeader(
+            title: skill.displayName,
+            subtitle: skill.summary,
+            tags: {
                 if let owner = ownerDisplayName {
                     TagView(localized: LocalizedStringResource(
-            "By \(owner)",
-            bundle: SkillsManagerLocalizationResources.bundle
-        ))
+                "By \(owner)",
+                bundle: SkillsManagerLocalizationResources.bundle
+            ))
                 }
                 if let version = skill.latestVersion {
                     TagView(localized: LocalizedStringResource(
@@ -119,8 +114,8 @@ struct RemoteSkillDetailView: View {
                     ))
                 }
                 remoteStatsView(for: skill)
-            }
-            HStack(spacing: 12) {
+            },
+            actions: {
                 Button {
                     onInstall(skill)
                 } label: {
@@ -147,9 +142,7 @@ struct RemoteSkillDetailView: View {
                     }
                 }
             }
-            .padding(.top, 4)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        )
     }
 
     private func openClawdhubURL(for skill: RemoteSkill) {

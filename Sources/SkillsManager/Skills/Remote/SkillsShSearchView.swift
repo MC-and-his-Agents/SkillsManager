@@ -10,16 +10,28 @@ struct SkillsShSearchDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         SkillResultCenterBanner(subject: .skillsSh(item.resultID))
-                        Text(verbatim: item.name)
-                            .font(.largeTitle.bold())
-
-                        HStack(spacing: 6) {
-                            TagView(text: item.source)
-                            TagView(localized: LocalizedStringResource(
-            "\(item.installs) installs",
-            bundle: SkillsManagerLocalizationResources.bundle
-        ))
-                        }
+                        SkillDetailPageHeader(
+                            title: item.name,
+                            tags: {
+                                TagView(text: item.source)
+                                TagView(localized: LocalizedStringResource(
+                "\(item.installs) installs",
+                bundle: SkillsManagerLocalizationResources.bundle
+            ))
+                            },
+                            actions: {
+                                Button {
+                                    installItem = item
+                                } label: {
+                                    Text("Resolve and Install…", bundle: SkillsManagerLocalizationResources.bundle)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .accessibilityHint(Text(
+                                    "Verifies the public GitHub source before showing an install preview",
+                                    bundle: SkillsManagerLocalizationResources.bundle
+                                ))
+                            }
+                        )
 
                         Label {
                             Text(
@@ -31,17 +43,6 @@ struct SkillsShSearchDetailView: View {
                         }
                         .foregroundStyle(.secondary)
                         .accessibilityElement(children: .combine)
-
-                        Button {
-                            installItem = item
-                        } label: {
-                            Text("Resolve and Install…", bundle: SkillsManagerLocalizationResources.bundle)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityHint(Text(
-                            "Verifies the public GitHub source before showing an install preview",
-                            bundle: SkillsManagerLocalizationResources.bundle
-                        ))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
