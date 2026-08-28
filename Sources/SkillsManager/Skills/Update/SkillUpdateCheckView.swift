@@ -7,37 +7,7 @@ struct SkillUpdateCheckView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
                 stateContent
-                if let problem = model.problem {
-                    Label(
-                        localizedManagedSkillUpdateCheckProblem(problem),
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .foregroundStyle(.orange)
-                    .accessibilityElement(children: .combine)
-                }
-                if let problem = model.updateProblem {
-                    Label(
-                        localizedManagedSkillUpdateExecutionProblem(problem),
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .foregroundStyle(.orange)
-                    .accessibilityElement(children: .combine)
-                }
-                if let result = model.updateResult {
-                    Label {
-                        Text(verbatim: executionStatusText(result))
-                    } icon: {
-                        Image(systemName: result.systemImage)
-                    }
-                        .foregroundStyle(result.requiresAttention ? .orange : .secondary)
-                        .accessibilityLabel(Text(
-                            String(
-                                localized: LocalizedStringResource(
-            "Update result: \(executionStatusText(result))",
-            bundle: SkillsManagerLocalizationResources.bundle
-        ))
-                        ))
-                }
+                // 结果反馈统一由详情页顶部 banner 呈现（SkillDetailFeedbackBanner）。
             }
             .padding(.top, 4)
             .frame(maxWidth: .infinity, alignment: .leading)

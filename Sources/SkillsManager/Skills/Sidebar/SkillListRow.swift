@@ -74,7 +74,7 @@ struct SkillListRow: View {
                 Image(systemName: "arrow.triangle.2.circlepath")
             }
                 .font(.caption.weight(.medium))
-                .foregroundStyle(.green)
+                .foregroundStyle(SkillStatusPalette.actionAvailable)
                 .accessibilityLabel(Text(String(
                     localized: LocalizedStringResource(
             "Update available, version \(version)",
@@ -87,7 +87,7 @@ struct SkillListRow: View {
                 Image(systemName: "exclamationmark.triangle.fill")
             }
                 .font(.caption.weight(.medium))
-                .foregroundStyle(.yellow)
+                .foregroundStyle(SkillStatusPalette.warning)
                 .accessibilityLabel(Text("Needs Repair", bundle: SkillsManagerLocalizationResources.bundle))
         }
     }

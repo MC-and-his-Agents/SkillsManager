@@ -135,7 +135,11 @@ struct SkillFilterBar: View {
                     Button {
                         filters.source = value
                     } label: {
-                        chipLabel(sourceShortText(for: value), icon: sourceIcon(for: value))
+                        chipLabel(
+                            sourceShortText(for: value),
+                            icon: sourceIcon(for: value),
+                            isSelected: filters.source == value
+                        )
                     }
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
@@ -212,7 +216,11 @@ struct SkillFilterBar: View {
                     Button {
                         filters.agent = value
                     } label: {
-                        chipLabel(agentShortText(for: value), icon: nil)
+                        chipLabel(
+                            agentShortText(for: value),
+                            icon: nil,
+                            isSelected: filters.agent == value
+                        )
                     }
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
@@ -272,7 +280,7 @@ struct SkillFilterBar: View {
 
     // MARK: - Shared
 
-    private func chipLabel(_ text: String, icon: String?) -> some View {
+    private func chipLabel(_ text: String, icon: String?, isSelected: Bool) -> some View {
         HStack(spacing: 3) {
             if let icon {
                 Image(systemName: icon)
@@ -281,10 +289,21 @@ struct SkillFilterBar: View {
             Text(verbatim: text)
                 .font(.caption)
         }
+        .foregroundStyle(isSelected ? Color.accentColor : .primary)
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
         .background(
-            Capsule().fill(Color.secondary.opacity(0.14))
+            Capsule().fill(
+                isSelected
+                    ? Color.accentColor.opacity(0.18)
+                    : Color.secondary.opacity(0.14)
+            )
+        )
+        .overlay(
+            Capsule().strokeBorder(
+                isSelected ? Color.accentColor.opacity(0.45) : Color.clear,
+                lineWidth: 1
+            )
         )
     }
 

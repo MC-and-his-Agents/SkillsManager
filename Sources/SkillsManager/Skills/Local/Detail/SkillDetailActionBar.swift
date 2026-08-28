@@ -19,7 +19,7 @@ struct SkillDetailActionBar: View {
                 systemImage: skill.managedStatus == .needsRepair
                     ? "exclamationmark.triangle.fill"
                     : "checkmark.seal.fill",
-                tint: skill.managedStatus == .needsRepair ? .orange : .green,
+                tint: skill.managedStatus == .needsRepair ? SkillStatusPalette.warning : SkillStatusPalette.healthy,
                 accessibilityValue: skill.managedStatus == .needsRepair
                     ? "Managed Skill needs repair"
                     : "Managed and in sync"
@@ -46,7 +46,7 @@ struct SkillDiscoveryActionBar: View {
             badge: SkillActionBarBadge(
                 title: "Managed",
                 systemImage: "checkmark.seal.fill",
-                tint: .green,
+                tint: SkillStatusPalette.healthy,
                 accessibilityValue: "Matches an existing managed Skill"
             ),
             sourceLabels: observation.listOrigin.labels,
@@ -320,7 +320,7 @@ private struct SkillDetailActionBarContent: View {
     private var fullSettingsButton: some View {
         Button(action: onFullSettings) {
             Label {
-                Text("Full Settings…", bundle: SkillsManagerLocalizationResources.bundle)
+                Text("Full Distribution Settings…", bundle: SkillsManagerLocalizationResources.bundle)
             } icon: {
                 Image(systemName: "slider.horizontal.3")
             }

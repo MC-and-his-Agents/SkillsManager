@@ -10,7 +10,7 @@ struct SkillRowView: View {
     }
 
     private var statusTint: Color {
-        skill.managedStatus == .needsRepair ? .orange : .green
+        skill.managedStatus == .needsRepair ? SkillStatusPalette.warning : SkillStatusPalette.healthy
     }
 
     private var statusText: String {

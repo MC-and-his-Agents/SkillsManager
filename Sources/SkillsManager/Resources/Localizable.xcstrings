@@ -1363,36 +1363,36 @@
         }
       }
     },
-    "Available, Repository, 0 Agents": {
+    "Available, Repository": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用，仓库，0 个 Agent"
+            "value": "可用，仓库"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Available, Repository, 0 Agents"
+            "value": "Available, Repository"
           }
         }
       }
     },
-    "Available, skills.sh, 0 Agents": {
+    "Available, skills.sh": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用，skills.sh，0 个 Agent"
+            "value": "可用，skills.sh"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Available, skills.sh, 0 Agents"
+            "value": "Available, skills.sh"
           }
         }
       }
@@ -1597,6 +1597,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Based on %@"
+          }
+        }
+      }
+    },
+    "A batch import is already running.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批量导入已在进行中。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A batch import is already running."
           }
         }
       }
@@ -2009,6 +2026,40 @@
         }
       }
     },
+    "Check for App Updates…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查应用更新…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for App Updates…"
+          }
+        }
+      }
+    },
+    "Refresh Status": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新状态"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Status"
+          }
+        }
+      }
+    },
     "Check for Updates…": {
       "extractionState": "manual",
       "localizations": {
@@ -2345,6 +2396,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Claude"
+          }
+        }
+      }
+    },
+    "%lld downloads": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载 %lld 次"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld downloads"
+          }
+        }
+      }
+    },
+    "%lld stars": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 星标"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld stars"
           }
         }
       }
@@ -3008,6 +3093,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copy decisions were saved; recheck before updating the parent Skill"
+          }
+        }
+      }
+    },
+    "Custom Path Options": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义路径选项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom Path Options"
           }
         }
       }
@@ -4083,19 +4185,19 @@
         }
       }
     },
-    "Full Settings…": {
+    "Full Distribution Settings…": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "完整设置…"
+            "value": "完整分发设置…"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Full Settings…"
+            "value": "Full Distribution Settings…"
           }
         }
       }
@@ -5103,19 +5205,36 @@
         }
       }
     },
-    "Loading ": {
+    "Loading %@": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在加载 "
+            "value": "正在加载 %@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loading "
+            "value": "Loading %@"
+          }
+        }
+      }
+    },
+    "Loading remote Skills": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载远程 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading remote Skills"
           }
         }
       }
@@ -7853,23 +7972,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Refresh distribution"
-          }
-        }
-      }
-    },
-    "Refresh managed Skill": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "刷新托管 Skill"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Refresh managed Skill"
           }
         }
       }
@@ -13124,6 +13226,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Version %@ (%lld)"
+          }
+        }
+      }
+    },
+    "Tags": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags"
+          }
+        }
+      }
+    },
+    "Separate multiple tags with commas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "多个标签用英文逗号分隔。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Separate multiple tags with commas."
+          }
+        }
+      }
+    },
+    "Publish summary": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发布摘要"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publish summary"
+          }
+        }
+      }
+    },
+    "v%@ · %@ · tags: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "v%@ · %@ · 标签：%@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "v%@ · %@ · tags: %@"
           }
         }
       }
