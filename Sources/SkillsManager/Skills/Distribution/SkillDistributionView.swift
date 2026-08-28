@@ -178,12 +178,8 @@ struct SkillDistributionView: View {
                 .accessibilityElement(children: .combine)
             }
 
-            if let message = model.successMessage {
-                feedback(message, systemImage: "checkmark.circle.fill", tint: .green)
-            }
-            if let problem = model.problem {
-                feedback(problem.message, systemImage: "exclamationmark.triangle.fill", tint: .orange)
-            }
+            // 结果反馈统一由详情页顶部 banner 呈现（SkillDetailFeedbackBanner），
+            // 此处不再重复显示 successMessage/problem。
 
             Button {
                 Task { await model.preparePreview() }
@@ -313,12 +309,6 @@ struct SkillDistributionView: View {
             Image(systemName: systemImage)
         }
         .foregroundStyle(.secondary)
-    }
-
-    private func feedback(_ message: String, systemImage: String, tint: Color) -> some View {
-        Label(message, systemImage: systemImage)
-            .foregroundStyle(tint)
-            .accessibilityElement(children: .combine)
     }
 
     private func statusText(_ status: SkillDistributionViewModel.Status) -> String {

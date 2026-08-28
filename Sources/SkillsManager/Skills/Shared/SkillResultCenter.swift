@@ -23,6 +23,8 @@ import SwiftUI
         let text: String
         let systemImage: String
         let tint: Color
+        /// 失败/需关注结果常驻直至手动关闭，不允许 20s 后无迹可寻。
+        var isPersistent: Bool = false
     }
 
     private(set) var current: Entry?
@@ -31,6 +33,8 @@ import SwiftUI
     func publish(_ entry: Entry) {
         current = entry
         autoDismissTask?.cancel()
+        autoDismissTask = nil
+        guard !entry.isPersistent else { return }
         autoDismissTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(20))
             guard !Task.isCancelled else { return }
