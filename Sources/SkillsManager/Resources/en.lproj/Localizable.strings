@@ -714,6 +714,8 @@
 	<string>Load More</string>
 	<key>Loading %@</key>
 	<string>Loading %@</string>
+	<key>Loading remote Skills</key>
+	<string>Loading remote Skills</string>
 	<key>Loading SKILL.md…</key>
 	<string>Loading SKILL.md…</string>
 	<key>Loading and validating backups…</key>

@@ -714,6 +714,8 @@
 	<string>加载更多</string>
 	<key>Loading %@</key>
 	<string>正在加载 %@</string>
+	<key>Loading remote Skills</key>
+	<string>正在加载远程 Skill</string>
 	<key>Loading SKILL.md…</key>
 	<string>正在加载 SKILL.md…</string>
 	<key>Loading and validating backups…</key>
