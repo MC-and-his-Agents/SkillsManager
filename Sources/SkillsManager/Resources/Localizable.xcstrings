@@ -1363,36 +1363,36 @@
         }
       }
     },
-    "Available, Repository, 0 Agents": {
+    "Available, Repository": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用，仓库，0 个 Agent"
+            "value": "可用，仓库"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Available, Repository, 0 Agents"
+            "value": "Available, Repository"
           }
         }
       }
     },
-    "Available, skills.sh, 0 Agents": {
+    "Available, skills.sh": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用，skills.sh，0 个 Agent"
+            "value": "可用，skills.sh"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Available, skills.sh, 0 Agents"
+            "value": "Available, skills.sh"
           }
         }
       }
@@ -3267,6 +3267,23 @@
         }
       }
     },
+    "Delete Skill": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Skill"
+          }
+        }
+      }
+    },
     "Delete from Skills Manager?": {
       "extractionState": "manual",
       "localizations": {
@@ -5103,19 +5120,19 @@
         }
       }
     },
-    "Loading ": {
+    "Loading %@": {
       "extractionState": "manual",
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在加载 "
+            "value": "正在加载 %@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loading "
+            "value": "Loading %@"
           }
         }
       }
