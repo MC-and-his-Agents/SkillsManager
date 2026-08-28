@@ -8,6 +8,9 @@ struct RemoteSkillRowView: View {
     var body: some View {
         let status = String(localized: "Available", bundle: SkillsManagerLocalizationResources.bundle)
         let source = String(localized: "ClawHub", bundle: SkillsManagerLocalizationResources.bundle)
+        let agentSummary = isInstalled
+            ? SkillListAgentSummary.text(count: installedTargets.count)
+            : nil
         SkillListRow(data: SkillListRowData(
             id: skill.id,
             title: skill.displayName,
@@ -19,18 +22,18 @@ struct RemoteSkillRowView: View {
                 systemImage: "sparkles",
                 knownSource: .clawHub
             )],
-            agentCount: installedTargets.count,
+            agentCount: isInstalled ? installedTargets.count : nil,
             accessibilityLabel: [
                 skill.displayName,
                 status,
                 source,
-                SkillListAgentSummary.text(count: installedTargets.count),
-            ].filter { !$0.isEmpty }.joined(separator: ", "),
+                agentSummary,
+            ].compactMap { $0 }.joined(separator: ", "),
             accessibilityValue: [
                 status,
                 source,
-                SkillListAgentSummary.text(count: installedTargets.count),
-            ].filter { !$0.isEmpty }.joined(separator: ", ")
+                agentSummary,
+            ].compactMap { $0 }.joined(separator: ", ")
         ))
         .padding(.trailing, 26)
         .overlay(alignment: .topTrailing) {
