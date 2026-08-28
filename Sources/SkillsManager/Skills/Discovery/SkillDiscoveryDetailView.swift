@@ -214,7 +214,7 @@ struct SkillDiscoveryDetailView: View {
     }
 
     private func actionButton(
-        _ title: String,
+        _ title: LocalizedStringResource,
         systemImage: String,
         item: SkillDiscoveryViewModel.Item,
         action: ManagedSkillImportAction
@@ -230,7 +230,7 @@ struct SkillDiscoveryDetailView: View {
             }
         } label: {
             Label {
-                Text(verbatim: actionTitleText(title))
+                Text(title)
             } icon: {
                 Image(systemName: systemImage)
             }
@@ -317,15 +317,19 @@ struct SkillDiscoveryDetailView: View {
     }
 
     private func unavailableView(
-        title: String,
+        title: LocalizedStringResource,
         message: String,
         systemImage: String
     ) -> some View {
-        ContentUnavailableView(
-            unavailableTitleText(title),
-            systemImage: systemImage,
-            description: Text(verbatim: message)
-        )
+        ContentUnavailableView {
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: systemImage)
+            }
+        } description: {
+            Text(verbatim: message)
+        }
     }
 
     private var pendingImportBinding: Binding<Bool> {
@@ -412,22 +416,6 @@ struct SkillDiscoveryDetailView: View {
             .joined(separator: ", ")
     }
 
-    private func actionTitleText(_ title: String) -> String {
-        return switch title {
-        case "Preview claim": String(localized: "Preview claim", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Preview independent import": String(localized: "Preview independent import", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Preview import": String(localized: "Preview import", bundle: SkillsManagerLocalizationResources.bundle)
-        default: title
-        }
-    }
-
-    private func unavailableTitleText(_ title: String) -> String {
-        return switch title {
-        case "Discovery unavailable": String(localized: "Discovery unavailable", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Discovery failed": String(localized: "Discovery failed", bundle: SkillsManagerLocalizationResources.bundle)
-        default: title
-        }
-    }
 }
 
 private struct SkillDiscoveryImportConfirmationView: View {
@@ -449,7 +437,7 @@ private struct SkillDiscoveryImportConfirmationView: View {
             GroupBox {
                 VStack(alignment: .leading, spacing: 10) {
                     LabeledContent {
-                        Text(verbatim: actionNameText)
+                        Text(verbatim: actionName)
                     } label: {
                         Text("Action", bundle: SkillsManagerLocalizationResources.bundle)
                     }
@@ -526,22 +514,16 @@ private struct SkillDiscoveryImportConfirmationView: View {
         .interactiveDismissDisabled(model.isImporting)
     }
 
-    private var title: String {
-        pending.preview.action == .claimExisting ? "Confirm claim" : "Confirm import"
-    }
-
     private var titleText: String {
-        switch title {
-        case "Confirm claim": String(localized: "Confirm claim", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Confirm import": String(localized: "Confirm import", bundle: SkillsManagerLocalizationResources.bundle)
-        default: title
-        }
+        String(localized: pending.preview.action == .claimExisting
+            ? "Confirm claim"
+            : "Confirm import", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
     private var actionName: String {
         pending.preview.action == .claimExisting
-            ? "Associate this local folder with an existing Skill"
-            : "Import this local folder as a managed Skill"
+            ? String(localized: "Associate this local folder with an existing Skill", bundle: SkillsManagerLocalizationResources.bundle)
+            : String(localized: "Import this local folder as a managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
     private var targetDescription: String {
@@ -557,41 +539,13 @@ private struct SkillDiscoveryImportConfirmationView: View {
         return String(localized: "New managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
-    private var managedResultDescription: String {
-        pending.preview.action == .claimExisting
-            ? "A local-origin record will be added to the matched Skill"
-            : "Content will be copied into the SSOT and recorded in the database"
-    }
-
-    private var confirmButtonTitle: String {
-        pending.preview.action == .claimExisting ? "Confirm claim" : "Confirm import"
-    }
-
-    private var actionNameText: String {
-        return switch actionName {
-        case "Associate this local folder with an existing Skill":
-            String(localized: "Associate this local folder with an existing Skill", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Import this local folder as a managed Skill":
-            String(localized: "Import this local folder as a managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
-        default: actionName
-        }
-    }
-
     private var managedResultDescriptionText: String {
-        return switch managedResultDescription {
-        case "A local-origin record will be added to the matched Skill":
-            String(localized: "A local-origin record will be added to the matched Skill", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Content will be copied into the SSOT and recorded in the database":
-            String(localized: "Content will be copied into the SSOT and recorded in the database", bundle: SkillsManagerLocalizationResources.bundle)
-        default: managedResultDescription
-        }
+        pending.preview.action == .claimExisting
+            ? String(localized: "A local-origin record will be added to the matched Skill", bundle: SkillsManagerLocalizationResources.bundle)
+            : String(localized: "Content will be copied into the SSOT and recorded in the database", bundle: SkillsManagerLocalizationResources.bundle)
     }
 
     private var confirmButtonTitleText: String {
-        return switch confirmButtonTitle {
-        case "Confirm claim": String(localized: "Confirm claim", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Confirm import": String(localized: "Confirm import", bundle: SkillsManagerLocalizationResources.bundle)
-        default: confirmButtonTitle
-        }
+        titleText
     }
 }

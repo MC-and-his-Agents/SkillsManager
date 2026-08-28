@@ -83,12 +83,21 @@ struct SkillBatchUpdateView: View {
             }
                 .foregroundStyle(.secondary)
         case .checking:
-            progressText("Checking Skills…")
+            progressText(String(localized: LocalizedStringResource(
+            "Checking Skills…",
+            bundle: SkillsManagerLocalizationResources.bundle
+        )))
         case .executing:
             if model.stopRequested {
-                progressText("Finishing the current Skill before stopping…")
+                progressText(String(localized: LocalizedStringResource(
+            "Finishing the current Skill before stopping…",
+            bundle: SkillsManagerLocalizationResources.bundle
+        )))
             } else {
-                progressText("Updating selected Skills…")
+                progressText(String(localized: LocalizedStringResource(
+            "Updating selected Skills…",
+            bundle: SkillsManagerLocalizationResources.bundle
+        )))
             }
         case .completed:
             Label {
@@ -118,12 +127,12 @@ struct SkillBatchUpdateView: View {
                 value: Double(model.summary.completed),
                 total: Double(max(model.summary.total, 1))
             )
-            Text(verbatim: progressTitleText(title))
+            Text(verbatim: title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(verbatim: progressTitleText(title)))
+        .accessibilityLabel(Text(verbatim: title))
         .accessibilityValue(Text(String(
             localized: LocalizedStringResource(
             "\(model.summary.completed) of \(model.summary.total)",
@@ -228,15 +237,6 @@ struct SkillBatchUpdateView: View {
         }
     }
 
-    private func progressTitleText(_ title: String) -> String {
-        return switch title {
-        case "Checking Skills…": String(localized: "Checking Skills…", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Finishing the current Skill before stopping…":
-            String(localized: "Finishing the current Skill before stopping…", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Updating selected Skills…": String(localized: "Updating selected Skills…", bundle: SkillsManagerLocalizationResources.bundle)
-        default: title
-        }
-    }
 }
 
 private struct SkillBatchUpdateRow: View {
@@ -355,6 +355,7 @@ private struct SkillBatchUpdateRow: View {
         )
     }
 
+    /// presentation.title 已在模型层本地化（#257：视图不再按英文 key 回读）。
     private func titleText(
         for item: SkillBatchUpdateItem,
         presentation: SkillBatchUpdatePresentation.Row
@@ -362,15 +363,7 @@ private struct SkillBatchUpdateRow: View {
         if case .result(let result, _) = item.phase {
             return resultText(result)
         }
-        return switch presentation.title {
-        case "Waiting": String(localized: "Waiting", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Checking": String(localized: "Checking", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Update available": String(localized: "Update available", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Copy decision required": String(localized: "Copy decision required", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Preparing": String(localized: "Preparing", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Updating": String(localized: "Updating", bundle: SkillsManagerLocalizationResources.bundle)
-        default: presentation.title
-        }
+        return presentation.title
     }
 
     private func detailText(
@@ -380,36 +373,7 @@ private struct SkillBatchUpdateRow: View {
         if case .result(_, let detail) = item.phase, detail != nil {
             return detail
         }
-        return switch presentation.detail {
-        case "Reading the local Skill and remote source.":
-            String(localized: "Reading the local Skill and remote source.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "This Skill can be updated safely.":
-            String(localized: "This Skill can be updated safely.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Choose how to handle every modified Copy.":
-            String(localized: "Choose how to handle every modified Copy.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Revalidating the Skill and remote source.":
-            String(localized: "Revalidating the Skill and remote source.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Backing up, replacing, and refreshing distribution.":
-            String(localized: "Backing up, replacing, and refreshing distribution.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "The managed Skill and its distribution are current.":
-            String(localized: "The managed Skill and its distribution are current.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "No update was required.":
-            String(localized: "No update was required.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "The parent Skill was updated and local changes are independent.":
-            String(localized: "The parent Skill was updated and local changes are independent.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Recheck after resolving local or remote changes.":
-            String(localized: "Recheck after resolving local or remote changes.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "This available update was not selected.":
-            String(localized: "This available update was not selected.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "No update was started for this Skill.":
-            String(localized: "No update was started for this Skill.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "The operation did not complete.":
-            String(localized: "The operation did not complete.", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Review this Skill before trying again.":
-            String(localized: "Review this Skill before trying again.", bundle: SkillsManagerLocalizationResources.bundle)
-        default:
-            presentation.detail
-        }
+        return presentation.detail
     }
 
     private func accessibilityValue(for item: SkillBatchUpdateItem) -> String {
