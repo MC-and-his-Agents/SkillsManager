@@ -18,7 +18,7 @@ struct SkillRowView: View {
         case .managed:
             String(localized: "Managed", bundle: SkillsManagerLocalizationResources.bundle)
         case .needsRepair:
-            String(localized: "Needs Attention", bundle: SkillsManagerLocalizationResources.bundle)
+            String(localized: "Needs Repair", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 
