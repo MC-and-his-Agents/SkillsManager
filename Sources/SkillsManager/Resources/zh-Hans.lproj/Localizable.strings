@@ -56,6 +56,8 @@
 	<string>%1$@: %2$lld</string>
 	<key>%lld Skills</key>
 	<string>%lld 个技能</string>
+	<key>%lld active</key>
+	<string>%lld 项激活</string>
 	<key>%lld candidates available</key>
 	<string>%lld 个候选项可用</string>
 	<key>%lld candidates available · %lld selected</key>
@@ -96,10 +98,6 @@
 	<string>批量更新已在运行。</string>
 	<key>A blocking library diagnostic prevents changes.</key>
 	<string>托管库诊断阻止了更改。</string>
-	<key>Library diagnostics</key>
-	<string>托管库诊断</string>
-	<key>View diagnostics…</key>
-	<string>查看诊断…</string>
 	<key>A deletion operation is already in progress.</key>
 	<string>删除操作已在进行中。</string>
 	<key>A deletion operation is still in progress.</key>
@@ -716,6 +714,8 @@
 	<string>旧版归档已更改</string>
 	<key>Legacy migration blocked</key>
 	<string>旧版迁移受阻</string>
+	<key>Library diagnostics</key>
+	<string>托管库诊断</string>
 	<key>Library unavailable</key>
 	<string>托管库不可用</string>
 	<key>Load More</key>
@@ -1896,6 +1896,8 @@
 	<string>v%@ · %@ · 标签：%@</string>
 	<key>Version bump</key>
 	<string>版本变更</string>
+	<key>View diagnostics…</key>
+	<string>查看诊断…</string>
 	<key>Wait for the current operation, then refresh.</key>
 	<string>等待当前操作完成，然后刷新。</string>
 	<key>Waiting</key>
