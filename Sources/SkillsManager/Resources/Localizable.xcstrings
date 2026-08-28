@@ -1601,6 +1601,23 @@
         }
       }
     },
+    "A batch import is already running.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批量导入已在进行中。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A batch import is already running."
+          }
+        }
+      }
+    },
     "Batch Import": {
       "extractionState": "manual",
       "localizations": {

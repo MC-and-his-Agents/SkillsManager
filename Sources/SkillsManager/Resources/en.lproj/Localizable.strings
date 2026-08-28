@@ -248,6 +248,8 @@
 	<string>Backups unavailable</string>
 	<key>Based on %@</key>
 	<string>Based on %@</string>
+	<key>A batch import is already running.</key>
+	<string>A batch import is already running.</string>
 	<key>Batch Import</key>
 	<string>Batch Import</string>
 	<key>Batch Import discovered Skills</key>
