@@ -464,6 +464,8 @@
 	<string>Default branch</string>
 	<key>Delete</key>
 	<string>Delete</string>
+	<key>Delete Skill</key>
+	<string>Delete Skill</string>
 	<key>Delete from Skills Manager?</key>
 	<string>Delete from Skills Manager?</string>
 	<key>Deleting a managed Skill creates a verified backup here.</key>
