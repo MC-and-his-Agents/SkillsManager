@@ -92,6 +92,7 @@ struct SkillMarkdownView: View {
                         Image(systemName: "globe")
                     }
                     .help(Text("Open on ClawHub", bundle: SkillsManagerLocalizationResources.bundle))
+                    .accessibilityLabel(Text("Open on ClawHub", bundle: SkillsManagerLocalizationResources.bundle))
                 }
             }
         }

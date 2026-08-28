@@ -27,7 +27,7 @@ struct HarnessSkillRootSettingsView: View {
             if let errorMessage {
                 Text(errorMessage)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(SkillStatusPalette.warning)
             }
             HStack {
                 Spacer()

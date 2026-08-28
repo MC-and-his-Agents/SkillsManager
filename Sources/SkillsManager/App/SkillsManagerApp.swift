@@ -120,7 +120,7 @@ struct SkillsManagerApp: App {
                 Button {
                     appDelegate.checkForUpdates()
                 } label: {
-                    Text("Check for Updates…", bundle: SkillsManagerLocalizationResources.bundle)
+                    Text("Check for App Updates…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 .keyboardShortcut("u", modifiers: [.command, .option])
                 Button {

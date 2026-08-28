@@ -58,6 +58,25 @@ struct PublishSkillSheet: View {
                         )
                 }
 
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Tags", bundle: SkillsManagerLocalizationResources.bundle)
+                        .font(.subheadline.weight(.semibold))
+                    TextField("latest", text: $tags)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel(Text("Tags", bundle: SkillsManagerLocalizationResources.bundle))
+                    Text("Separate multiple tags with commas.", bundle: SkillsManagerLocalizationResources.bundle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                LabeledContent {
+                    Text(verbatim: publishSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } label: {
+                    Text("Publish summary", bundle: SkillsManagerLocalizationResources.bundle)
+                }
+
             }
 
             Spacer()
@@ -92,6 +111,20 @@ struct PublishSkillSheet: View {
                 Text("Unable to publish this skill.", bundle: SkillsManagerLocalizationResources.bundle)
             }
         }
+    }
+
+    private var publishSummary: String {
+        let tagList = tags
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let tagsText = tagList.isEmpty ? "—" : tagList.joined(separator: ", ")
+        return String(
+            localized: LocalizedStringResource(
+                "v\(nextVersion) · \(bumpText(bump)) · tags: \(tagsText)",
+                bundle: SkillsManagerLocalizationResources.bundle
+            )
+        )
     }
 
     private func publishSkill() async {
