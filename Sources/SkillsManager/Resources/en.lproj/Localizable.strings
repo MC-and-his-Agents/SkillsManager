@@ -818,8 +818,6 @@
 	<string>Mode</string>
 	<key>More than one Skill uses this name in the same scope.</key>
 	<string>More than one Skill uses this name in the same scope.</string>
-	<key>Needs Attention</key>
-	<string>Needs Attention</string>
 	<key>Needs Import</key>
 	<string>Needs Import</string>
 	<key>Needs Repair</key>
