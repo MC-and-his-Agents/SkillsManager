@@ -818,8 +818,6 @@
 	<string>模式</string>
 	<key>More than one Skill uses this name in the same scope.</key>
 	<string>同一作用域中有多个 Skill 使用此名称。</string>
-	<key>Needs Attention</key>
-	<string>需要关注</string>
 	<key>Needs Import</key>
 	<string>需要导入</string>
 	<key>Needs Repair</key>
