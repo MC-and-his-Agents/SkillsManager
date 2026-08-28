@@ -42,11 +42,27 @@ struct CustomRepositoryCandidateDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 SkillResultCenterBanner(subject: .repository(candidate.id))
-                Text(verbatim: candidate.displayName).font(.largeTitle.bold())
-                HStack(spacing: 6) {
-                    TagView(localized: "Available", systemImage: "arrow.down.circle")
-                    TagView(localized: "Repository", systemImage: "shippingbox")
-                }
+                SkillDetailPageHeader(
+                    title: candidate.displayName,
+                    tags: {
+                        TagView(localized: "Available", systemImage: "arrow.down.circle")
+                        TagView(localized: "Repository", systemImage: "shippingbox")
+                    },
+                    actions: {
+                        Button {
+                            showingInstall = true
+                        } label: {
+                            Text("Review and Install…", bundle: SkillsManagerLocalizationResources.bundle)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(candidate.distributionSlug == nil)
+                        .accessibilityIdentifier("repository.review-install")
+                        .accessibilityHint(Text(
+                            "Verifies the immutable GitHub source before installation",
+                            bundle: SkillsManagerLocalizationResources.bundle
+                        ))
+                    }
+                )
                 GroupBox {
                     Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                         detailRow("Repository", candidate.repository.repositoryURL.value)
@@ -68,18 +84,6 @@ struct CustomRepositoryCandidateDetailView: View {
                         .foregroundStyle(.orange)
                         .accessibilityElement(children: .combine)
                 }
-                Button {
-                    showingInstall = true
-                } label: {
-                    Text("Review and Install…", bundle: SkillsManagerLocalizationResources.bundle)
-                }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(candidate.distributionSlug == nil)
-                    .accessibilityIdentifier("repository.review-install")
-                    .accessibilityHint(Text(
-                        "Verifies the immutable GitHub source before installation",
-                        bundle: SkillsManagerLocalizationResources.bundle
-                    ))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
