@@ -65,8 +65,7 @@ struct SkillDiscoveryBatchView: View {
                 } label: {
                     Text("Select safe", bundle: SkillsManagerLocalizationResources.bundle)
                 }
-                    .keyboardShortcut("a", modifiers: [.command, .shift])
-                    .disabled(model.availableCandidateCount == 0)
+                        .disabled(model.availableCandidateCount == 0)
                 Button {
                     model.clearSelection()
                 } label: {
