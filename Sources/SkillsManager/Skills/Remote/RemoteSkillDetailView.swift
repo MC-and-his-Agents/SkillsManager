@@ -118,9 +118,7 @@ struct RemoteSkillDetailView: View {
                         bundle: SkillsManagerLocalizationResources.bundle
                     ))
                 }
-                if let statsText = statsText(for: skill) {
-                    TagView(text: statsText)
-                }
+                remoteStatsView(for: skill)
             }
             HStack(spacing: 12) {
                 Button {
@@ -159,11 +157,41 @@ struct RemoteSkillDetailView: View {
         NSWorkspace.shared.open(url)
     }
 
-    private func statsText(for skill: RemoteSkill) -> String? {
+    /// 下载/星标统计：SF Symbols 图标 + 本地化数字，替代此前的
+    /// "⬇ N  ⭐ N" emoji 文本 tag。
+    @ViewBuilder
+    private func remoteStatsView(for skill: RemoteSkill) -> some View {
         let downloads = skill.downloads ?? 0
         let stars = skill.stars ?? 0
-        guard downloads > 0 || stars > 0 else { return nil }
-        return "⬇ \(downloads)  ⭐ \(stars)"
+        if downloads > 0 || stars > 0 {
+            HStack(spacing: 12) {
+                if downloads > 0 {
+                    Label {
+                        Text(String(
+                            localized: LocalizedStringResource(
+                    "\(downloads) downloads",
+                    bundle: SkillsManagerLocalizationResources.bundle
+                )))
+                    } icon: {
+                        Image(systemName: "arrow.down.circle")
+                    }
+                }
+                if stars > 0 {
+                    Label {
+                        Text(String(
+                            localized: LocalizedStringResource(
+                    "\(stars) stars",
+                    bundle: SkillsManagerLocalizationResources.bundle
+                )))
+                    } icon: {
+                        Image(systemName: "star")
+                    }
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .combine)
+        }
     }
 
     private var ownerDisplayName: String? {
