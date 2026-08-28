@@ -54,7 +54,10 @@ struct SkillListEmptyRow: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .accessibilityElement(children: action == nil ? .combine : .contain)
+        // 统一可达性结构：容器以 children: .contain 呈现并携带标题+详情标签，
+        // 操作按钮（如 Retry）始终可被 VoiceOver 单独聚焦与激活，
+        // 不再因有无按钮切换 .combine/.contain 两套树结构。
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(
             [title, message]
                 .compactMap { $0 }
