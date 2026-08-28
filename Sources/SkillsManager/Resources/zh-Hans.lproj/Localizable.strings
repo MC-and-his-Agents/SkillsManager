@@ -96,10 +96,6 @@
 	<string>批量更新已在运行。</string>
 	<key>A blocking library diagnostic prevents changes.</key>
 	<string>托管库诊断阻止了更改。</string>
-	<key>Library diagnostics</key>
-	<string>托管库诊断</string>
-	<key>View diagnostics…</key>
-	<string>查看诊断…</string>
 	<key>A deletion operation is already in progress.</key>
 	<string>删除操作已在进行中。</string>
 	<key>A deletion operation is still in progress.</key>
@@ -220,10 +216,6 @@
 	<string>可用</string>
 	<key>Available action</key>
 	<string>可用操作</string>
-	<key>可用，仓库</key>
-	<string>可用，仓库</string>
-	<key>可用，skills.sh</key>
-	<string>可用，skills.sh</string>
 	<key>Back</key>
 	<string>返回</string>
 	<key>Back up and migrate</key>
@@ -716,14 +708,14 @@
 	<string>旧版归档已更改</string>
 	<key>Legacy migration blocked</key>
 	<string>旧版迁移受阻</string>
+	<key>Library diagnostics</key>
+	<string>托管库诊断</string>
 	<key>Library unavailable</key>
 	<string>托管库不可用</string>
 	<key>Load More</key>
 	<string>加载更多</string>
 	<key>Loading %@</key>
 	<string>正在加载 %@</string>
-	<key>Loading remote Skills</key>
-	<string>正在加载远程 Skill</string>
 	<key>Loading SKILL.md…</key>
 	<string>正在加载 SKILL.md…</string>
 	<key>Loading and validating backups…</key>
@@ -740,6 +732,8 @@
 	<string>正在加载更多 skills.sh 结果</string>
 	<key>Loading reference…</key>
 	<string>正在加载引用…</string>
+	<key>Loading remote Skills</key>
+	<string>正在加载远程 Skill</string>
 	<key>Loading the last update check…</key>
 	<string>正在加载上次更新检查…</string>
 	<key>Loads more ClawHub results</key>
@@ -1896,6 +1890,8 @@
 	<string>v%@ · %@ · 标签：%@</string>
 	<key>Version bump</key>
 	<string>版本变更</string>
+	<key>View diagnostics…</key>
+	<string>查看诊断…</string>
 	<key>Wait for the current operation, then refresh.</key>
 	<string>等待当前操作完成，然后刷新。</string>
 	<key>Waiting</key>
@@ -1940,5 +1936,9 @@
 	<string>请验证 %@，找到一个匹配的 SKILL.md，并将安装固定到不可变的 GitHub 提交。</string>
 	<key>↻ v%@</key>
 	<string>↻ v%@</string>
+	<key>可用，skills.sh</key>
+	<string>可用，skills.sh</string>
+	<key>可用，仓库</key>
+	<string>可用，仓库</string>
 </dict>
 </plist>
