@@ -16,6 +16,10 @@ struct SkillListView: View {
     let onInstallRemoteSkill: (RemoteSkill) -> Void
     @Binding var selection: UnifiedSkillSelection?
 
+    /// 侧栏范围（#247）：全部=现状；本地/远程将通道分离，避免五类内容
+    /// 无限同屏堆叠。默认 .all 保持既有行为与 UI 测试契约。
+    @State private var scope: SidebarScope = .all
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -25,9 +29,12 @@ struct SkillListView: View {
             SkillFilterBar(filters: $filters)
                 .padding(.horizontal, 8)
                 .padding(.bottom, 10)
+            scopePicker
+                .padding(.horizontal, 8)
+                .padding(.bottom, 10)
 
             List(selection: $selection) {
-                if filters.status != .available {
+                if scope != .remote, filters.status != .available {
                     Section {
                         localContent
                     } header: {
@@ -35,7 +42,7 @@ struct SkillListView: View {
                     }
                 }
 
-                if normalizedQuery.isEmpty {
+                if scope != .local, normalizedQuery.isEmpty {
                     if filters.includesRemote(.clawHub) {
                         Section {
                             clawHubLatestContent
@@ -43,7 +50,7 @@ struct SkillListView: View {
                             Text("ClawHub Latest Drops", bundle: SkillsManagerLocalizationResources.bundle)
                         }
                     }
-                } else {
+                } else if scope != .local {
                     if filters.includesRemote(.clawHub) {
                         Section {
                             clawHubSearchContent
@@ -60,7 +67,7 @@ struct SkillListView: View {
                     }
                 }
 
-                if filters.includesRemote(.repository) {
+                if scope != .local, filters.includesRemote(.repository) {
                     Section {
                         repositoryContent
                     } header: {
@@ -134,7 +141,31 @@ struct SkillListView: View {
                 + (filters.includesRemote(.skillsSh)
                     && skillsShStore.searchState == .loaded ? skillsShStore.items.count : 0)
         }
-        return localSkills.count + discoveryItems.count + repositoryCandidates.count + remoteCount
+        var total = 0
+        if scope != .remote {
+            total += localSkills.count + discoveryItems.count
+        }
+        if scope != .local {
+            total += repositoryCandidates.count + remoteCount
+        }
+        return total
+    }
+
+    enum SidebarScope: Hashable {
+        case all, local, remote
+    }
+
+    private var scopePicker: some View {
+        Picker(selection: $scope) {
+            Text("All", bundle: SkillsManagerLocalizationResources.bundle).tag(SidebarScope.all)
+            Text("Local", bundle: SkillsManagerLocalizationResources.bundle).tag(SidebarScope.local)
+            Text("Remote", bundle: SkillsManagerLocalizationResources.bundle).tag(SidebarScope.remote)
+        } label: {
+            Text("Scope", bundle: SkillsManagerLocalizationResources.bundle)
+        }
+        .pickerStyle(.segmented)
+        .controlSize(.small)
+        .accessibilityIdentifier("skills.scope")
     }
 
     private var header: some View {

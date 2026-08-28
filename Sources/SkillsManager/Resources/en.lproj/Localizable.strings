@@ -96,10 +96,6 @@
 	<string>A batch update is already running.</string>
 	<key>A blocking library diagnostic prevents changes.</key>
 	<string>A blocking library diagnostic prevents changes.</string>
-	<key>Library diagnostics</key>
-	<string>Library diagnostics</string>
-	<key>View diagnostics…</key>
-	<string>View diagnostics…</string>
 	<key>A deletion operation is already in progress.</key>
 	<string>A deletion operation is already in progress.</string>
 	<key>A deletion operation is still in progress.</key>
@@ -716,14 +712,14 @@
 	<string>Legacy archive changed</string>
 	<key>Legacy migration blocked</key>
 	<string>Legacy migration blocked</string>
+	<key>Library diagnostics</key>
+	<string>Library diagnostics</string>
 	<key>Library unavailable</key>
 	<string>Library unavailable</string>
 	<key>Load More</key>
 	<string>Load More</string>
 	<key>Loading %@</key>
 	<string>Loading %@</string>
-	<key>Loading remote Skills</key>
-	<string>Loading remote Skills</string>
 	<key>Loading SKILL.md…</key>
 	<string>Loading SKILL.md…</string>
 	<key>Loading and validating backups…</key>
@@ -740,6 +736,8 @@
 	<string>Loading more skills.sh results</string>
 	<key>Loading reference…</key>
 	<string>Loading reference…</string>
+	<key>Loading remote Skills</key>
+	<string>Loading remote Skills</string>
 	<key>Loading the last update check…</key>
 	<string>Loading the last update check…</string>
 	<key>Loads more ClawHub results</key>
@@ -1896,6 +1894,8 @@
 	<string>v%@ · %@ · tags: %@</string>
 	<key>Version bump</key>
 	<string>Version bump</string>
+	<key>View diagnostics…</key>
+	<string>View diagnostics…</string>
 	<key>Wait for the current operation, then refresh.</key>
 	<string>Wait for the current operation, then refresh.</string>
 	<key>Waiting</key>
