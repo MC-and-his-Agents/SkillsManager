@@ -18,7 +18,7 @@ struct SkillListRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: data.title)
-                    .font(.headline)
+                    .font(.body.weight(.medium))
                     .lineLimit(1)
                 Text(verbatim: data.detail)
                     .font(.caption)

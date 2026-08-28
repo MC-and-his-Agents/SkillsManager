@@ -318,6 +318,8 @@ struct SkillListView: View {
             } label: {
                 Text("Load More", bundle: SkillsManagerLocalizationResources.bundle)
             }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("clawhub.load-more")
                 .accessibilityHint(Text("Loads more ClawHub results", bundle: SkillsManagerLocalizationResources.bundle))
@@ -361,6 +363,8 @@ struct SkillListView: View {
             } label: {
                 Text("Load More", bundle: SkillsManagerLocalizationResources.bundle)
             }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("skills-sh.load-more")
                 .accessibilityHint(Text("Loads more skills.sh results", bundle: SkillsManagerLocalizationResources.bundle))

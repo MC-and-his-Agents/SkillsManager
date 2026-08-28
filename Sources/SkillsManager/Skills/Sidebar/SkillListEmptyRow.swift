@@ -32,7 +32,7 @@ struct SkillListEmptyRow: View {
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.title3)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             Text(verbatim: title)
