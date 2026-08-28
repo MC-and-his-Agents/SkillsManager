@@ -248,6 +248,8 @@
 	<string>备份不可用</string>
 	<key>Based on %@</key>
 	<string>基于 %@</string>
+	<key>A batch import is already running.</key>
+	<string>批量导入已在进行中。</string>
 	<key>Batch Import</key>
 	<string>批量导入</string>
 	<key>Batch Import discovered Skills</key>
@@ -304,12 +306,14 @@
 	<string>检查更新…</string>
 	<key>Check managed Skills, review every conflict, then update selected items.</key>
 	<string>检查已管理的 Skill，审查所有冲突，然后更新选定项目。</string>
-	<key>Check now</key>
-	<string>立即检查</string>
 	<key>Checking</key>
 	<string>正在检查</string>
 	<key>Checking ClawHub status…</key>
 	<string>正在检查 ClawHub 状态…</string>
+	<key>Checking for updates…</key>
+	<string>正在检查更新…</string>
+	<key>Updating…</key>
+	<string>正在更新…</string>
 	<key>Checking Skills…</key>
 	<string>正在检查 Skill…</string>
 	<key>Checking for updates</key>
@@ -478,8 +482,6 @@
 	<string>删除 Skill</string>
 	<key>Delete from Skills Manager?</key>
 	<string>从 Skills Manager 删除？</string>
-	<key>Delete from Skills Manager…</key>
-	<string>从 Skills Manager 删除…</string>
 	<key>Deleting a managed Skill creates a verified backup here.</key>
 	<string>删除托管 Skill 会在此创建已验证备份。</string>
 	<key>Deletion did not complete. The active Skill was restored to its prior state.</key>

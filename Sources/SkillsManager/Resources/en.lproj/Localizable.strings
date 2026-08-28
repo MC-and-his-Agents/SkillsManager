@@ -248,6 +248,8 @@
 	<string>Backups unavailable</string>
 	<key>Based on %@</key>
 	<string>Based on %@</string>
+	<key>A batch import is already running.</key>
+	<string>A batch import is already running.</string>
 	<key>Batch Import</key>
 	<string>Batch Import</string>
 	<key>Batch Import discovered Skills</key>
@@ -304,12 +306,14 @@
 	<string>Check for Updates…</string>
 	<key>Check managed Skills, review every conflict, then update selected items.</key>
 	<string>Check managed Skills, review every conflict, then update selected items.</string>
-	<key>Check now</key>
-	<string>Check now</string>
 	<key>Checking</key>
 	<string>Checking</string>
 	<key>Checking ClawHub status…</key>
 	<string>Checking ClawHub status…</string>
+	<key>Checking for updates…</key>
+	<string>Checking for updates…</string>
+	<key>Updating…</key>
+	<string>Updating…</string>
 	<key>Checking Skills…</key>
 	<string>Checking Skills…</string>
 	<key>Checking for updates</key>
@@ -478,8 +482,6 @@
 	<string>Delete Skill</string>
 	<key>Delete from Skills Manager?</key>
 	<string>Delete from Skills Manager?</string>
-	<key>Delete from Skills Manager…</key>
-	<string>Delete from Skills Manager…</string>
 	<key>Deleting a managed Skill creates a verified backup here.</key>
 	<string>Deleting a managed Skill creates a verified backup here.</string>
 	<key>Deletion did not complete. The active Skill was restored to its prior state.</key>
