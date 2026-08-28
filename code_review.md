@@ -76,3 +76,9 @@
 - `allow` 不等于可以合并；还需当前 head 的 required checks、分支保护和 mergeability 通过。
 - 合并后仍须核对 merge commit、Issue 状态、目标分支、发布或 no-release 证据，并安全清理 branch/worktree。
 - 不以 repo-local review、current、progress、shadow 或 closeout 文件替代 GitHub 与当前 head 事实。
+
+## 本地化规约（#257）
+
+- 禁止"先写死英文、再按英文 switch 回读翻译"的伪本地化写法；模型层必须携带枚举/结构化文案或在构造处 `String(localized:)`，视图只消费已本地化/可本地化的值。
+- 新增用户可见文案必须同时登记 `Localizable.xcstrings` 与 `en/zh-Hans .strings` 镜像，并通过 `Scripts/validate_localization.sh`。
+- App 域 SwiftUI 字面量（Text/Button/Label/GroupBox/ProgressView/navigationTitle/navigationSubtitle/help/accessibility*）必须经 `SkillsManagerLocalizationResources.bundle` 解析。

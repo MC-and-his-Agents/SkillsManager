@@ -47,7 +47,10 @@ struct SkillDiscoveryBatchView: View {
         case .selecting:
             selectionContent
         case .preparing:
-            progressContent("Preparing secure previews…")
+            progressContent(String(
+                localized: "Preparing secure previews…",
+                bundle: SkillsManagerLocalizationResources.bundle
+            ))
         case .ready:
             previewContent
         case .executing:
@@ -117,7 +120,7 @@ struct SkillDiscoveryBatchView: View {
                         .font(.caption)
                         .foregroundStyle(candidate.observation.status.tint)
                     if let reason = candidate.selectionBlockReason {
-                        Text(selectionBlockReasonText(reason))
+                        Text(verbatim: reason)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else if let reason = candidate.observation.reason {
@@ -239,7 +242,10 @@ struct SkillDiscoveryBatchView: View {
 
     private var executionContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            progressContent("Importing selected Skills…")
+            progressContent(String(
+                localized: "Importing selected Skills…",
+                bundle: SkillsManagerLocalizationResources.bundle
+            ))
             List(model.resultItems) { result in
                 resultRow(result)
             }
@@ -304,12 +310,12 @@ struct SkillDiscoveryBatchView: View {
                 value: Double(model.resultItems.count),
                 total: Double(max(model.preview?.items.count ?? model.selectedCount, 1))
             )
-            Text(verbatim: progressTitleText(title))
+            Text(verbatim: title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(verbatim: progressTitleText(title)))
+        .accessibilityLabel(Text(verbatim: title))
         .accessibilityValue(Text(verbatim: progressAccessibilityValue))
     }
 
@@ -520,20 +526,4 @@ struct SkillDiscoveryBatchView: View {
         }
     }
 
-    private func selectionBlockReasonText(_ reason: String) -> String {
-        switch reason {
-        case "Verified locations disagree about the managed Skill identity.":
-            return String(localized: "Verified locations disagree about the managed Skill identity.", bundle: SkillsManagerLocalizationResources.bundle)
-        default:
-            return reason
-        }
-    }
-
-    private func progressTitleText(_ title: String) -> String {
-        return switch title {
-        case "Preparing secure previews…": String(localized: "Preparing secure previews…", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Importing selected Skills…": String(localized: "Importing selected Skills…", bundle: SkillsManagerLocalizationResources.bundle)
-        default: title
-        }
-    }
 }

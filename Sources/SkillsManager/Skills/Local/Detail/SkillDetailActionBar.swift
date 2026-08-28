@@ -14,15 +14,15 @@ struct SkillDetailActionBar: View {
         SkillDetailActionBarContent(
             badge: SkillActionBarBadge(
                 title: skill.managedStatus == .needsRepair
-                    ? "Needs Attention"
-                    : "Managed",
+                    ? String(localized: "Needs Repair", bundle: SkillsManagerLocalizationResources.bundle)
+                    : String(localized: "Managed", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: skill.managedStatus == .needsRepair
                     ? "exclamationmark.triangle.fill"
                     : "checkmark.seal.fill",
                 tint: skill.managedStatus == .needsRepair ? SkillStatusPalette.warning : SkillStatusPalette.healthy,
                 accessibilityValue: skill.managedStatus == .needsRepair
-                    ? "Managed Skill needs repair"
-                    : "Managed and in sync"
+                    ? String(localized: "Managed Skill needs repair", bundle: SkillsManagerLocalizationResources.bundle)
+                    : String(localized: "Managed and in sync", bundle: SkillsManagerLocalizationResources.bundle)
             ),
             sourceLabels: skill.listOrigin.labels,
             finderURL: skill.folderURL,
@@ -44,10 +44,10 @@ struct SkillDiscoveryActionBar: View {
     var body: some View {
         SkillDetailActionBarContent(
             badge: SkillActionBarBadge(
-                title: "Managed",
+                title: String(localized: "Managed", bundle: SkillsManagerLocalizationResources.bundle),
                 systemImage: "checkmark.seal.fill",
                 tint: SkillStatusPalette.healthy,
-                accessibilityValue: "Matches an existing managed Skill"
+                accessibilityValue: String(localized: "Matches an existing managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
             ),
             sourceLabels: observation.listOrigin.labels,
             finderURL: observation.displayURLs.first,
@@ -112,16 +112,16 @@ private struct SkillDetailActionBarContent: View {
         HStack(spacing: 6) {
             Image(systemName: badge.systemImage)
                 .foregroundStyle(badge.tint)
-            Text(verbatim: badgeText(badge.title))
+            Text(verbatim: badge.title)
         }
         .font(.callout.weight(.semibold))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(String(
             localized: LocalizedStringResource(
-            "Status: \(badgeText(badge.title))",
+            "Status: \(badge.title)",
             bundle: SkillsManagerLocalizationResources.bundle
         ))))
-        .accessibilityValue(Text(verbatim: badgeAccessibilityText(badge.accessibilityValue)))
+        .accessibilityValue(Text(verbatim: badge.accessibilityValue))
         .accessibilityIdentifier("skills.detail.badge")
     }
 
@@ -354,30 +354,6 @@ private struct SkillDetailActionBarContent: View {
             return false
         }
         return preview.status == .ready && preview.token != nil
-    }
-
-    private func badgeText(_ value: String) -> String {
-        switch value {
-        case "Managed":
-            String(localized: "Managed", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Needs Attention":
-            String(localized: "Needs Attention", bundle: SkillsManagerLocalizationResources.bundle)
-        default:
-            value
-        }
-    }
-
-    private func badgeAccessibilityText(_ value: String) -> String {
-        switch value {
-        case "Managed and in sync":
-            String(localized: "Managed and in sync", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Managed Skill needs repair":
-            String(localized: "Managed Skill needs repair", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Matches an existing managed Skill":
-            String(localized: "Matches an existing managed Skill", bundle: SkillsManagerLocalizationResources.bundle)
-        default:
-            value
-        }
     }
 
     private func sourceText(_ label: SkillListSourceLabel) -> String {

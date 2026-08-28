@@ -91,23 +91,13 @@ struct CustomRepositoryCandidateDetailView: View {
         }
     }
 
-    private func detailRow(_ title: String, _ value: String) -> some View {
+    private func detailRow(_ title: LocalizedStringResource, _ value: String) -> some View {
         GridRow {
-            localizedDetailTitle(title).foregroundStyle(.secondary)
+            Text(title).foregroundStyle(.secondary)
             Text(verbatim: value)
                 .font(.callout.monospaced())
                 .textSelection(.enabled)
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private func localizedDetailTitle(_ title: String) -> Text {
-        switch title {
-        case "Repository": Text("Repository", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Subpath": Text("Subpath", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Revision": Text("Revision", bundle: SkillsManagerLocalizationResources.bundle)
-        case "Target slug": Text("Target slug", bundle: SkillsManagerLocalizationResources.bundle)
-        default: Text(verbatim: title)
-        }
     }
 }
