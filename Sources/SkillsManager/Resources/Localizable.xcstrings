@@ -1023,23 +1023,6 @@
         }
       }
     },
-    "All skills will be added automatically.": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "所有 Skill 将自动添加。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All skills will be added automatically."
-          }
-        }
-      }
-    },
     "Already managed": {
       "extractionState": "manual",
       "localizations": {
@@ -2332,6 +2315,91 @@
         }
       }
     },
+    "Current: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前：%@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current: %@"
+          }
+        }
+      }
+    },
+    "Harness Skill Roots": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Harness Skill 根目录"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Harness Skill Roots"
+          }
+        }
+      }
+    },
+    "Harness Skill Roots…": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Harness Skill 根目录…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Harness Skill Roots…"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        }
+      }
+    },
+    "Choose the directory each harness actually uses. Environment values are hints until you confirm them.": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择每个 Harness 实际使用的目录。在你确认之前，环境变量值仅作为提示。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the directory each harness actually uses. Environment values are hints until you confirm them."
+          }
+        }
+      }
+    },
     "Claude Code": {
       "extractionState": "manual",
       "localizations": {
@@ -3195,6 +3263,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "Damaged"
+          }
+        }
+      }
+    },
+    "New: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增：%@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New: %@"
+          }
+        }
+      }
+    },
+    "Ref: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "引用：%@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ref: %@"
+          }
+        }
+      }
+    },
+    "Resolved: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已解析：%@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolved: %@"
           }
         }
       }
@@ -9387,23 +9506,6 @@
         }
       }
     },
-    "Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择项目文件夹。系统将从平台目录自动发现 Skill（例如 .claude/skills、.codex/skills、.codex/skills/public）。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public)."
-          }
-        }
-      }
-    },
     "Select a skill": {
       "extractionState": "manual",
       "localizations": {
@@ -13896,7 +13998,6 @@
     "This Skill is already being prepared or updated.": {"extractionState":"manual","localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"此 Skill 已在准备或更新中。"}},"en":{"stringUnit":{"state":"translated","value":"This Skill is already being prepared or updated."}}}},
     "Update checking is unavailable for this Skill.": {"extractionState":"manual","localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"此 Skill 的更新检查不可用。"}},"en":{"stringUnit":{"state":"translated","value":"Update checking is unavailable for this Skill."}}}},
     "Updating is unavailable for this Skill.": {"extractionState":"manual","localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"此 Skill 的更新不可用。"}},"en":{"stringUnit":{"state":"translated","value":"Updating is unavailable for this Skill."}}}},
-    "No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.": {"extractionState":"manual","localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"未找到有效 Skill。请检查报告的扫描问题，并确保每个 Skill 都有可读取的 SKILL.md。"}},"en":{"stringUnit":{"state":"translated","value":"No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md."}}}},
     "The selected directory does not exist.": {"extractionState":"manual","localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"所选目录不存在。"}},"en":{"stringUnit":{"state":"translated","value":"The selected directory does not exist."}}}},
     "This path has already been added.": {"extractionState":"manual","localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"此路径已添加。"}},"en":{"stringUnit":{"state":"translated","value":"This path has already been added."}}}},
     "Another import operation is already in progress.": {"extractionState":"manual","localizations":{"zh-Hans":{"stringUnit":{"state":"translated","value":"另一个导入操作正在进行中。"}},"en":{"stringUnit":{"state":"translated","value":"Another import operation is already in progress."}}}},

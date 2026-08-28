@@ -174,8 +174,6 @@
 	<string>All Statuses</string>
 	<key>All compatible Agents</key>
 	<string>All compatible Agents</string>
-	<key>All skills will be added automatically.</key>
-	<string>All skills will be added automatically.</string>
 	<key>Already managed</key>
 	<string>Already managed</string>
 	<key>Already up to date</key>
@@ -340,6 +338,16 @@
 	<string>Claimed; existing bindings preserved</string>
 	<key>Claude</key>
 	<string>Claude</string>
+	<key>Current: %@</key>
+	<string>Current: %@</string>
+	<key>Harness Skill Roots</key>
+	<string>Harness Skill Roots</string>
+	<key>Harness Skill Roots…</key>
+	<string>Harness Skill Roots…</string>
+	<key>Reset</key>
+	<string>Reset</string>
+	<key>Choose the directory each harness actually uses. Environment values are hints until you confirm them.</key>
+	<string>Choose the directory each harness actually uses. Environment values are hints until you confirm them.</string>
 	<key>Claude Code</key>
 	<string>Claude Code</string>
 	<key>ClawHub</key>
@@ -460,6 +468,12 @@
 	<string>Database missing</string>
 	<key>Database schema mismatch</key>
 	<string>Database schema mismatch</string>
+	<key>New: %@</key>
+	<string>New: %@</string>
+	<key>Ref: %@</key>
+	<string>Ref: %@</string>
+	<key>Resolved: %@</key>
+	<string>Resolved: %@</string>
 	<key>Default branch</key>
 	<string>Default branch</string>
 	<key>Delete</key>
@@ -894,8 +908,6 @@
 	<string>No usable discovery result</string>
 	<key>No valid Skill candidates found. Check the actual scan roots and reported diagnostics.</key>
 	<string>No valid Skill candidates found. Check the actual scan roots and reported diagnostics.</string>
-	<key>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</key>
-	<string>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</string>
 	<key>None will be created</key>
 	<string>None will be created</string>
 	<key>Not configured</key>
@@ -1276,8 +1288,6 @@
 	<string>Select a project folder</string>
 	<key>Select a project folder or a direct Skill collection root. Project roots use known platform subpaths; collection roots scan direct Skill children.</key>
 	<string>Select a project folder or a direct Skill collection root. Project roots use known platform subpaths; collection roots scan direct Skill children.</string>
-	<key>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</key>
-	<string>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</string>
 	<key>Select a skill</key>
 	<string>Select a skill</string>
 	<key>Select at least one Agent.</key>

@@ -15,9 +15,9 @@ struct HarnessSkillRootSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Harness Skill Roots")
+            Text("Harness Skill Roots", bundle: SkillsManagerLocalizationResources.bundle)
                 .font(.title.bold())
-            Text("Choose the directory each harness actually uses. Environment values are hints until you confirm them.")
+            Text("Choose the directory each harness actually uses. Environment values are hints until you confirm them.", bundle: SkillsManagerLocalizationResources.bundle)
                 .foregroundStyle(.secondary)
             Form {
                 ForEach(SkillPlatform.allCases) { platform in
@@ -31,7 +31,11 @@ struct HarnessSkillRootSettingsView: View {
             }
             HStack {
                 Spacer()
-                Button("Done") { dismiss() }
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Done", bundle: SkillsManagerLocalizationResources.bundle)
+                }
                     .keyboardShortcut(.cancelAction)
             }
         }
@@ -69,11 +73,11 @@ struct HarnessSkillRootSettingsView: View {
                     .foregroundStyle(resolution?.isUsable == true ? Color.secondary : Color.orange)
             }
             if let pending = pendingURLs[platform] {
-                Text("Current: \(resolution?.registeredURL.path ?? "—")")
+                Text("Current: \(resolution?.registeredURL.path ?? "—")", bundle: SkillsManagerLocalizationResources.bundle)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
-                Text("New: \(pending.path)")
+                Text("New: \(pending.path)", bundle: SkillsManagerLocalizationResources.bundle)
                     .font(.caption)
                     .textSelection(.enabled)
             } else {
@@ -83,7 +87,7 @@ struct HarnessSkillRootSettingsView: View {
             }
             if let canonical = resolution?.canonicalURL,
                canonical.path != resolution?.registeredURL.path {
-                Text("Resolved: \(canonical.path)")
+                Text("Resolved: \(canonical.path)", bundle: SkillsManagerLocalizationResources.bundle)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -91,18 +95,26 @@ struct HarnessSkillRootSettingsView: View {
                 Text(diagnostic).font(.caption2).foregroundStyle(.secondary)
             }
             HStack {
-                Button("Choose…") {
+                Button {
                     pickerPlatform = platform
+                } label: {
+                    Text("Choose…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
                 if pendingURLs[platform] != nil || resolution?.status == .environmentHint {
-                    Button("Confirm") { confirm(platform) }
+                    Button {
+                        confirm(platform)
+                    } label: {
+                        Text("Confirm", bundle: SkillsManagerLocalizationResources.bundle)
+                    }
                         .buttonStyle(.borderedProminent)
                 }
                 if resolution?.isConfigured == true {
-                    Button("Reset") {
+                    Button {
                         store.remove(platform: platform)
                         pendingURLs[platform] = nil
                         reload()
+                    } label: {
+                        Text("Reset", bundle: SkillsManagerLocalizationResources.bundle)
                     }
                 }
             }

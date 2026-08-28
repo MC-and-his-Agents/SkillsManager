@@ -126,7 +126,7 @@ struct SkillsManagerApp: App {
                 Button {
                     openWindow(id: "harness-roots")
                 } label: {
-                    Text("Harness Skill Roots…")
+                    Text("Harness Skill Roots…", bundle: SkillsManagerLocalizationResources.bundle)
                 }
             }
         }
