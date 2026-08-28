@@ -77,6 +77,7 @@ struct SkillDetailFeedbackBanner: View {
         let text: String
         let systemImage: String
         let tint: Color
+        let isFailure: Bool
     }
 
     private var feedback: Feedback? {
@@ -84,52 +85,58 @@ struct SkillDetailFeedbackBanner: View {
             return Feedback(
                 text: problem.message,
                 systemImage: "exclamationmark.triangle.fill",
-                tint: .orange
+                tint: .orange,
+                isFailure: true
             )
         }
         if let problem = distributionModel.problem {
             return Feedback(
                 text: problem.message,
                 systemImage: "exclamationmark.triangle.fill",
-                tint: .orange
+                tint: .orange,
+                isFailure: true
             )
         }
         if let problem = updateCheckModel.updateProblem {
             return Feedback(
                 text: localizedManagedSkillUpdateExecutionProblem(problem),
                 systemImage: "exclamationmark.triangle.fill",
-                tint: .orange
+                tint: .orange,
+                isFailure: true
             )
         }
         if let message = discoveryModel.importErrorMessage {
             return Feedback(
                 text: message,
                 systemImage: "exclamationmark.triangle.fill",
-                tint: .orange
+                tint: .orange,
+                isFailure: true
             )
         }
         if let message = extraErrorMessage {
             return Feedback(
                 text: message,
                 systemImage: "exclamationmark.triangle.fill",
-                tint: .orange
+                tint: .orange,
+                isFailure: true
             )
         }
         if let result = updateCheckModel.updateResult {
             return Feedback(
                 text: result.displayName,
                 systemImage: result.systemImage,
-                tint: result.requiresAttention ? .orange : .green
+                tint: result.requiresAttention ? .orange : .green,
+                isFailure: result.requiresAttention
             )
         }
         if let message = lifecycleModel.successMessage {
-            return Feedback(text: message, systemImage: "checkmark.circle.fill", tint: .green)
+            return Feedback(text: message, systemImage: "checkmark.circle.fill", tint: .green, isFailure: false)
         }
         if let message = distributionModel.successMessage {
-            return Feedback(text: message, systemImage: "checkmark.circle.fill", tint: .green)
+            return Feedback(text: message, systemImage: "checkmark.circle.fill", tint: .green, isFailure: false)
         }
         if let message = discoveryModel.importResultMessage {
-            return Feedback(text: message, systemImage: "checkmark.circle.fill", tint: .green)
+            return Feedback(text: message, systemImage: "checkmark.circle.fill", tint: .green, isFailure: false)
         }
         return nil
     }
@@ -142,7 +149,8 @@ struct SkillDetailFeedbackBanner: View {
                 subject: subject,
                 text: newValue.text,
                 systemImage: newValue.systemImage,
-                tint: newValue.tint
+                tint: newValue.tint,
+                isPersistent: newValue.isFailure
             ))
         }
     }
@@ -155,7 +163,8 @@ extension SkillResultCenter {
             subject: subject,
             text: presentation.message,
             systemImage: presentation.systemImage,
-            tint: result.status.requiresAttention ? .orange : .green
+            tint: result.status.requiresAttention ? .orange : .green,
+            isPersistent: result.status.requiresAttention
         ))
     }
 
@@ -164,7 +173,8 @@ extension SkillResultCenter {
             subject: subject,
             text: message,
             systemImage: "exclamationmark.triangle.fill",
-            tint: .orange
+            tint: .orange,
+            isPersistent: true
         ))
     }
 }

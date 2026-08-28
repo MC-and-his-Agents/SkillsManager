@@ -220,10 +220,10 @@
 	<string>可用</string>
 	<key>Available action</key>
 	<string>可用操作</string>
-	<key>Available, Repository, 0 Agents</key>
-	<string>可用，仓库，0 个 Agent</string>
-	<key>Available, skills.sh, 0 Agents</key>
-	<string>可用，skills.sh，0 个 Agent</string>
+	<key>可用，仓库</key>
+	<string>可用，仓库</string>
+	<key>可用，skills.sh</key>
+	<string>可用，skills.sh</string>
 	<key>Back</key>
 	<string>返回</string>
 	<key>Back up and migrate</key>
@@ -340,6 +340,10 @@
 	<string>已认领；现有绑定已保留</string>
 	<key>Claude</key>
 	<string>Claude</string>
+	<key>%lld downloads</key>
+	<string>下载 %lld 次</string>
+	<key>%lld stars</key>
+	<string>%lld 星标</string>
 	<key>Claude Code</key>
 	<string>Claude Code</string>
 	<key>ClawHub</key>
@@ -572,8 +576,8 @@
 	<string>正在完成当前 Skill，然后停止…</string>
 	<key>Fix permissions</key>
 	<string>修复权限</string>
-	<key>Full Settings…</key>
-	<string>完整设置…</string>
+	<key>Full Distribution Settings…</key>
+	<string>完整分发设置…</string>
 	<key>GitHub</key>
 	<string>GitHub</string>
 	<key>GitHub Copilot</key>
@@ -710,8 +714,10 @@
 	<string>托管库不可用</string>
 	<key>Load More</key>
 	<string>加载更多</string>
-	<key>Loading </key>
-	<string>正在加载 </string>
+	<key>Loading %@</key>
+	<string>正在加载 %@</string>
+	<key>Loading remote Skills</key>
+	<string>正在加载远程 Skill</string>
 	<key>Loading SKILL.md…</key>
 	<string>正在加载 SKILL.md…</string>
 	<key>Loading and validating backups…</key>
