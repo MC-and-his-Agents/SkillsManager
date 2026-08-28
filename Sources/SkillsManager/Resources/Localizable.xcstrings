@@ -5103,6 +5103,23 @@
         }
       }
     },
+    "Loading remote Skills": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载远程 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading remote Skills"
+          }
+        }
+      }
+    },
     "Loading SKILL.md…": {
       "extractionState": "manual",
       "localizations": {
