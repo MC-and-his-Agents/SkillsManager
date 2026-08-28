@@ -434,6 +434,8 @@
 	<string>Copy decisions were saved, but the parent Skill was not updated.</string>
 	<key>Copy decisions were saved; recheck before updating the parent Skill</key>
 	<string>Copy decisions were saved; recheck before updating the parent Skill</string>
+	<key>Custom Path Options</key>
+	<string>Custom Path Options</string>
 	<key>Copy login command</key>
 	<string>Copy login command</string>
 	<key>Copy target has local changes</key>
