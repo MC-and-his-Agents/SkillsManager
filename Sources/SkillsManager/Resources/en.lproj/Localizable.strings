@@ -708,8 +708,8 @@
 	<string>Library unavailable</string>
 	<key>Load More</key>
 	<string>Load More</string>
-	<key>Loading </key>
-	<string>Loading </string>
+	<key>Loading %@</key>
+	<string>Loading %@</string>
 	<key>Loading SKILL.md…</key>
 	<string>Loading SKILL.md…</string>
 	<key>Loading and validating backups…</key>

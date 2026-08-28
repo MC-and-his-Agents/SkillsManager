@@ -708,8 +708,8 @@
 	<string>托管库不可用</string>
 	<key>Load More</key>
 	<string>加载更多</string>
-	<key>Loading </key>
-	<string>正在加载 </string>
+	<key>Loading %@</key>
+	<string>正在加载 %@</string>
 	<key>Loading SKILL.md…</key>
 	<string>正在加载 SKILL.md…</string>
 	<key>Loading and validating backups…</key>
