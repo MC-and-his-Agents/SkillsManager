@@ -3250,6 +3250,23 @@
         }
       }
     },
+    "Delete Skill": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除 Skill"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Skill"
+          }
+        }
+      }
+    },
     "Delete from Skills Manager?": {
       "extractionState": "manual",
       "localizations": {
