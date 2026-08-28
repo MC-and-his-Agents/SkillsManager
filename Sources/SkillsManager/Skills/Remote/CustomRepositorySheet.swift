@@ -231,8 +231,10 @@ struct CustomRepositorySheet: View {
 
     private func refLabel(_ ref: CustomRepositoryRef) -> String {
         switch ref {
-        case .defaultBranch: "Default branch"
-        case .explicit(let value): "Ref: \(value)"
+        case .defaultBranch:
+            String(localized: "Default branch", bundle: SkillsManagerLocalizationResources.bundle)
+        case .explicit(let value):
+            String(localized: "Ref: \(value)", bundle: SkillsManagerLocalizationResources.bundle)
         }
     }
 

@@ -174,8 +174,6 @@
 	<string>所有状态</string>
 	<key>All compatible Agents</key>
 	<string>所有兼容的 Agent</string>
-	<key>All skills will be added automatically.</key>
-	<string>所有 Skill 将自动添加。</string>
 	<key>Already managed</key>
 	<string>已托管</string>
 	<key>Already up to date</key>
@@ -340,6 +338,16 @@
 	<string>已认领；现有绑定已保留</string>
 	<key>Claude</key>
 	<string>Claude</string>
+	<key>Current: %@</key>
+	<string>当前：%@</string>
+	<key>Harness Skill Roots</key>
+	<string>Harness Skill 根目录</string>
+	<key>Harness Skill Roots…</key>
+	<string>Harness Skill 根目录…</string>
+	<key>Reset</key>
+	<string>重置</string>
+	<key>Choose the directory each harness actually uses. Environment values are hints until you confirm them.</key>
+	<string>选择每个 Harness 实际使用的目录。在你确认之前，环境变量值仅作为提示。</string>
 	<key>Claude Code</key>
 	<string>Claude Code</string>
 	<key>ClawHub</key>
@@ -460,6 +468,12 @@
 	<string>数据库缺失</string>
 	<key>Database schema mismatch</key>
 	<string>数据库架构不匹配</string>
+	<key>New: %@</key>
+	<string>新增：%@</string>
+	<key>Ref: %@</key>
+	<string>引用：%@</string>
+	<key>Resolved: %@</key>
+	<string>已解析：%@</string>
 	<key>Default branch</key>
 	<string>默认分支</string>
 	<key>Delete</key>
@@ -892,8 +906,6 @@
 	<string>没有可用的发现结果</string>
 	<key>No valid Skill candidates found. Check the actual scan roots and reported diagnostics.</key>
 	<string>未找到有效 Skill 候选项。请检查实际扫描根目录和报告的诊断信息。</string>
-	<key>No valid skills found. Check the reported scan issues and make sure each Skill has a readable SKILL.md.</key>
-	<string>未找到有效 Skill。请检查报告的扫描问题，并确保每个 Skill 都有可读取的 SKILL.md。</string>
 	<key>None will be created</key>
 	<string>不会创建</string>
 	<key>Not configured</key>
@@ -1274,8 +1286,6 @@
 	<string>选择项目文件夹</string>
 	<key>Select a project folder or a direct Skill collection root. Project roots use known platform subpaths; collection roots scan direct Skill children.</key>
 	<string>选择项目文件夹或直接 Skill 集合根目录。项目根目录会扫描已知平台子路径；集合根目录会扫描其直接 Skill 子项。</string>
-	<key>Select a project folder. Skills will be auto-discovered from platform directories (e.g., .claude/skills, .codex/skills, .codex/skills/public).</key>
-	<string>选择项目文件夹。系统将从平台目录自动发现 Skill（例如 .claude/skills、.codex/skills、.codex/skills/public）。</string>
 	<key>Select a skill</key>
 	<string>选择一个 Skill</string>
 	<key>Select at least one Agent.</key>

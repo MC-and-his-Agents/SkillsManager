@@ -12,7 +12,10 @@ import Observation
 
     private var service: ManagedInstallService?
     private var generation: UInt64 = 0
-    private var unavailableMessage = "The managed library session is unavailable."
+    private var unavailableMessage = String(
+            localized: "The managed library session is unavailable.",
+            bundle: SkillsManagerLocalizationResources.bundle
+        )
 
     var isWorking: Bool { isPreparing || isExecuting || isFinalizing }
     var isAvailable: Bool { service != nil }
@@ -25,7 +28,10 @@ import Observation
         preview = nil
         result = nil
         problem = nil
-        unavailableMessage = runtimeMessage ?? "The managed library session is unavailable."
+        unavailableMessage = runtimeMessage ?? String(
+            localized: "The managed library session is unavailable.",
+            bundle: SkillsManagerLocalizationResources.bundle
+        )
         guard let writer else {
             service = nil
             problem = .failed(
