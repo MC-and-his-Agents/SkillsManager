@@ -33,6 +33,9 @@ struct CustomPathSectionHeader: View {
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
+                .help(Text("Custom Path Options", bundle: SkillsManagerLocalizationResources.bundle))
+                .accessibilityLabel(Text("Custom Path Options", bundle: SkillsManagerLocalizationResources.bundle))
+                .accessibilityIdentifier("custom-path.options")
             }
 
             if libraryRuntime.readiness == .blocked {

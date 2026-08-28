@@ -84,13 +84,13 @@ struct SkillsShSearchRow: View {
                     systemImage: "magnifyingglass",
                     knownSource: .skillsSh
                 )],
-            agentCount: 0,
+            agentCount: nil,
             accessibilityLabel: String(
                 localized: LocalizedStringResource(
             "\(item.name), Available, skills.sh, \(item.installs) installs, source \(item.source)",
             bundle: SkillsManagerLocalizationResources.bundle
         )),
-            accessibilityValue: String(localized: "Available, skills.sh, 0 Agents", bundle: SkillsManagerLocalizationResources.bundle)
+            accessibilityValue: String(localized: "Available, skills.sh", bundle: SkillsManagerLocalizationResources.bundle)
         ))
     }
 }
