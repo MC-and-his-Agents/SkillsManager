@@ -20,6 +20,7 @@ struct SkillSplitLifecycleModifier: ViewModifier {
     @Binding var selection: UnifiedSkillSelection?
     @Binding var searchText: String
     @Binding var searchTask: Task<Void, Never>?
+    let includeRemoteInSearch: Bool
 
     func body(content: Content) -> some View {
         content
@@ -137,6 +138,11 @@ struct SkillSplitLifecycleModifier: ViewModifier {
     private func scheduleRemoteSearch(query rawQuery: String) {
         let query = normalizedSkillSearchQuery(rawQuery)
         searchTask?.cancel()
+        guard includeRemoteInSearch else {
+            // 范围=仅本地：不发起任何远程请求，并清掉既有远程结果。
+            searchTask = Task { await clearRemoteSearches() }
+            return
+        }
         searchTask = Task {
             await clearRemoteSearches()
             guard !query.isEmpty else { return }
